@@ -53,6 +53,18 @@ January 2026
 6. `app/(admin)/dpr/_layout.tsx` - DPR stack
 7. `app/(admin)/settings/_layout.tsx` - Settings stack
 
+## Session 3 - Import Fixes
+- Fixed `VersionSelector` import in `app/(admin)/dpr/[id].tsx` (was named import, should be default import)
+- Verified all other imports are correct (contexts, components, constants, services)
+- All files use `EXPO_PUBLIC_BACKEND_URL` environment variable for API calls
+
+## Import Pattern Summary
+- Contexts: `../../contexts/AuthContext`, `../../contexts/ProjectContext`
+- Components: `../../components/ui` (Card, etc.), `../../components/ScreenHeader`
+- Constants: `../../constants/theme` (Colors, Spacing, FontSizes, BorderRadius)
+- Services: `../../services/apiClient` (apiClient, projectsApi, codesApi, usersApi, etc.)
+- Types: `../../types/api`
+
 ## Backlog
 - P1: Add badge indicators for notifications in tab bar
 - P2: Add "forgot password" functionality

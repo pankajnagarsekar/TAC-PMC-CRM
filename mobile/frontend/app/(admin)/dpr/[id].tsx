@@ -26,7 +26,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { apiClient } from '../../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
-import { VersionSelector } from '../../../components/VersionSelector';
+import VersionSelector from '../../../components/VersionSelector';
 
 interface DPRImage {
   image_id: string;
