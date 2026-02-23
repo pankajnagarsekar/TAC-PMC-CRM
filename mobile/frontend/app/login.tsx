@@ -63,39 +63,34 @@ export default function LoginScreen() {
         return;
       }
 
-      // Extract token and role from response
+      // Extract token and user from response
       const token = data.access_token;
       const user = data.user;
-      const role = user?.role || '';
 
       // Save to storage
       if (Platform.OS === 'web') {
         localStorage.setItem('access_token', token);
-        localStorage.setItem('user_role', role);
+        localStorage.setItem('user_role', user.role);
         if (data.refresh_token) {
           localStorage.setItem('refresh_token', data.refresh_token);
         }
-        if (user) {
-          localStorage.setItem('user_data', JSON.stringify(user));
-        }
+        localStorage.setItem('user_data', JSON.stringify(user));
       } else {
         await SecureStore.setItemAsync('access_token', token);
-        await SecureStore.setItemAsync('user_role', role);
+        await SecureStore.setItemAsync('user_role', user.role);
         if (data.refresh_token) {
           await SecureStore.setItemAsync('refresh_token', data.refresh_token);
         }
-        if (user) {
-          await SecureStore.setItemAsync('user_data', JSON.stringify(user));
-        }
+        await SecureStore.setItemAsync('user_data', JSON.stringify(user));
       }
 
       // Redirect based on role
-      if (role === 'admin' || role === 'Admin') {
+      if (user.role === 'Admin') {
         router.replace('/(admin)/dashboard');
-      } else if (role === 'supervisor' || role === 'Supervisor') {
+      } else if (user.role === 'Supervisor') {
         router.replace('/(supervisor)/dashboard');
       } else {
-        // Default redirect
+        // Default redirect for Other roles
         router.replace('/(supervisor)/dashboard');
       }
     } catch (err: any) {

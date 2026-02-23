@@ -38,9 +38,9 @@ export default function Index() {
       }
 
       // Token exists, redirect based on role
-      if (role === 'admin' || role === 'Admin') {
+      if (role === 'Admin') {
         router.replace('/(admin)/dashboard');
-      } else if (role === 'supervisor' || role === 'Supervisor') {
+      } else if (role === 'Supervisor') {
         router.replace('/(supervisor)/dashboard');
       } else {
         // Unknown role, default to login
