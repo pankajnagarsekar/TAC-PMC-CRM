@@ -2,11 +2,10 @@
 // Tabs: Dashboard, DPR, Workers, More
 
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../contexts/AuthContext';
-import { useProject } from '../../contexts/ProjectContext';
 
 const TAB_BAR_BG = '#1E3A5F';
 const ACTIVE_TAB = '#F97316';
@@ -16,25 +15,11 @@ export default function AdminLayout() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Redirect to login if no token
+  // Redirect to login if not authenticated
   useEffect(() => {
-    const checkAuth = async () => {
-      if (isLoading) return;
-      
-      try {
-        const token = await SecureStore.getItemAsync('auth_token');
-        if (!token && !isAuthenticated) {
-          router.replace('/login');
-        }
-      } catch (error) {
-        // SecureStore not available (web), rely on AuthContext
-        if (!isAuthenticated) {
-          router.replace('/login');
-        }
-      }
-    };
-    
-    checkAuth();
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
   }, [isAuthenticated, isLoading]);
 
   return (

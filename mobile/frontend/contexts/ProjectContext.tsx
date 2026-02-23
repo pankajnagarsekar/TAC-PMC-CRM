@@ -60,10 +60,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  if (!isLoaded) {
-    return null; // Or a loading spinner
-  }
-
   return (
     <ProjectContext.Provider
       value={{
