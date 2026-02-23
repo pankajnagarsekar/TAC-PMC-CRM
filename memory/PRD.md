@@ -65,6 +65,35 @@ January 2026
 - Services: `../../services/apiClient` (apiClient, projectsApi, codesApi, usersApi, etc.)
 - Types: `../../types/api`
 
+## Session 4 - Shared DPR Component
+
+### Created: `components/DPRForm.tsx`
+- Shared DPR creation component used by both Admin and Supervisor
+- Voice recording with speech-to-text transcription
+- Photo capture/gallery with collapsible cards
+- Enforces minimum 4 photos with required captions
+- Uses `EXPO_PUBLIC_BACKEND_URL` for API calls
+- Shows loading state during submit
+- PDF download/sharing on success
+
+### Updated: `app/(admin)/dpr/create.tsx`
+- Now uses shared DPRForm component
+- Two-step flow: 1) Select project + optional fields, 2) DPR form
+- Passes extra payload (weather, manpower) to DPRForm
+- Same UI/UX as Supervisor DPR
+
+### Updated: `app/(supervisor)/dpr.tsx`  
+- Now uses shared DPRForm component
+- Gets project from ProjectContext
+- Simplified to ~60 lines
+
+### Key Features (both screens):
+- Voice summary with multi-language transcription
+- Collapsible photo cards with caption validation
+- Min 4 photos required before submit
+- PDF generation and sharing on success
+- Loading/error states
+
 ## Backlog
 - P1: Add badge indicators for notifications in tab bar
 - P2: Add "forgot password" functionality
