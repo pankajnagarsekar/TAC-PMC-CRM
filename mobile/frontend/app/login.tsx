@@ -1,84 +1,110 @@
 // LOGIN SCREEN
-// Professional login interface with authentication
+// Email/password login with API call and SecureStore persistence
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
+  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  Keyboard,
-  TextInput,
-  Pressable,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../contexts/AuthContext';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
-import { ApiError } from '../services/api';
+import * as SecureStore from 'expo-secure-store';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const PRIMARY = '#1E3A5F';
+const ACCENT = '#F97316';
+const ERROR = '#EF4444';
+
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://dpr-voice-log.preview.emergentagent.com';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading } = useAuth();
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
-  const validateForm = useCallback((): boolean => {
+  const handleLogin = async () => {
+    // Clear previous error
     setError('');
 
+    // Validate inputs
     if (!email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('Please enter a valid email');
-      return false;
+      setError('Please enter your email');
+      return;
     }
     if (!password) {
-      setError('Password is required');
-      return false;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return false;
-    }
-
-    return true;
-  }, [email, password]);
-
-  const handleLogin = useCallback(async () => {
-    console.log('handleLogin called');
-    Keyboard.dismiss();
-    
-    if (!validateForm()) {
-      console.log('Form validation failed');
+      setError('Please enter your password');
       return;
     }
 
-    console.log('Form validated, attempting login...');
+    setIsLoading(true);
+
     try {
-      await login({ email: email.trim(), password });
-      console.log('Login response received');
-      setTimeout(() => {
-        console.log('Navigating to home...');
-        router.replace('/');
-      }, 100);
-    } catch (err) {
-      console.error('Login error:', err);
-      if (err instanceof ApiError) {
-        setError(err.message || 'Login failed. Please check your credentials.');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
+      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.detail || 'Login failed. Please check your credentials.');
+        setIsLoading(false);
+        return;
       }
+
+      // Extract token and role from response
+      const token = data.access_token;
+      const user = data.user;
+      const role = user?.role || '';
+
+      // Save to storage
+      if (Platform.OS === 'web') {
+        localStorage.setItem('access_token', token);
+        localStorage.setItem('user_role', role);
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token);
+        }
+        if (user) {
+          localStorage.setItem('user_data', JSON.stringify(user));
+        }
+      } else {
+        await SecureStore.setItemAsync('access_token', token);
+        await SecureStore.setItemAsync('user_role', role);
+        if (data.refresh_token) {
+          await SecureStore.setItemAsync('refresh_token', data.refresh_token);
+        }
+        if (user) {
+          await SecureStore.setItemAsync('user_data', JSON.stringify(user));
+        }
+      }
+
+      // Redirect based on role
+      if (role === 'admin' || role === 'Admin') {
+        router.replace('/(admin)/dashboard');
+      } else if (role === 'supervisor' || role === 'Supervisor') {
+        router.replace('/(supervisor)/dashboard');
+      } else {
+        // Default redirect
+        router.replace('/(supervisor)/dashboard');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [email, password, login, router, validateForm]);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -89,110 +115,66 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="construct" size={48} color={Colors.primary} />
-            </View>
-            <Text style={styles.appName}>SiteMaster</Text>
-            <Text style={styles.tagline}>Construction Management System</Text>
+            <Text style={styles.title}>TAC-PMC</Text>
+            <Text style={styles.subtitle}>Sign in to your account</Text>
           </View>
 
-          {/* Login Form */}
-          <View style={styles.formContainer}>
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.instructionText}>
-              Sign in to continue managing your projects
-            </Text>
-
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Error Message */}
             {error ? (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={20} color={Colors.error} />
-                <Text style={styles.errorBannerText}>{error}</Text>
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
 
             {/* Email Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color={Colors.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor={Colors.textMuted}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  autoComplete="email"
-                />
-              </View>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isLoading}
+              />
             </View>
 
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color={Colors.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor={Colors.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  returnKeyType="done"
-                  onSubmitEditing={handleLogin}
-                  autoComplete="password"
-                />
-                <Pressable 
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                >
-                  <Ionicons 
-                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color={Colors.textMuted} 
-                  />
-                </Pressable>
-              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
             </View>
 
             {/* Login Button */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.loginButton,
-                isLoading && styles.loginButtonDisabled,
-                pressed && styles.loginButtonPressed,
-              ]}
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
+              activeOpacity={0.8}
             >
               {isLoading ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
+                <Text style={styles.buttonText}>Sign In</Text>
               )}
-            </Pressable>
-
-            {/* Demo Credentials Hint */}
-            <View style={styles.demoHint}>
-              <Ionicons name="information-circle-outline" size={16} color={Colors.textMuted} />
-              <Text style={styles.demoHintText}>
-                Demo: admin@example.com / admin123
-              </Text>
-            </View>
-          </View>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Enterprise Construction Management</Text>
-            <Text style={styles.versionText}>Version 1.0.0</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -203,7 +185,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -211,135 +193,70 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: Spacing.lg,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: 40,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  appName: {
-    fontSize: FontSizes.xxxl,
+  title: {
+    fontSize: 32,
     fontWeight: 'bold',
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
+    color: PRIMARY,
+    marginBottom: 8,
   },
-  tagline: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
   },
-  formContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
+  form: {
+    width: '100%',
   },
-  welcomeText: {
-    fontSize: FontSizes.xxl,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: Spacing.xs,
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: ERROR,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
   },
-  instructionText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.errorLight,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  errorBannerText: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: Colors.error,
+  errorText: {
+    color: ERROR,
+    fontSize: 14,
+    textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: Spacing.md,
+    marginBottom: 16,
   },
   label: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: BorderRadius.md,
-    minHeight: 48,
-  },
-  inputIcon: {
-    marginLeft: Spacing.md,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 6,
   },
   input: {
-    flex: 1,
-    fontSize: FontSizes.md,
-    color: Colors.text,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#F9FAFB',
   },
-  eyeButton: {
-    padding: Spacing.sm,
-    marginRight: Spacing.xs,
-  },
-  loginButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
+  button: {
+    backgroundColor: PRIMARY,
+    borderRadius: 8,
+    paddingVertical: 14,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.md,
-    minHeight: 48,
+    marginTop: 8,
   },
-  loginButtonDisabled: {
-    opacity: 0.6,
+  buttonDisabled: {
+    opacity: 0.7,
   },
-  loginButtonPressed: {
-    opacity: 0.8,
-  },
-  loginButtonText: {
-    color: Colors.white,
-    fontSize: FontSizes.md,
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
-  },
-  demoHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.md,
-    gap: Spacing.xs,
-  },
-  demoHintText: {
-    fontSize: FontSizes.xs,
-    color: Colors.textMuted,
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: Spacing.xl,
-  },
-  footerText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textMuted,
-  },
-  versionText: {
-    fontSize: FontSizes.xs,
-    color: Colors.textMuted,
-    marginTop: Spacing.xs,
   },
 });

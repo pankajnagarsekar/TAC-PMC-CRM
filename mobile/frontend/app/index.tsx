@@ -1,25 +1,71 @@
-// INDEX - Entry point redirect
-// Redirects based on authentication status
+// INDEX - ENTRY POINT
+// Check SecureStore for token and redirect based on role
 
-import { Redirect } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
-import { LoadingScreen } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+
+const PRIMARY = '#1E3A5F';
 
 export default function Index() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
 
-  if (isLoading) {
-    return <LoadingScreen message="Initializing..." />;
-  }
+  useEffect(() => {
+    checkAuthAndRedirect();
+  }, []);
 
-  if (!isAuthenticated) {
-    return <Redirect href="/login" />;
-  }
+  const checkAuthAndRedirect = async () => {
+    try {
+      let token: string | null = null;
+      let role: string | null = null;
 
-  // Redirect based on role
-  if (user?.role === 'Admin') {
-    return <Redirect href="/(admin)/dashboard" />;
-  }
+      if (Platform.OS === 'web') {
+        // Web: use localStorage
+        token = localStorage.getItem('access_token');
+        role = localStorage.getItem('user_role');
+      } else {
+        // Native: use SecureStore
+        token = await SecureStore.getItemAsync('access_token');
+        role = await SecureStore.getItemAsync('user_role');
+      }
 
-  return <Redirect href="/(supervisor)/dashboard" />;
+      if (!token) {
+        // No token, redirect to login
+        router.replace('/login');
+        return;
+      }
+
+      // Token exists, redirect based on role
+      if (role === 'admin' || role === 'Admin') {
+        router.replace('/(admin)/dashboard');
+      } else if (role === 'supervisor' || role === 'Supervisor') {
+        router.replace('/(supervisor)/dashboard');
+      } else {
+        // Unknown role, default to login
+        router.replace('/login');
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      router.replace('/login');
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color={PRIMARY} />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+});
