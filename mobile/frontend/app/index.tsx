@@ -4,9 +4,19 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 
 const PRIMARY = '#1E3A5F';
+
+// Web-safe storage wrapper
+const storage = {
+  get: async (key: string): Promise<string | null> => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    const SecureStore = require('expo-secure-store');
+    return await SecureStore.getItemAsync(key);
+  },
+};
 
 export default function Index() {
   const router = useRouter();
@@ -18,18 +28,8 @@ export default function Index() {
 
   const checkAuthAndRedirect = async () => {
     try {
-      let token: string | null = null;
-      let role: string | null = null;
-
-      if (Platform.OS === 'web') {
-        // Web: use localStorage
-        token = localStorage.getItem('access_token');
-        role = localStorage.getItem('user_role');
-      } else {
-        // Native: use SecureStore
-        token = await SecureStore.getItemAsync('access_token');
-        role = await SecureStore.getItemAsync('user_role');
-      }
+      const token = await storage.get('access_token');
+      const role = await storage.get('user_role');
 
       if (!token) {
         // No token, redirect to login

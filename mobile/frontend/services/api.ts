@@ -2,7 +2,6 @@
 // Centralized API calls with authentication
 
 import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import {
   LoginRequest,
@@ -22,12 +21,7 @@ import {
 
 // Get base URL from environment
 const getBaseUrl = (): string => {
-  // For web, use relative paths (same origin)
-  if (typeof window !== 'undefined' && Platform.OS === 'web') {
-    console.log('Using relative paths for web');
-    return '';  // Use relative paths
-  }
-  // For native apps, use the backend URL from env
+  // Use environment variable or fallback to localhost
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
   console.log('Using backend URL:', backendUrl);
   return backendUrl;
@@ -41,12 +35,13 @@ const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user_data';
 
-// Secure storage helpers (with web fallback)
+// Secure storage helpers (with web fallback using dynamic import)
 const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') {
       return localStorage.getItem(key);
     }
+    const SecureStore = require('expo-secure-store');
     return SecureStore.getItemAsync(key);
   },
   async setItem(key: string, value: string): Promise<void> {
@@ -54,6 +49,7 @@ const storage = {
       localStorage.setItem(key, value);
       return;
     }
+    const SecureStore = require('expo-secure-store');
     return SecureStore.setItemAsync(key, value);
   },
   async removeItem(key: string): Promise<void> {
@@ -61,6 +57,7 @@ const storage = {
       localStorage.removeItem(key);
       return;
     }
+    const SecureStore = require('expo-secure-store');
     return SecureStore.deleteItemAsync(key);
   },
 };
