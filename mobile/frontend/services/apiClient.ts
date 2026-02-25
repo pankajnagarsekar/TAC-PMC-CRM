@@ -60,13 +60,50 @@ import {
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8001';
 
 const TOKEN_KEYS = {
   ACCESS: 'access_token',
   REFRESH: 'refresh_token',
   USER: 'user_data',
 } as const;
+
+// ============================================
+// AUTH TOKEN HELPERS (Web-safe)
+// ============================================
+export const getAuthToken = async (): Promise<string | null> => {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('jwt_token');
+  }
+  try {
+    const SecureStore = require('expo-secure-store');
+    return await SecureStore.getItemAsync('jwt_token');
+  } catch {
+    return null;
+  }
+};
+
+export const setAuthToken = async (token: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('jwt_token', token);
+    return;
+  }
+  try {
+    const SecureStore = require('expo-secure-store');
+    await SecureStore.setItemAsync('jwt_token', token);
+  } catch {}
+};
+
+export const clearAuthToken = async (): Promise<void> => {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem('jwt_token');
+    return;
+  }
+  try {
+    const SecureStore = require('expo-secure-store');
+    await SecureStore.deleteItemAsync('jwt_token');
+  } catch {}
+};
 
 // ============================================
 // STORAGE ABSTRACTION
