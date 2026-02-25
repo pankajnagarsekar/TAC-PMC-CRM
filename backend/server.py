@@ -1882,6 +1882,13 @@ app.include_router(wave2_router)
 from wave3_routes import wave3_router
 app.include_router(wave3_router)
 
+# Serve frontend static files
+from fastapi.staticfiles import StaticFiles
+import os
+frontend_build = os.path.join(os.path.dirname(__file__), "../mobile/frontend/dist")
+if os.path.exists(frontend_build):
+    app.mount("/", StaticFiles(directory=frontend_build, html=True), name="static")
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
