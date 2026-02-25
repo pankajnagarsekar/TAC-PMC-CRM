@@ -21,8 +21,8 @@ import {
 
 // Get base URL from environment
 const getBaseUrl = (): string => {
-  // Use environment variable or fallback to empty string for same-origin requests
-  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+  // Use environment variable or fallback to preview URL
+  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://tac-pmc-nav.preview.emergentagent.com';
   console.log('Using backend URL:', backendUrl);
   return backendUrl;
 };
