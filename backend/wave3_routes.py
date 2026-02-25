@@ -1577,3 +1577,40 @@ async def verify_snapshot_integrity(
     result = await dpr_snapshot_service.verify_checksum(entity_type, entity_id, version)
     
     return result
+
+
+# =============================================================================
+# ADMIN DASHBOARD STATS ENDPOINT
+# =============================================================================
+
+@wave3_router.get("/admin/dashboard-stats")
+async def get_admin_dashboard_stats(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get admin dashboard statistics.
+    
+    Returns counts for workers, supervisors, today's DPRs, and pending approvals.
+    """
+    try:
+        # Count supervisors (also counted as workers)
+        supervisor_count = await db.users.count_documents({"role": "Supervisor"})
+        
+        # Count today's DPRs
+        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        dprs_today = await db.dprs.count_documents({
+            "date": {"$gte": today}
+        })
+        
+        # Count pending approvals (status = submitted)
+        pending_approvals = await db.dprs.count_documents({"status": "submitted"})
+        
+        return {
+            "total_workers": supervisor_count,
+            "total_supervisors": supervisor_count,
+            "dprs_today": dprs_today,
+            "pending_approvals": pending_approvals
+        }
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {e}")
+        raise HTTPException(status_code=500, detail="Stats unavailable")
