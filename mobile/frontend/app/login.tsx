@@ -21,7 +21,7 @@ const PRIMARY = '#1E3A5F';
 const ACCENT = '#F97316';
 const ERROR = '#EF4444';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://dpr-voice-log.preview.emergentagent.com';
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 export default function LoginScreen() {
   const router = useRouter();
