@@ -21,8 +21,8 @@ import {
 
 // Get base URL from environment
 const getBaseUrl = (): string => {
-  // Use environment variable or fallback to localhost
-  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+  // Use environment variable or fallback to empty string for same-origin requests
+  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
   console.log('Using backend URL:', backendUrl);
   return backendUrl;
 };
