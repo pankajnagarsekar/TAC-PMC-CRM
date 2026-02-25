@@ -37,9 +37,11 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setError('');
-      const response = await fetch(`${BASE_URL}/api/v2/admin/dashboard-stats`, {
+      const token = await getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/api/v2/admin/dashboard-stats`, {
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       });
 
