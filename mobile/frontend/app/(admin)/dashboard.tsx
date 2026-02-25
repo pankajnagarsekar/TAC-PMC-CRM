@@ -17,7 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://dpr-voice-log.preview.emergentagent.com';
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 interface DashboardStats {
   total_workers: number;
