@@ -1,7 +1,6 @@
 // API CLIENT WRAPPER
 // Centralized API client with JWT injection, error handling, typed responses
 
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import {
   LoginRequest,
@@ -61,7 +60,7 @@ import {
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://dpr-voice-log.preview.emergentagent.com';
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 const TOKEN_KEYS = {
   ACCESS: 'access_token',
@@ -77,21 +76,24 @@ const storage = {
     if (Platform.OS === 'web') {
       return localStorage.getItem(key);
     }
-    return SecureStore.getItemAsync(key);
+    const SS = require('expo-secure-store');
+    return SS.getItemAsync(key);
   },
   async set(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.setItem(key, value);
       return;
     }
-    return SecureStore.setItemAsync(key, value);
+    const SS = require('expo-secure-store');
+    return SS.setItemAsync(key, value);
   },
   async remove(key: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.removeItem(key);
       return;
     }
-    return SecureStore.deleteItemAsync(key);
+    const SS = require('expo-secure-store');
+    return SS.deleteItemAsync(key);
   },
 };
 
