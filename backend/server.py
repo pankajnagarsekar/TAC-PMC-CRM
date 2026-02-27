@@ -3,7 +3,7 @@ from project_management_routes import project_management_router
 from financial_routes import financial_router
 from hardened_routes import hardened_router
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -16,35 +16,21 @@ from datetime import datetime
 
 # Import custom modules
 from models import (
-    Organisation,
-    OrganisationCreate,
-    User,
     UserCreate,
     UserResponse,
     UserUpdate,
-    UserProjectMap,
     UserProjectMapCreate,
-    Project,
     ProjectCreate,
     ProjectUpdate,
-    CodeMaster,
     CodeMasterCreate,
     CodeMasterUpdate,
-    ProjectBudget,
     ProjectBudgetCreate,
     ProjectBudgetUpdate,
-    DerivedFinancialState,
-    AuditLog,
-    GlobalSettings,
     Token,
     LoginRequest,
     RefreshTokenRequest,
-    VendorWorkerEntry,
-    WorkerEntry,
-    WorkersDailyLog,
     WorkersDailyLogCreate,
     WorkersDailyLogUpdate,
-    Notification,
     NotificationCreate)
 from auth import (
     hash_password, verify_password, create_access_token, create_refresh_token,
@@ -780,7 +766,7 @@ async def get_codes(
     current_user: dict = Depends(get_current_user)
 ):
     """Get all codes"""
-    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.get_authenticated_user(current_user)
 
     query = {}
     if active_only:
@@ -1048,7 +1034,7 @@ async def update_budget(
     await permission_checker.check_admin_role(user)
 
     # Route to hardened engine
-    result = await hardened_engine.modify_budget(
+    await hardened_engine.modify_budget(
         budget_id=budget_id,
         organisation_id=user["organisation_id"],
         user_id=user["user_id"],
@@ -1159,7 +1145,7 @@ async def get_mappings(
     current_user: dict = Depends(get_current_user)
 ):
     """Get user-project mappings"""
-    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.get_authenticated_user(current_user)
 
     query = {}
     if user_id:
@@ -1309,7 +1295,7 @@ async def update_petty_cash(
     current_user: dict = Depends(get_current_user)
 ):
     """Update petty cash entry"""
-    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.get_authenticated_user(current_user)
 
     existing = await db.petty_cash.find_one({"_id": ObjectId(entry_id)})
     if not existing:
@@ -1336,7 +1322,7 @@ async def delete_petty_cash(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete petty cash entry"""
-    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.get_authenticated_user(current_user)
 
     existing = await db.petty_cash.find_one({"_id": ObjectId(entry_id)})
     if not existing:

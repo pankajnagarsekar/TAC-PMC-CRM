@@ -338,7 +338,7 @@ export default function WorkerLogScreen() {
             <Ionicons name="people-outline" size={64} color={Colors.textMuted} />
             <Text style={styles.emptyTitle}>No Entries Yet</Text>
             <Text style={styles.emptyText}>
-              Tap "Add Worker Entry" to log workers for today
+              Tap &quot;Add Worker Entry&quot; to log workers for today
             </Text>
           </View>
         )}

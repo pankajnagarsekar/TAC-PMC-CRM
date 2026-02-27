@@ -17,9 +17,8 @@ RULES:
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List, Callable
+from typing import Optional, Dict, Any, List
 from bson import ObjectId
-from decimal import Decimal
 import asyncio
 import logging
 import traceback

@@ -1,6 +1,6 @@
 # MongoDB Pydantic v2 Models
 from datetime import datetime
-from typing import Optional, List, Annotated, Any
+from typing import Optional, List, Annotated
 from bson import ObjectId
 from pydantic import BaseModel, Field, BeforeValidator
 

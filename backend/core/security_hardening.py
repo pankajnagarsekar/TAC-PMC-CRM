@@ -18,12 +18,11 @@ RULES:
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 from bson import ObjectId
 import hashlib
 import hmac
 import base64
-import secrets
 import logging
 import os
 
@@ -200,7 +199,7 @@ class SecurityHardening:
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):
-            logger.warning(f"[SECURITY] Invalid signed URL signature")
+            logger.warning("[SECURITY] Invalid signed URL signature")
             raise SignedURLInvalidError("Invalid signature")
 
         return resource_path

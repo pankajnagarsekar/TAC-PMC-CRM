@@ -392,7 +392,7 @@ export default function SupervisorAttendance() {
                 </View>
               </View>
               
-              <Text style={styles.checkedInTitle}>You're on site!</Text>
+              <Text style={styles.checkedInTitle}>You&apos;re on site!</Text>
               <Text style={styles.checkedInTime}>Check-in: {todayAttendance?.checkInTime}</Text>
               
               {location && (

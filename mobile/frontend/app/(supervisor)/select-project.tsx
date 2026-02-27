@@ -102,7 +102,7 @@ export default function ProjectSelectionScreen() {
         <View style={styles.headerContent}>
           <Text style={styles.greeting}>Hello, {user?.name || 'Supervisor'}!</Text>
           <Text style={styles.title}>Select a Project</Text>
-          <Text style={styles.subtitle}>Choose the project you're working on today</Text>
+          <Text style={styles.subtitle}>Choose the project you&apos;re working on today</Text>
         </View>
         <TouchableOpacity onPress={logout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={24} color={Colors.white} />

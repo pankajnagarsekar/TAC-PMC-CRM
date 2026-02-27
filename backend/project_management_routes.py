@@ -688,7 +688,7 @@ async def generate_ai_caption(
     Uses OpenAI GPT-4o Vision API to analyze the actual photo content.
     User can override with manual caption.
     """
-    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.get_authenticated_user(current_user)
 
     # Get API key - prefer Emergent LLM key
     api_key = os.environ.get(
@@ -828,7 +828,7 @@ ALT3: [alternative 3]""",
             "ai_caption": random.choice(fallback_captions),
             "confidence": 0.5,
             "alternatives": random.sample(fallback_captions, 3),
-            "note": f"Fallback caption - AI service temporarily unavailable"
+            "note": "Fallback caption - AI service temporarily unavailable"
         }
 
 

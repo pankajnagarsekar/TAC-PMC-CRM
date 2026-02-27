@@ -9,11 +9,11 @@ Filename format: "ProjectCode - MMM DD, YYYY.pdf"
 """
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch, cm
+from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle, PageBreak
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from io import BytesIO
@@ -320,7 +320,6 @@ class DPRPDFGenerator:
         elements = []
 
         # Page header
-        project_code = project_data.get('project_code', 'DPR')
         elements.append(Paragraph(
             f"Photo {image_num} of {total_images}",
             self.styles['PhotoNumber']

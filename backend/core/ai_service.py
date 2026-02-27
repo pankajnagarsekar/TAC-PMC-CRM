@@ -15,11 +15,10 @@ RULES:
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, List
 from bson import ObjectId
 from abc import ABC, abstractmethod
 import logging
-import re
 import json
 
 logger = logging.getLogger(__name__)
@@ -163,7 +162,6 @@ Return JSON format:
         """STT using OpenAI Whisper API with translation to English"""
         try:
             import httpx
-            import io
 
             # Determine file extension
             ext_map = {
@@ -499,7 +497,7 @@ class AIService:
             "organisation_id": organisation_id,
             "project_id": project_id,
             "code_id": code_id,
-            "title": f"Issue detected from voice log",
+            "title": "Issue detected from voice log",
             "description": f"Keywords detected: {
                 ', '.join(keywords)}\n\nTranscript:\n{transcript}",
             "source": "STT_AUTO",
