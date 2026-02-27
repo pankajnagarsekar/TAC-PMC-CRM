@@ -1636,13 +1636,16 @@ async def verify_snapshot_integrity(
 
 @wave3_router.post("/attendance", status_code=201)
 async def mark_attendance(
-    request: dict = None,
+    request: Request,
     current_user: dict = Depends(get_current_user)
 ):
     """Mark attendance (check-in) for today"""
     user = await permission_checker.get_authenticated_user(current_user)
     
-    body = request or {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
     project_id = body.get("project_id")
     location = body.get("location", {})
     

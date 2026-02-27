@@ -11,8 +11,6 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  Platform,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,7 +48,10 @@ export default function AttendanceViewScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('supervisor');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   
   // Supervisor attendance
   const [supervisorRecords, setSupervisorRecords] = useState<AttendanceRecord[]>([]);
