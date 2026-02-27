@@ -60,7 +60,7 @@ import {
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8001';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 const TOKEN_KEYS = {
   ACCESS: 'access_token',
@@ -73,11 +73,11 @@ const TOKEN_KEYS = {
 // ============================================
 export const getAuthToken = async (): Promise<string | null> => {
   if (Platform.OS === 'web') {
-    return localStorage.getItem('jwt_token');
+    return localStorage.getItem('access_token');
   }
   try {
     const SecureStore = require('expo-secure-store');
-    return await SecureStore.getItemAsync('jwt_token');
+    return await SecureStore.getItemAsync('access_token');
   } catch {
     return null;
   }
@@ -85,23 +85,23 @@ export const getAuthToken = async (): Promise<string | null> => {
 
 export const setAuthToken = async (token: string): Promise<void> => {
   if (Platform.OS === 'web') {
-    localStorage.setItem('jwt_token', token);
+    localStorage.setItem('access_token', token);
     return;
   }
   try {
     const SecureStore = require('expo-secure-store');
-    await SecureStore.setItemAsync('jwt_token', token);
+    await SecureStore.setItemAsync('access_token', token);
   } catch {}
 };
 
 export const clearAuthToken = async (): Promise<void> => {
   if (Platform.OS === 'web') {
-    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('access_token');
     return;
   }
   try {
     const SecureStore = require('expo-secure-store');
-    await SecureStore.deleteItemAsync('jwt_token');
+    await SecureStore.deleteItemAsync('access_token');
   } catch {}
 };
 

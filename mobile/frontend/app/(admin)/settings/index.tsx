@@ -6,9 +6,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../contexts/AuthContext';
-import { Card } from '../../components/ui';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Card } from '../../../components/ui';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 
 export default function AdminSettings() {
   const router = useRouter();

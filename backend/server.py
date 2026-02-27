@@ -80,6 +80,15 @@ app = FastAPI(
     description="Enterprise Construction Management with Hardened Financial Core"
 )
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 # Create router with /api prefix
 api_router = APIRouter(prefix="/api")
 
@@ -1889,14 +1898,8 @@ frontend_build = os.path.join(os.path.dirname(__file__), "../mobile/frontend/dis
 if os.path.exists(frontend_build):
     app.mount("/", StaticFiles(directory=frontend_build, html=True), name="static")
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

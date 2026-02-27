@@ -12,6 +12,7 @@ export default function SettingsLayout() {
         contentStyle: { backgroundColor: Colors.background },
       }}
     >
+      <Stack.Screen name="index" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="help" />
       <Stack.Screen name="users" />

@@ -60,6 +60,9 @@ interface AttendanceRecord {
   selfieUri?: string;
   status: 'checked_in' | 'checked_out' | 'absent';
   hasDPR: boolean;
+  // API response fields (snake_case)
+  check_in_time?: string;
+  check_out_time?: string;
 }
 
 export default function SupervisorAttendance() {
@@ -119,6 +122,16 @@ export default function SupervisorAttendance() {
         }
       } catch (e) {
         // No DPR for today
+      }
+      
+      // Fetch attendance history
+      try {
+        const historyResponse = await apiRequest(`/api/v2/attendance/history?limit=10`);
+        if (historyResponse && historyResponse.attendance) {
+          setAttendanceHistory(historyResponse.attendance);
+        }
+      } catch (e) {
+        console.log('No attendance history available');
       }
       
     } catch (error) {
@@ -484,7 +497,7 @@ export default function SupervisorAttendance() {
 
         {/* Attendance History */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Attendance</Text>
+          <Text style={styles.sectionTitle}>Attendance History</Text>
           
           {/* Show today if checked in */}
           {todayAttendance && (
@@ -496,19 +509,31 @@ export default function SupervisorAttendance() {
             />
           )}
           
-          {/* Mock history - in real app, fetch from API */}
-          <AttendanceHistoryItem
-            date="Yesterday"
-            checkIn="8:45 AM"
-            checkOut="5:30 PM"
-            status="present"
-          />
-          <AttendanceHistoryItem
-            date="2 days ago"
-            checkIn="9:15 AM"
-            checkOut="6:00 PM"
-            status="late"
-          />
+          {/* Real attendance history from API */}
+          {attendanceHistory.length > 0 ? (
+            attendanceHistory.map((record, index) => (
+              <AttendanceHistoryItem
+                key={index}
+                date={new Date(record.check_in_time || record.date).toLocaleDateString('en-US', {
+                  weekday: 'short', month: 'short', day: 'numeric'
+                })}
+                checkIn={record.check_in_time 
+                  ? new Date(record.check_in_time).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})
+                  : 'N/A'}
+                checkOut={record.check_out_time 
+                  ? new Date(record.check_out_time).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})
+                  : undefined}
+                status={record.check_out_time ? 'present' : record.status === 'absent' ? 'absent' : 'present'}
+              />
+            ))
+          ) : !todayAttendance ? (
+            <Card style={styles.historyCard}>
+              <View style={{alignItems: 'center', padding: Spacing.lg}}>
+                <Ionicons name="calendar-outline" size={40} color={Colors.textMuted} />
+                <Text style={{color: Colors.textMuted, marginTop: Spacing.sm}}>No attendance records yet</Text>
+              </View>
+            </Card>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>

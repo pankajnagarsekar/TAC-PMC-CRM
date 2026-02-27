@@ -13,10 +13,13 @@ export default function SupervisorDPRScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
 
-  // Redirect if no project selected
+  // Redirect if no project selected - defer to avoid navigating before layout mounts
   useEffect(() => {
     if (!selectedProject) {
-      router.replace('/(supervisor)/select-project');
+      // Use requestAnimationFrame to ensure layout is mounted first
+      requestAnimationFrame(() => {
+        router.replace('/(supervisor)/select-project');
+      });
     }
   }, [selectedProject]);
 

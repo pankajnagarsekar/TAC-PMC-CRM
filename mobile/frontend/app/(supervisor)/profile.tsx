@@ -1,7 +1,7 @@
 // SUPERVISOR PROFILE SCREEN
 // Profile and settings for supervisors - Only password change and attendance
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +14,6 @@ const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 export default function SupervisorProfile() {
   const { user } = useAuth();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
-  const [loadingAttendance, setLoadingAttendance] = useState(true);
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -30,28 +28,6 @@ export default function SupervisorProfile() {
     }
     const SecureStore = require('expo-secure-store');
     return await SecureStore.getItemAsync('access_token');
-  };
-
-  // Load attendance history
-  useEffect(() => {
-    loadAttendanceHistory();
-  }, []);
-
-  const loadAttendanceHistory = async () => {
-    try {
-      const token = await getToken();
-      const response = await fetch(`${BASE_URL}/api/v2/attendance/history?limit=10`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAttendanceHistory(data.attendance || []);
-      }
-    } catch (error) {
-      console.error('Error loading attendance:', error);
-    } finally {
-      setLoadingAttendance(false);
-    }
   };
 
   const handleChangePassword = async () => {
@@ -133,46 +109,6 @@ export default function SupervisorProfile() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
             </TouchableOpacity>
-          </Card>
-        </View>
-
-        {/* Attendance History */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Attendance History</Text>
-          <Card>
-            {loadingAttendance ? (
-              <ActivityIndicator color={Colors.accent} />
-            ) : attendanceHistory.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="calendar-outline" size={40} color={Colors.textMuted} />
-                <Text style={styles.emptyText}>No attendance records yet</Text>
-              </View>
-            ) : (
-              attendanceHistory.map((record, index) => (
-                <View key={index} style={[styles.attendanceRow, index > 0 && styles.attendanceBorder]}>
-                  <View style={styles.attendanceDate}>
-                    <Ionicons name="calendar" size={16} color={Colors.accent} />
-                    <Text style={styles.attendanceDateText}>
-                      {new Date(record.check_in_time).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <View style={styles.attendanceTime}>
-                    <Text style={styles.timeLabel}>In</Text>
-                    <Text style={styles.timeValue}>
-                      {new Date(record.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </Text>
-                  </View>
-                  {record.check_out_time && (
-                    <View style={styles.attendanceTime}>
-                      <Text style={styles.timeLabel}>Out</Text>
-                      <Text style={styles.timeValue}>
-                        {new Date(record.check_out_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ))
-            )}
           </Card>
         </View>
 

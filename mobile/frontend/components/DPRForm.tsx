@@ -21,7 +21,7 @@ import { Audio } from 'expo-av';
 import { Card } from './ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 const MIN_PHOTOS = 4;
 
 const getToken = async () => {

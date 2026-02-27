@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File,
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId, Decimal128
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 import logging
@@ -818,9 +818,6 @@ async def speech_to_text(
     import base64
     import tempfile
     from pathlib import Path
-    from emergentintegrations.llm.openai import OpenAISpeechToText
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
-    import uuid
     
     try:
         audio_data = request.audio_data
@@ -832,6 +829,17 @@ async def speech_to_text(
             return {"transcript": "", "error": "Audio too short"}
         
         api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        # Graceful fallback when no API key is configured
+        if not api_key:
+            logger.warning("[STT] EMERGENT_LLM_KEY not set - returning mock transcription")
+            return {
+                "transcript": "",
+                "original": "",
+                "error": "API key not configured. Set EMERGENT_LLM_KEY in backend .env to enable voice-to-text.",
+                "note": "mock"
+            }
+        
         file_ext = request.audio_format.lower() or 'webm'
         
         # Write to temp file
@@ -840,13 +848,15 @@ async def speech_to_text(
             temp_path = f.name
         
         try:
-            stt = OpenAISpeechToText(api_key=api_key)
+            # Use official OpenAI client directly
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
             
-            # Pass open file handle as per playbook
+            # Step 1: Transcribe with Whisper
             with open(temp_path, 'rb') as audio_file:
-                result = await stt.transcribe(
-                    file=audio_file,
+                result = client.audio.transcriptions.create(
                     model="whisper-1",
+                    file=audio_file,
                     response_format="json"
                 )
             
@@ -856,15 +866,18 @@ async def speech_to_text(
             if not transcript.strip():
                 return {"transcript": "", "error": "No speech detected"}
             
-            # Translate using LlmChat with proper UserMessage object
-            chat = LlmChat(
-                api_key=api_key,
-                session_id=str(uuid.uuid4()),
-                system_message="You are a translator. Only output the English translation, nothing else."
+            # Step 2: Translate to English using GPT
+            translation_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a translator. Only output the English translation, nothing else. If the text is already in English, output it as-is."},
+                    {"role": "user", "content": f"Translate to English: {transcript}"}
+                ],
+                temperature=0.3,
+                max_tokens=2000
             )
-            # Use UserMessage object instead of plain string
-            user_msg = UserMessage(text=f"Translate to English: {transcript}")
-            english = await chat.send_message(user_msg)
+            
+            english = translation_response.choices[0].message.content or transcript
             
             return {"transcript": english.strip(), "original": transcript.strip()}
         except Exception as e:
@@ -1014,13 +1027,32 @@ async def generate_dpr_pdf(
             detail=f"DPR requires minimum 4 images. Current: {image_count}"
         )
     
-    # Get project data
+    # Get project data - try multiple lookup strategies
     project_id = dpr.get("project_id")
-    project = await db.projects.find_one({"project_id": project_id}) or \
-              await db.projects.find_one({"_id": project_id})
+    project = None
+    
+    # Strategy 1: Try as ObjectId (seed-created projects use auto _id)
+    try:
+        project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    except:
+        pass
+    
+    # Strategy 2: Try by project_id field
+    if not project:
+        project = await db.projects.find_one({"project_id": project_id})
+    
+    # Strategy 3: Try by string _id
+    if not project:
+        project = await db.projects.find_one({"_id": project_id})
     
     if not project:
         project = {"project_name": "Unknown Project", "project_code": "DPR"}
+    
+    # Normalize field names (seed uses 'name', app expects 'project_name')
+    if "project_name" not in project and "name" in project:
+        project["project_name"] = project["name"]
+    if "project_code" not in project:
+        project["project_code"] = project.get("code", "DPR")
     
     # Get worker log for today
     dpr_date = dpr.get("dpr_date")
@@ -1166,13 +1198,32 @@ async def submit_dpr(
             detail=f"DPR requires minimum 4 images. Current: {image_count}"
         )
     
-    # Get project data
+    # Get project data - try multiple lookup strategies
     project_id = dpr.get("project_id")
-    project = await db.projects.find_one({"project_id": project_id}) or \
-              await db.projects.find_one({"_id": project_id})
+    project = None
+    
+    # Strategy 1: Try as ObjectId (seed-created projects use auto _id)
+    try:
+        project = await db.projects.find_one({"_id": ObjectId(project_id)})
+    except:
+        pass
+    
+    # Strategy 2: Try by project_id field
+    if not project:
+        project = await db.projects.find_one({"project_id": project_id})
+    
+    # Strategy 3: Try by string _id
+    if not project:
+        project = await db.projects.find_one({"_id": project_id})
     
     if not project:
         project = {"project_name": "Unknown Project", "project_code": "DPR"}
+    
+    # Normalize field names (seed uses 'name', app expects 'project_name')
+    if "project_name" not in project and "name" in project:
+        project["project_name"] = project["name"]
+    if "project_code" not in project:
+        project["project_code"] = project.get("code", "DPR")
     
     project_name = project.get("project_name", "Unknown Project")
     project_code = project.get("project_code", "DPR")
@@ -1413,6 +1464,7 @@ class UpdateDPRRequest(BaseModel):
     weather_conditions: Optional[str] = None
     manpower_count: Optional[int] = None
     issues_encountered: Optional[str] = None
+    status: Optional[str] = None  # Admin can approve/change status
 
 
 @wave3_router.put("/dpr/{dpr_id}")
@@ -1421,7 +1473,7 @@ async def update_dpr(
     request: UpdateDPRRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a draft DPR"""
+    """Update a DPR - admin can edit any status"""
     user = await permission_checker.get_authenticated_user(current_user)
     
     dpr = await db.dpr.find_one({"_id": ObjectId(dpr_id)})
@@ -1430,9 +1482,6 @@ async def update_dpr(
     
     if dpr.get("organisation_id") != user["organisation_id"]:
         raise HTTPException(status_code=403, detail="Access denied")
-    
-    if dpr.get("status", "").lower() != "draft":
-        raise HTTPException(status_code=400, detail="Cannot edit a submitted DPR")
     
     # Build update dict
     update_data = {}
@@ -1444,6 +1493,8 @@ async def update_dpr(
         update_data["manpower_count"] = request.manpower_count
     if request.issues_encountered is not None:
         update_data["issues_encountered"] = request.issues_encountered
+    if request.status is not None:
+        update_data["status"] = request.status
     
     update_data["updated_at"] = datetime.utcnow()
     
@@ -1580,34 +1631,303 @@ async def verify_snapshot_integrity(
 
 
 # =============================================================================
+# ATTENDANCE ENDPOINTS
+# =============================================================================
+
+@wave3_router.post("/attendance", status_code=201)
+async def mark_attendance(
+    request: dict = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark attendance (check-in) for today"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    
+    body = request or {}
+    project_id = body.get("project_id")
+    location = body.get("location", {})
+    
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Check if already marked today
+    existing = await db.attendance.find_one({
+        "user_id": user["user_id"],
+        "check_in_time": {"$gte": today}
+    })
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Attendance already marked for today")
+    
+    doc = {
+        "user_id": user["user_id"],
+        "user_name": user.get("name", "Unknown"),
+        "role": user.get("role", "Supervisor"),
+        "organisation_id": user["organisation_id"],
+        "project_id": project_id,
+        "check_in_time": datetime.utcnow(),
+        "location": location,
+        "status": "checked_in",
+    }
+    
+    result = await db.attendance.insert_one(doc)
+    
+    return {"status": "success", "attendance_id": str(result.inserted_id)}
+
+
+@wave3_router.get("/attendance/check")
+async def check_attendance(
+    project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Check if current user has marked attendance today"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    query = {
+        "user_id": user["user_id"],
+        "check_in_time": {"$gte": today}
+    }
+    
+    existing = await db.attendance.find_one(query)
+    
+    return {
+        "attendance_marked": existing is not None,
+        "check_in_time": existing.get("check_in_time").isoformat() if existing else None,
+    }
+
+
+@wave3_router.get("/attendance/history")
+async def get_attendance_history(
+    limit: int = 10,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get attendance history for current user"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    
+    records = await db.attendance.find({
+        "user_id": user["user_id"]
+    }).sort("check_in_time", -1).limit(limit).to_list(length=limit)
+    
+    result = []
+    for r in records:
+        r["attendance_id"] = str(r.pop("_id"))
+        result.append(serialize_mongo_doc(r))
+    
+    return {"attendance": result}
+
+
+@wave3_router.get("/attendance/admin/all")
+async def get_all_attendance(
+    project_id: Optional[str] = None,
+    date: Optional[str] = None,
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Admin: Get all attendance records, optionally filtered by project and date"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    
+    query: dict = {"organisation_id": user["organisation_id"]}
+    
+    if project_id:
+        query["project_id"] = project_id
+    
+    if date:
+        try:
+            day_start = datetime.strptime(date, "%Y-%m-%d")
+            day_end = day_start + timedelta(days=1)
+            query["check_in_time"] = {"$gte": day_start, "$lt": day_end}
+        except ValueError:
+            pass
+    
+    records = await db.attendance.find(query).sort("check_in_time", -1).limit(limit).to_list(length=limit)
+    
+    result = []
+    for r in records:
+        r["attendance_id"] = str(r.pop("_id"))
+        # Enrich with project name
+        if r.get("project_id"):
+            try:
+                project = await db.projects.find_one({"_id": ObjectId(r["project_id"])})
+                r["project_name"] = project.get("project_name", "Unknown") if project else "Unknown"
+            except Exception:
+                r["project_name"] = "Unknown"
+        result.append(serialize_mongo_doc(r))
+    
+    return {"attendance": result, "total": len(result)}
+
+
+# =============================================================================
+# ADMIN: PROJECTS OVERVIEW (BIRDS-EYE VIEW)
+# =============================================================================
+
+@wave3_router.get("/admin/projects-overview")
+async def get_admin_projects_overview(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Birds-eye view of ALL active projects with aggregated stats.
+    Returns per-project: budget totals, DPR counts, worker counts, completion %.
+    """
+    try:
+        user = await permission_checker.get_authenticated_user(current_user)
+        org_id = user.get("organisation_id")
+        
+        # Get all active projects for this org
+        projects = await db.projects.find({
+            "organisation_id": org_id,
+            "status": {"$in": ["active", "Active"]}
+        }).to_list(length=100)
+        
+        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        result = []
+        
+        for project in projects:
+            pid = str(project["_id"])
+            
+            # --- Budget aggregation ---
+            budgets = await db.project_budgets.find({"project_id": pid}).to_list(length=None)
+            total_master_budget = 0.0
+            total_committed = 0.0
+            total_certified = 0.0
+            total_remaining = 0.0
+            categories = []
+            
+            for b in budgets:
+                approved = b.get("approved_budget_amount", 0)
+                total_master_budget += approved
+                
+                # Get financial state
+                fs = await db.financial_state.find_one({
+                    "project_id": pid,
+                    "code_id": b.get("code_id")
+                })
+                
+                committed = 0.0
+                certified = 0.0
+                remaining = approved
+                
+                if fs:
+                    committed = fs.get("committed_value", 0)
+                    certified = fs.get("certified_value", 0)
+                    remaining = fs.get("balance_budget_remaining", approved)
+                
+                total_committed += committed
+                total_certified += certified
+                total_remaining += remaining
+                
+                # Get code name
+                code = await db.code_master.find_one({"_id": ObjectId(b.get("code_id"))})
+                code_name = code.get("code_description", code.get("code_short", "Unknown")) if code else "Unknown"
+                
+                categories.append({
+                    "code_id": b.get("code_id"),
+                    "code_name": code_name,
+                    "approved_budget": approved,
+                    "committed": committed,
+                    "certified": certified,
+                    "remaining": remaining,
+                })
+            
+            # --- Completion % (budget-based) ---
+            completion_pct = 0.0
+            if total_master_budget > 0:
+                completion_pct = round((total_certified / total_master_budget) * 100, 1)
+            
+            # --- DPR counts ---
+            total_dprs = await db.dpr.count_documents({"project_id": pid})
+            dprs_today = await db.dpr.count_documents({"project_id": pid, "created_at": {"$gte": today}})
+            pending_approvals = await db.dpr.count_documents({"project_id": pid, "status": "submitted"})
+            
+            # --- Worker count (from latest worker logs) ---
+            latest_logs = await db.worker_logs.find({"project_id": pid}).sort("date", -1).limit(10).to_list(length=10)
+            total_workers = 0
+            for log in latest_logs:
+                total_workers += log.get("total_workers", 0)
+            
+            # --- Petty cash total ---
+            petty_pipeline = [
+                {"$match": {"project_id": pid}},
+                {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+            ]
+            petty_result = await db.petty_cash.aggregate(petty_pipeline).to_list(length=1)
+            petty_cash_total = petty_result[0]["total"] if petty_result else 0
+            
+            result.append({
+                "project_id": pid,
+                "project_name": project.get("project_name", "Unknown"),
+                "project_code": project.get("project_code"),
+                "status": project.get("status", "active"),
+                "completion_pct": completion_pct,
+                "budget": {
+                    "total_master": total_master_budget,
+                    "total_committed": total_committed,
+                    "total_certified": total_certified,
+                    "total_remaining": total_remaining,
+                    "categories": categories,
+                },
+                "petty_cash_total": petty_cash_total,
+                "dprs": {
+                    "total": total_dprs,
+                    "today": dprs_today,
+                    "pending_approvals": pending_approvals,
+                },
+                "workers": {
+                    "recent_total": total_workers,
+                },
+            })
+        
+        return {"projects": result}
+    
+    except Exception as e:
+        logger.error(f"Projects overview error: {e}")
+        raise HTTPException(status_code=500, detail="Projects overview unavailable")
+
+
+# =============================================================================
 # ADMIN DASHBOARD STATS ENDPOINT
 # =============================================================================
 
 @wave3_router.get("/admin/dashboard-stats")
 async def get_admin_dashboard_stats(
+    project_id: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Get admin dashboard statistics.
-    
-    Returns counts for workers, supervisors, today's DPRs, and pending approvals.
+    Get admin dashboard statistics, optionally scoped to a project.
     """
     try:
-        # Count supervisors (also counted as workers)
+        user = await permission_checker.get_authenticated_user(current_user)
+        org_id = user.get("organisation_id")
+        
+        # Count supervisors
         supervisor_count = await db.users.count_documents({"role": "Supervisor"})
+        
+        # Build DPR query
+        dpr_query: dict = {}
+        if project_id:
+            dpr_query["project_id"] = project_id
         
         # Count today's DPRs
         today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        dprs_today = await db.dprs.count_documents({
-            "date": {"$gte": today}
-        })
+        today_query = {**dpr_query, "created_at": {"$gte": today}}
+        dprs_today = await db.dpr.count_documents(today_query)
         
         # Count pending approvals (status = submitted)
-        pending_approvals = await db.dprs.count_documents({"status": "submitted"})
+        pending_query = {**dpr_query, "status": "submitted"}
+        pending_approvals = await db.dpr.count_documents(pending_query)
+        
+        # Count total worker logs for this project
+        wl_query: dict = {}
+        if project_id:
+            wl_query["project_id"] = project_id
+        total_workers = 0
+        worker_logs = await db.worker_logs.find(wl_query).to_list(length=1000)
+        for log in worker_logs:
+            total_workers += log.get("total_workers", 0)
         
         return {
-            "total_workers": supervisor_count,
-            "total_supervisors": supervisor_count,
+            "total_workers": total_workers,
+            "active_supervisors": supervisor_count,
             "dprs_today": dprs_today,
             "pending_approvals": pending_approvals
         }

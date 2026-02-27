@@ -60,11 +60,11 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
-        name="workers-report"
+        name="attendance-view"
         options={{
-          title: 'Workers',
+          title: 'Attendance',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />
@@ -79,6 +79,18 @@ export default function AdminLayout() {
       />
       {/* Hidden screens - accessible but not in tab bar */}
       <Tabs.Screen
+        name="select-project"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="worker-log"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="notifications"
         options={{
           href: null,
@@ -92,6 +104,12 @@ export default function AdminLayout() {
       />
       <Tabs.Screen
         name="petty-cash"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="workers-report"
         options={{
           href: null,
         }}

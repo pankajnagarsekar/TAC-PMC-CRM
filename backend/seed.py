@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.hash import bcrypt
 
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-DB_NAME = "tac_pmc"
+DB_NAME = "tac_pmc_crm"
 
 
 async def seed():
@@ -34,12 +34,15 @@ async def seed():
         print(f"User '{admin_email}' - skipped (already exists)")
     else:
         admin_doc = {
+            "name": "Admin User",
             "email": admin_email,
             "hashed_password": bcrypt.hash("Admin@1234"),
             "role": "Admin",
-            "is_active": True,
-            "org_id": org_id,
+            "active_status": True,
+            "organisation_id": org_id,
+            "dpr_generation_permission": False,
             "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
         }
         await db.users.insert_one(admin_doc)
         print(f"User '{admin_email}' - inserted")
@@ -51,12 +54,15 @@ async def seed():
         print(f"User '{supervisor_email}' - skipped (already exists)")
     else:
         supervisor_doc = {
+            "name": "Supervisor User",
             "email": supervisor_email,
             "hashed_password": bcrypt.hash("Super@1234"),
             "role": "Supervisor",
-            "is_active": True,
-            "org_id": org_id,
+            "active_status": True,
+            "organisation_id": org_id,
+            "dpr_generation_permission": False,
             "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
         }
         await db.users.insert_one(supervisor_doc)
         print(f"User '{supervisor_email}' - inserted")
@@ -65,15 +71,34 @@ async def seed():
     project_name = "Site Alpha"
     existing_project = await db.projects.find_one({"name": project_name})
     if existing_project:
-        print(f"Project '{project_name}' - skipped (already exists)")
+        # Ensure existing project has all required fields
+        update_fields = {}
+        if "project_name" not in existing_project:
+            update_fields["project_name"] = existing_project.get("name", project_name)
+        if "project_code" not in existing_project:
+            update_fields["project_code"] = "SA-001"
+        if "project_id" not in existing_project:
+            update_fields["project_id"] = str(existing_project["_id"])
+        if update_fields:
+            await db.projects.update_one({"_id": existing_project["_id"]}, {"$set": update_fields})
+            print(f"Project '{project_name}' - updated with missing fields")
+        else:
+            print(f"Project '{project_name}' - skipped (already exists)")
     else:
         project_doc = {
             "name": project_name,
-            "org_id": org_id,
+            "project_name": project_name,
+            "project_code": "SA-001",
+            "organisation_id": org_id,
             "status": "active",
             "created_at": datetime.utcnow(),
         }
-        await db.projects.insert_one(project_doc)
+        result = await db.projects.insert_one(project_doc)
+        # Also set project_id to the string version of _id for consistent lookups
+        await db.projects.update_one(
+            {"_id": result.inserted_id},
+            {"$set": {"project_id": str(result.inserted_id)}}
+        )
         print(f"Project '{project_name}' - inserted")
 
     client.close()

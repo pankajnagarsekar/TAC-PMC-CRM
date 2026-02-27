@@ -1,6 +1,3 @@
-// LOGIN SCREEN
-// Email/password login with API call and SecureStore persistence
-
 import React, { useState } from 'react';
 import {
   View,
@@ -14,17 +11,16 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
 
 const PRIMARY = '#1E3A5F';
 const ACCENT = '#F97316';
 const ERROR = '#EF4444';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
-
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,55 +43,35 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      // Use AuthContext login which properly stores tokens AND updates auth state
+      const response = await login({ email: email.trim(), password });
 
-      const data = await response.json();
+      // Get user from stored context - AuthContext handles role-based routing
+      // but we also handle it here for immediate redirect
+      const userData = Platform.OS === 'web'
+        ? JSON.parse(localStorage.getItem('user_data') || '{}')
+        : {};
 
-      if (!response.ok) {
-        setError(data.detail || 'Login failed. Please check your credentials.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Extract token and user from response
-      const token = data.access_token;
-      const user = data.user;
-
-      // Save to storage
-      if (Platform.OS === 'web') {
-        localStorage.setItem('access_token', token);
-        localStorage.setItem('user_role', user.role);
-        if (data.refresh_token) {
-          localStorage.setItem('refresh_token', data.refresh_token);
-        }
-        localStorage.setItem('user_data', JSON.stringify(user));
-      } else {
-        await SecureStore.setItemAsync('access_token', token);
-        await SecureStore.setItemAsync('user_role', user.role);
-        if (data.refresh_token) {
-          await SecureStore.setItemAsync('refresh_token', data.refresh_token);
-        }
-        await SecureStore.setItemAsync('user_data', JSON.stringify(user));
-      }
+      const role = userData?.role;
 
       // Redirect based on role
-      if (user.role === 'Admin') {
+      if (role === 'Admin') {
         router.replace('/(admin)/dashboard');
-      } else if (user.role === 'Supervisor') {
+      } else if (role === 'Supervisor') {
         router.replace('/(supervisor)/dashboard');
       } else {
-        // Default redirect for Other roles
-        router.replace('/(supervisor)/dashboard');
+        // Default redirect
+        router.replace('/(admin)/dashboard');
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError('Network error. Please check your connection and try again.');
+      if (err?.data?.detail) {
+        setError(err.data.detail);
+      } else if (err?.message) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please check your credentials and try again.');
+      }
     } finally {
       setIsLoading(false);
     }
