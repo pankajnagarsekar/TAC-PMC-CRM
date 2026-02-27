@@ -2,7 +2,6 @@
 // Tabs: Dashboard, Attendance, DPR, Profile
 
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,7 +19,7 @@ export default function SupervisorLayout() {
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <Tabs

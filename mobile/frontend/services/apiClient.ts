@@ -60,7 +60,10 @@ import {
 // ============================================
 // CONFIGURATION
 // ============================================
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const BASE_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  process.env.EXPO_PUBLIC_API_URL ||
+  'http://localhost:8000';
 
 const TOKEN_KEYS = {
   ACCESS: 'access_token',
@@ -277,6 +280,15 @@ export const authApi = {
   },
   async getToken(): Promise<string | null> {
     return storage.get(TOKEN_KEYS.ACCESS);
+  },
+  async checkCanLogout(): Promise<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }> {
+    try {
+      return await request<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }>('/api/auth/can-logout');
+    } catch (error) {
+      // Fail-safe behavior to avoid locking users in app due transient API errors
+      console.error('Failed to check logout status:', error);
+      return { can_logout: true };
+    }
   },
 };
 

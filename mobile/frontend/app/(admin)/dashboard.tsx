@@ -2,7 +2,7 @@
 // Shows all active projects as cards with budget stats, DPR counts, completion %
 // Admin can tap a card to enter project-scoped mode
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
 import { apiClient } from '../../services/apiClient';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
+import { Colors as StaticColors, Spacing as StaticSpacing, FontSizes as StaticFontSizes, BorderRadius as StaticBorderRadius } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface BudgetCategory {
   code_id: string;
@@ -62,7 +63,9 @@ const formatCurrency = (amount: number): string => {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { selectProject } = useProject();
+  const { setSelectedProject } = useProject();
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
+  const styles = useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
   
   const [projects, setProjects] = useState<ProjectOverview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,11 +94,11 @@ export default function AdminDashboard() {
   };
 
   const handleProjectTap = (project: ProjectOverview) => {
-    selectProject({
+    setSelectedProject({
       project_id: project.project_id,
       project_name: project.project_name,
       project_code: project.project_code,
-    });
+    } as any);
     router.push('/(admin)/dpr' as any);
   };
 
@@ -305,11 +308,11 @@ export default function AdminDashboard() {
                       <Pressable
                         style={[styles.actionBtn, { backgroundColor: Colors.accent }]}
                         onPress={() => {
-                          selectProject({
+                          setSelectedProject({
                             project_id: project.project_id,
                             project_name: project.project_name,
                             project_code: project.project_code,
-                          });
+                          } as any);
                           router.push('/(admin)/worker-log' as any);
                         }}
                       >
@@ -328,7 +331,7 @@ export default function AdminDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: Spacing.md, color: Colors.textSecondary },

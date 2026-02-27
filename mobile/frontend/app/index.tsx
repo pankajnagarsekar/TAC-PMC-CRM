@@ -1,58 +1,35 @@
 // INDEX - ENTRY POINT
-// Check SecureStore for token and redirect based on role
+// Redirects based on auth context and role
 
-import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../contexts/AuthContext';
 
-const PRIMARY = '#1E3A5F';
-
-// Web-safe storage wrapper
-const storage = {
-  get: async (key: string): Promise<string | null> => {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
-    const SecureStore = require('expo-secure-store');
-    return await SecureStore.getItemAsync(key);
-  },
-};
+const PRIMARY = '#171717';
 
 export default function Index() {
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
+  const { isLoading, isAuthenticated, user } = useAuth();
 
   useEffect(() => {
-    checkAuthAndRedirect();
-  }, []);
-
-  const checkAuthAndRedirect = async () => {
-    try {
-      const token = await storage.get('access_token');
-      const role = await storage.get('user_role');
-
-      if (!token) {
-        // No token, redirect to login
-        router.replace('/login');
-        return;
-      }
-
-      // Token exists, redirect based on role
-      if (role === 'Admin') {
-        router.replace('/(admin)/dashboard');
-      } else if (role === 'Supervisor') {
-        router.replace('/(supervisor)/dashboard');
-      } else {
-        // Unknown role, default to login
-        router.replace('/login');
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      router.replace('/login');
-    } finally {
-      setIsChecking(false);
+    if (isLoading) {
+      return;
     }
-  };
+
+    if (!isAuthenticated || !user?.role) {
+      router.replace('/login');
+      return;
+    }
+
+    if (user.role === 'Admin') {
+      router.replace('/(admin)/dashboard');
+    } else if (user.role === 'Supervisor') {
+      router.replace('/(supervisor)/dashboard');
+    } else {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, user, router]);
 
   return (
     <View style={styles.container}>

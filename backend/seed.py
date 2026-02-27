@@ -74,7 +74,8 @@ async def seed():
         # Ensure existing project has all required fields
         update_fields = {}
         if "project_name" not in existing_project:
-            update_fields["project_name"] = existing_project.get("name", project_name)
+            update_fields["project_name"] = existing_project.get(
+                "name", project_name)
         if "project_code" not in existing_project:
             update_fields["project_code"] = "SA-001"
         if "project_id" not in existing_project:
@@ -94,7 +95,8 @@ async def seed():
             "created_at": datetime.utcnow(),
         }
         result = await db.projects.insert_one(project_doc)
-        # Also set project_id to the string version of _id for consistent lookups
+        # Also set project_id to the string version of _id for consistent
+        # lookups
         await db.projects.update_one(
             {"_id": result.inserted_id},
             {"$set": {"project_id": str(result.inserted_id)}}

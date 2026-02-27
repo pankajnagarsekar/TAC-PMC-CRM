@@ -18,7 +18,6 @@ const STORAGE_KEY = 'supervisor_selected_project';
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [selectedProject, setSelectedProjectState] = useState<Project | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load persisted project on mount
   useEffect(() => {
@@ -33,8 +32,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to load persisted project:', error);
-    } finally {
-      setIsLoaded(true);
     }
   };
 

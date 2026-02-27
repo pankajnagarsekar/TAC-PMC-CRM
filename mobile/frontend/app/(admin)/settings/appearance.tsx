@@ -1,6 +1,6 @@
 // APPEARANCE SETTINGS SCREEN
 // Customize app theme and display preferences
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -13,35 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
+import { useTheme, defaultSettings } from '../../../contexts/ThemeContext';
 import ScreenHeader from '../../../components/ScreenHeader';
-
-const STORAGE_KEY = 'app_appearance_settings';
-
-const showAlert = (title: string, message: string) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${title}: ${message}`);
-  } else {
-    Alert.alert(title, message);
-  }
-};
-
-interface AppearanceSettings {
-  theme: 'light' | 'dark' | 'system';
-  fontSize: 'small' | 'medium' | 'large';
-  compactMode: boolean;
-  showAmounts: boolean;
-  colorScheme: string;
-}
-
-const defaultSettings: AppearanceSettings = {
-  theme: 'light',
-  fontSize: 'medium',
-  compactMode: false,
-  showAmounts: true,
-  colorScheme: 'blue',
-};
 
 const THEMES = [
   { id: 'light', label: 'Light', icon: 'sunny' },
@@ -64,46 +38,14 @@ const COLOR_SCHEMES = [
 ];
 
 export default function AppearanceSettingsScreen() {
-  const [settings, setSettings] = useState<AppearanceSettings>(defaultSettings);
-  const [loading, setLoading] = useState(true);
+  const { settings, updateSettings, colors: Colors, fontSizes: FontSizes, spacing: Spacing, borderRadius: BorderRadius, shadows: Shadows } = useTheme();
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveSettings = async (newSettings: AppearanceSettings) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-      setSettings(newSettings);
-      showAlert('Success', 'Appearance settings saved');
-    } catch (error) {
-      showAlert('Error', 'Failed to save settings');
-    }
-  };
-
-  const updateSetting = <K extends keyof AppearanceSettings>(
-    key: K,
-    value: AppearanceSettings[K]
-  ) => {
-    const newSettings = { ...settings, [key]: value };
-    saveSettings(newSettings);
+  const updateSetting = (key: keyof typeof settings, value: any) => {
+    updateSettings({ [key]: value });
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]} edges={['left', 'right']}>
       <ScreenHeader title="Appearance" />
       
       <ScrollView contentContainerStyle={styles.content}>
@@ -239,7 +181,7 @@ export default function AppearanceSettingsScreen() {
         </View>
 
         {/* Reset */}
-        <Pressable style={styles.resetButton} onPress={() => saveSettings(defaultSettings)}>
+        <Pressable style={styles.resetButton} onPress={() => updateSettings(defaultSettings)}>
           <Ionicons name="refresh" size={20} color={Colors.error} />
           <Text style={styles.resetText}>Reset to Defaults</Text>
         </Pressable>

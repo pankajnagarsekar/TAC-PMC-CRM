@@ -2,12 +2,12 @@
 // Reusable card container
 
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 
 interface CardProps {
   children: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   variant?: 'default' | 'outlined' | 'elevated';
   padding?: 'none' | 'sm' | 'md' | 'lg';

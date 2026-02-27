@@ -117,9 +117,9 @@ export default function NotificationsScreen() {
 
     // Navigate based on notification type
     if (notification.reference_type === 'dpr' && notification.reference_id) {
-      router.push(`/(admin)/dpr/${notification.reference_id}`);
+      router.push(`/(admin)/dpr/${notification.reference_id}` as any);
     } else if (notification.project_id) {
-      router.push(`/(admin)/projects/${notification.project_id}`);
+      router.push(`/(admin)/projects/${notification.project_id}` as any);
     }
   };
 

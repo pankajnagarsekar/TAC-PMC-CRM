@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
-import apiClient from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 
 interface VersionInfo {
   version: number;
@@ -46,7 +46,7 @@ export function VersionSelector({
     setLoading(true);
     try {
       const endpoint = getVersionsEndpoint(entityType, entityId);
-      const response = await apiClient.get(endpoint);
+      const response: any = await apiClient.get(endpoint);
       const versionList: VersionInfo[] = response.versions || [];
       
       // Mark current as latest
@@ -85,7 +85,7 @@ export function VersionSelector({
       } else {
         // Historical version - load snapshot
         const endpoint = getSnapshotEndpoint(entityType, entityId, version);
-        const snapshotData = await apiClient.get(endpoint);
+        const snapshotData: any = await apiClient.get(endpoint);
         setSelectedVersion(version);
         onVersionSelect(version, snapshotData);
       }

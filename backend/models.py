@@ -15,6 +15,7 @@ def validate_object_id(v):
         return v
     raise ValueError("Invalid ObjectId")
 
+
 PyObjectId = Annotated[str, BeforeValidator(validate_object_id)]
 
 

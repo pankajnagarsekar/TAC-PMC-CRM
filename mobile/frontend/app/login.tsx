@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,18 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
-
-const PRIMARY = '#1E3A5F';
-const ACCENT = '#F97316';
-const ERROR = '#EF4444';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius, shadows: Shadows } = useTheme();
+  const styles = useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius, Shadows), [Colors, Spacing, FontSizes, BorderRadius, Shadows]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,15 +44,8 @@ export default function LoginScreen() {
 
     try {
       // Use AuthContext login which properly stores tokens AND updates auth state
-      const response = await login({ email: email.trim(), password });
-
-      // Get user from stored context - AuthContext handles role-based routing
-      // but we also handle it here for immediate redirect
-      const userData = Platform.OS === 'web'
-        ? JSON.parse(localStorage.getItem('user_data') || '{}')
-        : {};
-
-      const role = userData?.role;
+      const user = await login({ email: email.trim(), password });
+      const role = user?.role;
 
       // Redirect based on role
       if (role === 'Admin') {
@@ -89,8 +82,12 @@ export default function LoginScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>TAC-PMC</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+            <Image 
+              source={require('../assets/images/logo.png')} 
+              style={styles.logo} 
+              resizeMode="contain" 
+            />
+            <Text style={styles.subtitle}>Sign in to your dashboard</Text>
           </View>
 
           {/* Form */}
@@ -104,11 +101,11 @@ export default function LoginScreen() {
 
             {/* Email Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>Email Address</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.placeholder}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -124,7 +121,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.placeholder}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -141,11 +138,15 @@ export default function LoginScreen() {
               activeOpacity={0.8}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={Colors.white} />
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
             </TouchableOpacity>
+            
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>© {new Date().getFullYear()} Third Angle Concepts. All rights reserved.</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -153,10 +154,10 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any, Shadows: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -164,70 +165,88 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: Spacing.xl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: Spacing.xxl,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: PRIMARY,
-    marginBottom: 8,
+  logo: {
+    width: 250,
+    height: 120,
+    marginBottom: Spacing.md,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: FontSizes.md,
+    fontFamily: 'Inter_400Regular',
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
   },
   form: {
     width: '100%',
+    backgroundColor: Colors.surface,
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    ...Shadows.lg,
   },
   errorContainer: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.errorLight,
     borderWidth: 1,
-    borderColor: ERROR,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderColor: Colors.error,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   errorText: {
-    color: ERROR,
-    fontSize: 14,
+    color: Colors.error,
+    fontSize: FontSizes.sm,
+    fontFamily: 'Inter_500Medium',
     textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
+    fontSize: FontSizes.sm,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
+    borderColor: Colors.inputBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontSize: FontSizes.md,
+    fontFamily: 'Inter_400Regular',
+    color: Colors.text,
+    backgroundColor: Colors.inputBg,
   },
   button: {
-    backgroundColor: PRIMARY,
-    borderRadius: 8,
-    paddingVertical: 14,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: Spacing.sm,
+    ...Shadows.md,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.white,
+    fontSize: FontSizes.md,
+    fontFamily: 'Inter_600SemiBold',
   },
+  footer: {
+    marginTop: Spacing.xl,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: FontSizes.xs,
+    fontFamily: 'Inter_400Regular',
+    color: Colors.textMuted,
+    textAlign: 'center',
+  }
 });

@@ -2,8 +2,7 @@
 // Provides authentication state and methods throughout the app
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Alert, Platform } from 'react-native';
-import { authApi, ApiError } from '../services/api';
+import { authApi } from '../services/apiClient';
 import { User, LoginRequest } from '../types/api';
 
 interface AuthState {
@@ -20,7 +19,7 @@ interface LogoutCheckResult {
 }
 
 interface AuthContextType extends AuthState {
-  login: (credentials: LoginRequest) => Promise<void>;
+  login: (credentials: LoginRequest) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   checkCanLogout: () => Promise<LogoutCheckResult>;
@@ -75,7 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const login = useCallback(async (credentials: LoginRequest) => {
+  const login = useCallback(async (credentials: LoginRequest): Promise<User> => {
     console.log('Login called with:', credentials.email);
     setState(prev => ({ ...prev, isLoading: true }));
     
@@ -88,6 +87,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading: false,
         isAuthenticated: true,
       });
+      return response.user;
     } catch (error) {
       console.error('Login failed:', error);
       setState(prev => ({ ...prev, isLoading: false }));

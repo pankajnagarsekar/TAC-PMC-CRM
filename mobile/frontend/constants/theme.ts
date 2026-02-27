@@ -2,22 +2,22 @@
 // Professional blue/gray with safety orange accent
 
 export const Colors = {
-  // Primary - Professional Blue
-  primary: '#1E3A5F',
-  primaryDark: '#152C4A',
-  primaryLight: '#2E5A8F',
+  // Primary - Deep Black / Dark Charcoal
+  primary: '#171717',
+  primaryDark: '#0A0A0A',
+  primaryLight: '#262626',
   
-  // Secondary - Steel Gray
-  secondary: '#4A5568',
-  secondaryDark: '#2D3748',
-  secondaryLight: '#718096',
+  // Secondary - Cool Grey
+  secondary: '#525252',
+  secondaryDark: '#404040',
+  secondaryLight: '#737373',
   
-  // Accent - Safety Orange
-  accent: '#F97316',
-  accentDark: '#EA580C',
-  accentLight: '#FB923C',
+  // Accent - Silver / Slate (Professional contrast)
+  accent: '#334155',
+  accentDark: '#1E293B',
+  accentLight: '#64748B',
   
-  // Status Colors
+  // Status Colors (Muted for elegance)
   success: '#10B981',
   successLight: '#D1FAE5',
   warning: '#F59E0B',
@@ -27,26 +27,26 @@ export const Colors = {
   info: '#3B82F6',
   infoLight: '#DBEAFE',
   
-  // Neutrals
+  // Neutrals 
   white: '#FFFFFF',
-  background: '#F3F4F6',
+  background: '#F8FAFC', // Slate 50 for a professional tint
   surface: '#FFFFFF',
-  border: '#E5E7EB',
-  divider: '#D1D5DB',
+  border: '#E2E8F0',
+  divider: '#CBD5E1',
   
   // Text
-  text: '#111827',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
   textInverse: '#FFFFFF',
   
   // Specific UI
-  headerBg: '#1E3A5F',
+  headerBg: '#171717', // Dark header
   tabBarBg: '#FFFFFF',
   cardBg: '#FFFFFF',
-  inputBg: '#F9FAFB',
-  inputBorder: '#D1D5DB',
-  placeholder: '#9CA3AF',
+  inputBg: '#F1F5F9',
+  inputBorder: '#E2E8F0',
+  placeholder: '#94A3B8',
 };
 
 export const Spacing = {

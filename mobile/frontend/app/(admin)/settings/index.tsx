@@ -1,18 +1,21 @@
 // ADMIN SETTINGS SCREEN
 // Admin-only settings and configuration
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Card } from '../../../components/ui';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
+import { Colors as StaticColors, Spacing as StaticSpacing, FontSizes as StaticFontSizes, BorderRadius as StaticBorderRadius } from '../../../constants/theme';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function AdminSettings() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
+  const styles = useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -20,7 +23,14 @@ export default function AdminSettings() {
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: logout },
+        { 
+          text: 'Logout', 
+          style: 'destructive', 
+          onPress: async () => {
+            await logout();
+            router.replace('/login');
+          }
+        },
       ]
     );
   };
@@ -46,27 +56,16 @@ export default function AdminSettings() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Organization</Text>
           <Card padding="none">
-            <SettingsItem icon="people" title="User Management" onPress={() => router.push('/(admin)/settings/users')} />
-            <SettingsItem icon="business" title="Organization Settings" onPress={() => router.push('/(admin)/settings/organization')} />
-            <SettingsItem icon="pricetag" title="Activity Codes" onPress={() => router.push('/(admin)/settings/codes')} />
+            <SettingsItem icon="people" title="User Management" onPress={() => router.push('/(admin)/settings/users')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="business" title="Organization Settings" onPress={() => router.push('/(admin)/settings/organization')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="pricetag" title="Activity Codes" onPress={() => router.push('/(admin)/settings/codes')} Colors={Colors} styles={styles} />
           </Card>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           <Card padding="none">
-            <SettingsItem icon="notifications" title="Notifications" onPress={() => router.push('/(admin)/settings/notifications')} />
-            <SettingsItem icon="globe" title="Currency Settings" onPress={() => router.push('/(admin)/settings/currency')} />
-            <SettingsItem icon="color-palette" title="Appearance" onPress={() => router.push('/(admin)/settings/appearance')} />
-          </Card>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
-          <Card padding="none">
-            <SettingsItem icon="help-circle" title="Help & FAQ" onPress={() => router.push('/(admin)/settings/help')} />
-            <SettingsItem icon="document-text" title="Terms of Service" onPress={() => router.push('/(admin)/settings/terms')} />
-            <SettingsItem icon="shield-checkmark" title="Privacy Policy" onPress={() => router.push('/(admin)/settings/privacy')} />
+            <SettingsItem icon="color-palette" title="Appearance" onPress={() => router.push('/(admin)/settings/appearance')} Colors={Colors} styles={styles} />
           </Card>
         </View>
 
@@ -83,7 +82,7 @@ export default function AdminSettings() {
   );
 }
 
-function SettingsItem({ icon, title, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; onPress: () => void }) {
+function SettingsItem({ icon, title, onPress, Colors, styles }: { icon: keyof typeof Ionicons.glyphMap; title: string; onPress: () => void; Colors: any, styles: any }) {
   return (
     <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
       <Ionicons name={icon} size={22} color={Colors.textSecondary} />
@@ -93,7 +92,7 @@ function SettingsItem({ icon, title, onPress }: { icon: keyof typeof Ionicons.gl
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
