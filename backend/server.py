@@ -1,4 +1,4 @@
-from fastapi.staticfiles import StaticFiles
+﻿from fastapi.staticfiles import StaticFiles
 from project_management_routes import project_management_router
 from financial_routes import financial_router
 from hardened_routes import hardened_router
@@ -91,10 +91,10 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:19006,http://localhost:8081").split(","),
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create router with /api prefix
@@ -357,6 +357,30 @@ async def refresh_access_token(request: RefreshTokenRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
+
+
+@api_router.post("/auth/logout")
+async def logout(current_user: dict = Depends(get_current_user)):
+    """
+    Logout user by revoking all their refresh tokens.
+    Client should also discard local tokens.
+    """
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+    # Revoke all refresh tokens for this user
+    result = await db.refresh_tokens.update_many(
+        {"user_id": user_id, "is_revoked": False},
+        {"$set": {"is_revoked": True}}
+    )
+
+    logger.info(f"Logout: Revoked {result.modified_count} refresh tokens for user {user_id}")
+
+    return {"message": "Successfully logged out", "tokens_revoked": result.modified_count}
 
 
 # ============================================
@@ -735,6 +759,7 @@ async def create_code(
         )
 
     code_dict = code_data.dict()
+    code_dict["organisation_id"] = user["organisation_id"]
     code_dict["active_status"] = True
     code_dict["created_at"] = datetime.utcnow()
     code_dict["updated_at"] = datetime.utcnow()
@@ -766,9 +791,9 @@ async def get_codes(
     current_user: dict = Depends(get_current_user)
 ):
     """Get all codes"""
-    await permission_checker.get_authenticated_user(current_user)
+    user = await permission_checker.get_authenticated_user(current_user)
 
-    query = {}
+    query = {"organisation_id": user["organisation_id"]}
     if active_only:
         query["active_status"] = True
 
@@ -824,12 +849,15 @@ async def update_code(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
 
-    code = await db.code_master.find_one({"_id": ObjectId(code_id)})
+    code = await db.code_master.find_one({
+        "_id": ObjectId(code_id),
+        "organisation_id": user["organisation_id"]
+    })
 
     if not code:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Code not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied or code not found"
         )
 
     update_dict = update_data.dict(exclude_unset=True)
@@ -869,6 +897,18 @@ async def delete_code(
     """
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
+
+    # Check if code exists and belongs to org
+    code = await db.code_master.find_one({
+        "_id": ObjectId(code_id),
+        "organisation_id": user["organisation_id"]
+    })
+
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied or code not found"
+        )
 
     # Check if code is referenced in budgets
     budget_ref = await db.project_budgets.find_one({"code_id": code_id})
@@ -1066,7 +1106,7 @@ async def get_financial_state(
     if code_id:
         query["code_id"] = code_id
 
-    states = await db.derived_financial_state.find(query).to_list(length=None)
+    states = await db.financial_state.find(query).to_list(length=None)
 
     for s in states:
         s["state_id"] = str(s.pop("_id"))
@@ -1114,6 +1154,7 @@ async def create_mapping(
         )
 
     mapping_dict = mapping_data.dict()
+    mapping_dict["organisation_id"] = user["organisation_id"]
     mapping_dict["created_at"] = datetime.utcnow()
 
     result = await db.user_project_map.insert_one(mapping_dict)
@@ -1145,9 +1186,9 @@ async def get_mappings(
     current_user: dict = Depends(get_current_user)
 ):
     """Get user-project mappings"""
-    await permission_checker.get_authenticated_user(current_user)
+    user = await permission_checker.get_authenticated_user(current_user)
 
-    query = {}
+    query = {"organisation_id": user["organisation_id"]}
     if user_id:
         query["user_id"] = user_id
     if project_id:
@@ -1171,12 +1212,15 @@ async def delete_mapping(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
 
-    mapping = await db.user_project_map.find_one({"_id": ObjectId(map_id)})
+    mapping = await db.user_project_map.find_one({
+        "_id": ObjectId(map_id),
+        "organisation_id": user["organisation_id"]
+    })
 
     if not mapping:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Mapping not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied or mapping not found"
         )
 
     await db.user_project_map.delete_one({"_id": ObjectId(map_id)})
@@ -1295,11 +1339,13 @@ async def update_petty_cash(
     current_user: dict = Depends(get_current_user)
 ):
     """Update petty cash entry"""
-    await permission_checker.get_authenticated_user(current_user)
-
-    existing = await db.petty_cash.find_one({"_id": ObjectId(entry_id)})
+    user = await permission_checker.get_authenticated_user(current_user)
+    existing = await db.petty_cash.find_one({
+        "_id": ObjectId(entry_id),
+        "organisation_id": user["organisation_id"]
+    })
     if not existing:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise HTTPException(status_code=403, detail="Access denied or entry not found")
 
     update_data = {
         "description": data.get("description", existing.get("description")),
@@ -1322,11 +1368,13 @@ async def delete_petty_cash(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete petty cash entry"""
-    await permission_checker.get_authenticated_user(current_user)
-
-    existing = await db.petty_cash.find_one({"_id": ObjectId(entry_id)})
+    user = await permission_checker.get_authenticated_user(current_user)
+    existing = await db.petty_cash.find_one({
+        "_id": ObjectId(entry_id),
+        "organisation_id": user["organisation_id"]
+    })
     if not existing:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise HTTPException(status_code=403, detail="Access denied or entry not found")
 
     await db.petty_cash.delete_one({"_id": ObjectId(entry_id)})
     return {"message": "Entry deleted successfully"}
@@ -1341,10 +1389,13 @@ async def approve_petty_cash(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
 
-    await db.petty_cash.update_one(
-        {"_id": ObjectId(entry_id)},
+    result = await db.petty_cash.update_one(
+        {"_id": ObjectId(entry_id), "organisation_id": user["organisation_id"]},
         {"$set": {"status": "approved", "approved_by": user["user_id"], "updated_at": datetime.utcnow()}}
     )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=403, detail="Access denied or entry not found")
 
     return {"message": "Entry approved"}
 

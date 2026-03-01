@@ -6,15 +6,17 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import secrets
+import logging
 
 # JWT Configuration
-SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY",
-    "your-secret-key-change-in-production-2024")
-REFRESH_SECRET_KEY = os.getenv(
-    "JWT_REFRESH_SECRET_KEY",
-    "your-refresh-secret-key-change-in-production-2024")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+REFRESH_SECRET_KEY = os.getenv("JWT_REFRESH_SECRET_KEY")
 ALGORITHM = "HS256"
+
+if not SECRET_KEY or not REFRESH_SECRET_KEY:
+    logger = logging.getLogger(__name__)
+    logger.error("FATAL: JWT_SECRET_KEY or JWT_REFRESH_SECRET_KEY not set in environment")
+    raise SystemExit("Environment requires JWT secrets to be set")
 
 # CORRECTED: Access token expires in 30 minutes (not 30 days!)
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
