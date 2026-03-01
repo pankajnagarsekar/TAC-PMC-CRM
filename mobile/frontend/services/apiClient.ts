@@ -268,6 +268,13 @@ export const authApi = {
     return data;
   },
   async logout(): Promise<void> {
+    try {
+      // Revoke refresh tokens server-side
+      await request('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      // Still clear local tokens even if server call fails
+      console.error('Server logout failed:', error);
+    }
     await clearTokens();
   },
   async getCurrentUser(): Promise<User | null> {
