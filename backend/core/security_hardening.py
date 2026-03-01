@@ -63,10 +63,13 @@ class SecurityHardening:
     - Configurable retention
     """
 
-    # Default signing key (should be from environment in production)
-    SIGNING_KEY = os.environ.get(
-        "URL_SIGNING_KEY",
-        "default-signing-key-change-in-production")
+    # Default signing key (MUST be from environment in production)
+    SIGNING_KEY = os.environ.get("URL_SIGNING_KEY")
+
+    if not SIGNING_KEY:
+        if os.environ.get("ENVIRONMENT") == "production":
+            raise SystemExit("Production environment requires URL_SIGNING_KEY to be set")
+        SIGNING_KEY = "dev-signing-key-change-in-production"
 
     # Default signed URL expiration (hours)
     DEFAULT_URL_EXPIRATION = 24
