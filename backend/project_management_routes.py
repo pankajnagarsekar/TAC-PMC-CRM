@@ -1892,7 +1892,6 @@ async def export_attendance_pdf(
     from core.pdf_service import pdf_generator
 
     user = await permission_checker.get_authenticated_user(current_user)
-    await permission_checker.check_project_access(user, project_id, require_write=False)
     await permission_checker.check_admin_role(user)
 
     # 1. Fetch attendance records
