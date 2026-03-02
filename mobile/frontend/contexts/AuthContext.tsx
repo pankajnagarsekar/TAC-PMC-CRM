@@ -38,12 +38,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: false,
   });
 
-  // Check for existing session on mount
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     console.log('Checking auth status...');
     try {
       const isAuth = await authApi.isAuthenticated();
@@ -72,7 +67,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isAuthenticated: false,
       });
     }
-  };
+  }, []);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
 
   const login = useCallback(async (credentials: LoginRequest): Promise<User> => {
     console.log('Login called with:', credentials.email);

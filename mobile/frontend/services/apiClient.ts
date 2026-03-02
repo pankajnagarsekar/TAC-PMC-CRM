@@ -71,6 +71,16 @@ const TOKEN_KEYS = {
   USER: 'user_data',
 } as const;
 
+let SecureStore: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    SecureStore = require('expo-secure-store');
+  } catch (e) {
+    console.warn('Failed to load expo-secure-store:', e);
+  }
+}
+
 // ============================================
 // AUTH TOKEN HELPERS (Web-safe)
 // ============================================
@@ -79,9 +89,7 @@ export const getAuthToken = async (): Promise<string | null> => {
     return localStorage.getItem('access_token');
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SecureStore = require('expo-secure-store');
-    return await SecureStore.getItemAsync('access_token');
+    return SecureStore ? await SecureStore.getItemAsync('access_token') : null;
   } catch {
     return null;
   }
@@ -93,9 +101,7 @@ export const setAuthToken = async (token: string): Promise<void> => {
     return;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SecureStore = require('expo-secure-store');
-    await SecureStore.setItemAsync('access_token', token);
+    if (SecureStore) await SecureStore.setItemAsync('access_token', token);
   } catch {}
 };
 
@@ -105,9 +111,7 @@ export const clearAuthToken = async (): Promise<void> => {
     return;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SecureStore = require('expo-secure-store');
-    await SecureStore.deleteItemAsync('access_token');
+    if (SecureStore) await SecureStore.deleteItemAsync('access_token');
   } catch {}
 };
 
@@ -119,27 +123,21 @@ const storage = {
     if (Platform.OS === 'web') {
       return localStorage.getItem(key);
     }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SS = require('expo-secure-store');
-    return SS.getItemAsync(key);
+    return SecureStore ? SecureStore.getItemAsync(key) : null;
   },
   async set(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.setItem(key, value);
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SS = require('expo-secure-store');
-    return SS.setItemAsync(key, value);
+    if (SecureStore) return SecureStore.setItemAsync(key, value);
   },
   async remove(key: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.removeItem(key);
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SS = require('expo-secure-store');
-    return SS.deleteItemAsync(key);
+    if (SecureStore) return SecureStore.deleteItemAsync(key);
   },
 };
 
@@ -230,27 +228,39 @@ export const apiClient = {
   delete: <T>(endpoint: string): Promise<T> => request<T>(endpoint, { method: 'DELETE' }),
 };
 
+let refreshTokenPromise: Promise<boolean> | null = null;
+
 async function attemptTokenRefresh(): Promise<boolean> {
-  try {
-    const refreshToken = await storage.get(TOKEN_KEYS.REFRESH);
-    if (!refreshToken) return false;
-
-    const response = await fetch(`${BASE_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-
-    if (!response.ok) return false;
-
-    const data: LoginResponse = await response.json();
-    await storage.set(TOKEN_KEYS.ACCESS, data.access_token);
-    await storage.set(TOKEN_KEYS.REFRESH, data.refresh_token);
-    await storage.set(TOKEN_KEYS.USER, JSON.stringify(data.user));
-    return true;
-  } catch {
-    return false;
+  if (refreshTokenPromise) {
+    return refreshTokenPromise;
   }
+
+  refreshTokenPromise = (async () => {
+    try {
+      const refreshToken = await storage.get(TOKEN_KEYS.REFRESH);
+      if (!refreshToken) return false;
+
+      const response = await fetch(`${BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      const data: LoginResponse = await response.json();
+      await storage.set(TOKEN_KEYS.ACCESS, data.access_token);
+      await storage.set(TOKEN_KEYS.REFRESH, data.refresh_token);
+      await storage.set(TOKEN_KEYS.USER, JSON.stringify(data.user));
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshTokenPromise = null;
+    }
+  })();
+
+  return refreshTokenPromise;
 }
 
 async function clearTokens(): Promise<void> {
