@@ -25,15 +25,18 @@ from core.ai_service import AIService, AIServiceError
 from core.background_job_engine import BackgroundJobEngine
 from core.snapshot_engine import SnapshotEngine, SnapshotNotFoundError
 from permissions import PermissionChecker
-from auth import get_current_user
+from auth import get_current_user, get_token_from_header_or_query
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Request
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from bson import ObjectId, Decimal128
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 import logging
 import os
+import io
+import pandas as pd
+from fastapi.responses import Response
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -89,6 +92,11 @@ security = SecurityHardening(client, db)
 
 # Phase 2 - Snapshot + Document Integrity services
 dpr_snapshot_service = SnapshotService(db)
+
+
+async def get_db() -> AsyncIOMotorDatabase:
+    """FastAPI dependency to get the database instance"""
+    return db
 
 
 # =============================================================================
@@ -941,10 +949,10 @@ async def add_dpr_image(
     if not dpr:
         raise HTTPException(status_code=404, detail="DPR not found")
 
-    if dpr.get("locked_flag"):
+    # If locked, only Admin can update status
+    if dpr.get("locked_flag") and user.get("role") != "Admin":
         raise HTTPException(status_code=400,
                             detail="DPR is locked and cannot be modified")
-
     if dpr.get("organisation_id") != user["organisation_id"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -1032,10 +1040,11 @@ async def update_image_caption(
     return {"status": "updated", "message": "Caption updated successfully"}
 
 
-@project_management_router.post("/dpr/{dpr_id}/generate-pdf")
+@project_management_router.get("/dpr/{dpr_id}/generate-pdf")
 async def generate_dpr_pdf(
     dpr_id: str,
-    current_user: dict = Depends(get_current_user)
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_token_from_header_or_query)
 ):
     """
     Generate PDF from DPR.
@@ -1462,6 +1471,8 @@ async def download_dpr_pdf(
 async def list_dprs(
     project_id: Optional[str] = None,
     status_filter: Optional[str] = None,
+    search: Optional[str] = None,
+    date: Optional[str] = None,
     limit: int = 50,
     current_user: dict = Depends(get_current_user)
 ):
@@ -1476,14 +1487,22 @@ async def list_dprs(
     if status_filter:
         query["status"] = status_filter
 
+    if search:
+        query["progress_notes"] = {"$regex": search, "$options": "i"}
+
+    if date:
+        query["dpr_date"] = {"$regex": f"^{date}"}
+
     dprs = await db.dpr.find(query).sort("dpr_date", -1).limit(limit).to_list(length=limit)
 
     result = []
     for dpr in dprs:
         dpr["dpr_id"] = str(dpr.pop("_id"))
         # Don't include full image data in list
+        images = dpr.get("images", [])
+        dpr["images_count"] = len(images)
         dpr["images"] = [{"image_id": img.get("image_id"), "caption": img.get(
-            "caption")} for img in dpr.get("images", [])]
+            "caption")} for img in images]
         result.append(serialize_mongo_doc(dpr))
 
     return {"dprs": result}
@@ -1543,7 +1562,8 @@ async def update_dpr(
 
     if dpr.get("organisation_id") != user["organisation_id"]:
         raise HTTPException(status_code=403, detail="Access denied")
-    if dpr.get("locked_flag"):
+    # If locked, only Admin can update status
+    if dpr.get("locked_flag") and user.get("role") != "Admin":
         raise HTTPException(status_code=400,
                             detail="DPR is locked and cannot be modified")
 
@@ -1796,10 +1816,13 @@ async def get_attendance_history(
 async def get_all_attendance(
     project_id: Optional[str] = None,
     date: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
     limit: int = 50,
     current_user: dict = Depends(get_current_user)
 ):
-    """Admin: Get all attendance records, optionally filtered by project and date"""
+    """Admin: Get all attendance records, optionally filtered by project, date range, and supervisor name"""
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
 
@@ -1808,6 +1831,9 @@ async def get_all_attendance(
     if project_id:
         query["project_id"] = project_id
 
+    if search:
+        query["user_name"] = {"$regex": search, "$options": "i"}
+
     if date:
         try:
             day_start = datetime.strptime(date, "%Y-%m-%d")
@@ -1815,6 +1841,21 @@ async def get_all_attendance(
             query["check_in_time"] = {"$gte": day_start, "$lt": day_end}
         except ValueError:
             pass
+    elif start_date or end_date:
+        date_query = {}
+        if start_date:
+            try:
+                date_query["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                pass
+        if end_date:
+            try:
+                # Inclusive of the end day
+                date_query["$lt"] = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            except ValueError:
+                pass
+        if date_query:
+            query["check_in_time"] = date_query
 
     records = await db.attendance.find(query).sort("check_in_time", -1).limit(limit).to_list(length=limit)
 
@@ -1832,6 +1873,215 @@ async def get_all_attendance(
         result.append(serialize_mongo_doc(r))
 
     return {"attendance": result, "total": len(result)}
+
+
+@project_management_router.get("/attendance/export-pdf")
+async def export_attendance_pdf(
+    project_id: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    vendor: Optional[str] = Query(None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_token_from_header_or_query)
+):
+    """
+    Export attendance and worker logs to PDF with filtering.
+    """
+    from fastapi.responses import Response
+    from core.pdf_service import pdf_generator
+    
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_project_access(user, project_id, require_write=False)
+    await permission_checker.check_admin_role(user)
+    
+    # 1. Fetch attendance records
+    attendance_query = {
+        "project_id": project_id,
+        "organisation_id": user["organisation_id"]
+    }
+    if start_date or end_date:
+        date_query = {}
+        if start_date:
+            try:
+                date_query["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                pass
+        if end_date:
+            try:
+                # Inclusive of the end day
+                date_query["$lt"] = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            except ValueError:
+                pass
+        if date_query:
+            attendance_query["check_in_time"] = date_query
+    
+    if search:
+        attendance_query["user_name"] = {"$regex": search, "$options": "i"}
+        
+    attendance_cursor = db.attendance.find(attendance_query).sort("check_in_time", -1)
+    attendance_list = await attendance_cursor.to_list(length=500)
+    
+    # 2. Fetch worker logs
+    worker_query = {
+        "project_id": project_id,
+        "organisation_id": user["organisation_id"]
+    }
+    if start_date or end_date:
+        date_filter = {}
+        if start_date:
+            date_filter["$gte"] = start_date
+        if end_date:
+            date_filter["$lte"] = end_date
+        worker_query["date"] = date_filter
+        
+    worker_cursor = db.worker_logs.find(worker_query).sort("date", -1)
+    worker_logs = await worker_cursor.to_list(length=500)
+    
+    # 3. Filter worker logs by vendor if provided
+    if vendor:
+        filtered_logs = []
+        for log in worker_logs:
+            entries = log.get("entries", [])
+            matching_entries = [e for e in entries if vendor.lower() in e.get("vendor_name", "").lower()]
+            if matching_entries:
+                log["entries"] = matching_entries
+                filtered_logs.append(log)
+        worker_logs = filtered_logs
+        
+    # 4. Generate PDF using a report-style template
+    # Since we don't have a dedicated attendance PDF generator yet, 
+    # we'll add a method to pdf_generator or create one.
+    # For now, let's assume we can use a generic report generator or expand pdf_service.
+    
+    pdf_content = await pdf_generator.generate_attendance_report(
+        project_id=project_id,
+        attendance=attendance_list,
+        worker_logs=worker_logs,
+        start_date=start_date,
+        end_date=end_date
+    )
+    
+    filename = f"Attendance_Report_{project_id}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(len(pdf_content))
+        }
+    )
+
+
+@project_management_router.get("/attendance/export")
+async def export_attendance_excel(
+    project_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    vendor: Optional[str] = None,
+    current_user: dict = Depends(get_token_from_header_or_query)
+):
+    """Admin: Export attendance and worker logs to Excel"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_admin_role(user)
+
+    # 1. Fetch Supervisor Attendance
+    query_attendance: dict = {"organisation_id": user["organisation_id"]}
+    if project_id:
+        query_attendance["project_id"] = project_id
+    if search:
+        query_attendance["user_name"] = {"$regex": search, "$options": "i"}
+    
+    date_query = {}
+    if start_date:
+        try:
+            date_query["$gte"] = datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            date_query["$lt"] = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        except ValueError:
+            pass
+    if date_query:
+        query_attendance["check_in_time"] = date_query
+
+    attendance_records = await db.attendance.find(query_attendance).sort("check_in_time", 1).to_list(length=1000)
+
+    # 2. Fetch Worker Logs
+    query_workers: dict = {"organisation_id": user["organisation_id"]}
+    if project_id:
+        query_workers["project_id"] = project_id
+    if vendor:
+        query_workers["entries.vendor_name"] = {"$regex": vendor, "$options": "i"}
+    
+    worker_date_query = {}
+    if start_date:
+        worker_date_query["$gte"] = start_date
+    if end_date:
+        worker_date_query["$lte"] = end_date
+    if worker_date_query:
+        query_workers["date"] = worker_date_query
+
+    worker_logs = await db.worker_logs.find(query_workers).sort("date", 1).to_list(length=1000)
+
+    # 3. Create DataFrames
+    # Supervisor Sheet
+    sup_data = []
+    for r in attendance_records:
+        sup_data.append({
+            "Date": r["check_in_time"].strftime("%Y-%m-%d") if isinstance(r["check_in_time"], datetime) else str(r["check_in_time"]),
+            "Time": r["check_in_time"].strftime("%I:%M %p") if isinstance(r["check_in_time"], datetime) else "",
+            "Name": r.get("user_name", "Unknown"),
+            "Role": r.get("role", "Supervisor"),
+            "Status": r.get("status", "Present"),
+            "Location": r.get("location", {}).get("address", "")
+        })
+    df_sup = pd.DataFrame(sup_data)
+
+    # Worker Sheet
+    worker_data = []
+    for log in worker_logs:
+        for entry in log.get("entries", []):
+            if vendor and vendor.lower() not in entry.get("vendor_name", "").lower():
+                continue
+            worker_data.append({
+                "Date": log.get("date"),
+                "Supervisor": log.get("supervisor_name"),
+                "Vendor": entry.get("vendor_name"),
+                "Workers": entry.get("workers_count"),
+                "Skill": entry.get("skill_type"),
+                "Weather": log.get("weather")
+            })
+    df_worker = pd.DataFrame(worker_data)
+
+    # 4. Generate Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        if not df_sup.empty:
+            df_sup.to_excel(writer, sheet_name='Supervisors', index=False)
+        else:
+            # Create empty sheet if no data
+            pd.DataFrame([{"Message": "No supervisor data found for selected filters"}]).to_excel(writer, sheet_name='Supervisors', index=False)
+            
+        if not df_worker.empty:
+            df_worker.to_excel(writer, sheet_name='Workers', index=False)
+        else:
+            pd.DataFrame([{"Message": "No worker data found for selected filters"}]).to_excel(writer, sheet_name='Workers', index=False)
+
+    output.seek(0)
+    
+    filename = f"Attendance_Export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 
 
 # =============================================================================
@@ -1895,10 +2145,15 @@ async def get_admin_projects_overview(
                 total_remaining += remaining
 
                 # Get code name
-                code = await db.code_master.find_one({"_id": ObjectId(b.get("code_id"))})
-                code_name = code.get(
-                    "code_description", code.get(
-                        "code_short", "Unknown")) if code else "Unknown"
+                code_name = "Unknown"
+                try:
+                    c_id = b.get("code_id")
+                    if c_id:
+                        code = await db.code_master.find_one({"_id": ObjectId(c_id)})
+                        if code:
+                            code_name = code.get("code_description", code.get("code_short", "Unknown"))
+                except Exception as e:
+                    logger.warning(f"Error fetching code name for code_id {b.get('code_id')}: {e}")
 
                 categories.append({
                     "code_id": b.get("code_id"),

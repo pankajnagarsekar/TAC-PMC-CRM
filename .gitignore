@@ -1,18 +1,22 @@
 # Environment files
-*.env
-*.env.*
+.env
+.env.*
 
 # Python cache
 __pycache__/
 *.py[cod]
+.venv/
 
 # JavaScript/Expo artifacts
 node_modules/
 package-lock.json
 yarn.lock
+.expo/
 .metro-cache/
 
 # Editor/system
 .vscode/
 .idea/
 *.log
+*.txt
+tmp/

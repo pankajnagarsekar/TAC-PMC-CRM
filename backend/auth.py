@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import secrets
@@ -31,8 +31,8 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# HTTP Bearer for token extraction
-security = HTTPBearer()
+# HTTP Bearer for token extraction - allow auto_error=False for query-based fallback
+security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -138,8 +138,13 @@ def decode_refresh_token(token: str) -> dict:
 
 
 async def get_current_user(
-        credentials: HTTPAuthorizationCredentials = Depends(security)):
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     """Extract and validate current user from JWT token"""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
     token = credentials.credentials
     payload = decode_access_token(token)
 
@@ -150,4 +155,39 @@ async def get_current_user(
             detail="Invalid authentication credentials"
         )
 
+    return payload
+
+
+
+async def get_token_from_header_or_query(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    token: Optional[str] = Query(None)
+):
+    """
+    Dependency that extracts JWT from either:
+    1. Authorization: Bearer <token> header
+    2. ?token=<token> query parameter
+    Useful for browser-initiated downloads (Excel export).
+    """
+    actual_token = None
+    
+    if credentials:
+        actual_token = credentials.credentials
+    elif token:
+        actual_token = token
+        
+    if not actual_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+        
+    payload = decode_access_token(actual_token)
+    user_id = payload.get("user_id")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
+        )
+        
     return payload

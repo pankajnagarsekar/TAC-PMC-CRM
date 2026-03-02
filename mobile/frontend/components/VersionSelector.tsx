@@ -2,7 +2,7 @@
 // UI-3: Dropdown to view historical versions (snapshots) of documents
 // Loads versions from backend, shows read-only view for historical versions
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
@@ -34,15 +34,7 @@ export function VersionSelector({
   const [modalVisible, setModalVisible] = useState(false);
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
 
-  useEffect(() => {
-    fetchVersions();
-  }, [entityType, entityId]);
-
-  useEffect(() => {
-    setSelectedVersion(currentVersion);
-  }, [currentVersion]);
-
-  const fetchVersions = async () => {
+  const fetchVersions = useCallback(async () => {
     setLoading(true);
     try {
       const endpoint = getVersionsEndpoint(entityType, entityId);
@@ -69,7 +61,11 @@ export function VersionSelector({
     } finally {
       setLoading(false);
     }
-  };
+  }, [entityType, entityId, currentVersion]);
+
+  useEffect(() => {
+    fetchVersions();
+  }, [fetchVersions]);
 
   const handleVersionSelect = async (version: number) => {
     setLoadingSnapshot(true);
@@ -210,29 +206,13 @@ export function VersionSelector({
 
 // Helper functions
 function getVersionsEndpoint(entityType: string, entityId: string): string {
-  switch (entityType) {
-    case 'work_order':
-      return `/api/v2/work-orders/${entityId}/versions`;
-    case 'payment_certificate':
-      return `/api/v2/payment-certificates/${entityId}/versions`;
-    case 'dpr':
-      return `/api/v2/dpr/${entityId}/versions`;
-    default:
-      return `/api/v2/${entityType}/${entityId}/versions`;
-  }
+  const type = entityType.toUpperCase();
+  return `/api/v2/snapshots/${type}/${entityId}/versions`;
 }
 
 function getSnapshotEndpoint(entityType: string, entityId: string, version: number): string {
-  switch (entityType) {
-    case 'work_order':
-      return `/api/v2/work-orders/${entityId}/snapshots/${version}`;
-    case 'payment_certificate':
-      return `/api/v2/payment-certificates/${entityId}/snapshots/${version}`;
-    case 'dpr':
-      return `/api/v2/dpr/${entityId}/snapshots/${version}`;
-    default:
-      return `/api/v2/${entityType}/${entityId}/snapshots/${version}`;
-  }
+  const type = entityType.toUpperCase();
+  return `/api/v2/snapshots/${type}/${entityId}?version=${version}`;
 }
 
 const styles = StyleSheet.create({

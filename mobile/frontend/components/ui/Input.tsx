@@ -12,7 +12,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -33,20 +33,24 @@ export function Input({
   onRightIconPress,
   containerStyle,
   secureTextEntry,
+  style,
   ...props
 }: InputProps) {
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isSecure, setIsSecure] = useState(secureTextEntry);
 
+  const dynamicStyles = getStyles(Colors, Spacing, FontSizes, BorderRadius);
+
   const inputContainerStyles = [
-    styles.inputContainer,
-    isFocused && styles.inputContainerFocused,
-    error && styles.inputContainerError,
+    dynamicStyles.inputContainer,
+    isFocused && dynamicStyles.inputContainerFocused,
+    error && dynamicStyles.inputContainerError,
   ];
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+    <View style={[dynamicStyles.container, containerStyle]}>
+      {label && <Text style={dynamicStyles.label}>{label}</Text>}
       
       <View style={inputContainerStyles}>
         {leftIcon && (
@@ -54,15 +58,16 @@ export function Input({
             name={leftIcon}
             size={20}
             color={isFocused ? Colors.primary : Colors.textMuted}
-            style={styles.leftIcon}
+            style={dynamicStyles.leftIcon}
           />
         )}
         
         <TextInput
           style={[
-            styles.input,
-            leftIcon && styles.inputWithLeftIcon,
-            (rightIcon || secureTextEntry) && styles.inputWithRightIcon,
+            dynamicStyles.input,
+            leftIcon && dynamicStyles.inputWithLeftIcon,
+            (rightIcon || secureTextEntry) && dynamicStyles.inputWithRightIcon,
+            style,
           ]}
           placeholderTextColor={Colors.placeholder}
           onFocus={() => setIsFocused(true)}
@@ -74,7 +79,7 @@ export function Input({
         {secureTextEntry ? (
           <TouchableOpacity
             onPress={() => setIsSecure(!isSecure)}
-            style={styles.rightIcon}
+            style={dynamicStyles.rightIcon}
           >
             <Ionicons
               name={isSecure ? 'eye-outline' : 'eye-off-outline'}
@@ -85,7 +90,7 @@ export function Input({
         ) : rightIcon ? (
           <TouchableOpacity
             onPress={onRightIconPress}
-            style={styles.rightIcon}
+            style={dynamicStyles.rightIcon}
             disabled={!onRightIconPress}
           >
             <Ionicons
@@ -97,13 +102,13 @@ export function Input({
         ) : null}
       </View>
       
-      {error && <Text style={styles.error}>{error}</Text>}
-      {hint && !error && <Text style={styles.hint}>{hint}</Text>}
+      {error && <Text style={dynamicStyles.error}>{error}</Text>}
+      {hint && !error && <Text style={dynamicStyles.hint}>{hint}</Text>}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
   },
@@ -124,7 +129,7 @@ const styles = StyleSheet.create({
   },
   inputContainerFocused: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.isDark ? Colors.surface : Colors.white,
   },
   inputContainerError: {
     borderColor: Colors.error,

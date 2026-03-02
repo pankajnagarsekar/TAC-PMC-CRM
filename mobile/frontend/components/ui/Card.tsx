@@ -2,8 +2,8 @@
 // Reusable card container
 
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/theme';
+import { View, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardProps {
   children: ReactNode;
@@ -20,17 +20,49 @@ export function Card({
   variant = 'default',
   padding = 'md',
 }: CardProps) {
+  const { colors, spacing, borderRadius, shadows } = useTheme();
+
+  const getVariantStyle = () => {
+    switch (variant) {
+      case 'outlined':
+        return {
+          borderWidth: 1,
+          borderColor: colors.border,
+        };
+      case 'elevated':
+        return shadows.lg;
+      default:
+        return shadows.md;
+    }
+  };
+
+  const getPaddingStyle = () => {
+    switch (padding) {
+      case 'none':
+        return { padding: 0 };
+      case 'sm':
+        return { padding: spacing.sm };
+      case 'lg':
+        return { padding: spacing.lg };
+      default:
+        return { padding: spacing.md };
+    }
+  };
+
   const cardStyles = [
-    styles.base,
-    styles[variant],
-    styles[`padding_${padding}`],
+    {
+      backgroundColor: colors.cardBg,
+      borderRadius: borderRadius.lg,
+    },
+    getVariantStyle(),
+    getPaddingStyle(),
     style,
   ];
 
   if (onPress) {
     return (
       <TouchableOpacity
-        style={cardStyles}
+        style={cardStyles as StyleProp<ViewStyle>}
         onPress={onPress}
         activeOpacity={0.7}
       >
@@ -39,40 +71,7 @@ export function Card({
     );
   }
 
-  return <View style={cardStyles}>{children}</View>;
+  return <View style={cardStyles as StyleProp<ViewStyle>}>{children}</View>;
 }
-
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-  },
-  
-  // Variants
-  default: {
-    ...Shadows.md,
-  },
-  outlined: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  elevated: {
-    ...Shadows.lg,
-  },
-  
-  // Padding
-  padding_none: {
-    padding: 0,
-  },
-  padding_sm: {
-    padding: Spacing.sm,
-  },
-  padding_md: {
-    padding: Spacing.md,
-  },
-  padding_lg: {
-    padding: Spacing.lg,
-  },
-});
 
 export default Card;

@@ -19,14 +19,13 @@ import {
   Image,
   RefreshControl,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { apiClient } from '../../../services/apiClient';
+import { apiClient, authApi } from '../../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 import VersionSelector from '../../../components/VersionSelector';
 
@@ -325,85 +324,19 @@ export default function DPRDetailScreen() {
     
     setGeneratingPdf(true);
     try {
-      const dateObj = new Date(dpr.dpr_date);
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'];
-      const formattedDate = `${monthNames[dateObj.getMonth()]}, ${String(dateObj.getDate()).padStart(2, '0')}, ${dateObj.getFullYear()}`;
+      const token = await authApi.getToken();
+      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+      const url = `${baseUrl}/api/v2/dpr/${id}/generate-pdf?token=${token}`;
       
-      const photoPages = dpr.images.map((img, idx) => `
-        <div style="page-break-after: always; height: 100vh; display: flex; flex-direction: column; padding: 30px; box-sizing: border-box;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #007AFF; margin: 0; font-size: 16px;">Photo ${idx + 1} of ${dpr.images.length}</h2>
-            <p style="color: #666; margin: 5px 0 0; font-size: 12px;">${formattedDate}</p>
-          </div>
-          <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-            <img src="${img.image_url || ''}" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px;" />
-          </div>
-          <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007AFF;">
-            <p style="margin: 0; font-size: 14px; color: #333;">${img.caption || 'No caption'}</p>
-          </div>
-        </div>
-      `).join('');
-      
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head><meta charset="utf-8"><title>DPR - ${formattedDate}</title>
-            <style>
-              @page { margin: 0; size: A4 portrait; }
-              body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; }
-              .cover-page { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; box-sizing: border-box; background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%); page-break-after: always; }
-              .cover-title { font-size: 32px; font-weight: bold; color: #1a1a1a; margin: 0 0 10px; text-align: center; }
-              .cover-subtitle { font-size: 18px; color: #666; margin: 0 0 40px; }
-              .cover-info { background: white; padding: 30px 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-              .cover-info-row { display: flex; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-              .cover-info-row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-              .cover-info-label { font-weight: 600; color: #333; width: 100px; }
-              .cover-info-value { color: #666; flex: 1; }
-            </style>
-          </head>
-          <body>
-            <div class="cover-page">
-              <h1 class="cover-title">Daily Progress Report</h1>
-              <p class="cover-subtitle">${formattedDate}</p>
-              <div class="cover-info">
-                <div class="cover-info-row">
-                  <span class="cover-info-label">Project</span>
-                  <span class="cover-info-value">${dpr.project_name || 'N/A'}</span>
-                </div>
-                <div class="cover-info-row">
-                  <span class="cover-info-label">Date</span>
-                  <span class="cover-info-value">${formattedDate}</span>
-                </div>
-                <div class="cover-info-row">
-                  <span class="cover-info-label">Photos</span>
-                  <span class="cover-info-value">${dpr.images.length} progress photos</span>
-                </div>
-              </div>
-              ${dpr.progress_notes ? `
-              <div style="margin-top: 30px; max-width: 400px; text-align: left;">
-                <h3 style="font-size: 14px; color: #333; margin: 0 0 10px;">Progress Notes</h3>
-                <p style="font-size: 12px; color: #666; margin: 0; line-height: 1.5;">${dpr.progress_notes}</p>
-              </div>` : ''}
-            </div>
-            ${photoPages}
-          </body>
-        </html>
-      `;
-      
-      const { uri } = await Print.printToFileAsync({ html: htmlContent, base64: false });
-      
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `DPR - ${formattedDate}`,
-          UTI: 'com.adobe.pdf',
-        });
+      // Use Linking to open the PDF URL which triggers the download
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
       } else {
-        showAlert('PDF Generated', `PDF saved at: ${uri}`);
+        Alert.alert('Error', 'Cannot open download URL');
       }
     } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to generate PDF');
+      showAlert('Error', error.message || 'Failed to trigger PDF download');
     } finally {
       setGeneratingPdf(false);
     }

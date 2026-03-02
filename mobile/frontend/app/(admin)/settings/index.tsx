@@ -2,7 +2,7 @@
 // Admin-only settings and configuration
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -18,21 +18,29 @@ export default function AdminSettings() {
   const styles = useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive', 
-          onPress: async () => {
-            await logout();
-            router.replace('/login');
-          }
-        },
-      ]
-    );
+    const onConfirm = async () => {
+      await logout();
+      router.replace('/login');
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to logout?')) {
+        onConfirm();
+      }
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Logout', 
+            style: 'destructive', 
+            onPress: onConfirm
+          },
+        ]
+      );
+    }
   };
 
   return (
@@ -62,12 +70,14 @@ export default function AdminSettings() {
           </Card>
         </View>
 
+        {/* 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           <Card padding="none">
             <SettingsItem icon="color-palette" title="Appearance" onPress={() => router.push('/(admin)/settings/appearance')} Colors={Colors} styles={styles} />
           </Card>
         </View>
+        */}
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

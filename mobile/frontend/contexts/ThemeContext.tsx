@@ -95,6 +95,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     colors.cardBg = '#1E293B';
     colors.inputBg = '#0F172A';
     colors.inputBorder = '#334155';
+    colors.placeholder = '#64748B';
   }
 
   // Apply custom primary color scheme if specified

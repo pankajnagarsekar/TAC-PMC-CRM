@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
 import { apiClient } from '../../services/apiClient';
-import { Colors as StaticColors, Spacing as StaticSpacing, FontSizes as StaticFontSizes, BorderRadius as StaticBorderRadius } from '../../constants/theme';
+import { Card } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface BudgetCategory {
@@ -137,31 +137,31 @@ export default function AdminDashboard() {
         </View>
 
         {/* Summary Strip */}
-        <View style={styles.summaryStrip}>
+        <Card style={styles.summaryStrip} padding="none">
           <View style={styles.summaryItem}>
-            <Ionicons name="business" size={18} color={Colors.primary} />
+            <Ionicons name="business" size={20} color={Colors.primary} />
             <Text style={styles.summaryValue}>{projects.length}</Text>
             <Text style={styles.summaryLabel}>Projects</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
-            <Ionicons name="document-text" size={18} color={Colors.info} />
+            <Ionicons name="document-text" size={20} color={Colors.info} />
             <Text style={styles.summaryValue}>{projects.reduce((s, p) => s + p.dprs.pending_approvals, 0)}</Text>
             <Text style={styles.summaryLabel}>Pending</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
-            <Ionicons name="today" size={18} color={Colors.success} />
+            <Ionicons name="today" size={20} color={Colors.success} />
             <Text style={styles.summaryValue}>{projects.reduce((s, p) => s + p.dprs.today, 0)}</Text>
             <Text style={styles.summaryLabel}>DPRs Today</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
-            <Ionicons name="people" size={18} color={Colors.warning} />
+            <Ionicons name="people" size={20} color={Colors.warning} />
             <Text style={styles.summaryValue}>{projects.reduce((s, p) => s + p.workers.recent_total, 0)}</Text>
             <Text style={styles.summaryLabel}>Workers</Text>
           </View>
-        </View>
+        </Card>
 
         {/* Project Cards */}
         {projects.length === 0 ? (
@@ -176,7 +176,7 @@ export default function AdminDashboard() {
             const completionColor = getCompletionColor(project.completion_pct);
             
             return (
-              <View key={project.project_id} style={styles.projectCard}>
+              <Card key={project.project_id} style={styles.projectCard} padding="none">
                 {/* Card Header */}
                 <Pressable style={styles.cardHeader} onPress={() => toggleExpand(project.project_id)}>
                   <View style={styles.cardHeaderLeft}>
@@ -322,7 +322,7 @@ export default function AdminDashboard() {
                     </View>
                   </View>
                 )}
-              </View>
+              </Card>
             );
           })
         )}
@@ -332,82 +332,86 @@ export default function AdminDashboard() {
 }
 
 const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  container: { flex: 1, backgroundColor: Colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: Spacing.md, color: Colors.textSecondary },
+  loadingText: { marginTop: Spacing.md, color: Colors.textSecondary, fontFamily: 'Inter_500Medium' },
   scrollContent: { padding: Spacing.md, paddingBottom: 100 },
 
   // Page header
-  pageHeader: { marginBottom: Spacing.md },
-  pageTitle: { fontSize: 24, fontWeight: '700', color: Colors.text },
-  pageSubtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 2 },
+  pageHeader: { marginBottom: Spacing.lg },
+  pageTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
+  pageSubtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 4, fontFamily: 'Inter_400Regular' },
 
   // Summary strip
   summaryStrip: { 
-    flexDirection: 'row', alignItems: 'center', 
-    backgroundColor: Colors.white, borderRadius: BorderRadius.lg, 
-    padding: Spacing.md, marginBottom: Spacing.lg, 
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: Spacing.md, 
+    marginBottom: Spacing.xl, 
   },
-  summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
-  summaryValue: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
-  summaryLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '500' },
-  summaryDivider: { width: 1, height: 30, backgroundColor: Colors.border },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
+  summaryValue: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
+  summaryLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
+  summaryDivider: { width: 1, height: 32, backgroundColor: Colors.border },
 
   // Empty state
-  emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.md },
-  emptySubtitle: { fontSize: FontSizes.md, color: Colors.textMuted, marginTop: Spacing.xs },
+  emptyState: { alignItems: 'center', paddingVertical: 80 },
+  emptyTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.md, fontFamily: 'Inter_600SemiBold' },
+  emptySubtitle: { fontSize: FontSizes.md, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center', fontFamily: 'Inter_400Regular' },
 
   // Project card
   projectCard: { 
-    backgroundColor: Colors.white, borderRadius: BorderRadius.lg, 
-    marginBottom: Spacing.md, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    marginBottom: Spacing.lg,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, paddingBottom: Spacing.sm },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
   cardHeaderLeft: { flex: 1 },
-  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  projectName: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text },
-  projectCode: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 2 },
+  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  projectName: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
+  projectCode: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 4, fontFamily: 'Inter_400Regular' },
 
   // Completion
-  completionBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.full },
-  completionText: { fontSize: FontSizes.sm, fontWeight: '700' },
-  progressBarContainer: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
-  progressBarBg: { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2 },
-  progressBarFill: { height: 4, borderRadius: 2, minWidth: 2 },
+  completionBadge: { paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.full },
+  completionText: { fontSize: FontSizes.sm, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+  progressBarContainer: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
+  progressBarBg: { height: 6, backgroundColor: Colors.border, borderRadius: 3 },
+  progressBarFill: { height: 6, borderRadius: 3, minWidth: 4 },
 
   // Quick stats
-  quickStats: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
+  quickStats: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.xs },
   quickStatItem: { flex: 1, alignItems: 'center' },
-  quickStatValue: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text },
-  quickStatLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 1, textTransform: 'uppercase' },
+  quickStatValue: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
+  quickStatLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 4, textTransform: 'uppercase', fontFamily: 'Inter_600SemiBold' },
 
   // Expanded section
-  expandedSection: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm },
-  sectionLabel: { fontSize: FontSizes.sm, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', marginBottom: Spacing.sm },
+  expandedSection: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
+  sectionLabel: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', marginBottom: Spacing.md, fontFamily: 'Inter_700Bold' },
 
   // Budget grid
-  budgetGrid: { gap: Spacing.xs },
-  budgetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  budgetRowLabel: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  budgetRowValue: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.text },
+  budgetGrid: { gap: Spacing.sm },
+  budgetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  budgetRowLabel: { fontSize: FontSizes.sm, color: Colors.textSecondary, fontFamily: 'Inter_400Regular' },
+  budgetRowValue: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
 
   // Category breakdown
-  categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   categoryNameCol: { flex: 2 },
-  categoryName: { fontSize: FontSizes.sm, color: Colors.text },
+  categoryName: { fontSize: FontSizes.sm, color: Colors.text, fontFamily: 'Inter_500Medium' },
   categoryValCol: { flex: 1, alignItems: 'flex-end' },
-  categoryApproved: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.text },
-  categoryRemaining: { fontSize: 10, color: Colors.textMuted },
+  categoryApproved: { fontSize: FontSizes.xs, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
+  categoryRemaining: { fontSize: 10, color: Colors.textMuted, marginTop: 2, fontFamily: 'Inter_400Regular' },
 
-  // Action row
-  actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  // Action Row
+  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
   actionBtn: { 
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
-    backgroundColor: Colors.primary, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md,
+    flex: 1, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: Spacing.sm, 
+    paddingVertical: Spacing.md, 
+    backgroundColor: Colors.primary, 
+    borderRadius: BorderRadius.md 
   },
-  actionBtnText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.sm },
+  actionBtnText: { color: Colors.white, fontSize: FontSizes.sm, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
 });

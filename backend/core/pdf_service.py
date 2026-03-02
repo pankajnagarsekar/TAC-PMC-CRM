@@ -395,6 +395,145 @@ class DPRPDFGenerator:
         date_str = dpr_date.strftime("%b %d, %Y")
         return f"{project_code} - {date_str}.pdf"
 
+    async def generate_attendance_report(
+        self,
+        project_id: str,
+        attendance: List[Dict[str, Any]],
+        worker_logs: List[Dict[str, Any]],
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> bytes:
+        """
+        Generate a comprehensive Attendance and Worker Log report PDF.
+        """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=self.margin,
+            leftMargin=self.margin,
+            topMargin=self.margin,
+            bottomMargin=self.margin
+        )
+
+        story = []
+
+        # Title
+        story.append(Paragraph("Attendance & Worker Log Report", self.styles['DPRTitle']))
+        
+        # Subtitle
+        date_range = "All Time"
+        if start_date and end_date:
+            date_range = f"{start_date} to {end_date}"
+        elif start_date:
+            date_range = f"From {start_date}"
+        elif end_date:
+            date_range = f"Up to {end_date}"
+            
+        story.append(Paragraph(f"Project: {project_id}", self.styles['DPRSubtitle']))
+        story.append(Paragraph(f"Period: {date_range}", self.styles['DPRSubtitle']))
+        story.append(Spacer(1, 20))
+
+        # 1. Supervisor Attendance Section
+        story.append(Paragraph("📋 Supervisor Attendance", self.styles['SectionHeader']))
+        if attendance:
+            story.extend(self._build_attendance_table(attendance))
+        else:
+            story.append(Paragraph("No supervisor attendance records found for this period.", self.styles['DPRBodyText']))
+        
+        story.append(Spacer(1, 30))
+
+        # 2. Worker Logs Section
+        story.append(Paragraph("👷 Worker Logs", self.styles['SectionHeader']))
+        if worker_logs:
+            story.extend(self._build_worker_logs_table(worker_logs))
+        else:
+            story.append(Paragraph("No worker logs found for this period.", self.styles['DPRBodyText']))
+
+        # Build PDF
+        doc.build(story)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        return pdf_bytes
+
+    def _build_attendance_table(self, attendance: List[Dict[str, Any]]) -> List:
+        """Build table for supervisor attendance"""
+        data = [['Date', 'Supervisor', 'Check-in Time', 'Status']]
+        
+        for record in attendance:
+            # Extract check_in_time which is a datetime object or ISO string in some cases
+            cIn_obj = record.get('check_in_time')
+            
+            dStr = "N/A"
+            tStr = "N/A"
+            
+            if isinstance(cIn_obj, datetime):
+                dStr = cIn_obj.strftime("%Y-%m-%d")
+                tStr = cIn_obj.strftime("%H:%M")
+            elif isinstance(cIn_obj, str):
+                try:
+                    # Try parsing ISO format
+                    parsed = datetime.fromisoformat(cIn_obj.replace('Z', '+00:00'))
+                    dStr = parsed.strftime("%Y-%m-%d")
+                    tStr = parsed.strftime("%H:%M")
+                except Exception:
+                    tStr = cIn_obj
+            
+            sName = record.get('user_name', 'N/A')
+            status = record.get('status', 'Present').capitalize()
+            
+            data.append([dStr, sName, tStr, status])
+
+        table = Table(data, colWidths=[1.5*inch, 2.5*inch, 1.5*inch, 1*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d3748')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        return [table]
+
+    def _build_worker_logs_table(self, logs: List[Dict[str, Any]]) -> List:
+        """Build detailed table for worker logs"""
+        elements = []
+        
+        # We'll group entries by date for better readability if there's a lot of data,
+        # or just a flat list? Let's do a table with Date/Vendor/Count/Purpose
+        data = [['Date', 'Vendor', 'Count', 'Purpose']]
+        
+        for log in logs:
+            date = log.get('date', 'N/A')
+            entries = log.get('entries', [])
+            for entry in entries:
+                data.append([
+                    date,
+                    entry.get('vendor_name', 'N/A'),
+                    str(entry.get('workers_count', 0)),
+                    entry.get('remarks', entry.get('purpose', 'N/A'))
+                ])
+        
+        if len(data) == 1: # Only header
+            return [Paragraph("No detailed entries found.", self.styles['DPRBodyText'])]
+
+        table = Table(data, colWidths=[1.2*inch, 1.8*inch, 0.8*inch, 2.7*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d3748')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (0, 0), (2, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ]))
+        elements.append(table)
+        return elements
+
 
 # Singleton instance
 pdf_generator = DPRPDFGenerator()

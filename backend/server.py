@@ -1,22 +1,24 @@
-﻿from fastapi.staticfiles import StaticFiles
-from project_management_routes import project_management_router
-from financial_routes import financial_router
-from hardened_routes import hardened_router
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
-from fastapi.security import HTTPBearer
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId, Decimal128
-import os
-import logging
+﻿from dotenv import load_dotenv
 from pathlib import Path
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+import os
 
 # Load environment before any custom modules evaluate os.getenv()
 ROOT_DIR = Path(__file__).resolve().parent
 load_dotenv(ROOT_DIR / '.env')
+
+from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
+from fastapi.security import HTTPBearer
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId, Decimal128
+import logging
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+from project_management_routes import project_management_router
+from financial_routes import financial_router
+from hardened_routes import hardened_router
 
 # Import custom modules
 from models import (
@@ -1569,7 +1571,10 @@ async def create_worker_log(
 async def get_worker_logs(
     project_id: Optional[str] = None,
     date: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     supervisor_id: Optional[str] = None,
+    vendor: Optional[str] = None,
     status: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
@@ -1580,10 +1585,22 @@ async def get_worker_logs(
 
     if project_id:
         query["project_id"] = project_id
+    
+    # Date filters
     if date:
         query["date"] = date
+    elif start_date or end_date:
+        date_query = {}
+        if start_date:
+            date_query["$gte"] = start_date
+        if end_date:
+            date_query["$lte"] = end_date
+        query["date"] = date_query
+        
     if supervisor_id:
         query["supervisor_id"] = supervisor_id
+    if vendor:
+        query["entries.vendor_name"] = {"$regex": vendor, "$options": "i"}
     if status:
         query["status"] = status
 
