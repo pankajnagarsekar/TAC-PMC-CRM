@@ -26,6 +26,7 @@ export default function SupervisorProfile() {
     if (Platform.OS === 'web') {
       return localStorage.getItem('access_token');
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SecureStore = require('expo-secure-store');
     return await SecureStore.getItemAsync('access_token');
   };
@@ -69,7 +70,7 @@ export default function SupervisorProfile() {
         const error = await response.json();
         Alert.alert('Error', error.detail || 'Failed to change password');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to change password');
     } finally {
       setChangingPassword(false);

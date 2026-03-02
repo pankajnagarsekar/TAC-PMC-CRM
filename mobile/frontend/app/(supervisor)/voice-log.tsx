@@ -6,7 +6,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/ui';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
+import { Colors, Spacing, FontSizes } from '../../constants/theme';
 
 export default function VoiceLogScreen() {
   return (

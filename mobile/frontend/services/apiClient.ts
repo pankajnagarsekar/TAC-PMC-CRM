@@ -79,6 +79,7 @@ export const getAuthToken = async (): Promise<string | null> => {
     return localStorage.getItem('access_token');
   }
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SecureStore = require('expo-secure-store');
     return await SecureStore.getItemAsync('access_token');
   } catch {
@@ -92,6 +93,7 @@ export const setAuthToken = async (token: string): Promise<void> => {
     return;
   }
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SecureStore = require('expo-secure-store');
     await SecureStore.setItemAsync('access_token', token);
   } catch {}
@@ -103,6 +105,7 @@ export const clearAuthToken = async (): Promise<void> => {
     return;
   }
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SecureStore = require('expo-secure-store');
     await SecureStore.deleteItemAsync('access_token');
   } catch {}
@@ -116,6 +119,7 @@ const storage = {
     if (Platform.OS === 'web') {
       return localStorage.getItem(key);
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SS = require('expo-secure-store');
     return SS.getItemAsync(key);
   },
@@ -124,6 +128,7 @@ const storage = {
       localStorage.setItem(key, value);
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SS = require('expo-secure-store');
     return SS.setItemAsync(key, value);
   },
@@ -132,6 +137,7 @@ const storage = {
       localStorage.removeItem(key);
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SS = require('expo-secure-store');
     return SS.deleteItemAsync(key);
   },

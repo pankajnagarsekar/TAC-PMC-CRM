@@ -23,6 +23,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('access_token');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const SecureStore = require('expo-secure-store');
   return await SecureStore.getItemAsync('access_token');
 };
@@ -105,6 +106,7 @@ export default function OrganizationSettingsScreen() {
       });
       showAlert('Success', 'Organisation settings saved successfully!');
     } catch (error) {
+      console.error(error);
       showAlert('Error', 'Failed to save settings');
     } finally {
       setSaving(false);
@@ -126,6 +128,7 @@ export default function OrganizationSettingsScreen() {
         showAlert('Success', 'Logo uploaded successfully');
       }
     } catch (error) {
+      console.error(error);
       showAlert('Error', 'Failed to pick image');
     }
   };

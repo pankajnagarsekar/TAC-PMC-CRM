@@ -26,6 +26,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('access_token');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const SecureStore = require('expo-secure-store');
   return await SecureStore.getItemAsync('access_token');
 };

@@ -8,8 +8,6 @@ import {
   ScrollView,
   Pressable,
   Switch,
-  Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +36,7 @@ const COLOR_SCHEMES = [
 ];
 
 export default function AppearanceSettingsScreen() {
-  const { settings, updateSettings, colors: Colors, fontSizes: FontSizes, spacing: Spacing, borderRadius: BorderRadius, shadows: Shadows } = useTheme();
+  const { settings, updateSettings } = useTheme();
 
   const updateSetting = (key: keyof typeof settings, value: any) => {
     updateSettings({ [key]: value });

@@ -21,7 +21,7 @@ export default function SupervisorDPRScreen() {
         router.replace('/(supervisor)/select-project');
       });
     }
-  }, [selectedProject]);
+  }, [selectedProject, router]);
 
   const handleSuccess = () => {
     router.back();

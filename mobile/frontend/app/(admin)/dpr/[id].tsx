@@ -27,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { apiClient, authApi } from '../../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
+// eslint-disable-next-line import/no-named-as-default
 import VersionSelector from '../../../components/VersionSelector';
 
 interface DPRImage {

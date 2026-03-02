@@ -26,6 +26,7 @@ const MIN_PHOTOS = 4;
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('access_token');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const SecureStore = require('expo-secure-store');
   return await SecureStore.getItemAsync('access_token');
 };
@@ -74,7 +75,7 @@ export default function DPRForm({
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [voiceSummary, setVoiceSummary] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [expandedPhotoId, setExpandedPhotoId] = useState<string | null>(null);
+
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -231,9 +232,8 @@ export default function DPRForm({
           isCollapsed: false,
         };
         setPhotos(prev => [...prev.map(p => ({ ...p, isCollapsed: true })), newPhoto]);
-        setExpandedPhotoId(newPhotoId);
       }
-    } catch (error) {
+    } catch {
       showAlert('Error', 'Failed to take photo');
     }
   };
@@ -257,11 +257,9 @@ export default function DPRForm({
           caption: '',
           isCollapsed: index > 0,
         }));
-        const firstNewId = newPhotos[0]?.id;
         setPhotos(prev => [...prev.map(p => ({ ...p, isCollapsed: true })), ...newPhotos]);
-        if (firstNewId) setExpandedPhotoId(firstNewId);
       }
-    } catch (error) {
+    } catch {
       showAlert('Error', 'Failed to pick images');
     }
   };
@@ -272,17 +270,14 @@ export default function DPRForm({
 
   const collapsePhoto = (id: string) => {
     setPhotos(prev => prev.map(p => (p.id === id ? { ...p, isCollapsed: true } : p)));
-    setExpandedPhotoId(null);
   };
 
   const togglePhotoExpand = (id: string) => {
     const photo = photos.find(p => p.id === id);
     if (photo?.isCollapsed) {
       setPhotos(prev => prev.map(p => ({ ...p, isCollapsed: p.id !== id })));
-      setExpandedPhotoId(id);
     } else {
       setPhotos(prev => prev.map(p => (p.id === id ? { ...p, isCollapsed: true } : p)));
-      setExpandedPhotoId(null);
     }
   };
 
@@ -425,7 +420,9 @@ export default function DPRForm({
               );
             } else {
               try {
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
                 const FileSystem = require('expo-file-system');
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
                 const Sharing = require('expo-sharing');
 
                 const fileName = submitData.file_name || 'DPR.pdf';

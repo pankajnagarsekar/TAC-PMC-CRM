@@ -27,6 +27,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('access_token');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const SecureStore = require('expo-secure-store');
   return await SecureStore.getItemAsync('access_token');
 };
@@ -117,17 +118,7 @@ export default function UserManagementScreen() {
     }
   }, []);
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const data = await usersApi.getAll();
-      setUsers(data || []);
-    } catch (error) {
-      console.error('Error loading users:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+
 
   useEffect(() => {
     loadData();
@@ -179,10 +170,7 @@ export default function UserManagementScreen() {
     );
   };
 
-  const getProjectName = (projectId: string) => {
-    const project = projects.find(p => (p as any).project_id === projectId || (p as any)._id === projectId);
-    return project?.project_name || projectId;
-  };
+
 
   const handleSave = async () => {
     if (!name.trim() || !email.trim()) {

@@ -19,9 +19,10 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   let authToken = token;
   if (!authToken && Platform.OS !== 'web') {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const SecureStore = require('expo-secure-store');
       authToken = await SecureStore.getItemAsync('access_token');
-    } catch (e) {}
+    } catch {}
   }
   
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -112,6 +113,7 @@ export function TransitionActions({
     if (!allowedTransitions && !fetched) {
       fetchTransitions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, entityId, currentStatus]);
 
   // UI-5: Reset period locked state when entity changes
@@ -162,16 +164,7 @@ export function TransitionActions({
     }
   };
 
-  // UI-5: Handle PeriodLockedError from backend
-  const handlePeriodLockedError = (errorDetail: any) => {
-    setPeriodLocked({
-      isLocked: true,
-      mutationDate: errorDetail.mutation_date,
-      periodStart: errorDetail.period_start,
-      periodEnd: errorDetail.period_end,
-      message: errorDetail.message || `Accounting period is locked (${errorDetail.period_start} to ${errorDetail.period_end})`,
-    });
-  };
+
 
   const executeTransition = async (targetStatus: string) => {
     setLoading(targetStatus);

@@ -1,7 +1,7 @@
 // SUPERVISOR DASHBOARD - STEP-BY-STEP WORKFLOW
 // Flow: Check-in → Select Project → Workers Log / Create DPR
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,

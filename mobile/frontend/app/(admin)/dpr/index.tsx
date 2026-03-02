@@ -19,13 +19,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useProject } from '../../../contexts/ProjectContext';
-import { Card, Input, Button } from '../../../components/ui';
+import { Card } from '../../../components/ui';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('access_token');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const SecureStore = require('expo-secure-store');
   return await SecureStore.getItemAsync('access_token');
 };
@@ -61,7 +62,7 @@ export default function AdminDPRListScreen() {
         router.replace('/(admin)/select-project');
       });
     }
-  }, [selectedProject]);
+  }, [selectedProject, router]);
 
   const projectId = (selectedProject as any)?.project_id || (selectedProject as any)?._id || '';
 

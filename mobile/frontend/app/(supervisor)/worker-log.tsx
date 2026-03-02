@@ -1,7 +1,7 @@
 // WORKERS DAILY LOG SCREEN
 // Fields: Vendor Name (Autocomplete), Workers Count, Purpose of Work
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
@@ -43,7 +42,6 @@ interface WorkerEntry {
 
 export default function WorkerLogScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const { selectedProject } = useProject();
   
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -61,6 +59,7 @@ export default function WorkerLogScreen() {
     if (Platform.OS === 'web') {
       return localStorage.getItem('access_token');
     }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SecureStore = require('expo-secure-store');
     return await SecureStore.getItemAsync('access_token');
   };
@@ -68,6 +67,7 @@ export default function WorkerLogScreen() {
   // Load vendors
   useEffect(() => {
     loadVendors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadVendors = async () => {

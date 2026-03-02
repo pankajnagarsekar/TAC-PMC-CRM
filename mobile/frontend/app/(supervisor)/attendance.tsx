@@ -18,7 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useProject } from '../../contexts/ProjectContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 
@@ -26,6 +25,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('access_token');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const SecureStore = require('expo-secure-store');
   return await SecureStore.getItemAsync('access_token');
 };
@@ -67,7 +67,6 @@ interface AttendanceRecord {
 
 export default function SupervisorAttendance() {
   const { selectedProject, isProjectSelected } = useProject();
-  const { user } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -120,7 +119,7 @@ export default function SupervisorAttendance() {
         if (dprResponse && dprResponse.length > 0) {
           setHasDPRToday(true);
         }
-      } catch (e) {
+      } catch {
         // No DPR for today
       }
       
@@ -130,7 +129,7 @@ export default function SupervisorAttendance() {
         if (historyResponse && historyResponse.attendance) {
           setAttendanceHistory(historyResponse.attendance);
         }
-      } catch (e) {
+      } catch {
         console.log('No attendance history available');
       }
       

@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Card } from '../../../components/ui';
-import { Colors as StaticColors, Spacing as StaticSpacing, FontSizes as StaticFontSizes, BorderRadius as StaticBorderRadius } from '../../../constants/theme';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function AdminSettings() {

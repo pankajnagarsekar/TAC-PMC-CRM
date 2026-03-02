@@ -21,7 +21,7 @@ export default function AdminCreateDPRScreen() {
         router.replace('/(admin)/select-project');
       });
     }
-  }, [selectedProject]);
+  }, [selectedProject, router]);
 
   const handleSuccess = () => {
     router.back();
