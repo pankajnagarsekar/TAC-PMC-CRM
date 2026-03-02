@@ -7,6 +7,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 import secrets
 import logging
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load env in auth.py directly to ensure it works regardless of import order
+load_dotenv(Path(__file__).resolve().parent / '.env')
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")

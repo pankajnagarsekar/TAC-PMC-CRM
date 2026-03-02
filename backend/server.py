@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+# Load environment before any custom modules evaluate os.getenv()
+ROOT_DIR = Path(__file__).resolve().parent
+load_dotenv(ROOT_DIR / '.env')
+
 # Import custom modules
 from models import (
     UserCreate,
@@ -67,9 +71,6 @@ def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
             result[key] = value
     return result
 
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
