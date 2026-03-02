@@ -6,22 +6,22 @@ import os
 ROOT_DIR = Path(__file__).resolve().parent
 load_dotenv(ROOT_DIR / '.env')
 
-from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
-from fastapi.security import HTTPBearer
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId, Decimal128
-import logging
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from fastapi import FastAPI, APIRouter, HTTPException, status, Depends  # noqa: E402
+from fastapi.security import HTTPBearer  # noqa: E402
+from starlette.middleware.cors import CORSMiddleware  # noqa: E402
+from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
+from bson import ObjectId, Decimal128  # noqa: E402
+import logging  # noqa: E402
+from typing import List, Optional, Dict, Any  # noqa: E402
+from datetime import datetime  # noqa: E402
 
-from project_management_routes import project_management_router
-from financial_routes import financial_router
-from hardened_routes import hardened_router
+from project_management_routes import project_management_router  # noqa: E402
+from financial_routes import financial_router  # noqa: E402
+from hardened_routes import hardened_router  # noqa: E402
 
 # Import custom modules
-from models import (
+from models import (  # noqa: E402
     UserCreate,
     UserResponse,
     UserUpdate,
@@ -38,13 +38,13 @@ from models import (
     WorkersDailyLogCreate,
     WorkersDailyLogUpdate,
     NotificationCreate)
-from auth import (
+from auth import (  # noqa: E402
     hash_password, verify_password, create_access_token, create_refresh_token,
     decode_refresh_token, get_current_user
 )
-from audit_service import AuditService
-from financial_service import FinancialRecalculationService
-from permissions import PermissionChecker
+from audit_service import AuditService  # noqa: E402
+from financial_service import FinancialRecalculationService  # noqa: E402
+from permissions import PermissionChecker  # noqa: E402
 
 
 def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
@@ -1585,7 +1585,7 @@ async def get_worker_logs(
 
     if project_id:
         query["project_id"] = project_id
-    
+
     # Date filters
     if date:
         query["date"] = date
@@ -1596,7 +1596,7 @@ async def get_worker_logs(
         if end_date:
             date_query["$lte"] = end_date
         query["date"] = date_query
-        
+
     if supervisor_id:
         query["supervisor_id"] = supervisor_id
     if vendor:

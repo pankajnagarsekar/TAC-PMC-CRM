@@ -40,7 +40,7 @@ class DPRPDFGenerator:
             fontSize=24,
             alignment=TA_CENTER,
             spaceAfter=20,
-            textColor=colors.HexColor('#1a365d')
+            textColor=colors.HexColor('  #1a365d')
         ))
 
         self.styles.add(ParagraphStyle(
@@ -49,7 +49,7 @@ class DPRPDFGenerator:
             fontSize=14,
             alignment=TA_CENTER,
             spaceAfter=30,
-            textColor=colors.HexColor('#4a5568')
+            textColor=colors.HexColor('  #4a5568')
         ))
 
         self.styles.add(ParagraphStyle(
@@ -58,10 +58,10 @@ class DPRPDFGenerator:
             fontSize=14,
             spaceBefore=20,
             spaceAfter=10,
-            textColor=colors.HexColor('#2d3748'),
+            textColor=colors.HexColor('  #2d3748'),
             borderWidth=0,
             borderPadding=0,
-            borderColor=colors.HexColor('#e2e8f0'),
+            borderColor=colors.HexColor('  #e2e8f0'),
         ))
 
         self.styles.add(ParagraphStyle(
@@ -70,7 +70,7 @@ class DPRPDFGenerator:
             fontSize=11,
             spaceAfter=8,
             leading=16,
-            textColor=colors.HexColor('#2d3748')
+            textColor=colors.HexColor('  #2d3748')
         ))
 
         self.styles.add(ParagraphStyle(
@@ -80,7 +80,7 @@ class DPRPDFGenerator:
             alignment=TA_CENTER,
             spaceBefore=10,
             spaceAfter=10,
-            textColor=colors.HexColor('#4a5568'),
+            textColor=colors.HexColor('  #4a5568'),
             leading=14
         ))
 
@@ -90,7 +90,7 @@ class DPRPDFGenerator:
             fontSize=12,
             alignment=TA_CENTER,
             spaceBefore=5,
-            textColor=colors.HexColor('#718096'),
+            textColor=colors.HexColor('  #718096'),
             fontName='Helvetica-Bold'
         ))
 
@@ -207,8 +207,8 @@ class DPRPDFGenerator:
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#4a5568')),
-            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#2d3748')),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('  #4a5568')),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('  #2d3748')),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
             ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
@@ -271,7 +271,7 @@ class DPRPDFGenerator:
                         2.5 * inch, 1 * inch, 3 * inch])
                 worker_table.setStyle(TableStyle([
                     # Header
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d3748')),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('  #2d3748')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('FONTSIZE', (0, 0), (-1, 0), 11),
@@ -283,11 +283,11 @@ class DPRPDFGenerator:
                     ('ALIGN', (1, 1), (1, -1), 'CENTER'),
 
                     # Total row
-                    ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e2e8f0')),
+                    ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('  #e2e8f0')),
                     ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
 
                     # Grid
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e0')),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('  #cbd5e0')),
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
                     ('TOPPADDING', (0, 0), (-1, -1), 8),
                     ('LEFTPADDING', (0, 0), (-1, -1), 6),
@@ -420,7 +420,7 @@ class DPRPDFGenerator:
 
         # Title
         story.append(Paragraph("Attendance & Worker Log Report", self.styles['DPRTitle']))
-        
+
         # Subtitle
         date_range = "All Time"
         if start_date and end_date:
@@ -429,7 +429,7 @@ class DPRPDFGenerator:
             date_range = f"From {start_date}"
         elif end_date:
             date_range = f"Up to {end_date}"
-            
+
         story.append(Paragraph(f"Project: {project_id}", self.styles['DPRSubtitle']))
         story.append(Paragraph(f"Period: {date_range}", self.styles['DPRSubtitle']))
         story.append(Spacer(1, 20))
@@ -440,7 +440,7 @@ class DPRPDFGenerator:
             story.extend(self._build_attendance_table(attendance))
         else:
             story.append(Paragraph("No supervisor attendance records found for this period.", self.styles['DPRBodyText']))
-        
+
         story.append(Spacer(1, 30))
 
         # 2. Worker Logs Section
@@ -459,14 +459,14 @@ class DPRPDFGenerator:
     def _build_attendance_table(self, attendance: List[Dict[str, Any]]) -> List:
         """Build table for supervisor attendance"""
         data = [['Date', 'Supervisor', 'Check-in Time', 'Status']]
-        
+
         for record in attendance:
             # Extract check_in_time which is a datetime object or ISO string in some cases
             cIn_obj = record.get('check_in_time')
-            
+
             dStr = "N/A"
             tStr = "N/A"
-            
+
             if isinstance(cIn_obj, datetime):
                 dStr = cIn_obj.strftime("%Y-%m-%d")
                 tStr = cIn_obj.strftime("%H:%M")
@@ -478,15 +478,15 @@ class DPRPDFGenerator:
                     tStr = parsed.strftime("%H:%M")
                 except Exception:
                     tStr = cIn_obj
-            
+
             sName = record.get('user_name', 'N/A')
             status = record.get('status', 'Present').capitalize()
-            
+
             data.append([dStr, sName, tStr, status])
 
         table = Table(data, colWidths=[1.5*inch, 2.5*inch, 1.5*inch, 1*inch])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d3748')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('  #2d3748')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
@@ -500,11 +500,11 @@ class DPRPDFGenerator:
     def _build_worker_logs_table(self, logs: List[Dict[str, Any]]) -> List:
         """Build detailed table for worker logs"""
         elements = []
-        
+
         # We'll group entries by date for better readability if there's a lot of data,
         # or just a flat list? Let's do a table with Date/Vendor/Count/Purpose
         data = [['Date', 'Vendor', 'Count', 'Purpose']]
-        
+
         for log in logs:
             date = log.get('date', 'N/A')
             entries = log.get('entries', [])
@@ -515,13 +515,13 @@ class DPRPDFGenerator:
                     str(entry.get('workers_count', 0)),
                     entry.get('remarks', entry.get('purpose', 'N/A'))
                 ])
-        
-        if len(data) == 1: # Only header
+
+        if len(data) == 1:  # Only header
             return [Paragraph("No detailed entries found.", self.styles['DPRBodyText'])]
 
         table = Table(data, colWidths=[1.2*inch, 1.8*inch, 0.8*inch, 2.7*inch])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d3748')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('  #2d3748')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),

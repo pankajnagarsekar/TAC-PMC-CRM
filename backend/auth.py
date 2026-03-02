@@ -158,7 +158,6 @@ async def get_current_user(
     return payload
 
 
-
 async def get_token_from_header_or_query(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     token: Optional[str] = Query(None)
@@ -170,18 +169,18 @@ async def get_token_from_header_or_query(
     Useful for browser-initiated downloads (Excel export).
     """
     actual_token = None
-    
+
     if credentials:
         actual_token = credentials.credentials
     elif token:
         actual_token = token
-        
+
     if not actual_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
-        
+
     payload = decode_access_token(actual_token)
     user_id = payload.get("user_id")
     if user_id is None:
@@ -189,5 +188,5 @@ async def get_token_from_header_or_query(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials"
         )
-        
+
     return payload

@@ -129,19 +129,16 @@ export default function DPRDetailScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, fetchWorkerLogs]);
 
-  const fetchWorkerLogs = async (projectId: string, dprDate: string) => {
+  const fetchWorkerLogs = useCallback(async (projectId: string, dprDate: string) => {
     setWorkerLogLoading(true);
     try {
-      // Extract date as YYYY-MM-DD directly from dpr_date string
-      // Avoid new Date().toISOString() which shifts timezone and can give wrong date
       const dateStr = dprDate.substring(0, 10);
       const data = await apiClient.get<any>(`/api/worker-logs?project_id=${projectId}&date=${dateStr}`);
       const logs = Array.isArray(data) ? data : (data.logs || []);
       setWorkerLogs(logs);
       
-      // Initialize editable entries
       const editable: Record<string, WorkerLogEntry[]> = {};
       logs.forEach((log: WorkerLog) => {
         editable[log.log_id] = (log.entries || []).map((e: any) => ({
@@ -158,7 +155,7 @@ export default function DPRDetailScreen() {
     } finally {
       setWorkerLogLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDPR();

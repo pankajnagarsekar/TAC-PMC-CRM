@@ -1890,11 +1890,11 @@ async def export_attendance_pdf(
     """
     from fastapi.responses import Response
     from core.pdf_service import pdf_generator
-    
+
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_project_access(user, project_id, require_write=False)
     await permission_checker.check_admin_role(user)
-    
+
     # 1. Fetch attendance records
     attendance_query = {
         "project_id": project_id,
@@ -1915,13 +1915,13 @@ async def export_attendance_pdf(
                 pass
         if date_query:
             attendance_query["check_in_time"] = date_query
-    
+
     if search:
         attendance_query["user_name"] = {"$regex": search, "$options": "i"}
-        
+
     attendance_cursor = db.attendance.find(attendance_query).sort("check_in_time", -1)
     attendance_list = await attendance_cursor.to_list(length=500)
-    
+
     # 2. Fetch worker logs
     worker_query = {
         "project_id": project_id,
@@ -1934,10 +1934,10 @@ async def export_attendance_pdf(
         if end_date:
             date_filter["$lte"] = end_date
         worker_query["date"] = date_filter
-        
+
     worker_cursor = db.worker_logs.find(worker_query).sort("date", -1)
     worker_logs = await worker_cursor.to_list(length=500)
-    
+
     # 3. Filter worker logs by vendor if provided
     if vendor:
         filtered_logs = []
@@ -1948,12 +1948,12 @@ async def export_attendance_pdf(
                 log["entries"] = matching_entries
                 filtered_logs.append(log)
         worker_logs = filtered_logs
-        
+
     # 4. Generate PDF using a report-style template
-    # Since we don't have a dedicated attendance PDF generator yet, 
+    # Since we don't have a dedicated attendance PDF generator yet,
     # we'll add a method to pdf_generator or create one.
     # For now, let's assume we can use a generic report generator or expand pdf_service.
-    
+
     pdf_content = await pdf_generator.generate_attendance_report(
         project_id=project_id,
         attendance=attendance_list,
@@ -1961,9 +1961,9 @@ async def export_attendance_pdf(
         start_date=start_date,
         end_date=end_date
     )
-    
+
     filename = f"Attendance_Report_{project_id}_{datetime.now().strftime('%Y%m%d')}.pdf"
-    
+
     return Response(
         content=pdf_content,
         media_type="application/pdf",
@@ -1993,7 +1993,7 @@ async def export_attendance_excel(
         query_attendance["project_id"] = project_id
     if search:
         query_attendance["user_name"] = {"$regex": search, "$options": "i"}
-    
+
     date_query = {}
     if start_date:
         try:
@@ -2016,7 +2016,7 @@ async def export_attendance_excel(
         query_workers["project_id"] = project_id
     if vendor:
         query_workers["entries.vendor_name"] = {"$regex": vendor, "$options": "i"}
-    
+
     worker_date_query = {}
     if start_date:
         worker_date_query["$gte"] = start_date
@@ -2065,16 +2065,16 @@ async def export_attendance_excel(
         else:
             # Create empty sheet if no data
             pd.DataFrame([{"Message": "No supervisor data found for selected filters"}]).to_excel(writer, sheet_name='Supervisors', index=False)
-            
+
         if not df_worker.empty:
             df_worker.to_excel(writer, sheet_name='Workers', index=False)
         else:
             pd.DataFrame([{"Message": "No worker data found for selected filters"}]).to_excel(writer, sheet_name='Workers', index=False)
 
     output.seek(0)
-    
+
     filename = f"Attendance_Export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    
+
     return Response(
         content=output.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
