@@ -1,0 +1,64 @@
+{
+  "users": [
+    {
+      "email": "admin@example.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Admin"
+    },
+    {
+      "email": "supervisor@example.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    },
+    {
+      "email": "admin@tacpmc.com",
+      "org_id": "699fe7ae1c0a6d49ca60d3b7",
+      "role": "Admin"
+    },
+    {
+      "email": "supervisor@tacpmc.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    },
+    {
+      "email": "admin2@testorg2.com",
+      "org_id": "69a2e00fa28430a221d83cd7",
+      "role": "Admin"
+    },
+    {
+      "email": "arjun.s@tacpmc.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    },
+    {
+      "email": "rahul.m@tacpmc.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    },
+    {
+      "email": "priya.s@tacpmc.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    },
+    {
+      "email": "amit.v@tacpmc.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    },
+    {
+      "email": "sneha.p@tacpmc.com",
+      "org_id": "699db0de55dc2c929d2408bc",
+      "role": "Supervisor"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Sample Construction Project",
+      "org_id": "699db0de55dc2c929d2408bc"
+    },
+    {
+      "name": "Site Alpha",
+      "org_id": "699db0de55dc2c929d2408bc"
+    }
+  ]
+}

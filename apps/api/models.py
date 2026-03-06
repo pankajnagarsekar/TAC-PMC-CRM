@@ -1,0 +1,781 @@
+# MongoDB Pydantic v2 Models
+from datetime import datetime
+from typing import Optional, List, Annotated, Literal
+from decimal import Decimal
+from bson import ObjectId
+from pydantic import BaseModel, Field, BeforeValidator
+
+
+# =============================================================================
+# PyObjectId Helper for MongoDB _id fields
+# =============================================================================
+def validate_object_id(v):
+    if isinstance(v, ObjectId):
+        return str(v)
+    if isinstance(v, str) and ObjectId.is_valid(v):
+        return v
+    raise ValueError("Invalid ObjectId")
+
+
+PyObjectId = Annotated[str, BeforeValidator(validate_object_id)]
+
+
+# =============================================================================
+# ORGANISATION MODELS
+# =============================================================================
+class Organisation(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class OrganisationCreate(BaseModel):
+    name: str
+
+
+# =============================================================================
+# USER MODELS
+# =============================================================================
+class User(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    name: str
+    email: str
+    hashed_password: str
+    role: str  # 'Admin' | 'Supervisor' | 'Other'
+    active_status: bool = True
+    dpr_generation_permission: bool = False
+    assigned_projects: List[str] = Field(default_factory=list)
+    screen_permissions: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str = "Supervisor"
+    dpr_generation_permission: bool = False
+
+
+class UserResponse(BaseModel):
+    user_id: str
+    organisation_id: str
+    name: str
+    email: str
+    role: str
+    active_status: bool
+    dpr_generation_permission: bool = False
+    assigned_projects: List[str] = Field(default_factory=list)
+    screen_permissions: List[str] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"populate_by_name": True}
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    active_status: Optional[bool] = None
+    dpr_generation_permission: Optional[bool] = None
+    assigned_projects: Optional[List[str]] = None
+    screen_permissions: Optional[List[str]] = None
+
+
+# =============================================================================
+# USER PROJECT MAPPING MODELS
+# =============================================================================
+class UserProjectMap(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    user_id: str
+    project_id: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+class UserProjectMapCreate(BaseModel):
+    user_id: str
+    project_id: str
+
+class Project(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    project_name: str
+    client_id: Optional[str] = None
+    project_code: Optional[str] = None
+    status: str = "active"
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    project_retention_percentage: Decimal = Decimal("0.0")
+    project_cgst_percentage: Decimal = Decimal("9.0")
+    project_sgst_percentage: Decimal = Decimal("9.0")
+    completion_percentage: Decimal = Decimal("0.0")
+    # Financial summary per DB Schema §2.2
+    master_original_budget: Decimal = Decimal("0.0")
+    master_remaining_budget: Decimal = Decimal("0.0")
+    threshold_petty: Decimal = Decimal("0.0")
+    threshold_ovh: Decimal = Decimal("0.0")
+    version: int = 1
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+class ProjectCreate(BaseModel):
+    project_name: str
+    client_id: Optional[str] = None
+    project_code: Optional[str] = None
+    status: str = "active"
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    project_retention_percentage: Decimal = Decimal("0.0")
+    project_cgst_percentage: Decimal = Decimal("9.0")
+    project_sgst_percentage: Decimal = Decimal("9.0")
+    completion_percentage: Decimal = Decimal("0.0")
+    threshold_petty: Decimal = Decimal("0.0")
+    threshold_ovh: Decimal = Decimal("0.0")
+
+class ProjectUpdate(BaseModel):
+    project_name: Optional[str] = None
+    client_id: Optional[str] = None
+    project_code: Optional[str] = None
+    status: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    project_retention_percentage: Optional[Decimal] = None
+    project_cgst_percentage: Optional[Decimal] = None
+    project_sgst_percentage: Optional[Decimal] = None
+    completion_percentage: Optional[Decimal] = None
+    threshold_petty: Optional[Decimal] = None
+    threshold_ovh: Optional[Decimal] = None
+
+class Client(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    name: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+class ClientCreate(BaseModel):
+    name: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+
+
+# =============================================================================
+# CODE MASTER MODELS
+# =============================================================================
+class CodeMaster(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: Optional[str] = None
+    category_name: Optional[str] = None
+    code: Optional[str] = None
+    code_short: str = ""  # Legacy alias for code
+    code_description: str = ""  # Legacy alias for category_name
+    budget_type: Optional[Literal["commitment", "fund_transfer"]] = "commitment"
+    active_status: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class CodeMasterCreate(BaseModel):
+    code_short: str = ""
+    code_description: str = ""
+    category_name: Optional[str] = None
+    code: Optional[str] = None
+    budget_type: Optional[Literal["commitment", "fund_transfer"]] = "commitment"
+
+
+class CodeMasterUpdate(BaseModel):
+    code_short: Optional[str] = None
+    code_description: Optional[str] = None
+    active_status: Optional[bool] = None
+
+
+# =============================================================================
+# PROJECT BUDGET MODELS
+# =============================================================================
+class ProjectBudget(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    code_id: str
+    approved_budget_amount: Decimal
+    committed_amount: Decimal = Decimal("0.0")
+    remaining_budget: Decimal = Decimal("0.0")
+    description: Optional[str] = None
+    version: int = 1
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class ProjectBudgetCreate(BaseModel):
+    project_id: str
+    code_id: str
+    approved_budget_amount: Decimal
+    description: Optional[str] = None
+
+
+class ProjectBudgetUpdate(BaseModel):
+    approved_budget_amount: Optional[Decimal] = None
+
+
+# =============================================================================
+# SITE OVERHEAD MODELS
+# =============================================================================
+class SiteOverhead(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: Optional[str] = None
+    project_id: str
+    amount: Decimal = Decimal("0.0")
+    purpose: str
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class SiteOverheadCreate(BaseModel):
+    project_id: str
+    amount: Decimal
+    purpose: str
+
+
+class SiteOverheadUpdate(BaseModel):
+    amount: Optional[Decimal] = None
+    purpose: Optional[str] = None
+    description: Optional[str] = None
+    version: int
+
+
+# =============================================================================
+# DERIVED FINANCIAL STATE MODEL
+# =============================================================================
+class DerivedFinancialState(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    code_id: str
+    approved_budget_amount: Decimal = Decimal("0.0")
+    committed_value: Decimal = Decimal("0.0")
+    certified_value: Decimal = Decimal("0.0")
+    balance_budget_remaining: Decimal = Decimal("0.0")
+    over_commit_flag: bool = False
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    version: int = 1
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# AUDIT LOG MODEL
+# =============================================================================
+class AuditLog(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    module_name: str
+    entity_type: str
+    entity_id: str
+    action_type: str
+    user_id: str
+    project_id: Optional[str] = None
+    old_value: Optional[dict] = None
+    new_value: Optional[dict] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# GLOBAL SETTINGS MODEL
+# =============================================================================
+class ClientPermissions(BaseModel):
+    can_view_dpr: bool = True
+    can_view_financials: bool = False
+    can_view_reports: bool = True
+
+class GlobalSettings(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    name: str = ""
+    address: str = ""
+    email: str = ""
+    phone: str = ""
+    gst_number: str = ""
+    pan_number: str = ""
+    cgst_percentage: Decimal = Decimal("9.0")
+    sgst_percentage: Decimal = Decimal("9.0")
+    retention_percentage: Decimal = Decimal("5.0")
+    wo_prefix: str = "WO"
+    pc_prefix: str = "PC"
+    invoice_prefix: str = "INV"
+    terms_and_conditions: str = "Standard terms and conditions apply."
+    currency: str = "INR"
+    currency_symbol: str = "₹"
+    client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# AUTH MODELS
+# =============================================================================
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class Token(BaseModel):
+    access_token: str
+    expires_in: int
+    user: UserResponse
+
+
+# =============================================================================
+# WORKERS DAILY LOG MODELS
+# =============================================================================
+class WorkerEntry(BaseModel):
+    worker_name: str = ""
+    skill_type: str = ""
+    hours_worked: Decimal = Decimal("8.0")
+    rate_per_hour: Decimal = Decimal("0.0")
+    remarks: Optional[str] = None
+
+
+class VendorWorkerEntry(BaseModel):
+    vendor_id: Optional[str] = None
+    vendor_name: str = ""
+    workers_count: int = 0
+    skill_type: str = ""
+    rate_per_worker: Decimal = Decimal("0.0")
+    remarks: Optional[str] = None
+
+
+class WorkersDailyLog(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    project_id: str
+    date: str
+    supervisor_id: str
+    supervisor_name: str
+    entries: List[VendorWorkerEntry] = Field(default_factory=list)
+    workers: List[WorkerEntry] = Field(default_factory=list)
+    total_workers: int = 0
+    total_hours: Decimal = Decimal("0.0")
+    weather: Optional[str] = None
+    site_conditions: Optional[str] = None
+    remarks: Optional[str] = None
+    status: str = "draft"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class WorkersDailyLogCreate(BaseModel):
+    project_id: str
+    date: str
+    entries: List[VendorWorkerEntry] = Field(default_factory=list)
+    workers: List[WorkerEntry] = Field(default_factory=list)
+    total_workers: Optional[int] = None
+    weather: Optional[str] = None
+    site_conditions: Optional[str] = None
+    remarks: Optional[str] = None
+
+
+class WorkersDailyLogUpdate(BaseModel):
+    entries: Optional[List[VendorWorkerEntry]] = None
+    workers: Optional[List[WorkerEntry]] = None
+    weather: Optional[str] = None
+    site_conditions: Optional[str] = None
+    remarks: Optional[str] = None
+    status: Optional[str] = None
+
+
+# =============================================================================
+# NOTIFICATION MODELS
+# =============================================================================
+class Notification(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    recipient_role: Optional[str] = None
+    recipient_user_id: Optional[str] = None
+    title: str
+    message: str
+    notification_type: str = "info"
+    priority: str = "normal"
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    project_id: Optional[str] = None
+    project_name: Optional[str] = None
+    sender_id: Optional[str] = None
+    sender_name: Optional[str] = None
+    is_read: bool = False
+    read_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class NotificationCreate(BaseModel):
+    recipient_role: Optional[str] = None
+    recipient_user_id: Optional[str] = None
+    title: str
+    message: str
+    notification_type: str = "info"
+    priority: str = "normal"
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    project_id: Optional[str] = None
+    project_name: Optional[str] = None
+
+
+# =============================================================================
+# DPR MODEL (existing)
+# =============================================================================
+class DPR(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    created_by: str
+    date: datetime
+    notes: str
+    photos: List[str] = Field(default_factory=list)
+    status: Literal['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'] = "DRAFT"
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    rejected_by: Optional[str] = None
+    rejected_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# LIQUIDITY ENGINE MODELS (PHASE 3)
+# =============================================================================
+class FundAllocation(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    category_id: str
+    allocation_total: Decimal = Decimal("0.0")
+    allocation_remaining: Decimal = Decimal("0.0")
+    last_replenished: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class CashTransaction(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    category_id: str
+    amount: Decimal = Decimal("0.0")
+    type: Literal["CREDIT", "DEBIT"] = "DEBIT"
+    purpose: Optional[str] = None
+    bill_reference: Optional[str] = None
+    receipt_photo: Optional[str] = None
+    vendor_name: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class CashTransactionCreate(BaseModel):
+    project_id: str
+    category_id: str
+    amount: Decimal
+    type: Literal["CREDIT", "DEBIT"] = "DEBIT"
+    purpose: Optional[str] = None
+    bill_reference: Optional[str] = None
+    receipt_photo: Optional[str] = None # OCR integration point
+    vendor_name: Optional[str] = None
+    bill_date: Optional[datetime] = None
+
+
+# =============================================================================
+# PAYMENT CERTIFICATE MODELS (Spec-aligned)
+# =============================================================================
+class PCLineItem(BaseModel):
+    sr_no: int
+    scope_of_work: str = ""
+    rate: Decimal = Decimal("0.0")
+    qty: Decimal = Decimal("0.0")
+    unit: str = ""
+    total: Decimal = Decimal("0.0")
+
+
+class PaymentCertificate(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: Optional[str] = None
+    project_id: str
+    work_order_id: Optional[str] = None
+    category_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    pc_ref: str = ""
+    subtotal: Decimal = Decimal("0.0")
+    retention_percent: Decimal = Decimal("0.0")
+    retention_amount: Decimal = Decimal("0.0")
+    total_payable: Decimal = Decimal("0.0")
+    cgst: Decimal = Decimal("0.0")
+    sgst: Decimal = Decimal("0.0")
+    grand_total: Decimal = Decimal("0.0")
+    status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
+    fund_request: bool = False
+    line_items: List[PCLineItem] = Field(default_factory=list)
+    idempotency_key: Optional[str] = None
+    version: int = 1
+    # Legacy fields for backward compat with OCR-created PCs
+    vendor_name: Optional[str] = None
+    invoice_number: Optional[str] = None
+    date: Optional[str] = None
+    amount: Optional[Decimal] = None
+    gst_amount: Decimal = Decimal("0.0")
+    total_amount: Optional[Decimal] = None
+    ocr_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class PaymentCertificateCreate(BaseModel):
+    project_id: str
+    work_order_id: Optional[str] = None
+    category_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    line_items: List[PCLineItem] = Field(default_factory=list)
+    retention_percent: Decimal = Decimal("0.0")
+    fund_request: bool = False
+    idempotency_key: Optional[str] = None
+    # Legacy fields
+    vendor_name: Optional[str] = None
+    invoice_number: Optional[str] = None
+    date: Optional[str] = None
+    amount: Optional[Decimal] = None
+    gst_amount: Decimal = Decimal("0.0")
+    total_amount: Optional[Decimal] = None
+    ocr_id: Optional[str] = None
+
+
+class GlobalSettingsUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    cgst_percentage: Optional[Decimal] = None
+    sgst_percentage: Optional[Decimal] = None
+    retention_percentage: Optional[Decimal] = None
+    wo_prefix: Optional[str] = None
+    pc_prefix: Optional[str] = None
+    invoice_prefix: Optional[str] = None
+    terms_and_conditions: Optional[str] = None
+    currency: Optional[str] = None
+    currency_symbol: Optional[str] = None
+    client_permissions: Optional[dict] = None
+
+
+# =============================================================================
+# VENDOR MODELS
+# =============================================================================
+class Vendor(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    name: str
+    gstin: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    active_status: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class VendorCreate(BaseModel):
+    name: str
+    gstin: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+
+class VendorUpdate(BaseModel):
+    name: Optional[str] = None
+    gstin: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    active_status: Optional[bool] = None
+
+
+# =============================================================================
+# WORK ORDER MODELS
+# =============================================================================
+class WOLineItem(BaseModel):
+    sr_no: int
+    description: str = ""
+    qty: Decimal = Decimal("0.0")
+    rate: Decimal = Decimal("0.0")
+    total: Decimal = Decimal("0.0")
+
+
+class WorkOrder(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: Optional[str] = None
+    project_id: str
+    category_id: str
+    vendor_id: Optional[str] = None
+    wo_ref: str = ""
+    subtotal: Decimal = Decimal("0.0")
+    discount: Decimal = Decimal("0.0")
+    total_before_tax: Decimal = Decimal("0.0")
+    cgst: Decimal = Decimal("0.0")
+    sgst: Decimal = Decimal("0.0")
+    grand_total: Decimal = Decimal("0.0")
+    retention_percent: Decimal = Decimal("0.0")
+    retention_amount: Decimal = Decimal("0.0")
+    total_payable: Decimal = Decimal("0.0")
+    actual_payable: Decimal = Decimal("0.0")
+    status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
+    line_items: List[WOLineItem] = Field(default_factory=list)
+    version: int = 1
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class WorkOrderCreate(BaseModel):
+    project_id: str
+    category_id: str
+    vendor_id: Optional[str] = None
+    line_items: List[WOLineItem] = Field(default_factory=list)
+    discount: Decimal = Decimal("0.0")
+    retention_percent: Decimal = Decimal("0.0")
+    idempotency_key: Optional[str] = None
+
+
+class WorkOrderUpdate(BaseModel):
+    category_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    line_items: Optional[List[WOLineItem]] = None
+    discount: Optional[Decimal] = None
+    retention_percent: Optional[Decimal] = None
+
+
+# =============================================================================
+# CASH TRANSACTION MODELS (Petty Cash / OVH)
+# =============================================================================
+class CashTransaction(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    category_id: str
+    amount: Decimal = Decimal("0.0")
+    type: Literal["DEBIT", "CREDIT"] = "DEBIT"
+    purpose: Optional[str] = None
+    bill_reference: Optional[str] = None
+    image_url: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+
+
+
+# =============================================================================
+# VENDOR LEDGER MODELS (Append-only / Immutable)
+# =============================================================================
+class VendorLedgerEntry(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    vendor_id: str
+    project_id: str
+    ref_id: str  # PC or WO id
+    entry_type: Literal["PC_CERTIFIED", "PAYMENT_MADE", "RETENTION_HELD"]
+    amount: Decimal = Decimal("0.0")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# VOICE LOG MODEL
+# =============================================================================
+class VoiceLog(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    supervisor_id: str
+    audio_url: str
+    transcribed_text: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# FUND ALLOCATION MODEL
+# =============================================================================
+class FundAllocation(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    category_id: str
+    allocation_original: Decimal = Decimal("0.0")
+    allocation_received: Decimal = Decimal("0.0")
+    allocation_remaining: Decimal = Decimal("0.0")
+    last_pc_closed_date: Optional[datetime] = None
+    version: int = 1
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# OPERATION LOG MODEL (Idempotency Tracking)
+# =============================================================================
+class OperationLog(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    operation_key: str
+    entity_type: str
+    response_payload: Optional[dict] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

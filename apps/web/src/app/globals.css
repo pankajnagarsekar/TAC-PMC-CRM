@@ -1,0 +1,223 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #1E3A5F;
+  --primary-light: #2d5a9e;
+  --accent: #F97316;
+  --accent-hover: #ea6a0e;
+  --surface: #0f172a;
+  --surface-card: #1e293b;
+  --surface-border: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: #0f172a;
+  color: var(--text-primary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* AG Grid dark theme overrides */
+.ag-theme-alpine-dark {
+  --ag-background-color: #1e293b;
+  --ag-odd-row-background-color: #1e293b;
+  --ag-header-background-color: #1E3A5F;
+  --ag-header-foreground-color: #f1f5f9;
+  --ag-row-hover-color: #2d3748;
+  --ag-selected-row-background-color: #2d5a9e22;
+  --ag-border-color: #334155;
+  --ag-cell-horizontal-border: solid #334155;
+  --ag-font-family: 'Inter', sans-serif;
+  --ag-font-size: 13px;
+}
+
+/* Currency cells — right aligned */
+.ag-cell-currency {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Inter', monospace;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Negative cash alert */
+.cash-negative {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* Amber threshold banner */
+.threshold-banner {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+/* Precision Permission Classes */
+/* Read-only enforcement inside content area for Client role */
+.client-readonly {
+  opacity: 0.95;
+}
+
+.client-readonly input,
+.client-readonly select,
+.client-readonly textarea {
+  pointer-events: none !important;
+  opacity: 0.8;
+}
+
+.client-readonly button[type="submit"] {
+  display: none !important;
+}
+
+/* Used to remove administrative UI from client view completely */
+body.is-client .admin-only {
+  display: none !important;
+}
+
+/* AG Grid specific client hardening */
+body.is-client .ag-header-cell-menu-button,
+body.is-client .ag-side-button {
+  display: none !important;
+}
+
+/* Modern UI Utilities - Super Premium */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 20px 40px -1px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(249, 115, 22, 0.3);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+.bg-mesh-ultra {
+  background-color: #020617;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(217, 100%, 12%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(217, 100%, 18%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(30, 100%, 15%, 1) 0, transparent 50%),
+    radial-gradient(at 80% 80%, hsla(217, 100%, 10%, 1) 0, transparent 50%);
+}
+
+.text-gradient-orange {
+  background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-premium-orange {
+  background: linear-gradient(135deg, #F97316 0%, #ea6a0e 100%);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.btn-premium-orange::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+  transform: rotate(25deg);
+  transition: transform 0.6s ease;
+}
+
+.btn-premium-orange:hover::after {
+  transform: rotate(25deg) translate(20%, 20%);
+}
+
+.input-glass {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  padding-left: 5.5rem !important;
+  transition: all 0.3s ease;
+}
+
+
+.input-glass:focus {
+  border-color: rgba(249, 115, 22, 0.4);
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 2px 4px 0 rgba(0, 0, 0, 0.1),
+    0 0 15px -3px rgba(249, 115, 22, 0.2);
+}
+
+@keyframes glow {
+  from {
+    filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.2));
+  }
+
+  to {
+    filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.4));
+  }
+}
+
+.animate-glow {
+  animation: glow 4s ease-in-out infinite alternate;
+}

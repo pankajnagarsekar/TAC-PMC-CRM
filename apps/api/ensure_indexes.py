@@ -1,0 +1,38 @@
+import asyncio
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
+from pathlib import Path
+
+async def setup_indexes():
+    # Load env from apps/api/.env or parent
+    env_path = Path(__file__).resolve().parent / '.env'
+    load_dotenv(env_path)
+    
+    mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+    db_name = os.environ.get('DB_NAME', 'tac_pmc_crm')
+    
+    print(f"Ensuring indexes in {db_name}...")
+    client = AsyncIOMotorClient(mongo_url)
+    db = client[db_name]
+    
+    # Financial Collections
+    collections = ["work_orders", "payment_certificates", "cash_transactions", "project_category_budgets", "financial_state", "fund_allocations"]
+    
+    for coll in collections:
+        print(f"Creating project_id + category_id index for {coll}...")
+        await db[coll].create_index([("project_id", 1), ("category_id", 1)], background=True)
+        
+        # Created_at for cursor pagination
+        print(f"Creating created_at index for {coll}...")
+        await db[coll].create_index([("created_at", -1)], background=True)
+
+    # Specific ones
+    await db.audit_logs.create_index([("timestamp", -1)], background=True)
+    await db.audit_logs.create_index([("entity_type", 1), ("entity_id", 1)], background=True)
+    
+    print("Indexes ensured successfully.")
+    client.close()
+
+if __name__ == "__main__":
+    asyncio.run(setup_indexes())
