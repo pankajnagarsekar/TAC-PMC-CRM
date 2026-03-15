@@ -606,7 +606,7 @@
 
 ### 9.4 — Remaining Structural Cleanup (Not Yet Remediated)
 
-- [ ] **9.4.1** Deduplicate conflicting legacy endpoints in `server.py` (`/projects`, `/codes`, etc.) and keep one canonical implementation per route
+- [x] **9.4.1** Deduplicate conflicting legacy endpoints in `server.py` (`/projects`, `/codes`, etc.) and keep one canonical implementation per route
 - [ ] **9.4.2** Standardize financial collection schema usage to one model (`project_category_budgets + category_id`) across services/indexes
 - [ ] **9.4.3** Remove duplicate model declarations in `apps/api/models.py` (`CashTransaction`, `FundAllocation`) and align single authoritative shape
 - [ ] **9.4.4** Complete `admin-only` class tagging across all create/edit/delete actions for strict client-role UI hardening
