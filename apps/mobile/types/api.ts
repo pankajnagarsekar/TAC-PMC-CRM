@@ -23,7 +23,7 @@ export interface User {
   organisation_id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Supervisor' | 'Client' | 'Other';
+  role: "Admin" | "Supervisor" | "Client" | "Other";
   active_status: boolean;
   dpr_generation_permission: boolean;
   screen_permissions?: string[];
@@ -97,7 +97,7 @@ export interface BudgetPerCode {
   budget_id: string;
   project_id: string;
   code_id: string;
-  approved_budget_amount: number;
+  original_budget: number;
   created_at: string;
   updated_at: string;
 }
@@ -120,11 +120,11 @@ export interface BudgetWithFinancials {
 export interface CreateBudgetRequest {
   project_id: string;
   code_id: string;
-  approved_budget_amount: number;
+  original_budget: number;
 }
 
 export interface UpdateBudgetRequest {
-  approved_budget_amount: number;
+  original_budget: number;
 }
 
 // ============================================
@@ -191,7 +191,7 @@ export interface WorkOrder {
   retention_percentage: number;
   retention_amount: number;
   net_wo_value: number;
-  status: 'Draft' | 'Issued' | 'Revised';
+  status: "Draft" | "Issued" | "Revised";
   locked_flag: boolean;
   version_number: number;
   created_by: string;
@@ -242,7 +242,7 @@ export interface PaymentCertificate {
   sgst_amount: number;
   net_payable: number;
   total_paid_cumulative: number;
-  status: 'Draft' | 'Certified' | 'Partially Paid' | 'Fully Paid';
+  status: "Draft" | "Certified" | "Partially Paid" | "Fully Paid";
   locked_flag: boolean;
   version_number: number;
   created_by: string;
@@ -394,7 +394,7 @@ export interface Issue {
   raised_by: string;
   title: string;
   description: string;
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+  status: "Open" | "In Progress" | "Resolved" | "Closed";
   assigned_to?: string;
   created_at: string;
   updated_at: string;
@@ -409,7 +409,7 @@ export interface CreateIssueRequest {
 }
 
 export interface UpdateIssueRequest {
-  status?: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+  status?: "Open" | "In Progress" | "Resolved" | "Closed";
   assigned_to?: string;
   description?: string;
 }
@@ -446,7 +446,7 @@ export interface PettyCash {
   amount: number;
   bill_image_id: string;
   description: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: "Pending" | "Approved" | "Rejected";
   approved_by?: string;
   created_at: string;
   updated_at: string;
@@ -534,9 +534,27 @@ export interface CreateImageRequest {
 export interface TimelineEvent {
   event_id: string;
   project_id: string;
-  event_type: 'WO_CREATED' | 'WO_ISSUED' | 'WO_REVISED' | 'PC_CREATED' | 'PC_CERTIFIED' | 'PAYMENT_MADE' | 'RETENTION_RELEASED' | 'PROGRESS_UPDATED' | 'ISSUE_CREATED' | 'ISSUE_RESOLVED' | 'DPR_GENERATED';
+  event_type:
+    | "WO_CREATED"
+    | "WO_ISSUED"
+    | "WO_REVISED"
+    | "PC_CREATED"
+    | "PC_CERTIFIED"
+    | "PAYMENT_MADE"
+    | "RETENTION_RELEASED"
+    | "PROGRESS_UPDATED"
+    | "ISSUE_CREATED"
+    | "ISSUE_RESOLVED"
+    | "DPR_GENERATED";
   entity_id: string;
-  entity_type: 'WorkOrder' | 'PaymentCertificate' | 'Payment' | 'RetentionRelease' | 'Progress' | 'Issue' | 'DPR';
+  entity_type:
+    | "WorkOrder"
+    | "PaymentCertificate"
+    | "Payment"
+    | "RetentionRelease"
+    | "Progress"
+    | "Issue"
+    | "DPR";
   description: string;
   actor_id: string;
   actor_name: string;
@@ -550,7 +568,7 @@ export interface TimelineEvent {
 export interface Snapshot {
   snapshot_id: string;
   project_id: string;
-  snapshot_type: 'FINANCIAL' | 'PROGRESS' | 'DPR';
+  snapshot_type: "FINANCIAL" | "PROGRESS" | "DPR";
   snapshot_date: string;
   data: SnapshotFinancialData | SnapshotProgressData;
   created_by: string;
@@ -580,8 +598,15 @@ export interface SnapshotProgressData {
 export interface Alert {
   alert_id: string;
   project_id: string;
-  alert_type: 'OVER_COMMIT' | 'OVER_CERTIFICATION' | 'OVER_PAYMENT' | 'BUDGET_EXCEEDED' | 'DELAY_WARNING' | 'DPR_MISSING' | 'ATTENDANCE_MISSING';
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  alert_type:
+    | "OVER_COMMIT"
+    | "OVER_CERTIFICATION"
+    | "OVER_PAYMENT"
+    | "BUDGET_EXCEEDED"
+    | "DELAY_WARNING"
+    | "DPR_MISSING"
+    | "ATTENDANCE_MISSING";
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   title: string;
   message: string;
   entity_id?: string;
@@ -614,7 +639,7 @@ export interface AdminDashboardData {
 }
 
 export interface SupervisorDashboardData {
-  attendance_status: 'CHECKED_IN' | 'NOT_CHECKED_IN';
+  attendance_status: "CHECKED_IN" | "NOT_CHECKED_IN";
   check_in_time?: string;
   image_count_today: number;
   physical_progress_percentage: number;

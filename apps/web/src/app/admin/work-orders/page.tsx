@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, FileText, Loader2 } from "lucide-react";
 import api from "@/lib/api";
@@ -10,15 +10,64 @@ import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
 
+interface CategoryInfo {
+  _id: string;
+  category_name?: string;
+}
+
+interface VendorInfo {
+  _id: string;
+  name?: string;
+}
+
 export default function WorkOrdersPage() {
   const router = useRouter();
   const { activeProject } = useProjectStore();
   const [searchTerm, setSearchTerm] = useState("");
 
   const [items, setItems] = useState<WorkOrder[]>([]);
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
+  const [vendors, setVendors] = useState<VendorInfo[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isMoreLoading, setIsMoreLoading] = useState(false);
+
+  // Fetch categories and vendors for name resolution
+  useEffect(() => {
+    if (!activeProject) return;
+
+    const fetchLookups = async () => {
+      try {
+        const [catRes, venRes] = await Promise.all([
+          api.get(`/api/projects/${activeProject.project_id}/categories`),
+          api.get("/api/vendors"),
+        ]);
+        setCategories(catRes.data || []);
+        setVendors(venRes.data || []);
+      } catch (err) {
+        console.error("Failed to fetch lookups", err);
+      }
+    };
+
+    fetchLookups();
+  }, [activeProject]);
+
+  // Memoized lookup maps
+  const categoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach((c) => {
+      map[c._id] = c.category_name || c._id;
+    });
+    return map;
+  }, [categories]);
+
+  const vendorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    vendors.forEach((v) => {
+      map[v._id] = v.name || v._id;
+    });
+    return map;
+  }, [vendors]);
 
   const fetchWorkOrders = useCallback(
     async (cursor?: string | null) => {
@@ -57,8 +106,8 @@ export default function WorkOrdersPage() {
   const columnDefs: ColDef<WorkOrder>[] = [
     {
       field: "wo_ref",
-      headerName: "Ref No.",
-      width: 150,
+      headerName: "WO Ref",
+      width: 130,
       cellRenderer: (p: any) => (
         <button
           onClick={() => router.push(`/admin/work-orders/${p.data._id}`)}
@@ -69,21 +118,27 @@ export default function WorkOrdersPage() {
       ),
     },
     {
+      field: "category_id",
+      headerName: "Category",
+      width: 150,
+      valueFormatter: (p: any) => categoryMap[p.value] || p.value || "-",
+    },
+    {
+      field: "vendor_id",
+      headerName: "Vendor",
+      width: 180,
+      valueFormatter: (p: any) => vendorMap[p.value] || p.value || "-",
+    },
+    {
       field: "created_at",
       headerName: "Date",
-      width: 150,
+      width: 130,
       valueFormatter: (p: any) => (p.value ? formatDate(p.value) : "N/A"),
     },
     {
-      field: "description",
-      headerName: "Description",
-      flex: 1,
-      minWidth: 250,
-    },
-    {
       field: "grand_total",
-      headerName: "Amount",
-      width: 150,
+      headerName: "Grand Total",
+      width: 140,
       type: "numericColumn",
       valueFormatter: (p: any) => formatCurrency(p.value || 0),
       cellClass: "font-mono text-emerald-400 font-bold",

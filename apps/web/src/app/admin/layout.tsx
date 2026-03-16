@@ -61,52 +61,64 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden ${isClient ? 'is-client' : ''}`} style={{ background: '#0f172a' }}>
+    <div className={`flex h-screen overflow-hidden ${isClient ? 'is-client' : ''} bg-[#0b0f1a]`}>
       <Sidebar onProjectSwitch={() => setShowProjectModal(true)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="h-14 flex items-center justify-between px-6 border-b"
-          style={{ background: '#1e293b', borderColor: '#334155' }}>
-          <div className="flex items-center gap-3">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Background Decor - Subtle Ambient Light */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[120px] -z-10 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 blur-[100px] -z-10 pointer-events-none" />
+
+        {/* Top bar - Glass Header */}
+        <header className="h-16 flex items-center justify-between px-8 glass-header border-b border-white/[0.03] z-40">
+          <div className="flex items-center gap-4">
             {activeProject ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-slate-300 text-sm font-medium">{activeProject.project_name}</span>
-                <span className="text-slate-600 text-xs">{activeProject.project_code}</span>
+              <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/[0.02] border border-white/[0.03] group hover:bg-white/[0.04] transition-all duration-300">
+                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                <div className="flex flex-col">
+                  <span className="text-slate-200 text-xs font-bold leading-none tracking-tight">Active Project</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-white text-sm font-black">{activeProject.project_name}</span>
+                    <span className="text-slate-500 text-[10px] font-mono border border-white/5 bg-white/[0.02] px-1.5 py-0.5 rounded uppercase tracking-wider">{activeProject.project_code}</span>
+                  </div>
+                </div>
                 <button
                   id="switch-project-btn"
                   onClick={() => setShowProjectModal(true)}
-                  className="ml-2 text-xs px-3 py-1 rounded-lg transition-colors"
-                  style={{ background: '#334155', color: '#94a3b8' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#475569')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '#334155')}
+                  className="ml-4 px-3 py-1.5 rounded-xl bg-orange-500/10 text-orange-500 text-[11px] font-bold uppercase tracking-wider hover:bg-orange-500/20 transition-all duration-300 border border-orange-500/10"
                 >
                   Switch
                 </button>
-              </>
+              </div>
             ) : (
               <button
                 onClick={() => setShowProjectModal(true)}
-                className="text-sm px-4 py-1.5 rounded-lg font-medium"
-                style={{ background: '#F97316', color: 'white' }}
+                className="btn-premium-orange px-5 py-2 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-[0_5px_15px_rgba(249,115,22,0.2)]"
               >
                 Select Project
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: '#1E3A5F', color: '#F97316' }}>
-              {user.name?.[0]?.toUpperCase()}
+
+          <div className="flex items-center gap-4">
+            {/* User Indicator */}
+            <div className="flex items-center gap-3 py-1.5 pl-1.5 pr-4 rounded-full bg-white/[0.02] border border-white/5">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-inner bg-slate-800 text-orange-500 border border-white/5">
+                {user.name?.[0]?.toUpperCase()}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-slate-100 text-sm font-bold leading-none">{user.name}</span>
+                <span className="text-slate-500 text-[10px] font-semibold tracking-wide mt-0.5">{user.role}</span>
+              </div>
             </div>
-            <span className="text-slate-300 text-sm">{user.name}</span>
           </div>
         </header>
 
-        {/* Main content */}
-        <main className={`flex-1 overflow-y-auto p-6 ${isClient ? 'client-readonly' : ''}`}>
-          {children}
+        {/* Main content - Refined Spacing */}
+        <main className={`flex-1 overflow-y-auto p-8 relative ${isClient ? 'client-readonly' : ''} custom-scrollbar`}>
+          <div className="max-w-[1600px] mx-auto">
+            {children}
+          </div>
         </main>
       </div>
 

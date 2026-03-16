@@ -107,7 +107,7 @@ class Project(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: str
     project_name: str
-    client_id: Optional[str] = None
+    client_id: str
     project_code: Optional[str] = None
     status: str = "active"
     address: Optional[str] = None
@@ -130,7 +130,7 @@ class Project(BaseModel):
 
 class ProjectCreate(BaseModel):
     project_name: str
-    client_id: Optional[str] = None
+    client_id: str
     project_code: Optional[str] = None
     status: str = "active"
     address: Optional[str] = None
@@ -225,7 +225,7 @@ class ProjectBudget(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
     category_id: str
-    approved_budget_amount: Decimal
+    original_budget: Decimal
     committed_amount: Decimal = Decimal("0.0")
     remaining_budget: Decimal = Decimal("0.0")
     description: Optional[str] = None
@@ -239,12 +239,12 @@ class ProjectBudget(BaseModel):
 class ProjectBudgetCreate(BaseModel):
     project_id: str
     category_id: str
-    approved_budget_amount: Decimal
+    original_budget: Decimal
     description: Optional[str] = None
 
 
 class ProjectBudgetUpdate(BaseModel):
-    approved_budget_amount: Optional[Decimal] = None
+    original_budget: Optional[Decimal] = None
     version: int
 
 
@@ -283,7 +283,7 @@ class DerivedFinancialState(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
     code_id: str
-    approved_budget_amount: Decimal = Decimal("0.0")
+    original_budget: Decimal = Decimal("0.0")
     committed_value: Decimal = Decimal("0.0")
     certified_value: Decimal = Decimal("0.0")
     balance_budget_remaining: Decimal = Decimal("0.0")
@@ -657,6 +657,7 @@ class WorkOrderUpdate(BaseModel):
     line_items: Optional[List[WOLineItem]] = None
     discount: Optional[Decimal] = None
     retention_percent: Optional[Decimal] = None
+    expected_version: int
 
 
 # =============================================================================
@@ -673,6 +674,17 @@ class CashTransaction(BaseModel):
     image_url: Optional[str] = None
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class CashTransactionCreate(BaseModel):
+    category_id: str
+    amount: Decimal = Decimal("0.0")
+    type: Literal["DEBIT", "CREDIT"] = "DEBIT"
+    purpose: Optional[str] = None
+    bill_reference: Optional[str] = None
+    image_url: Optional[str] = None
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 

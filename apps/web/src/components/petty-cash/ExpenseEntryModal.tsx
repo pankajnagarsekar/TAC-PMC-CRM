@@ -1,0 +1,520 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import {
+  X,
+  Upload,
+  Loader2,
+  ScanLine,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react";
+import api from "@/lib/api";
+
+interface ExpenseEntryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  projectId: string;
+}
+
+interface Category {
+  _id: string;
+  category_name: string;
+}
+
+interface OcrResult {
+  ocr_id: string;
+  confidence_score: number;
+  extracted_amount: number | null;
+  extracted_invoice_number: string | null;
+}
+
+export default function ExpenseEntryModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  projectId,
+}: ExpenseEntryModalProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [formData, setFormData] = useState({
+    category_id: "",
+    amount: "",
+    purpose: "",
+    bill_reference: "",
+  });
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+
+  // OCR state
+  const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 3.3.9: Warning state from API response
+  const [saveWarnings, setSaveWarnings] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isOpen && projectId) {
+      // Generate UUID for idempotency key
+      setIdempotencyKey(crypto.randomUUID());
+
+      // Fetch fund transfer categories
+      fetchCategories();
+    }
+  }, [isOpen, projectId]);
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      // Using the fund-allocations endpoint which already filters to fund_transfer categories
+      const response = await api.get(
+        `/api/projects/${projectId}/fund-allocations`,
+      );
+      const allocations = response.data.items || [];
+
+      // Extract unique categories
+      const uniqueCategories: Category[] = [];
+      const seen = new Set();
+      for (const alloc of allocations) {
+        if (alloc.category_name && !seen.has(alloc.category_id)) {
+          seen.add(alloc.category_id);
+          uniqueCategories.push({
+            _id: alloc.category_id,
+            category_name: alloc.category_name,
+          });
+        }
+      }
+      setCategories(uniqueCategories);
+
+      // Auto-select first category if available
+      if (uniqueCategories.length > 0 && !formData.category_id) {
+        setFormData((prev) => ({
+          ...prev,
+          category_id: uniqueCategories[0]._id,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedFile(file);
+
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    // Auto-trigger OCR scan
+    await runOcr(file);
+  };
+
+  const runOcr = async (file: File) => {
+    setIsScanning(true);
+    setOcrResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await api.post(
+        `/api/v2/ai/ocr?project_id=${projectId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      const ocrData = response.data;
+      setOcrResult({
+        ocr_id: ocrData.ocr_id,
+        confidence_score: ocrData.confidence_score || 0,
+        extracted_amount: ocrData.extracted_amount || null,
+        extracted_invoice_number: ocrData.extracted_invoice_number || null,
+      });
+
+      // Auto-fill amount if extracted
+      if (ocrData.extracted_amount) {
+        setFormData((prev) => ({
+          ...prev,
+          amount: String(ocrData.extracted_amount),
+        }));
+      }
+
+      // Auto-fill bill reference if extracted
+      if (ocrData.extracted_invoice_number) {
+        setFormData((prev) => ({
+          ...prev,
+          bill_reference: ocrData.extracted_invoice_number,
+        }));
+      }
+    } catch (error) {
+      console.error("OCR scan failed:", error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const response = await api.post(
+        `/api/projects/${projectId}/cash-transactions`,
+        {
+          ...formData,
+          amount: parseFloat(formData.amount),
+          type: "DEBIT",
+          image_url: uploadedFile ? previewUrl : null, // 3.3.7/3.2.2: Wire image_url
+        },
+        {
+          headers: {
+            "Idempotency-Key": idempotencyKey,
+          },
+        },
+      );
+
+      // 3.3.9: Capture warnings from API response
+      const warnings = response.data?.warnings || [];
+      setSaveWarnings(warnings);
+
+      if (warnings.length > 0) {
+        // Show warnings but still allow close - warnings are not blocking
+        // User can acknowledge and close
+        return;
+      }
+
+      onSuccess();
+      onClose();
+      resetForm();
+    } catch (error: any) {
+      console.error("Failed to create expense:", error);
+      alert(error.response?.data?.detail || "Failed to create expense");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      category_id: "",
+      amount: "",
+      purpose: "",
+      bill_reference: "",
+    });
+    setOcrResult(null);
+    setUploadedFile(null);
+    setSaveWarnings([]);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const getConfidenceColor = (score: number) => {
+    if (score >= 0.8) return "text-emerald-400";
+    if (score >= 0.5) return "text-amber-400";
+    return "text-red-400";
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg mx-4 shadow-2xl animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-800">
+          <h2 className="text-xl font-semibold text-white">Record Expense</h2>
+          <button
+            onClick={handleClose}
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Category Selector */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Category
+            </label>
+            {isLoadingCategories ? (
+              <div className="flex items-center gap-2 text-slate-400">
+                <Loader2 size={16} className="animate-spin" />
+                Loading categories...
+              </div>
+            ) : (
+              <select
+                value={formData.category_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, category_id: e.target.value })
+                }
+                required
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-amber-500"
+              >
+                <option value="">Select category</option>
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>
+                    {cat.category_name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Amount (₹)
+            </label>
+            <div className="relative">
+              <IndianRupeeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.amount}
+                onChange={(e) =>
+                  setFormData({ ...formData, amount: e.target.value })
+                }
+                required
+                placeholder="0.00"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          {/* Bill Image Upload with OCR */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Bill Image (Optional)
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            {isScanning ? (
+              <div className="border-2 border-dashed border-amber-500/50 bg-amber-500/5 rounded-lg p-6 text-center">
+                <Loader2 className="w-8 h-8 text-amber-500 mx-auto mb-2 animate-spin" />
+                <p className="text-sm text-amber-400">Scanning document...</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Extracting amount and invoice details
+                </p>
+              </div>
+            ) : previewUrl ? (
+              <div className="space-y-3">
+                <div className="relative border-2 border-slate-700 rounded-lg overflow-hidden">
+                  <img
+                    src={previewUrl}
+                    alt="Bill preview"
+                    className="w-full h-48 object-contain bg-slate-950"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadedFile(null);
+                      setPreviewUrl(null);
+                      setOcrResult(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = "";
+                      }
+                    }}
+                    className="absolute top-2 right-2 bg-slate-900/80 text-white p-1 rounded-full hover:bg-red-500"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* OCR Result */}
+                {ocrResult && (
+                  <div className="bg-slate-800 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {ocrResult.confidence_score >= 0.5 ? (
+                        <CheckCircle size={16} className="text-emerald-400" />
+                      ) : (
+                        <AlertCircle size={16} className="text-amber-400" />
+                      )}
+                      <span className="text-sm text-slate-300">
+                        OCR Confidence:{" "}
+                        <span
+                          className={getConfidenceColor(
+                            ocrResult.confidence_score,
+                          )}
+                        >
+                          {Math.round(ocrResult.confidence_score * 100)}%
+                        </span>
+                      </span>
+                    </div>
+                    {ocrResult.extracted_amount && (
+                      <span className="text-sm text-slate-400">
+                        Amount: ₹{ocrResult.extracted_amount}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-amber-500/50 transition-colors cursor-pointer"
+              >
+                <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">
+                  Drop file here or click to upload
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  PNG, JPG, PDF up to 10MB - Auto-scans for amount
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Purpose */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Purpose
+            </label>
+            <input
+              type="text"
+              value={formData.purpose}
+              onChange={(e) =>
+                setFormData({ ...formData, purpose: e.target.value })
+              }
+              required
+              placeholder="What was this expense for?"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          {/* Bill Reference */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Bill Reference
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={formData.bill_reference}
+                onChange={(e) =>
+                  setFormData({ ...formData, bill_reference: e.target.value })
+                }
+                placeholder="Invoice/Bill number"
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          {/* 3.3.9: Show threshold/negative warnings after expense save */}
+          {saveWarnings.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2 text-amber-400">
+                <AlertTriangle size={18} />
+                <span className="font-medium">Warning</span>
+              </div>
+              <ul className="text-sm text-amber-200 space-y-1">
+                {saveWarnings.includes("negative_cash") && (
+                  <li>
+                    • This expense brings cash to negative. Site balance is now
+                    below ₹0.
+                  </li>
+                )}
+                {saveWarnings.includes("threshold_breach") && (
+                  <li>• This expense brings cash below the threshold limit.</li>
+                )}
+              </ul>
+              <p className="text-xs text-amber-300/70 pt-2">
+                Expense was saved successfully. Consider creating a Payment
+                Certificate to replenish funds.
+              </p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || isLoadingCategories}
+              className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-not-allowed text-slate-900 font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Expense"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Simple Indian Rupee icon component
+function IndianRupeeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}

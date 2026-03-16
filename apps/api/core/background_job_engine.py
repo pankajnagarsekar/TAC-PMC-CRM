@@ -234,7 +234,7 @@ class BackgroundJobEngine:
                     continue
 
                 approved_budget = to_decimal(
-                    budget.get("approved_budget_amount", 0))
+                    budget.get("original_budget", 0))
                 committed = to_decimal(state.get("committed_value", 0))
                 certified = to_decimal(state.get("certified_value", 0))
                 paid = to_decimal(state.get("paid_value", 0))

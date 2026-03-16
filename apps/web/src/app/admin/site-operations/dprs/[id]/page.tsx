@@ -15,14 +15,42 @@ import {
   ArrowRight,
   ShieldCheck,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface DPRDetail {
+  _id: string;
+  project_id: string;
+  status: string;
+  date: string;
+  supervisor_id?: string;
+  supervisor_name?: string;
+  approved_by?: string;
+  approved_by_name?: string;
+  rejected_by?: string;
+  rejected_by_name?: string;
+  approved_at?: string;
+  rejected_at?: string;
+  rejection_reason?: string;
+  manpower_count?: number;
+  weather_conditions?: string;
+  photos?: string[];
+  notes?: string;
+  progress_notes?: string;
+  activities_completed?: string[];
+  materials_used?: Record<string, unknown>[];
+  equipment_deployed?: Record<string, unknown>[];
+  issues_challenges?: string;
+  issues_encountered?: string;
+  [key: string]: unknown;
+}
 
 export default function DPRDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const [dpr, setDpr] = useState(null);
+  const [dpr, setDpr] = useState<DPRDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -35,7 +63,7 @@ export default function DPRDetailPage() {
   const fetchDPRDetail = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/site-operations/dprs/${id}`);
+      const response = await api.get(`/api/dprs/${id}`);
       setDpr(response.data);
     } catch (error) {
       toast({
@@ -51,7 +79,7 @@ export default function DPRDetailPage() {
 
   const handleApprove = async () => {
     try {
-      await api.patch(`/api/site-operations/dprs/${id}/approve`);
+      await api.patch(`/api/dprs/${id}/approve`);
       toast({ title: "Success", description: "DPR Approved" });
       fetchDPRDetail();
     } catch (error) {
@@ -74,7 +102,7 @@ export default function DPRDetailPage() {
     }
     try {
       await api.patch(
-        `/api/site-operations/dprs/${id}/reject?reason=${encodeURIComponent(rejectionReason)}`,
+        `/api/dprs/${id}/reject?reason=${encodeURIComponent(rejectionReason)}`,
       );
       toast({ title: "Success", description: "DPR Rejected" });
       setRejectDialogOpen(false);
@@ -198,7 +226,11 @@ export default function DPRDetailPage() {
             <div>
               <p className="text-white text-sm font-bold">
                 {status === "APPROVED" ? "Approved" : "Rejected"} by{" "}
-                {dpr.approved_by || dpr.rejected_by || "Admin"}
+                {dpr.approved_by_name ||
+                  dpr.rejected_by_name ||
+                  dpr.approved_by ||
+                  dpr.rejected_by ||
+                  "Admin"}
               </p>
               <p className="text-slate-500 text-xs mt-0.5 uppercase tracking-wider font-semibold">
                 on{" "}
@@ -289,20 +321,23 @@ export default function DPRDetailPage() {
             </div>
             <div className="p-6">
               <div className="space-y-3">
-                {dpr.activities_completed?.length > 0 ? (
-                  dpr.activities_completed.map((activity, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950/50 border border-slate-800/50"
-                    >
-                      <div className="mt-0.5 p-1 rounded-full bg-emerald-500/20 text-emerald-500">
-                        <Check size={10} />
+                {dpr.activities_completed &&
+                dpr.activities_completed.length > 0 ? (
+                  dpr.activities_completed.map(
+                    (activity: string, i: number) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950/50 border border-slate-800/50"
+                      >
+                        <div className="mt-0.5 p-1 rounded-full bg-emerald-500/20 text-emerald-500">
+                          <Check size={10} />
+                        </div>
+                        <span className="text-sm text-slate-300 font-medium">
+                          {activity}
+                        </span>
                       </div>
-                      <span className="text-sm text-slate-300 font-medium">
-                        {activity}
-                      </span>
-                    </div>
-                  ))
+                    ),
+                  )
                 ) : (
                   <p className="text-slate-600 text-sm italic py-4 text-center">
                     No activities listed

@@ -6,11 +6,12 @@ from typing import List, Optional
 from decimal import Decimal
 
 from core.database import get_db, db_manager
-from core.idempotency import check_idempotency, record_operation
+from core.idempotency import check_idempotency, record_operation, get_recorded_operation
 from auth import get_current_user
 from models import CashTransactionCreate
 from permissions import PermissionChecker
 from audit_service import AuditService
+from cash_service import CashService
 from core.rate_limit import limiter
 
 cash_router = APIRouter(prefix="/api/projects", tags=["Cash Transactions"])
@@ -59,9 +60,10 @@ async def list_fund_allocations(
                     "_id": {"$toString": "$_id"},
                     "project_id": 1,
                     "category_id": 1,
-                    "allocation_total": 1,
+                    "allocation_original": 1,
+                    "allocation_received": 1,
                     "allocation_remaining": 1,
-                    "last_replenished": 1,
+                    "last_pc_closed_date": 1,
                     "created_at": 1,
                     "category_name": "$category_info.category_name"
                 }
@@ -72,10 +74,11 @@ async def list_fund_allocations(
         cursor = db.fund_allocations.aggregate(pipeline)
         docs = await cursor.to_list(length=100)
         
-        # Convert floating values back
+        # Convert Decimal128 values to float
         for d in docs:
-           d["allocation_total"] = float(d.get("allocation_total", Decimal128("0")).to_decimal())
-           d["allocation_remaining"] = float(d.get("allocation_remaining", Decimal128("0")).to_decimal())
+            d["allocation_original"] = float(d.get("allocation_original", Decimal128("0")).to_decimal())
+            d["allocation_received"] = float(d.get("allocation_received", Decimal128("0")).to_decimal())
+            d["allocation_remaining"] = float(d.get("allocation_remaining", Decimal128("0")).to_decimal())
 
         return {"items": docs}
     except Exception as e:
@@ -99,11 +102,12 @@ async def create_cash_transaction(
     audit_service = AuditService(db)
 
     async with db_manager.transaction_session() as session:
-        # 1. Idempotency Check
+        # 1. Idempotency Check - Replay Pattern
         if idempotency_key:
-            existing_op = await check_idempotency(db, session, idempotency_key)
-            if existing_op and "response_payload" in existing_op:
-                return existing_op["response_payload"]
+            # First check: try to get recorded response payload
+            recorded_response = await get_recorded_operation(db, session, idempotency_key)
+            if recorded_response:
+                return recorded_response
 
         # Validate constraints
         payload_amount = Decimal128(str(payload.amount))
@@ -116,11 +120,32 @@ async def create_cash_transaction(
         if not allocation:
              raise HTTPException(status_code=404, detail="No active fund allocation found for this category.")
 
+        # Get project for threshold values
+        project = await db.projects.find_one({"project_id": project_id}, session=session)
+        
+        # Get category to determine if Petty or OVH
+        category = await db.categories.find_one({"_id": ObjectId(payload.category_id)}, session=session)
+        
+        # Determine threshold based on category
+        default_threshold = Decimal("1000.0")
+        threshold = default_threshold
+        
+        if category and category.get("category_name"):
+            cat_name = category["category_name"].lower()
+            if "petty" in cat_name:
+                threshold = Decimal(str(project.get("threshold_petty", default_threshold))) if project else default_threshold
+            elif "ovh" in cat_name or "overhead" in cat_name:
+                threshold = Decimal(str(project.get("threshold_ovh", default_threshold))) if project else default_threshold
+
+        warnings = []
+        new_cash_in_hand = None
+
         if payload.type == "DEBIT":
             curr_rem = float(allocation.get("allocation_remaining", Decimal128("0")).to_decimal())
             req_amount = float(payload.amount)
             # 8.4.1: Allow negative cash-in-hand instead of blocking
             new_amount = curr_rem - req_amount
+            new_cash_in_hand = new_amount
             await db.fund_allocations.update_one(
                 {"_id": allocation["_id"]},
                 {"$set": {"allocation_remaining": Decimal128(str(new_amount))}},
@@ -153,7 +178,19 @@ async def create_cash_transaction(
         # Record for idempotency
         await record_operation(db, session, idempotency_key, "CASH_TRANSACTION", response_payload=serialize_doc(doc))
 
-        return serialize_doc(doc)
+        response = serialize_doc(doc)
+        
+        # Add warning flags per 3.2.2 spec
+        if new_cash_in_hand is not None:
+            if new_cash_in_hand < 0:
+                warnings.append("negative_cash")
+            elif new_cash_in_hand <= float(threshold):
+                warnings.append("threshold_breach")
+        
+        if warnings:
+            response["warnings"] = warnings
+
+        return response
 
 
 @cash_router.get("/{project_id}/cash-transactions")
@@ -170,33 +207,16 @@ async def list_cash_transactions(
     await checker.check_project_access(user, project_id)
 
     try:
-        query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
-        if category_id:
-             query["category_id"] = category_id
-             
-        if cursor:
-            try:
-                parsed_cursor = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
-                query["created_at"] = {"$lt": parsed_cursor}
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid cursor format")
-
-        cursor_obj = db.cash_transactions.find(query).sort("created_at", -1).limit(limit)
-        docs = await cursor_obj.to_list(length=limit)
-        
-        next_cursor = None
-        if len(docs) == limit:
-            last_doc = docs[-1]
-            ts = last_doc.get("created_at")
-            if isinstance(ts, datetime):
-                next_cursor = ts.isoformat()
-
-        return {
-            "items": [serialize_doc(d) for d in docs],
-            "next_cursor": next_cursor
-        }
-    except HTTPException:
-        raise
+        cash_service = CashService(db)
+        return await cash_service.list_cash_transactions(
+            project_id=project_id,
+            organisation_id=user["organisation_id"],
+            category_id=category_id,
+            cursor=cursor,
+            limit=limit
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -212,49 +232,8 @@ async def get_cash_summary(
     await checker.check_project_access(user, project_id)
 
     try:
-        # 1. Fetch all allocations for project
-        allocations = await db.fund_allocations.find({"project_id": project_id}).to_list(length=100)
-        
-        total_remaining = 0.0
-        allocation_total = 0.0
-        is_below_threshold = False
-        default_threshold = 1000.0
-
-        for a in allocations:
-            rem = float(a.get("allocation_remaining", Decimal128("0")).to_decimal())
-            tot = float(a.get("allocation_total", Decimal128("0")).to_decimal())
-            thresh = float(a.get("threshold", Decimal128(str(default_threshold))).to_decimal())
-            
-            total_remaining += rem
-            allocation_total += tot
-            if rem < thresh:
-                is_below_threshold = True
-
-        # 2. Find last associated PC close date
-        last_pc = await db.payment_certificates.find_one(
-            {"project_id": project_id, "status": "Closed", "fund_request": True},
-            sort=[("updated_at", -1)]
-        )
-        
-        days_since_last_pc_close = None
-        if last_pc and last_pc.get("updated_at"):
-            last_date = last_pc["updated_at"]
-            if last_date.tzinfo is None:
-                last_date = last_date.replace(tzinfo=timezone.utc)
-            diff = datetime.now(timezone.utc) - last_date
-            days_since_last_pc_close = diff.days
-
-        return {
-            "cash_in_hand": total_remaining,
-            "allocation_remaining": total_remaining, # In this context, they are same (project-wide view)
-            "allocation_total": allocation_total,
-            "threshold": default_threshold,
-            "days_since_last_pc_close": days_since_last_pc_close,
-            "flags": {
-                "is_negative": total_remaining < 0,
-                "is_below_threshold": is_below_threshold
-            }
-        }
+        cash_service = CashService(db)
+        return await cash_service.get_cash_summary(project_id, user["organisation_id"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

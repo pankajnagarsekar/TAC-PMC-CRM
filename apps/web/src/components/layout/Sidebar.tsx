@@ -1,156 +1,249 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard, FolderOpen, Users, FileText,
-  CreditCard, Wallet, HardHat, BarChart2,
-  Settings, LogOut, BarChart3, ChevronRight, Building2, Scan, Store, ShieldCheck
-} from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
-import useSWR from 'swr';
-import { fetcher } from '@/lib/api';
-import { GlobalSettings } from '@/types/api';
+  LayoutDashboard,
+  Users,
+  FolderOpen,
+  FileText,
+  CreditCard,
+  Wallet,
+  HardHat,
+  BarChart2,
+  Settings,
+  LogOut,
+  BarChart3,
+  ChevronRight,
+  Building2,
+  Scan,
+  Store,
+  ShieldCheck,
+} from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import api from "@/lib/api";
+import useSWR from "swr";
+import { fetcher } from "@/lib/api";
+import { GlobalSettings } from "@/types/api";
 
-const NAV_ITEMS = [
-  { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard', key: 'dashboard' },
-  { href: '/admin/clients', icon: Users, label: 'Clients', key: 'clients' },
-  { href: '/admin/projects', icon: FolderOpen, label: 'Projects', key: 'projects' },
-  { href: '/admin/categories', icon: LayoutDashboard, label: 'Categories', key: 'categories' },
-  { href: '/admin/vendors', icon: Store, label: 'Vendors', key: 'vendors' },
-  { href: '/admin/work-orders', icon: FileText, label: 'Work Orders', key: 'work_orders' },
-  { href: '/admin/payment-certificates', icon: CreditCard, label: 'Payment Certificate', key: 'payment_certificates' },
-  { href: '/admin/ocr', icon: Scan, label: 'AI OCR Scanner', key: 'ocr' },
-  { href: '/admin/petty-cash', icon: Wallet, label: 'Petty Cash', key: 'petty_cash' },
-  { href: '/admin/site-overheads', icon: Building2, label: 'Site Overheads', key: 'site_overheads' },
-  { href: '/admin/site-operations', icon: HardHat, label: 'Site Operations', key: 'site_operations' },
-  { href: '/admin/reports', icon: BarChart2, label: 'Reports', key: 'reports' },
-  { href: '/admin/audit-log', icon: ShieldCheck, label: 'Audit Log', key: 'audit_log' },
-  { href: '/admin/settings', icon: Settings, label: 'Settings', key: 'settings' },
+interface NavItem {
+  href: string;
+  icon?: any;
+  label: string;
+  key: string;
+  children?: NavItem[];
+}
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    key: "dashboard",
+  },
+  { href: "/admin/clients", icon: Users, label: "Clients", key: "clients" },
+  {
+    href: "/admin/projects",
+    icon: FolderOpen,
+    label: "Projects",
+    key: "projects",
+  },
+  {
+    href: "/admin/categories",
+    icon: LayoutDashboard,
+    label: "Categories",
+    key: "categories",
+  },
+  { href: "/admin/vendors", icon: Store, label: "Vendors", key: "vendors" },
+  {
+    href: "/admin/work-orders",
+    icon: FileText,
+    label: "Work Orders",
+    key: "work_orders",
+  },
+  {
+    href: "/admin/payment-certificates",
+    icon: CreditCard,
+    label: "Payment Certificate",
+    key: "payment_certificates",
+  },
+  { href: "/admin/ocr", icon: Scan, label: "AI OCR Scanner", key: "ocr" },
+  {
+    href: "/admin/petty-cash",
+    icon: Wallet,
+    label: "Petty Cash",
+    key: "petty_cash",
+  },
+  {
+    href: "/admin/site-overheads",
+    icon: Building2,
+    label: "Site Overheads",
+    key: "site_overheads",
+  },
+  {
+    href: "/admin/site-operations",
+    icon: HardHat,
+    label: "Site Operations",
+    key: "site_operations",
+    children: [
+      { href: "/admin/site-operations/dprs", label: "DPRs", key: "dprs" },
+      {
+        href: "/admin/site-operations/attendance",
+        label: "Attendance",
+        key: "attendance",
+      },
+      {
+        href: "/admin/site-operations/voice-logs",
+        label: "Voice Logs",
+        key: "voice_logs",
+      },
+    ],
+  },
+  { href: "/admin/reports", icon: BarChart2, label: "Reports", key: "reports" },
+  {
+    href: "/admin/audit-log",
+    icon: ShieldCheck,
+    label: "Audit Log",
+    key: "audit_log",
+  },
+  {
+    href: "/admin/settings",
+    icon: Settings,
+    label: "Settings",
+    key: "settings",
+  },
 ];
 
 interface SidebarProps {
-  onProjectSwitch: () => void;
+  onProjectSwitch?: () => void;
 }
 
-export default function Sidebar({ onProjectSwitch: _onProjectSwitch }: SidebarProps) {
+export default function Sidebar({
+  onProjectSwitch: _onProjectSwitch,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
-  const { data: settings, error: settingsError } = useSWR<GlobalSettings>('/api/settings', fetcher);
-
-  console.log('Sidebar: rendering...', { role: user?.role, hasSettings: !!settings, settingsError });
+  const { data: settings } = useSWR<GlobalSettings>(
+    "/api/settings",
+    fetcher
+  );
 
   async function handleLogout() {
     try {
-      await api.post('/api/auth/logout');
+      await api.post("/api/auth/logout");
     } catch {
       // Ignore logout API errors
     }
     clearAuth();
-    document.cookie = 'crm_token=; path=/; max-age=0';
-    router.replace('/login');
+    document.cookie = "crm_token=; path=/; max-age=0";
+    router.replace("/login");
   }
 
-  const filteredNavItems = NAV_ITEMS.filter(item => {
-    if (user?.role === 'Client') {
+  const filteredNavItems = NAV_ITEMS.filter((item) => {
+    if (user?.role === "Client") {
       const perms = settings?.client_permissions;
       if (!perms) {
-        // Fallback defaults if settings not loaded
-        return ['Dashboard', 'Projects'].includes(item.label);
+        return ["Dashboard", "Projects"].includes(item.label);
       }
-      
+
       const mapping: Record<string, boolean | undefined> = {
-        'Dashboard': true,
-        'Projects': true,
-        'Site Operations': perms.can_view_dpr,
-        'Reports': perms.can_view_reports,
+        Dashboard: true,
+        Projects: true,
+        "Site Operations": perms.can_view_dpr,
+        Reports: perms.can_view_reports,
       };
-      
+
       return !!mapping[item.label];
     }
-    return true; // Admins see everything
+    return true; 
   });
 
   return (
-    <aside className="w-60 flex flex-col flex-shrink-0 h-full"
-      style={{ background: '#0f172a', borderRight: '1px solid #1e293b' }}>
-      {/* Logo */}
-      <div className="h-14 flex items-center px-5 gap-3 border-b" style={{ borderColor: '#1e293b' }}>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: '#F97316' }}>
-          <BarChart3 size={16} className="text-white" />
-        </div>
-        <div>
-          <p className="text-white font-bold text-sm leading-none">TAC-PMC</p>
-          <p className="text-slate-600 text-xs mt-0.5">CRM v2.0</p>
+    <aside className="w-64 glass-panel-luxury border-r border-white/5 h-screen flex flex-col fixed left-0 top-0 z-50">
+      {/* Logo Area */}
+      <div className="p-6 border-b border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-orange-500/20 glow-primary">
+            <BarChart3 size={20} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-white leading-none">TAC PMC</h1>
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-[0.2em] mt-1">Financial Suite</p>
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-        {filteredNavItems.map(({ href, icon: Icon, label }) => {
-          const isActive = pathname === href || pathname.startsWith(href + '/');
+      <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+        {filteredNavItems.map((item) => {
+          const isActive = pathname === item.href || (item.children && item.children.some(c => pathname === c.href));
           return (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative"
-              style={{
-                background: isActive ? 'rgba(249, 115, 22, 0.12)' : 'transparent',
-                color: isActive ? '#F97316' : '#94a3b8',
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r-full"
-                  style={{ background: '#F97316' }} />
+            <div key={item.key} className="space-y-1">
+              <Link
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative ${
+                  isActive
+                    ? 'bg-accent/10 text-accent font-semibold shadow-inner'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {isActive && (
+                  <div className="absolute left-0 w-1 h-6 bg-accent rounded-r-full shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                )}
+                <span className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110 group-hover:text-accent'}`}>
+                  {item.icon && <item.icon size={18} />}
+                </span>
+                <span className="text-sm tracking-wide">{item.label}</span>
+                {item.children && (
+                  <ChevronRight size={14} className={`ml-auto transition-transform ${isActive ? 'rotate-90 text-accent' : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`} />
+                )}
+              </Link>
+              
+              {item.children && isActive && (
+                <div className="ml-9 space-y-1">
+                  {item.children.map(child => {
+                    const isChildActive = pathname === child.href;
+                    return (
+                      <Link
+                        key={child.key}
+                        href={child.href}
+                        className={`block py-2 px-3 text-xs rounded-lg transition-colors ${
+                          isChildActive ? 'text-accent font-medium bg-accent/5' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    )
+                  })}
+                </div>
               )}
-              <Icon size={17} />
-              <span>{label}</span>
-              {isActive && <ChevronRight size={14} className="ml-auto" />}
-            </Link>
+            </div>
           );
         })}
       </nav>
 
-      {/* User & Logout */}
-      <div className="p-3 border-t" style={{ borderColor: '#1e293b' }}>
-        <div className="flex items-center gap-3 px-3 py-2 rounded-xl mb-1"
-          style={{ background: 'rgba(255,255,255,0.03)' }}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: '#1E3A5F', color: '#F97316' }}>
-            {user?.name?.[0]?.toUpperCase()}
+      {/* User Session */}
+      <div className="p-4 border-t border-white/5">
+        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 glass-panel-luxury mb-3 group transition-all hover:bg-white/[0.08]">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center text-sm font-bold text-orange-500 shadow-inner">
+              {user?.name?.[0]?.toUpperCase() || 'A'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-white truncate leading-tight">{user?.name || 'Admin User'}</p>
+              <p className="text-[10px] text-slate-400 truncate">{user?.email || 'admin@tacpmc.in'}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-white text-xs font-medium truncate">{user?.name}</p>
-            <p className="text-slate-600 text-xs truncate">{user?.email}</p>
-          </div>
+          <button 
+            onClick={handleLogout}
+            className="w-full py-2 px-4 rounded-xl bg-slate-800/50 hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-[11px] font-semibold transition-all border border-white/5 flex items-center justify-center gap-2"
+          >
+            <LogOut size={14} />
+            Sign Out
+          </button>
         </div>
-        <button
-          id="logout-btn"
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all"
-          style={{ color: '#64748b' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
-            e.currentTarget.style.color = '#ef4444';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#64748b';
-          }}
-        >
-          <LogOut size={16} />
-          <span>Sign Out</span>
-        </button>
       </div>
     </aside>
   );

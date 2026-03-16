@@ -1,249 +1,667 @@
-'use client';
+"use client";
 
-import { useProjectStore } from '@/store/projectStore';
-import { formatCurrency } from '@tac-pmc/ui';
-import useSWR from 'swr';
-import { fetcher } from '@/lib/api';
-import { DerivedFinancialState } from '@/types/api';
+import React from "react";
+import useSWR from "swr";
+import Link from "next/link";
 import {
-  TrendingUp, AlertTriangle, Wallet, HardHat, FileText, CreditCard, ArrowUpRight,
-  PieChart as PieChartIcon, BarChart3 as BarChartIcon
-} from 'lucide-react';
-import Link from 'next/link';
-import { DonutChart, BarChart, Card, Title, Text, Flex } from '@tremor/react';
-
-function StatCard({
-  title, value, sub, icon: Icon, color, alert
-}: {
-  title: string;
-  value: string;
-  sub?: string;
-  icon: React.ElementType;
-  color: string;
-  alert?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl p-5 flex flex-col gap-3"
-      style={{ background: '#1e293b', border: `1px solid ${alert ? 'rgba(239,68,68,0.3)' : '#334155'}` }}>
-      <div className="flex items-center justify-between">
-        <p className="text-slate-400 text-sm font-medium">{title}</p>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: `${color}18` }}>
-          <Icon size={18} style={{ color }} />
-        </div>
-      </div>
-      <div>
-        <p className={`text-2xl font-bold ${alert ? 'text-red-400' : 'text-white'}`}>{value}</p>
-        {sub && <p className="text-slate-500 text-xs mt-1">{sub}</p>}
-      </div>
-    </div>
-  );
-}
+  TrendingUp,
+  Wallet,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowUpRight,
+  TrendingDown,
+  CreditCard,
+  Users,
+  HardHat,
+  Clock,
+  PieChart as PieChartIcon,
+  BarChart as BarChartIcon,
+} from "lucide-react";
+import { fetcher } from "@/lib/api";
+import { DerivedFinancialState } from "@/types/api";
+import { formatCurrency } from "@tac-pmc/ui";
+import { useProjectStore } from "@/store/projectStore";
+import KPICard from "@/components/ui/KPICard";
+import { DonutChart, BarChart } from "@tremor/react";
 
 export default function AdminDashboard() {
   const { activeProject } = useProjectStore();
 
   const { data: financials } = useSWR<DerivedFinancialState[]>(
-    activeProject ? `/api/v2/projects/${activeProject.project_id}/financials` : null,
-    fetcher
+    activeProject
+      ? `/api/v2/projects/${activeProject.project_id}/financials`
+      : null,
+    fetcher,
+  );
+
+  const { data: vendorPayables } = useSWR<
+    { vendor_id: string; vendor_name: string; total_payable: number }[]
+  >(
+    activeProject
+      ? `/api/v2/projects/${activeProject.project_id}/vendor-payables`
+      : null,
+    fetcher,
+  );
+
+  const { data: cashSummary } = useSWR<{
+    categories: {
+      category_id: string;
+      category_name: string;
+      cash_in_hand: number;
+      allocation_remaining: number;
+      allocation_total: number;
+      threshold: number;
+      days_since_last_pc_close: number | null;
+      is_negative: boolean;
+      is_below_threshold: boolean;
+    }[];
+    summary: {
+      total_cash_in_hand: number;
+      days_since_last_pc_close: number;
+    };
+  }>(
+    activeProject
+      ? `/api/v2/projects/${activeProject.project_id}/cash-summary`
+      : null,
+    fetcher,
+  );
+
+  const { data: workOrders } = useSWR<
+    { _id: string; status: string; category_id: string }[]
+  >(
+    activeProject
+      ? `/api/v2/projects/${activeProject.project_id}/work-orders`
+      : null,
+    fetcher,
   );
 
   if (!activeProject) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'rgba(249,115,22,0.1)' }}>
-            <AlertTriangle size={28} style={{ color: '#F97316' }} />
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="text-center p-12 rounded-[40px] bg-slate-900/40 border border-white/5 backdrop-blur-2xl">
+          <div
+            className="w-20 h-20 rounded-[28px] mx-auto mb-6 flex items-center justify-center shadow-2xl"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(249,115,22,0.2) 0%, rgba(249,115,22,0.1) 100%)",
+              border: "1px solid rgba(249,115,22,0.3)",
+            }}
+          >
+            <AlertTriangle size={32} className="text-orange-500" />
           </div>
-          <h3 className="text-white font-semibold text-lg mb-2">No Project Selected</h3>
-          <p className="text-slate-400 text-sm">Please select a project to view the dashboard.</p>
+          <h3 className="text-white font-black text-2xl mb-3 tracking-tight">
+            No Project Selected
+          </h3>
+          <p className="text-slate-400 text-sm font-medium max-w-[240px] mx-auto leading-relaxed">
+            Please select a target project from the sidebar to initialize your
+            dashboard.
+          </p>
         </div>
       </div>
     );
   }
 
   // Aggregate from financials
-  const totalBudget = financials?.reduce((sum, f) => sum + (f.approved_budget_amount || 0), 0) ?? 0;
-  const totalCommitted = financials?.reduce((sum, f) => sum + (f.committed_value || 0), 0) ?? 0;
-  const totalRemaining = financials?.reduce((sum, f) => sum + (f.balance_budget_remaining || 0), 0) ?? 0;
-  const overCommitCount = financials?.filter((f) => f.over_commit_flag).length ?? 0;
+  const totalBudget =
+    financials?.reduce((sum, f) => sum + (f.original_budget || 0), 0) ?? 0;
+  const totalCommitted =
+    financials?.reduce((sum, f) => sum + (f.committed_value || 0), 0) ?? 0;
+  const totalCertified =
+    financials?.reduce((sum, f) => sum + (f.certified_value || 0), 0) ?? 0;
+  const totalRemaining =
+    financials?.reduce(
+      (sum, f) => sum + (f.balance_budget_remaining || 0),
+      0,
+    ) ?? 0;
+  const overCommitCount =
+    financials?.filter((f) => f.over_commit_flag).length ?? 0;
 
+  // Vendor payables total
+  const totalVendorPayables =
+    vendorPayables?.reduce((sum, v) => sum + (v.total_payable || 0), 0) ?? 0;
+
+  // Cash summary data
+  const pettyCashData = cashSummary?.categories?.find((c) =>
+    c.category_name?.toLowerCase().includes("petty"),
+  );
+  const ovhCashData = cashSummary?.categories?.find(
+    (c) =>
+      c.category_name?.toLowerCase().includes("ovh") ||
+      c.category_name?.toLowerCase().includes("overhead"),
+  );
+
+  // WO status distribution for chart
+  const woStatusCounts =
+    workOrders?.reduce(
+      (acc, wo) => {
+        const status = wo.status || "Unknown";
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ) ?? {};
+
+  const woStatusData = Object.entries(woStatusCounts).map(([name, value]) => ({
+    name,
+    value,
+  }));
+
+  // Over-budget alerts list (5.4.7)
+  const overBudgetCategories =
+    financials?.filter((f) => f.over_commit_flag) ?? [];
+
+  // Quick Links Configuration
   const quickLinks = [
-    { href: '/admin/work-orders', icon: FileText, label: 'Work Orders', color: '#3b82f6' },
-    { href: '/admin/payment-certificates', icon: CreditCard, label: 'Payments', color: '#8b5cf6' },
-    { href: '/admin/petty-cash', icon: Wallet, label: 'Petty Cash / OVH', color: '#f59e0b' },
-    { href: '/admin/site-operations', icon: HardHat, label: 'Site Operations', color: '#22c55e' },
+    {
+      href: "/admin/projects/" + activeProject.project_id,
+      icon: TrendingUp,
+      label: "Project Overview",
+      color: "#3b82f6",
+    },
+    {
+      href: "/admin/work-orders",
+      icon: FileText,
+      label: "Work Orders",
+      color: "#8b5cf6",
+    },
+    {
+      href: "/admin/payment-certificates",
+      icon: CreditCard,
+      label: "Certificates",
+      color: "#10b981",
+    },
+    {
+      href: "/admin/petty-cash",
+      icon: Wallet,
+      label: "Petty Cash",
+      color: "#f59e0b",
+    },
+    {
+      href: "/admin/users",
+      icon: Users,
+      label: "Team",
+      color: "#ec4899",
+    },
+    {
+      href: "/admin/reports",
+      icon: BarChartIcon,
+      label: "Analysis",
+      color: "#6366f1",
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-1">
-          <p className="text-slate-400 text-sm">{activeProject.project_name} — Financial Overview</p>
-          <div className="flex items-center gap-3">
-            <div className="w-32 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-orange-500 transition-all duration-1000" 
-                style={{ width: `${activeProject.completion_percentage || 0}%` }}
+    <div className="max-w-[1600px] mx-auto space-y-12 pb-20 animate-in fade-in duration-700">
+      {/* KPI Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KPICard
+          label="Total Approved Budget"
+          value={formatCurrency(totalBudget)}
+          icon={<TrendingUp size={22} />}
+          status="neutral"
+          trend="+5.2%"
+          trendUp={true}
+          subtitle="Lifetime projected expenditure"
+        />
+        <KPICard
+          label="Total Committed"
+          value={formatCurrency(totalCommitted)}
+          icon={<FileText size={22} />}
+          status="positive"
+          trend="82%"
+          trendUp={true}
+          subtitle={`${financials?.length || 0} active categories`}
+        />
+        <KPICard
+          label="Total Certified"
+          value={formatCurrency(totalCertified)}
+          icon={<CheckCircle2 size={22} />}
+          status="positive"
+          trend={`${((totalCertified / totalCommitted) * 100 || 0).toFixed(1)}%`}
+          trendUp={true}
+          subtitle="Work complete (billed)"
+        />
+        <KPICard
+          label="Unallocated Balance"
+          value={formatCurrency(totalRemaining)}
+          icon={<Wallet size={22} />}
+          status={totalRemaining < 0 ? "negative" : "warning"}
+          trend={
+            overCommitCount > 0 ? `${overCommitCount} Overruns` : "Healthy"
+          }
+          trendUp={totalRemaining >= 0}
+          subtitle="Remaining budget headroom"
+        />
+      </div>
+
+      {/* Additional KPIs - Vendor Payables, Petty Cash, OVH (5.4.3, 5.4.4, 5.4.5) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <KPICard
+          label="Vendor Payables"
+          value={formatCurrency(totalVendorPayables)}
+          icon={<Users size={22} />}
+          status={totalVendorPayables > 0 ? "negative" : "positive"}
+          trend={totalVendorPayables > 0 ? "Outstanding" : "Clear"}
+          trendUp={totalVendorPayables === 0}
+          subtitle="Total outstanding payments"
+        />
+        <KPICard
+          label="Petty Cash"
+          value={formatCurrency(pettyCashData?.cash_in_hand ?? 0)}
+          icon={<Wallet size={22} />}
+          status={
+            pettyCashData?.is_negative
+              ? "negative"
+              : pettyCashData?.is_below_threshold
+                ? "warning"
+                : "positive"
+          }
+          trend={
+            pettyCashData?.is_below_threshold ? "Below Threshold" : "Healthy"
+          }
+          trendUp={
+            !pettyCashData?.is_negative && !pettyCashData?.is_below_threshold
+          }
+          subtitle="Cash in hand"
+        />
+        <KPICard
+          label="OVH Cash"
+          value={formatCurrency(ovhCashData?.cash_in_hand ?? 0)}
+          icon={<Wallet size={22} />}
+          status={
+            ovhCashData?.is_negative
+              ? "negative"
+              : ovhCashData?.is_below_threshold
+                ? "warning"
+                : "positive"
+          }
+          trend={
+            ovhCashData?.is_below_threshold ? "Below Threshold" : "Healthy"
+          }
+          trendUp={
+            !ovhCashData?.is_negative && !ovhCashData?.is_below_threshold
+          }
+          subtitle="Cash in hand"
+        />
+      </div>
+
+      {/* Main Analysis Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Left: Utilization Matrix */}
+        <div className="xl:col-span-2 space-y-8">
+          <div className="glass-panel-luxury p-10 rounded-[40px] border border-white/5 shadow-2xl relative overflow-hidden group">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h3 className="text-white font-black tracking-tight uppercase text-xs">
+                  Budget Utilization Ledger
+                </h3>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                  Detailed category performance metrics
+                </p>
+              </div>
+              <Link
+                href={`/admin/projects/${activeProject.project_id}`}
+                className="bg-white/5 hover:bg-white/10 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 active:scale-95 border border-white/5"
+              >
+                Full Analysis <ArrowUpRight size={14} />
+              </Link>
+            </div>
+
+            <div className="space-y-10">
+              {financials?.slice(0, 5).map((f) => {
+                const pct =
+                  f.original_budget > 0
+                    ? Math.min(
+                        100,
+                        (f.committed_value / f.original_budget) * 100,
+                      )
+                    : 0;
+                const isOver = f.over_commit_flag;
+                return (
+                  <div key={f.category_id} className="space-y-4 group/item">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-3 h-3 rounded-full shadow-lg transition-transform group-hover/item:scale-125 ${isOver ? "bg-rose-500 shadow-rose-500/40 animate-pulse" : "bg-slate-700"}`}
+                        />
+                        <span className="text-white font-black text-sm tracking-tight">
+                          {f.category_id}
+                        </span>
+                        <span className="hidden sm:inline-block text-[10px] text-white/20 font-black uppercase tracking-widest opacity-0 group-hover/item:opacity-100 transition-opacity">
+                          PMC-00{financials.indexOf(f) + 1}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-6 text-xs font-mono">
+                        <div className="text-right">
+                          <span className="text-white font-black">
+                            {formatCurrency(f.committed_value)}
+                          </span>
+                          <span className="text-white/20 mx-2 text-[10px]">
+                            /
+                          </span>
+                          <span className="text-slate-500 font-bold">
+                            {formatCurrency(f.original_budget)}
+                          </span>
+                        </div>
+                        <div
+                          className={`min-w-[70px] text-center px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter ${isOver ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-white/5 text-white/60 border border-white/5"}`}
+                        >
+                          {pct.toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="h-3 bg-black/40 rounded-full overflow-hidden p-[2px] border border-white/5 shadow-inner">
+                      <div
+                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: `${pct}%`,
+                          background: isOver
+                            ? "linear-gradient(90deg, #f43f5e 0%, #e11d48 100%)"
+                            : pct > 80
+                              ? "linear-gradient(90deg, #f59e0b 0%, #d97706 100%)"
+                              : "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)",
+                          boxShadow: isOver
+                            ? "0 0 15px rgba(244,63,94,0.5)"
+                            : "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Allocation Overview */}
+        <div className="space-y-8">
+          <div className="glass-panel-luxury p-10 rounded-[40px] border border-white/5 h-full flex flex-col">
+            <div>
+              <h3 className="text-white font-black tracking-tight uppercase text-xs">
+                Allocation Structure
+              </h3>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                Top Category Distribution
+              </p>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center py-10">
+              <DonutChart
+                data={
+                  financials?.slice(0, 5).map((f) => ({
+                    name: f.category_id,
+                    value: f.original_budget,
+                  })) || []
+                }
+                category="value"
+                index="name"
+                colors={["blue", "violet", "emerald", "amber", "rose"]}
+                className="h-64"
+                showAnimation={true}
               />
             </div>
-            <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">
-              {activeProject.completion_percentage || 0}% Complete
-            </span>
+
+            <div className="space-y-4 pt-6 border-t border-white/5 uppercase">
+              <div className="flex justify-between items-center text-[10px] font-bold">
+                <span className="text-slate-500">Project Status</span>
+                <span className="text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-lg border border-emerald-400/20">
+                  Operational
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[10px] font-bold">
+                <span className="text-slate-500">Critical Alerts</span>
+                <span
+                  className={
+                    overCommitCount > 0 ? "text-rose-400" : "text-slate-400"
+                  }
+                >
+                  {overCommitCount} Issues Detected
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Over-budget Alert Banner */}
-      {overCommitCount > 0 && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-4 animate-in slide-in-from-top-4 duration-500">
-          <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-500 flex-shrink-0">
-            <AlertTriangle size={20} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="text-red-400 font-bold text-sm">Budget Attention Required</h4>
-            <p className="text-red-400/70 text-xs mt-0.5 truncate">
-              {overCommitCount} categor{overCommitCount !== 1 ? 'ies' : 'y'} are currently over budget. Review allocation and work orders immediately.
+      {/* Budget vs Committed Bar Chart (5.4.8) */}
+      <div className="glass-panel-luxury p-10 rounded-[40px] border border-white/5">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="text-white font-black tracking-tight uppercase text-xs">
+              Budget vs Committed
+            </h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+              Original budget vs committed amounts per category
             </p>
           </div>
-          <Link href="/admin/projects" className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors">
-            Fix Now
-          </Link>
+        </div>
+        <div className="h-80">
+          <BarChart
+            className="h-full"
+            data={
+              financials?.slice(0, 8).map((f) => ({
+                name: f.category_id,
+                Budget: f.original_budget,
+                Committed: f.committed_value,
+              })) || []
+            }
+            index="name"
+            categories={["Budget", "Committed"]}
+            colors={["blue", "emerald"]}
+            yAxisWidth={60}
+            showAnimation={true}
+          />
+        </div>
+      </div>
+
+      {/* 15-Day Countdown Widgets (5.4.6) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Petty Cash Countdown */}
+        <div
+          className="glass-panel-luxury p-8 rounded-[40px] border border-white/5 flex items-center justify-between"
+          style={{
+            borderColor:
+              (pettyCashData?.days_since_last_pc_close ?? 0) >= 15
+                ? "rgba(239,68,68,0.3)"
+                : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
+                  ? "rgba(245,158,11,0.3)"
+                  : "rgba(255,255,255,0.05)",
+          }}
+        >
+          <div className="flex items-center gap-6">
+            <div
+              className="w-16 h-16 rounded-[24px] flex items-center justify-center"
+              style={{
+                background:
+                  (pettyCashData?.days_since_last_pc_close ?? 0) >= 15
+                    ? "rgba(239,68,68,0.1)"
+                    : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
+                      ? "rgba(245,158,11,0.1)"
+                      : "rgba(34,197,94,0.1)",
+              }}
+            >
+              <Clock
+                size={32}
+                style={{
+                  color:
+                    (pettyCashData?.days_since_last_pc_close ?? 0) >= 15
+                      ? "#ef4444"
+                      : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
+                        ? "#f59e0b"
+                        : "#22c55e",
+                }}
+              />
+            </div>
+            <div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                Petty Cash
+              </p>
+              <p className="text-white text-3xl font-black tracking-tight">
+                {pettyCashData?.days_since_last_pc_close != null
+                  ? `${pettyCashData.days_since_last_pc_close}`
+                  : "--"}{" "}
+                <span className="text-lg font-medium text-slate-500">days</span>
+              </p>
+              <p className="text-slate-600 text-[10px] font-medium uppercase tracking-wider">
+                since last PC close
+              </p>
+            </div>
+          </div>
+          <div
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider ${
+              (pettyCashData?.days_since_last_pc_close ?? 0) >= 15
+                ? "bg-rose-500 text-white"
+                : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
+                  ? "bg-amber-500 text-white"
+                  : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+            }`}
+          >
+            {(pettyCashData?.days_since_last_pc_close ?? 0) >= 15
+              ? "Overdue"
+              : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
+                ? "Warning"
+                : "OK"}
+          </div>
+        </div>
+
+        {/* OVH Cash Countdown */}
+        <div
+          className="glass-panel-luxury p-8 rounded-[40px] border border-white/5 flex items-center justify-between"
+          style={{
+            borderColor:
+              (ovhCashData?.days_since_last_pc_close ?? 0) >= 15
+                ? "rgba(239,68,68,0.3)"
+                : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
+                  ? "rgba(245,158,11,0.3)"
+                  : "rgba(255,255,255,0.05)",
+          }}
+        >
+          <div className="flex items-center gap-6">
+            <div
+              className="w-16 h-16 rounded-[24px] flex items-center justify-center"
+              style={{
+                background:
+                  (ovhCashData?.days_since_last_pc_close ?? 0) >= 15
+                    ? "rgba(239,68,68,0.1)"
+                    : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
+                      ? "rgba(245,158,11,0.1)"
+                      : "rgba(34,197,94,0.1)",
+              }}
+            >
+              <Clock
+                size={32}
+                style={{
+                  color:
+                    (ovhCashData?.days_since_last_pc_close ?? 0) >= 15
+                      ? "#ef4444"
+                      : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
+                        ? "#f59e0b"
+                        : "#22c55e",
+                }}
+              />
+            </div>
+            <div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                OVH Cash
+              </p>
+              <p className="text-white text-3xl font-black tracking-tight">
+                {ovhCashData?.days_since_last_pc_close != null
+                  ? `${ovhCashData.days_since_last_pc_close}`
+                  : "--"}{" "}
+                <span className="text-lg font-medium text-slate-500">days</span>
+              </p>
+              <p className="text-slate-600 text-[10px] font-medium uppercase tracking-wider">
+                since last PC close
+              </p>
+            </div>
+          </div>
+          <div
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider ${
+              (ovhCashData?.days_since_last_pc_close ?? 0) >= 15
+                ? "bg-rose-500 text-white"
+                : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
+                  ? "bg-amber-500 text-white"
+                  : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+            }`}
+          >
+            {(ovhCashData?.days_since_last_pc_close ?? 0) >= 15
+              ? "Overdue"
+              : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
+                ? "Warning"
+                : "OK"}
+          </div>
+        </div>
+      </div>
+
+      {/* WO Status Distribution Chart (5.4.9) */}
+      {workOrders && workOrders.length > 0 && (
+        <div className="glass-panel-luxury p-10 rounded-[40px] border border-white/5">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-white font-black tracking-tight uppercase text-xs">
+                WO Status Distribution
+              </h3>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                Work order pipeline breakdown
+              </p>
+            </div>
+          </div>
+          <div className="h-64 flex items-center justify-center">
+            <DonutChart
+              data={woStatusData}
+              category="value"
+              index="name"
+              colors={["emerald", "amber", "blue", "slate", "rose", "purple"]}
+              className="h-full"
+              showAnimation={true}
+            />
+          </div>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard
-          title="Master Budget"
-          value={formatCurrency(totalBudget)}
-          sub="Original allocated budget"
-          icon={TrendingUp}
-          color="#3b82f6"
-        />
-        <StatCard
-          title="Committed"
-          value={formatCurrency(totalCommitted)}
-          sub="Total Work Orders raised"
-          icon={FileText}
-          color="#8b5cf6"
-        />
-        <StatCard
-          title="Remaining"
-          value={formatCurrency(totalRemaining)}
-          sub="Available budget"
-          icon={Wallet}
-          color="#22c55e"
-          alert={totalRemaining < 0}
-        />
-        <StatCard
-          title="Over-Budget"
-          value={`${overCommitCount} categor${overCommitCount !== 1 ? 'ies' : 'y'}`}
-          sub="Exceeding original budget"
-          icon={AlertTriangle}
-          color="#ef4444"
-          alert={overCommitCount > 0}
-        />
-      </div>
-
-      {/* Financial Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Budget Allocation Donut */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <div className="flex items-center gap-2 mb-6">
-             <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
-               <PieChartIcon size={20} />
-             </div>
-             <h3 className="text-white font-bold tracking-tight uppercase text-sm">Budget Commitment by Category</h3>
+      {/* Over-Budget Alerts List (5.4.7) */}
+      {overBudgetCategories.length > 0 && (
+        <div className="glass-panel-luxury p-10 rounded-[40px] border border-rose-500/20">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 rounded-xl bg-rose-500/10">
+              <AlertTriangle size={24} className="text-rose-500" />
+            </div>
+            <div>
+              <h3 className="text-white font-black tracking-tight uppercase text-xs">
+                Over-Budget Alerts
+              </h3>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                Categories exceeding original budget
+              </p>
+            </div>
           </div>
-          <div className="h-[300px] flex items-center justify-center">
-            <DonutChart
-              className="mt-6 h-full"
-              data={financials?.map(f => ({ name: f.code_id, value: f.committed_value })) || []}
-              category="value"
-              index="name"
-              colors={['orange', 'blue', 'emerald', 'amber', 'rose', 'indigo']}
-              variant="donut"
-              showAnimation={true}
-              onValueChange={(v) => console.log(v)}
-            />
-          </div>
-        </div>
-
-        {/* Committed vs Paid Bar Chart */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <div className="flex items-center gap-2 mb-6">
-             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
-               <BarChartIcon size={20} />
-             </div>
-             <h3 className="text-white font-bold tracking-tight uppercase text-sm">Committed vs. Paid (Top Categories)</h3>
-          </div>
-          <div className="h-[300px]">
-            <BarChart
-              className="mt-6 h-full"
-              data={financials?.slice(0, 6).map(f => ({ 
-                name: f.code_id, 
-                "Committed": f.committed_value,
-                "Budget": f.approved_budget_amount 
-              })) || []}
-              index="name"
-              categories={["Committed", "Budget"]}
-              colors={["emerald", "slate"]}
-              yAxisWidth={48}
-              showAnimation={true}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Category Breakdown */}
-      {financials && financials.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-          <div className="px-8 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/20">
-            <h3 className="text-white font-bold tracking-tight uppercase text-sm">Detailed Budget Utilization</h3>
-            <Link href="/admin/projects"
-              className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-orange-500 hover:text-orange-400 transition-colors bg-slate-950 px-3 py-1 rounded-full border border-orange-500/20 shadow-lg shadow-orange-950/10">
-              Analysis <ArrowUpRight size={14} />
-            </Link>
-          </div>
-          <div className="p-6 space-y-4">
-            {financials.map((f) => {
-              const pct = f.approved_budget_amount > 0
-                ? Math.min(100, (f.committed_value / f.approved_budget_amount) * 100)
-                : 0;
-              const isOver = f.over_commit_flag;
+          <div className="space-y-4">
+            {overBudgetCategories.map((f) => {
+              const overAmount =
+                (f.committed_value || 0) - (f.original_budget || 0);
               return (
-                <div key={f.code_id} className="space-y-2 group">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                       <div className={`w-2 h-2 rounded-full ${isOver ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-slate-700'}`} />
-                       <span className="text-slate-200 font-bold text-sm">{f.code_id}</span>
-                       <span className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">utilization</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs font-mono">
-                      <span className="text-slate-400">
-                        {formatCurrency(f.committed_value)} <span className="text-slate-700 mx-1">/</span> {formatCurrency(f.approved_budget_amount)}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${isOver ? 'bg-rose-500/20 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10'}`}>
-                        {pct.toFixed(1)}%
-                      </span>
+                <div
+                  key={f.category_id}
+                  className="flex items-center justify-between p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-2 h-2 rounded-full bg-rose-500 shadow-lg shadow-rose-500/50" />
+                    <div>
+                      <p className="text-white font-bold">{f.category_id}</p>
+                      <p className="text-slate-500 text-xs">
+                        Committed: {formatCurrency(f.committed_value)} / Budget:{" "}
+                        {formatCurrency(f.original_budget)}
+                      </p>
                     </div>
                   </div>
-                  <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/50 p-[1px]">
-                    <div
-                      className="h-full rounded-full transition-all duration-1000 shadow-[0_0_12px_rgba(249,115,22,0.15)]"
-                      style={{
-                        width: `${pct}%`,
-                        background: isOver 
-                          ? 'linear-gradient(90deg, #f43f5e 0%, #e11d48 100%)' 
-                          : pct > 80 
-                            ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)' 
-                            : 'linear-gradient(90deg, #f97316 0%, #ea580c 100%)',
-                      }}
-                    />
+                  <div className="text-right">
+                    <p className="text-rose-500 font-black text-lg">
+                      +{formatCurrency(overAmount)}
+                    </p>
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                      Over Budget
+                    </p>
                   </div>
                 </div>
               );
@@ -252,22 +670,40 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Quick Links */}
+      {/* Strategic Hub */}
       <div>
-        <h3 className="text-slate-400 text-sm font-medium mb-3">Quick Access</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="flex items-center justify-between mb-8">
+          <h3 className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em]">
+            Strategic Resource Hub
+          </h3>
+          <div className="h-px flex-1 bg-white/5 ml-8" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
           {quickLinks.map(({ href, icon: Icon, label, color }) => (
-            <Link key={href} href={href}
-              className="flex flex-col items-center gap-3 p-5 rounded-2xl transition-all group"
-              style={{ background: '#1e293b', border: '1px solid #334155' }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = color)}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#334155')}
+            <Link
+              key={href}
+              href={href}
+              className="group relative flex flex-col items-center gap-5 p-8 rounded-[36px] transition-all bg-slate-900/40 border border-white/5 hover:border-white/20 hover:bg-slate-900/60 hover:-translate-y-2 shadow-xl hover:shadow-2xl overflow-hidden"
             >
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all"
-                style={{ background: `${color}18` }}>
-                <Icon size={22} style={{ color }} />
+              <div
+                className="absolute inset-x-0 bottom-0 h-1 transition-all duration-500 opacity-0 group-hover:opacity-100"
+                style={{
+                  background: color,
+                  boxShadow: `0 -10px 20px -5px ${color}`,
+                }}
+              />
+              <div
+                className="w-16 h-16 rounded-[24px] flex items-center justify-center transition-all duration-500 group-hover:scale-110 shadow-inner group-hover:rotate-[5deg]"
+                style={{
+                  background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
+                  border: `1px solid ${color}30`,
+                }}
+              >
+                <Icon size={28} style={{ color }} />
               </div>
-              <span className="text-slate-300 text-sm font-medium text-center">{label}</span>
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] text-center group-hover:text-white group-hover:tracking-[0.3em] transition-all duration-500">
+                {label}
+              </span>
             </Link>
           ))}
         </div>

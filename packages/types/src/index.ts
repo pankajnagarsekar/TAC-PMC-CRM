@@ -96,7 +96,7 @@ export interface Project {
 
 export interface ProjectCreate {
   project_name: string;
-  client_id?: string;
+  client_id: string;
   project_code?: string;
   status?: string;
   address?: string;
@@ -133,7 +133,7 @@ export interface ProjectBudget {
   _id?: string;
   project_id: string;
   code_id: string;
-  approved_budget_amount: number;
+  original_budget: number;
   description?: string;
   created_at?: string;
   updated_at?: string;
@@ -154,7 +154,7 @@ export interface DerivedFinancialState {
   _id?: string;
   project_id: string;
   category_id: string;
-  approved_budget_amount: number;
+  original_budget: number;
   committed_value: number;
   certified_value: number;
   balance_budget_remaining: number;

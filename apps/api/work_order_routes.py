@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
@@ -6,7 +6,7 @@ from datetime import datetime
 
 from core.database import get_db, db_manager
 from auth import get_current_user
-from models import WorkOrderCreate, WorkOrder
+from models import WorkOrderCreate, WorkOrder, WorkOrderUpdate
 from work_order_service import WorkOrderService
 from permissions import PermissionChecker
 from core.rate_limit import limiter
@@ -103,17 +103,22 @@ async def create_work_order_by_project(
     request: Request,
     project_id: str,
     wo_data: WorkOrderCreate,
+    idempotency_key: str = Header(None, alias="Idempotency-Key"),
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    # Canonical project-scoped endpoint that mirrors /api/work-orders/{project_id}
-    return await create_work_order(
-        request=request,
-        project_id=project_id,
-        wo_data=wo_data,
-        db=db,
-        current_user=current_user
-    )
+    from server import audit_service, financial_service
+    checker = PermissionChecker(db)
+    user = await checker.get_authenticated_user(current_user)
+    await checker.check_project_access(user, project_id, require_write=True)
+    
+    wo_service = WorkOrderService(db, audit_service, financial_service)
+    wo_dict = wo_data.model_dump()
+    if idempotency_key:
+        wo_dict["idempotency_key"] = idempotency_key
+    
+    result = await wo_service.create_work_order(wo_dict, user, project_id)
+    return result
 
 
 @router.get("/{wo_id}", response_model=WorkOrder)
@@ -179,12 +184,33 @@ async def update_work_order_status(
 
     old_status = wo.get("status")
     
-    # State Machine Rules
+    # State Machine Rules (Tech Arch §6.1)
+    # Allowed transitions:
+    # - Draft → Pending
+    # - Pending → Completed
+    # - Completed → Closed
+    # - Draft|Pending|Completed → Cancelled (only if no PCs exist)
+    
+    # Rule 1: Cannot change status from Closed
     if old_status == "Closed":
         raise HTTPException(status_code=400, detail="Cannot change status of a Closed Work Order")
+    
+    # Rule 2: Define valid next status based on current
+    valid_transitions = {
+        "Draft": ["Pending", "Cancelled"],
+        "Pending": ["Completed", "Cancelled"],
+        "Completed": ["Closed", "Cancelled"],
+        "Cancelled": []
+    }
+    
+    if status not in valid_transitions.get(old_status, []):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status transition from '{old_status}' to '{status}'. Allowed: {valid_transitions.get(old_status, [])}"
+        )
         
+    # Rule 3: Cancellation requires no active PCs
     if status == "Cancelled":
-        # Check for PCs
         pcs = await db.payment_certificates.find_one({"work_order_id": wo_id, "status": {"$ne": "Cancelled"}})
         if pcs:
             raise HTTPException(status_code=400, detail="Cannot cancel Work Order with active Payment Certificates")
@@ -214,7 +240,7 @@ async def update_work_order_status(
 async def update_work_order(
     request: Request,
     wo_id: str,
-    wo_data: WorkOrderCreate,
+    wo_data: WorkOrderUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -223,7 +249,7 @@ async def update_work_order(
     user = await checker.get_authenticated_user(current_user)
     
     wo_service = WorkOrderService(db, audit_service, financial_service)
-    result = await wo_service.update_work_order(wo_id, wo_data.model_dump(), user)
+    result = await wo_service.update_work_order(wo_id, wo_data.model_dump(exclude_none=True), user)
     return result
 
 

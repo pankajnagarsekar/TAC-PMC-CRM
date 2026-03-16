@@ -26,8 +26,8 @@ class FinancialRecalculationService:
         Aggregates:
         - committed_value: sum of approved Work Orders for this category
         - certified_value: sum of certified Payment Certificates for this category
-        - balance_budget_remaining: approved_budget_amount - committed_value
-        - over_commit_flag: True if committed_value > approved_budget_amount
+        - balance_budget_remaining: original_budget - committed_value
+        - over_commit_flag: True if committed_value > original_budget
         """
         # Get the budget for this project+category
         budget = await self.db.project_category_budgets.find_one({
@@ -40,7 +40,7 @@ class FinancialRecalculationService:
                 f"No budget found for project={project_id}, category={category_id}")
             return None
 
-        approved_budget = Decimal(str(budget.get("approved_budget_amount", "0")))
+        approved_budget = Decimal(str(budget.get("original_budget", "0")))
 
         # Aggregate Work Order committed (all non-Cancelled entries)
         committed_pipeline = [
@@ -76,7 +76,7 @@ class FinancialRecalculationService:
         financial_doc = {
             "project_id": project_id,
             "category_id": category_id,
-            "approved_budget_amount": approved_budget,
+            "original_budget": approved_budget,
             "committed_value": committed_value,
             "certified_value": certified_value,
             "balance_budget_remaining": balance_remaining,
@@ -129,7 +129,7 @@ class FinancialRecalculationService:
                 project_id, category_id, session=session)
 
             if result:
-                total_budget += result.get("approved_budget_amount", Decimal("0"))
+                total_budget += result.get("original_budget", Decimal("0"))
                 total_committed += result.get("committed_value", Decimal("0"))
                 total_certified += result.get("certified_value", Decimal("0"))
                 categories_recalculated += 1
@@ -153,6 +153,8 @@ class FinancialRecalculationService:
         """
         Sum all project_category_budgets → update project master totals.
         Called after any budget initialization or modification.
+        
+        Sums original_budget and remaining_budget directly (not derived).
         """
         from bson import Decimal128
 
@@ -160,8 +162,8 @@ class FinancialRecalculationService:
             {"$match": {"project_id": project_id}},
             {"$group": {
                 "_id": None,
-                "total_original": {"$sum": "$approved_budget_amount"},
-                "total_committed": {"$sum": {"$ifNull": ["$committed_amount", Decimal128("0.0")]}},
+                "total_original": {"$sum": "$original_budget"},
+                "total_remaining": {"$sum": {"$ifNull": ["$remaining_budget", Decimal128("0.0")]}},
             }},
         ]
 
@@ -171,8 +173,7 @@ class FinancialRecalculationService:
 
         if result:
             master_original = Decimal(str(result[0]["total_original"]))
-            master_committed = Decimal(str(result[0]["total_committed"]))
-            master_remaining = master_original - master_committed
+            master_remaining = Decimal(str(result[0]["total_remaining"]))
         else:
             master_original = Decimal("0")
             master_remaining = Decimal("0")
@@ -234,24 +235,46 @@ class FinancialRecalculationService:
 
         return cash_in_hand
 
-    async def check_threshold_breach(self, project_id, category_id):
+    async def check_threshold_breach(self, project_id, category_id, session=None):
         """
         Check if cash-in-hand has breached the threshold for a category.
         Returns True if cash_in_hand <= threshold.
+        
+        Category-aware: determines if Petty Cash or OVH based on budget_type,
+        then uses the appropriate threshold field.
         """
-        cash_in_hand = await self.compute_cash_in_hand(project_id, category_id)
+        cash_in_hand = await self.compute_cash_in_hand(project_id, category_id, session)
 
         # Get project thresholds
-        project = await self.db.projects.find_one({"_id": project_id})
+        project = await self.db.projects.find_one({"_id": project_id}, session=session)
         if not project:
             # Try string-based lookup
-            project = await self.db.projects.find_one({"project_id": project_id})
+            project = await self.db.projects.find_one({"project_id": project_id}, session=session)
 
         if not project:
             return False
 
-        # Determine threshold based on category type
-        threshold = Decimal(str(project.get("threshold_petty", "0")))
+        # Determine category type (Petty Cash vs OVH) by checking budget_type
+        category = await self.db.code_master.find_one({"_id": category_id}, session=session)
+        if not category:
+            category = await self.db.code_master.find_one({"code": category_id}, session=session)
+        
+        budget_type = category.get("budget_type") if category else None
+        
+        # Use appropriate threshold based on category type
+        if budget_type == "fund_transfer":
+            # Check if this is OVH category (typically has "ovh" or "overhead" in name/code)
+            category_name = category.get("category_name", "").lower() if category else ""
+            category_code = category.get("code", "").lower() if category else ""
+            
+            if "ovh" in category_name or "overhead" in category_name or "ovh" in category_code:
+                threshold = Decimal(str(project.get("threshold_ovh", "0")))
+            else:
+                # Petty Cash
+                threshold = Decimal(str(project.get("threshold_petty", "0")))
+        else:
+            # Non fund-transfer categories don't have thresholds
+            return False
 
         return cash_in_hand <= threshold
 
@@ -323,11 +346,11 @@ class FinancialRecalculationService:
 
         # 6.4.5: Budget floor check
         if doc_type == "BUDGET_UPDATE":
-             new_amount = Decimal(str(data.get("approved_budget_amount", "0")))
+             new_amount = Decimal(str(data.get("original_budget", "0")))
              existing_committed = Decimal(str(data.get("committed_amount", "0")))
              if new_amount < existing_committed:
                   errors.append({
-                      "field": "approved_budget_amount", 
+                      "field": "original_budget", 
                       "message": f"Budget floor violation. New amount {new_amount} is less than already committed {existing_committed}"
                   })
 

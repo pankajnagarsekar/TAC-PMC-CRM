@@ -55,10 +55,10 @@ async def get_project_financials(
         result = {
             "project_id": project_id,
             "category_id": cid,
-            "approved_budget_amount": b.get("approved_budget_amount", 0),
+            "original_budget": b.get("original_budget", 0),
             "committed_value": fs.get("committed_value", 0),
             "certified_value": fs.get("certified_value", 0),
-            "balance_budget_remaining": fs.get("balance_budget_remaining", b.get("approved_budget_amount", 0)),
+            "balance_budget_remaining": fs.get("balance_budget_remaining", b.get("original_budget", 0)),
             "over_commit_flag": fs.get("over_commit_flag", False),
             "last_updated": fs.get("last_recalculated") or b.get("updated_at") or datetime.utcnow(),
             "version": b.get("version", 1)
@@ -66,6 +66,141 @@ async def get_project_financials(
         results.append(result)
         
     return [serialize_doc(r) for r in results]
+
+
+@hardened_router.get("/projects/{project_id}/vendor-payables")
+async def get_project_vendor_payables(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Aggregate vendor payables per vendor for the project.
+    """
+    from server import db, permission_checker
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_project_access(user, project_id, require_write=False)
+
+    pipeline = [
+        {"$match": {"project_id": project_id}},
+        {
+            "$group": {
+                "_id": "$vendor_id",
+                "total_certified": {
+                    "$sum": {
+                        "$cond": [{"$eq": ["$entry_type", "PC_CERTIFIED"]}, "$amount", 0]
+                    }
+                },
+                "total_paid": {
+                    "$sum": {
+                        "$cond": [{"$eq": ["$entry_type", "PAYMENT_MADE"]}, "$amount", 0]
+                    }
+                },
+                "total_retention": {
+                    "$sum": {
+                        "$cond": [{"$eq": ["$entry_type", "RETENTION_HELD"]}, "$amount", 0]
+                    }
+                },
+            }
+        },
+    ]
+
+    results = await db.vendor_ledger.aggregate(pipeline).to_list(length=500)
+
+    vendor_payables = []
+    for r in results:
+        vendor_id = r.get("_id")
+        vendor = await db.vendors.find_one({"_id": ObjectId(vendor_id)})
+        total_certified = float(r.get("total_certified", 0))
+        total_paid = float(r.get("total_paid", 0))
+        total_retention = float(r.get("total_retention", 0))
+        net_payable = total_certified - total_paid - total_retention
+
+        vendor_payables.append({
+            "vendor_id": str(vendor_id) if vendor_id else None,
+            "vendor_name": vendor.get("name") if vendor else "Unknown",
+            "total_certified": total_certified,
+            "total_paid": total_paid,
+            "total_retention": total_retention,
+            "total_payable": net_payable,
+        })
+
+    return vendor_payables
+
+
+@hardened_router.get("/projects/{project_id}/cash-summary")
+async def get_cash_summary(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get cash summary per category with threshold and countdown.
+    """
+    from server import db, permission_checker
+    from decimal import Decimal
+    from bson import Decimal128
+    
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_project_access(user, project_id, require_write=False)
+
+    project = await db.projects.find_one({"project_id": project_id})
+    organisation_id = user.get("organisation_id")
+
+    default_threshold = Decimal("1000.0")
+
+    categories = await db.categories.find({
+        "organisation_id": organisation_id,
+        "budget_type": "fund_transfer"
+    }).to_list(length=100)
+
+    allocations = await db.fund_allocations.find({"project_id": project_id}).to_list(length=100)
+    allocation_by_cat = {str(a.get("category_id")): a for a in allocations}
+
+    categories_data = []
+    total_cash_in_hand = Decimal("0")
+    latest_pc_close = None
+
+    for cat in categories:
+        cat_id = str(cat.get("_id"))
+        allocation = allocation_by_cat.get(cat_id)
+
+        if not allocation:
+            continue
+
+        threshold = Decimal(str(project.get("threshold_petty" if "petty" in cat.get("name", "").lower() else "threshold_ovh", default_threshold)))
+
+        cash_in_hand = Decimal(str(float(allocation.get("allocation_remaining", Decimal128("0")).to_decimal())))
+        total_cash_in_hand += cash_in_hand
+
+        last_pc_date = allocation.get("last_pc_closed_date")
+        days_since_last_pc_close = None
+        if last_pc_date:
+            days_since_last_pc_close = (datetime.utcnow() - last_pc_date).days
+            if latest_pc_close is None or last_pc_date > latest_pc_close:
+                latest_pc_close = last_pc_date
+
+        categories_data.append({
+            "category_id": cat_id,
+            "category_name": cat.get("name", "Unknown"),
+            "cash_in_hand": float(cash_in_hand),
+            "allocation_remaining": float(allocation.get("allocation_remaining", Decimal128("0")).to_decimal()),
+            "allocation_total": float(allocation.get("allocation_original", Decimal128("0")).to_decimal()),
+            "threshold": float(threshold),
+            "days_since_last_pc_close": days_since_last_pc_close,
+            "is_negative": cash_in_hand < 0,
+            "is_below_threshold": cash_in_hand <= threshold,
+        })
+
+    days_since_last_pc_close_overall = None
+    if latest_pc_close:
+        days_since_last_pc_close_overall = (datetime.utcnow() - latest_pc_close).days
+
+    return {
+        "categories": categories_data,
+        "summary": {
+            "total_cash_in_hand": float(total_cash_in_hand),
+            "days_since_last_pc_close": days_since_last_pc_close_overall,
+        }
+    }
 
 
 # Late-initialized references (set by server.py on startup)
@@ -136,12 +271,12 @@ class _HardenedEngine:
                     )
 
             # 3. Record old value
-            old_amount = budget.get("approved_budget_amount", 0)
+            old_amount = budget.get("original_budget", 0)
 
             # 4. Update budget
             update_fields = {"updated_at": datetime.utcnow()}
             if new_amount is not None:
-                update_fields["approved_budget_amount"] = new_amount
+                update_fields["original_budget"] = new_amount
                 # Also recalculate remaining budget locally
                 committed = Decimal(str(budget.get("committed_amount", "0")))
                 update_fields["remaining_budget"] = Decimal128(str(new_amount - committed))
@@ -171,8 +306,8 @@ class _HardenedEngine:
                 entity_id=budget_id,
                 action_type="UPDATE",
                 user_id=user_id,
-                old_value={"approved_budget_amount": old_amount},
-                new_value={"approved_budget_amount": new_amount},
+                old_value={"original_budget": old_amount},
+                new_value={"original_budget": new_amount},
                 session=session
             )
 
@@ -207,7 +342,7 @@ async def update_budget_hardened(
         budget_id=budget_id,
         organisation_id=user["organisation_id"],
         user_id=user["user_id"],
-        new_amount=budget_data.approved_budget_amount,
+        new_amount=budget_data.original_budget,
         expected_version=budget_data.version
     )
 
@@ -229,6 +364,8 @@ async def initialize_project_budgets(
     codes = await db.code_master.find({"active_status": True}).to_list(length=None)
 
     async with db_manager.transaction_session() as session:
+        fund_transfer_count = 0
+        
         for code in codes:
             category_id = str(code["_id"])
             # Check if exists
@@ -241,7 +378,7 @@ async def initialize_project_budgets(
                 budget_doc = {
                     "project_id": project_id,
                     "category_id": category_id,
-                    "approved_budget_amount": Decimal128("0.0"),
+                    "original_budget": Decimal128("0.0"),
                     "committed_amount": Decimal128("0.0"),
                     "remaining_budget": Decimal128("0.0"),
                     "created_at": datetime.utcnow(),
@@ -250,10 +387,40 @@ async def initialize_project_budgets(
                 }
                 await db.project_category_budgets.insert_one(budget_doc, session=session)
 
+            # 3.1.2: Auto-create fund_allocations for fund_transfer categories
+            # Use original_budget from the category budget (which may be set by user after init)
+            budget_type = code.get("budget_type", "commitment")
+            if budget_type == "fund_transfer":
+                existing_allocation = await db.fund_allocations.find_one({
+                    "project_id": project_id,
+                    "category_id": category_id
+                }, session=session)
+                
+                if not existing_allocation:
+                    # Get original_budget from project_category_budgets if it exists
+                    category_budget = await db.project_category_budgets.find_one({
+                        "project_id": project_id,
+                        "category_id": category_id
+                    }, session=session)
+                    original_budget = float(category_budget.get("original_budget", Decimal128("0")).to_decimal()) if category_budget else 0.0
+                    
+                    allocation_doc = {
+                        "project_id": project_id,
+                        "category_id": category_id,
+                        "allocation_original": Decimal128(str(original_budget)),
+                        "allocation_received": Decimal128("0.0"),
+                        "allocation_remaining": Decimal128(str(original_budget)),  # Per spec: allocation_remaining = original_budget
+                        "last_pc_closed_date": None,
+                        "version": 1,
+                        "created_at": datetime.utcnow()
+                    }
+                    await db.fund_allocations.insert_one(allocation_doc, session=session)
+                    fund_transfer_count += 1
+
         # Recalculate everything for this project
         # Note: financial_service.recalculate_all_project_financials does not yet accept session
         await financial_service.recalculate_all_project_financials(project_id)
         # Compute master budgets after initialization
         await financial_service.recalculate_master_budget(project_id, session=session)
 
-    return {"status": "success", "message": f"Initialized budgets for {len(codes)} categories"}
+    return {"status": "success", "message": f"Initialized budgets for {len(codes)} categories", "fund_allocations_created": fund_transfer_count}

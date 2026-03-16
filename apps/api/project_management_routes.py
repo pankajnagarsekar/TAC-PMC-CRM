@@ -2154,7 +2154,7 @@ async def get_admin_projects_overview(
             categories = []
 
             for b in budgets:
-                approved = b.get("approved_budget_amount", 0)
+                approved = b.get("original_budget", 0)
                 total_master_budget += approved
 
                 # Get financial state

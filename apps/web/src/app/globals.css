@@ -1,19 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #1E3A5F;
-  --primary-light: #2d5a9e;
+  --primary: #0F172A;
+  --primary-light: #1E293B;
   --accent: #F97316;
-  --accent-hover: #ea6a0e;
-  --surface: #0f172a;
-  --surface-card: #1e293b;
-  --surface-border: #334155;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --accent-hover: #FB923C;
+  --surface: #020617; 
+  --surface-card: rgba(15, 23, 42, 0.4); 
+  --surface-border: rgba(255, 255, 255, 0.06);
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  
+  /* Premium Luxury Glass Tokens */
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-light: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --glass-glow-orange: 0 0 20px rgba(249, 115, 22, 0.15);
 }
 
 * {
@@ -27,197 +35,131 @@ body {
   max-width: 100vw;
   height: 100%;
   overflow-x: hidden;
-  background-color: #0f172a;
+  background-color: var(--surface);
   color: var(--text-primary);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar */
+/* Scrollbar - Premium Minimalist */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--accent);
 }
 
-/* AG Grid dark theme overrides */
+/* AG Grid - Premium Glass Integration */
 .ag-theme-alpine-dark {
-  --ag-background-color: #1e293b;
-  --ag-odd-row-background-color: #1e293b;
-  --ag-header-background-color: #1E3A5F;
-  --ag-header-foreground-color: #f1f5f9;
-  --ag-row-hover-color: #2d3748;
-  --ag-selected-row-background-color: #2d5a9e22;
-  --ag-border-color: #334155;
-  --ag-cell-horizontal-border: solid #334155;
-  --ag-font-family: 'Inter', sans-serif;
+  --ag-background-color: transparent !important;
+  --ag-odd-row-background-color: transparent !important;
+  --ag-header-background-color: rgba(30, 41, 59, 0.3) !important;
+  --ag-header-foreground-color: var(--text-secondary);
+  --ag-row-hover-color: rgba(255, 255, 255, 0.03);
+  --ag-selected-row-background-color: rgba(249, 115, 22, 0.08);
+  --ag-border-color: rgba(255, 255, 255, 0.05);
+  --ag-cell-horizontal-border: solid transparent;
+  --ag-font-family: inherit;
   --ag-font-size: 13px;
+  --ag-grid-size: 6px;
 }
 
-/* Currency cells — right aligned */
-.ag-cell-currency {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-family: 'Inter', monospace;
+.ag-header-cell-label {
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700 !important;
+  font-size: 11px;
 }
 
-/* Status badge */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+/* Utility: High-End Glass Panel */
+.glass-panel-luxury {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
-/* Negative cash alert */
-.cash-negative {
-  color: #ef4444;
-  font-weight: 700;
+/* Utility: Animated Glass Card */
+.glass-card-premium {
+  background: rgba(255, 255, 255, 0.01);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 20px;
 }
 
-/* Amber threshold banner */
-.threshold-banner {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #f59e0b;
-  border-radius: 8px;
-  padding: 10px 16px;
+.glass-card-premium:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--glass-border-light);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Precision Permission Classes */
-/* Read-only enforcement inside content area for Client role */
-.client-readonly {
-  opacity: 0.95;
+/* Layout: Ultra Mesh Background */
+.bg-mesh-dark {
+  background-color: var(--surface);
+  background-image: 
+    radial-gradient(circle at 0% 0%, rgba(30, 58, 95, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.05) 0%, transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.5) 0%, transparent 100%);
 }
 
-.client-readonly input,
-.client-readonly select,
-.client-readonly textarea {
-  pointer-events: none !important;
-  opacity: 0.8;
-}
-
-.client-readonly button[type="submit"] {
-  display: none !important;
-}
-
-/* Used to remove administrative UI from client view completely */
-body.is-client .admin-only {
-  display: none !important;
-}
-
-/* AG Grid specific client hardening */
-body.is-client .ag-header-cell-menu-button,
-body.is-client .ag-side-button {
-  display: none !important;
-}
-
-/* Modern UI Utilities - Super Premium */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 20px 40px -1px rgba(0, 0, 0, 0.4),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(249, 115, 22, 0.3);
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
-}
-
-.bg-mesh-ultra {
-  background-color: #020617;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(217, 100%, 12%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(217, 100%, 18%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(30, 100%, 15%, 1) 0, transparent 50%),
-    radial-gradient(at 80% 80%, hsla(217, 100%, 10%, 1) 0, transparent 50%);
-}
-
-.text-gradient-orange {
-  background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+.text-gradient-premium {
+  background: linear-gradient(135deg, #FFF 0%, #94A3B8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.btn-premium-orange {
-  background: linear-gradient(135deg, #F97316 0%, #ea6a0e 100%);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
+.text-accent-gradient {
+  background: linear-gradient(135deg, var(--accent) 0%, #FB923C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.btn-premium-orange::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
-  transform: rotate(25deg);
-  transition: transform 0.6s ease;
+/* Status Glows */
+.glow-success {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
 }
 
-.btn-premium-orange:hover::after {
-  transform: rotate(25deg) translate(20%, 20%);
+.glow-warning {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
 }
 
-.input-glass {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  padding-left: 5.5rem !important;
-  transition: all 0.3s ease;
+.glow-danger {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
 }
 
-
-.input-glass:focus {
-  border-color: rgba(249, 115, 22, 0.4);
-  background: rgba(0, 0, 0, 0.35);
-  box-shadow:
-    inset 0 2px 4px 0 rgba(0, 0, 0, 0.1),
-    0 0 15px -3px rgba(249, 115, 22, 0.2);
+.glow-primary {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
 }
 
-@keyframes glow {
-  from {
-    filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.2));
-  }
-
-  to {
-    filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.4));
-  }
+/* AG Grid Overrides for Rows */
+.ag-row {
+  transition: background-color 0.2s ease;
 }
 
-.animate-glow {
-  animation: glow 4s ease-in-out infinite alternate;
+.ag-row-hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.ag-cell-focus {
+  border: 1px solid var(--accent) !important;
+  outline: none !important;
 }

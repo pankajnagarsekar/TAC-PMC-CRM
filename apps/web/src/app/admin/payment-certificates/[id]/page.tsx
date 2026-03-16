@@ -11,7 +11,15 @@ import {
   Building2,
   FileText,
   Printer,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@tac-pmc/ui";
 import { ColDef } from "ag-grid-community";
 
 import api, { fetcher } from "@/lib/api";
@@ -33,6 +41,8 @@ export default function PaymentCertificateDetail({
   const [isClosing, setIsClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [closeSuccessSummary, setCloseSuccessSummary] = useState<any>(null);
 
   // Fetchers
   const {
@@ -76,19 +86,18 @@ export default function PaymentCertificateDetail({
     workOrders.find((w) => w._id === woid)?.wo_ref || woid;
 
   const handleClose = async () => {
-    if (
-      !confirm(
-        "Are you absolutely certain you want to Close this Payment Certificate? This action irreversibly hits Master Budgets & Ledgers.",
-      )
-    )
-      return;
-
     try {
       setIsClosing(true);
       setError(null);
-      await api.patch(
+      const response = await api.patch(
         `/api/payment-certificates/${id}/close?expected_version=${pc.version || 1}`,
       );
+
+      // Capture financial summary from response
+      if (response.data.financial_summary) {
+        setCloseSuccessSummary(response.data.financial_summary);
+      }
+
       await mutate(); // Refresh the internal cache showing Closed status immediately
     } catch (err: any) {
       if (err.response?.status === 409) {
@@ -100,6 +109,7 @@ export default function PaymentCertificateDetail({
       }
     } finally {
       setIsClosing(false);
+      setShowCloseDialog(false);
     }
   };
 
@@ -214,7 +224,7 @@ export default function PaymentCertificateDetail({
 
           {pc.status !== "Closed" && pc.status !== "Cancelled" && (
             <button
-              onClick={handleClose}
+              onClick={() => setShowCloseDialog(true)}
               disabled={isClosing}
               className="admin-only flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg disabled:opacity-50"
             >
@@ -372,6 +382,106 @@ export default function PaymentCertificateDetail({
         setIsOpen={setIsConflictOpen}
         onReload={() => mutate()}
       />
+
+      {/* Close PC Confirmation Dialog */}
+      <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              <AlertTriangle className="text-amber-500" size={24} />
+              Close Payment Certificate
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-300">
+              Are you absolutely certain you want to Close this Payment
+              Certificate? This action will irreversibly update budgets,
+              ledgers, and cash positions.
+            </p>
+            {pc.fund_request && (
+              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <p className="text-amber-500 text-sm">
+                  This is a Fund Request. Closing will inject funds into the
+                  petty cash / OVH category.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex gap-3">
+            <button
+              onClick={() => setShowCloseDialog(false)}
+              className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleClose}
+              className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors"
+            >
+              Yes, Close PC
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Success Summary Dialog */}
+      <Dialog
+        open={!!closeSuccessSummary}
+        onOpenChange={() => setCloseSuccessSummary(null)}
+      >
+        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              <CheckCircle className="text-emerald-500" size={24} />
+              Payment Certificate Closed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-slate-300">
+              The Payment Certificate has been successfully closed. Updated
+              financial positions:
+            </p>
+            {closeSuccessSummary && (
+              <div className="space-y-3">
+                {closeSuccessSummary.cash_in_hand !== undefined && (
+                  <div className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
+                    <span className="text-slate-400">Cash in Hand</span>
+                    <span className="font-mono font-bold text-white">
+                      {formatCurrency(closeSuccessSummary.cash_in_hand)}
+                    </span>
+                  </div>
+                )}
+                {closeSuccessSummary.allocation_remaining !== undefined && (
+                  <div className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
+                    <span className="text-slate-400">Allocation Remaining</span>
+                    <span className="font-mono font-bold text-white">
+                      {formatCurrency(closeSuccessSummary.allocation_remaining)}
+                    </span>
+                  </div>
+                )}
+                {closeSuccessSummary.master_remaining_budget !== undefined && (
+                  <div className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
+                    <span className="text-slate-400">Master Remaining</span>
+                    <span className="font-mono font-bold text-white">
+                      {formatCurrency(
+                        closeSuccessSummary.master_remaining_budget,
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setCloseSuccessSummary(null)}
+              className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors"
+            >
+              Done
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

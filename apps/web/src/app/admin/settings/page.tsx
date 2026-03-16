@@ -31,18 +31,21 @@ export default function SettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [globalSettings, setGlobalSettings] = useState<any>({
+    name: "TAC PMC",
+    address: "",
+    email: "",
+    phone: "",
+    gst_number: "",
+    pan_number: "",
     cgst_percentage: 9.0,
     sgst_percentage: 9.0,
     retention_percentage: 5.0,
+    wo_prefix: "WO",
+    pc_prefix: "PC",
+    invoice_prefix: "INV",
     currency: "INR",
     currency_symbol: "₹",
     terms_and_conditions: "Standard terms and conditions apply...",
-    company_profile: {
-      name: "TAC PMC",
-      address: "",
-      registration_no: "",
-      contact_email: "",
-    },
     logo_base64: null,
     client_permissions: {
       can_view_dpr: true,
@@ -64,9 +67,12 @@ export default function SettingsPage() {
 
         if (settingsRes.data) {
           setGlobalSettings({
+            ...globalSettings,
             ...settingsRes.data,
             client_permissions:
-              permsRes.data || settingsRes.data.client_permissions,
+              permsRes.data ||
+              settingsRes.data.client_permissions ||
+              globalSettings.client_permissions,
           });
         }
       } catch (err) {
@@ -81,10 +87,13 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
-      const { client_permissions, ...baseSettings } = globalSettings;
+      const payload = prepareSettingsPayload();
       await Promise.all([
-        api.put("/api/settings", baseSettings),
-        api.patch("/api/settings/client-permissions", client_permissions || {}),
+        api.put("/api/settings", payload),
+        api.patch(
+          "/api/settings/client-permissions",
+          payload.client_permissions || {},
+        ),
       ]);
       alert("Global settings saved successfully!");
     } catch (err) {
@@ -104,6 +113,16 @@ export default function SettingsPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Flatten settings for API (move logo handling to top-level)
+  const prepareSettingsPayload = () => {
+    const { client_permissions, logo_base64, ...baseSettings } = globalSettings;
+    return {
+      ...baseSettings,
+      client_permissions,
+      logo_base64,
+    };
   };
 
   if (loading)
@@ -206,14 +225,11 @@ export default function SettingsPage() {
                 </label>
                 <input
                   type="text"
-                  value={globalSettings.company_profile?.name}
+                  value={globalSettings.name}
                   onChange={(e) =>
                     setGlobalSettings({
                       ...globalSettings,
-                      company_profile: {
-                        ...globalSettings.company_profile,
-                        name: e.target.value,
-                      },
+                      name: e.target.value,
                     })
                   }
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
@@ -226,45 +242,94 @@ export default function SettingsPage() {
                 </label>
                 <textarea
                   rows={3}
-                  value={globalSettings.company_profile?.address}
+                  value={globalSettings.address}
                   onChange={(e) =>
                     setGlobalSettings({
                       ...globalSettings,
-                      company_profile: {
-                        ...globalSettings.company_profile,
-                        address: e.target.value,
-                      },
+                      address: e.target.value,
                     })
                   }
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 resize-none"
                   placeholder="Enter full physical address..."
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">
-                  Registration No / GST
-                </label>
-                <input
-                  type="text"
-                  value={globalSettings.company_profile?.registration_no}
-                  onChange={(e) =>
-                    setGlobalSettings({
-                      ...globalSettings,
-                      company_profile: {
-                        ...globalSettings.company_profile,
-                        registration_no: e.target.value,
-                      },
-                    })
-                  }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
-                  placeholder="e.g. CIN/GSTIN Number"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={globalSettings.email}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        email: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
+                    placeholder="company@email.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">
+                    Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.phone}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        phone: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">
+                    GST Number
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.gst_number}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        gst_number: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
+                    placeholder="27AAAPL1234C1Z5"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">
+                    PAN Number
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.pan_number}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        pan_number: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
+                    placeholder="AAAPL1234C"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Middle Column: Financial Defaults & Permissions */}
+        {/* Middle Column: Financial Defaults, Prefixes & Permissions */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl h-full">
             <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
@@ -272,6 +337,7 @@ export default function SettingsPage() {
               Financial Controls
             </h2>
 
+            {/* Tax Rates */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-400 uppercase tracking-tighter">
@@ -326,6 +392,106 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Document Prefixes */}
+            <div className="border-t border-slate-800 pt-6 space-y-4">
+              <h3 className="text-xs font-semibold text-white uppercase tracking-wider">
+                Document Prefixes
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase">
+                    WO Prefix
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.wo_prefix}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        wo_prefix: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase">
+                    PC Prefix
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.pc_prefix}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        pc_prefix: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase">
+                    Invoice Prefix
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.invoice_prefix}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        invoice_prefix: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Currency */}
+            <div className="border-t border-slate-800 pt-6 space-y-4">
+              <h3 className="text-xs font-semibold text-white uppercase tracking-wider">
+                Currency
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase">
+                    Currency
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.currency}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        currency: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                    placeholder="INR"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-medium text-slate-500 uppercase">
+                    Symbol
+                  </label>
+                  <input
+                    type="text"
+                    value={globalSettings.currency_symbol}
+                    onChange={(e) =>
+                      setGlobalSettings({
+                        ...globalSettings,
+                        currency_symbol: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                    placeholder="₹"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="border-t border-slate-800 pt-6 space-y-4">
               <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
                 Client View Access
@@ -362,8 +528,28 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Right Column: Category Taxonomy */}
-        <div className="lg:col-span-1">
+        {/* Right Column: Terms & Category Taxonomy */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Terms & Conditions */}
+          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
+              Terms & Conditions
+            </h2>
+            <textarea
+              rows={6}
+              value={globalSettings.terms_and_conditions}
+              onChange={(e) =>
+                setGlobalSettings({
+                  ...globalSettings,
+                  terms_and_conditions: e.target.value,
+                })
+              }
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 resize-none"
+              placeholder="Enter standard terms and conditions..."
+            />
+          </div>
+
+          {/* Category Master */}
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl h-full flex flex-col">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-white uppercase tracking-wider">

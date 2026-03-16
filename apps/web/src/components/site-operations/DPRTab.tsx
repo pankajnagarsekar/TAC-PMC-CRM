@@ -28,7 +28,7 @@ export default function DPRTab() {
     if (!activeProject?.project_id) return;
     try {
       setLoading(true);
-      let url = `/api/site-operations/projects/${activeProject.project_id}/dprs`;
+      let url = `/api/projects/${activeProject.project_id}/dprs`;
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.append("status_filter", statusFilter);
       if (startDate) params.append("start_date", startDate);

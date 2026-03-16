@@ -52,10 +52,11 @@ async def migrate():
     migrated_count = 0
     async for doc in cursor:
         # Create new document with category_id instead of code_id
+        # Map old field names to new schema
         new_doc = {
             "project_id": doc.get("project_id"),
             "category_id": doc.get("code_id"),  # Rename field
-            "approved_budget_amount": doc.get("approved_budget_amount"),
+            "original_budget": doc.get("approved_budget_amount", 0),  # Legacy field mapping
             "committed_amount": doc.get("committed_amount", 0),
             "remaining_budget": doc.get("remaining_budget", 0),
             "description": doc.get("description"),

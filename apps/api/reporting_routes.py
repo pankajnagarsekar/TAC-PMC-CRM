@@ -391,7 +391,7 @@ async def get_project_summary(
 
     financials = await db.project_category_budgets.find({"project_id": project_id}).to_list(length=100)
     
-    total_budget = sum(f.get("approved_budget_amount", 0) for f in financials)
+    total_budget = sum(f.get("original_budget", 0) for f in financials)
     total_committed = sum(f.get("committed_value", 0) for f in financials)
     
     recent_dprs = await db.dprs.find({"project_id": project_id}).sort("date", -1).limit(5).to_list(length=5)

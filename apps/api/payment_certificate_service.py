@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from models import PaymentCertificate
 from core.database import db_manager
-from core.idempotency import check_idempotency, record_operation
+from core.idempotency import check_idempotency, record_operation, get_recorded_operation
 from financial_service import FinancialRecalculationService
 
 async def extract_sequence(db: AsyncIOMotorDatabase, session, prefix: str):
@@ -61,13 +61,14 @@ async def create_payment_certificate(
         idempotency_key: str
 ) -> dict:
     async with db_manager.transaction_session() as session:
-        # Idempotency lock
+        # Idempotency lock - Replay Pattern
         if idempotency_key:
-            existing_op = await check_idempotency(db, session, idempotency_key)
-            if existing_op and "response_payload" in existing_op:
-                return existing_op["response_payload"]
-                
-            # Fallback for legacy
+            # First check: try to get recorded response payload
+            recorded_response = await get_recorded_operation(db, session, idempotency_key)
+            if recorded_response:
+                return recorded_response
+            
+            # Fallback: check legacy records without payload
             existing_pc = await db.payment_certificates.find_one({"idempotency_key": idempotency_key}, session=session)
             if existing_pc:
                 # Return existing document to ensure deterministic replay
@@ -109,9 +110,9 @@ async def create_payment_certificate(
             if not category_id:
                raise HTTPException(status_code=400, detail="Category ID required for Fund Requests.") 
             
-            # Retrieve CodeMaster verifying constraints
+            # Retrieve CodeMaster verifying constraints (Mode B must be fund_transfer type)
             category_query = {"_id": ObjectId(category_id)} if ObjectId.is_valid(category_id) else {"_id": category_id}
-            category = await db.categories.find_one(category_query, session=session)
+            category = await db.code_master.find_one(category_query, session=session)
             if not category or category.get('budget_type') != 'fund_transfer':
                 raise HTTPException(status_code=400, detail="Selected category must be of type Fund Transfer.")
             
@@ -222,11 +223,12 @@ async def close_payment_certificate(
         # Branch variables based on Mode
         mode_b_fund_request = pc.get("fund_request", False)
         
+        # Initialize for response
+        project_id = pc.get("project_id")
+        category_id = pc.get("category_id")
+        
         if mode_b_fund_request:
             # Mode B: Petty Cash / OVH Fund Request
-            project_id = pc["project_id"]
-            category_id = pc["category_id"]
-
             # Deduct allocation_remaining
             allocations = await db.fund_allocations.find_one({"project_id": project_id, "category_id": category_id}, session=session)
             if not allocations:
@@ -312,5 +314,51 @@ async def close_payment_certificate(
             "created_at": datetime.now(timezone.utc)
         }, session=session)
 
-        return {"status": "Closed", "pc_id": pc_id}
+        # Build enhanced response with financial summaries
+        response = {
+            "status": "Closed",
+            "pc_id": pc_id,
+            "updated_pc": {
+                "_id": str(pc["_id"]),
+                "pc_ref": pc.get("pc_ref"),
+                "status": "Closed",
+                "grand_total": float(grand_total_dec.to_decimal())
+            }
+        }
+
+        # For Mode B (fund request), include updated cash/allocation info
+        if mode_b_fund_request:
+            # Get updated allocation
+            updated_alloc = await db.fund_allocations.find_one(
+                {"project_id": project_id, "category_id": category_id}, 
+                session=session
+            )
+            
+            # Get updated project master remaining
+            updated_project = await db.projects.find_one(
+                {"project_id": project_id}, 
+                session=session
+            )
+            
+            # Calculate cash_in_hand for this category
+            cash_pipeline = [
+                {"$match": {"project_id": project_id, "category_id": category_id}},
+                {"$group": {
+                    "_id": None,
+                    "total_credit": {"$sum": {"$cond": [{"$eq": ["$type", "CREDIT"]}, "$amount", 0]}},
+                    "total_debit": {"$sum": {"$cond": [{"$eq": ["$type", "DEBIT"]}, "$amount", 0]}}
+                }}
+            ]
+            cash_result = await db.cash_transactions.aggregate(cash_pipeline).to_list(1)
+            cash_in_hand = 0.0
+            if cash_result:
+                cash_in_hand = float(cash_result[0].get("total_credit", 0)) - float(cash_result[0].get("total_debit", 0))
+            
+            response["financial_summary"] = {
+                "cash_in_hand": cash_in_hand,
+                "allocation_remaining": float(updated_alloc.get("allocation_remaining", Decimal128("0")).to_decimal()) if updated_alloc else 0,
+                "master_remaining_budget": float(updated_project.get("master_remaining_budget", Decimal128("0")).to_decimal()) if updated_project else 0
+            }
+
+        return response
 

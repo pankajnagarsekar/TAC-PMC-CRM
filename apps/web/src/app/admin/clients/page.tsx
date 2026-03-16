@@ -19,9 +19,18 @@ import {
   Trash2,
 } from "lucide-react";
 import { fetcher } from "@/lib/api";
+import api from "@/lib/api";
 import { Client } from "@/types/api";
 import ClientModal from "@/components/clients/ClientModal";
 import { formatDate } from "@tac-pmc/ui";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@tac-pmc/ui";
 
 export default function ClientsPage() {
   const {
@@ -35,6 +44,7 @@ export default function ClientsPage() {
     undefined,
   );
   const [deleteClient, setDeleteClient] = useState<Client | null>(null);
+  const { toast } = useToast();
 
   const columnDefs: any[] = useMemo(
     () => [
@@ -151,11 +161,16 @@ export default function ClientsPage() {
   async function confirmDelete() {
     if (!deleteClient) return;
     try {
-      await axios.delete(`/api/clients/${deleteClient._id}`);
+      await api.delete(`/api/clients/${deleteClient._id}`);
       mutate();
       setDeleteClient(null);
+      toast({ title: "Success", description: "Client deleted successfully" });
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to delete client");
+      toast({
+        title: "Error",
+        description: err.response?.data?.detail || "Failed to delete client",
+        variant: "destructive",
+      });
     }
   }
 

@@ -7,15 +7,20 @@ import {
   Edit2,
   Trash2,
   ShieldCheck,
-  Mail,
-  Phone,
-  MapPin,
+  AlertTriangle,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Vendor } from "@tac-pmc/types";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VendorModal from "@/components/vendors/VendorModal";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@tac-pmc/ui";
 import type { ColDef } from "ag-grid-community";
 
 export default function VendorsPage() {
@@ -26,6 +31,8 @@ export default function VendorsPage() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | undefined>(
     undefined,
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const { toast } = useToast();
 
   const fetchVendors = async () => {
@@ -69,24 +76,39 @@ export default function VendorsPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (vendorId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this vendor? This will deactivate them.",
-      )
-    )
-      return;
+  const handleDeleteClick = (vendor: Vendor) => {
+    setVendorToDelete(vendor);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!vendorToDelete) return;
+
+    const vendorId = vendorToDelete._id || (vendorToDelete as any).id;
 
     try {
       await api.delete(`/api/vendors/${vendorId}`);
       toast({ title: "Success", description: "Vendor deleted successfully" });
       fetchVendors();
     } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.detail || "Failed to delete vendor";
       toast({
         title: "Error",
-        description: error.response?.data?.detail || "Failed to delete vendor",
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setDeleteDialogOpen(false);
+      setVendorToDelete(null);
+    }
+  };
+
+  const handleDelete = async (vendorId: string) => {
+    // Find the vendor object
+    const vendor = vendors.find((v) => (v._id || (v as any).id) === vendorId);
+    if (vendor) {
+      handleDeleteClick(vendor);
     }
   };
 
@@ -113,9 +135,7 @@ export default function VendorsPage() {
             <Edit2 size={14} />
           </button>
           <button
-            onClick={() =>
-              handleDelete(params.data._id || (params.data as any).id)
-            }
+            onClick={() => handleDeleteClick(params.data)}
             className="p-1 hover:text-red-500 transition-colors"
           >
             <Trash2 size={14} />
@@ -178,6 +198,44 @@ export default function VendorsPage() {
         onSuccess={fetchVendors}
         vendor={selectedVendor}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              <AlertTriangle className="text-red-500" size={24} />
+              Delete Vendor
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-300">
+              Are you sure you want to delete{" "}
+              <strong className="text-white">{vendorToDelete?.name}</strong>?
+            </p>
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <p className="text-amber-500 text-sm">
+                This vendor will be deactivated. If they have linked Work
+                Orders, deletion will be blocked.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-3">
+            <button
+              onClick={() => setDeleteDialogOpen(false)}
+              className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors"
+            >
+              Delete Vendor
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

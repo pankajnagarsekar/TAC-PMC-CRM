@@ -24,7 +24,7 @@ from vendor_routes import router as vendor_router  # noqa: E402
 from work_order_routes import router as work_order_router, project_scoped_router as work_order_project_router  # noqa: E402
 from payment_certificate_routes import pc_router # noqa: E402
 from cash_routes import cash_router # noqa: E402
-from site_operations_routes import router as site_operations_router # noqa: E402
+from site_operations_routes import router as site_operations_router, dpr_router, attendance_router, voice_log_router # noqa: E402
 from core.database import db_manager # noqa: E402
 from reporting_routes import reporting_router # noqa: E402
 from settings_routes import settings_router # noqa: E402
@@ -1831,6 +1831,9 @@ async def health_check():
 
 # Include router in main app
 app.include_router(site_operations_router)
+app.include_router(dpr_router)
+app.include_router(attendance_router)
+app.include_router(voice_log_router)
 app.include_router(reporting_router)
 app.include_router(api_router)
 

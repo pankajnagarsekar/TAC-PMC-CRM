@@ -10,7 +10,7 @@ from decimal import Decimal
 from bson import ObjectId, Decimal128
 from fastapi import HTTPException
 from core.database import db_manager
-from core.idempotency import check_idempotency, record_operation
+from core.idempotency import check_idempotency, record_operation, get_recorded_operation
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +32,14 @@ class WorkOrderService:
         category_id = wo_data.get("category_id")
 
         async with db_manager.transaction_session() as session:
-            # 1. Idempotency Check
+            # 1. Idempotency Check - Replay Pattern
             if idempotency_key:
-                existing_op = await check_idempotency(self.db, session, idempotency_key)
-                if existing_op and "response_payload" in existing_op:
-                    return existing_op["response_payload"]
+                # First check: try to get recorded response payload
+                recorded_response = await get_recorded_operation(self.db, session, idempotency_key)
+                if recorded_response:
+                    return recorded_response
                 
-                # Fallback for legacy records without payload
+                # Fallback: check legacy records without payload
                 existing_wo = await self.db.work_orders.find_one(
                     {"idempotency_key": idempotency_key}, session=session
                 )
@@ -177,6 +178,7 @@ class WorkOrderService:
         Updates a Work Order (Draft only) and synchronizes budget deductions.
         """
         organisation_id = current_user.get("organisation_id")
+        user_id = current_user.get("user_id")
 
         async with db_manager.transaction_session() as session:
             # 1. Fetch current WO
@@ -188,10 +190,26 @@ class WorkOrderService:
             if not old_wo:
                 raise HTTPException(status_code=404, detail="Work Order not found.")
 
+            # 1.1 Version check for optimistic concurrency
+            expected_version = wo_data.pop("expected_version", None)
+            if expected_version is not None:
+                current_version = old_wo.get("version", 1)
+                if current_version != expected_version:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"error": "concurrency_conflict", "message": "Work Order was modified in another session. Please refresh."}
+                    )
+
             if old_wo["status"] != "Draft":
                 raise HTTPException(status_code=400, detail="Only Work Orders in 'Draft' status can be edited.")
 
-            # 2. Revert old budget impact
+            # 1.2 Check for linked PCs - Lock Rule: cannot reduce grand_total below sum of linked PCs
+            linked_pcs = await self.db.payment_certificates.find({
+                "work_order_id": wo_id,
+                "status": {"$ne": "Cancelled"}
+            }).to_list(length=None)
+            
+            linked_pc_total = sum(float(pc.get("grand_total", Decimal128("0")).to_decimal()) for pc in linked_pcs)
             old_grand_total = Decimal(str(old_wo["grand_total"].to_decimal()))
             old_category_id = old_wo["category_id"]
             project_id = old_wo["project_id"]
@@ -223,6 +241,13 @@ class WorkOrderService:
             cgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("cgst", 0))))
             sgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("sgst", 0))))
             grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
+            
+            # 4.1 Linked-PC Lock Rule: cannot reduce grand_total below sum of linked PCs
+            if linked_pc_total > 0 and grand_total < Decimal(str(linked_pc_total)):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot reduce WO total below ₹{linked_pc_total}. There are linked Payment Certificates with total ₹{linked_pc_total}."
+                )
             
             retention_percent = Decimal(str(wo_data.get("retention_percent", 0)))
             retention_amount = self.financial_service.round_half_up(grand_total * (retention_percent / Decimal("100")))

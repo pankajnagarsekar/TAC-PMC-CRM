@@ -82,7 +82,7 @@ export default function ProjectModal({
         axios.get(`/api/projects/${project._id}/budgets`).then((res) => {
           const budgetMap: Record<string, number> = {};
           res.data.forEach((b: any) => {
-            budgetMap[b.code_id] = b.approved_budget_amount;
+            budgetMap[b.code_id] = b.original_budget;
           });
           setBudgets(budgetMap);
         });
@@ -128,7 +128,7 @@ export default function ProjectModal({
           if (amount > 0) {
             return axios.post(`/api/projects/${projectId}/budgets`, {
               code_id,
-              approved_budget_amount: amount,
+              original_budget: amount,
             });
           }
           return Promise.resolve();

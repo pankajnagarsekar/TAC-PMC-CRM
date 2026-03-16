@@ -19,7 +19,11 @@ type ReportType =
   | "15_days_progress"
   | "monthly_progress";
 
-const REPORT_OPTIONS: { value: ReportType; label: string; description: string }[] = [
+const REPORT_OPTIONS: {
+  value: ReportType;
+  label: string;
+  description: string;
+}[] = [
   {
     value: "project_summary",
     label: "Project Summary",
@@ -67,7 +71,8 @@ export default function ReportsPage() {
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
 
-  const [selectedReport, setSelectedReport] = useState<ReportType>("project_summary");
+  const [selectedReport, setSelectedReport] =
+    useState<ReportType>("project_summary");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reportData, setReportData] = useState<any>(null);
@@ -93,7 +98,7 @@ export default function ReportsPage() {
       if (endDate) params.append("end_date", endDate);
 
       const response = await api.get(
-        `${url}${params.toString() ? `?${params.toString()}` : ""}`
+        `${url}${params.toString() ? `?${params.toString()}` : ""}`,
       );
       setReportData(response.data);
     } catch (error) {
@@ -121,7 +126,7 @@ export default function ReportsPage() {
 
       const response = await api.get(
         `${url}${params.toString() ? `?${params.toString()}` : ""}`,
-        { responseType: "arraybuffer" }
+        { responseType: "arraybuffer" },
       );
 
       const contentType = (response.headers?.["content-type"] || "") as string;
@@ -132,14 +137,20 @@ export default function ReportsPage() {
           while (attempts < 60) {
             await new Promise((resolve) => setTimeout(resolve, 2000));
             const statusRes = await api.get(`/api/jobs/${payload.job_id}`);
-            if (statusRes.data?.ready || statusRes.data?.status === "SUCCESS" || statusRes.data?.status === "COMPLETED") {
+            if (
+              statusRes.data?.ready ||
+              statusRes.data?.status === "SUCCESS" ||
+              statusRes.data?.status === "COMPLETED"
+            ) {
               break;
             }
             attempts += 1;
           }
 
           const syncParam = params.toString() ? `&${params.toString()}` : "";
-          const syncResponse = await api.get(`${url}?sync=true${syncParam}`, { responseType: "blob" });
+          const syncResponse = await api.get(`${url}?sync=true${syncParam}`, {
+            responseType: "blob",
+          });
           const syncBlob = new Blob([syncResponse.data]);
           const syncUrl = window.URL.createObjectURL(syncBlob);
           const syncLink = document.createElement("a");
@@ -207,20 +218,35 @@ export default function ReportsPage() {
             field: "2",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           {
             headerName: "% Progress",
             field: "3",
             flex: 0.7,
-            cellRenderer: (p: any) => (typeof p.value === "number" ? (p.value * 100).toFixed(1) + "%" : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? (p.value * 100).toFixed(1) + "%"
+                : p.value,
           },
           {
             headerName: "Payment Value (₹)",
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           { headerName: "Deadline", field: "5", flex: 0.8 },
           {
@@ -228,7 +254,13 @@ export default function ReportsPage() {
             field: "6",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
         ];
       case "work_order_tracker":
@@ -241,14 +273,26 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           {
             headerName: "Retention (₹)",
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           { headerName: "Start Date", field: "5", flex: 0.8 },
           { headerName: "End Date", field: "6", flex: 0.8 },
@@ -263,7 +307,13 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           { headerName: "PC Date", field: "4", flex: 0.8 },
           {
@@ -271,7 +321,13 @@ export default function ReportsPage() {
             field: "5",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           { headerName: "Payment Date", field: "6", flex: 0.8 },
         ];
@@ -284,7 +340,13 @@ export default function ReportsPage() {
             field: "2",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) => (typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? p.value.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : p.value,
           },
           { headerName: "Bill / Invoice", field: "3", flex: 1.5 },
         ];
@@ -307,7 +369,10 @@ export default function ReportsPage() {
             headerName: "% Completed",
             field: "3",
             flex: 0.8,
-            cellRenderer: (p: any) => (typeof p.value === "number" ? (p.value * 100).toFixed(1) + "%" : p.value),
+            cellRenderer: (p: any) =>
+              typeof p.value === "number"
+                ? (p.value * 100).toFixed(1) + "%"
+                : p.value,
           },
           { headerName: "Comments", field: "4", flex: 1.5 },
         ];
@@ -326,8 +391,12 @@ export default function ReportsPage() {
     <div className="space-y-6 p-6 animate-in fade-in duration-500">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Financial Reports</h1>
-        <p className="text-slate-400 text-sm mt-1">Generate and export financial reports with filters</p>
+        <h1 className="text-3xl font-bold text-white tracking-tight">
+          Financial Reports
+        </h1>
+        <p className="text-slate-400 text-sm mt-1">
+          Generate and export financial reports with filters
+        </p>
       </div>
 
       {/* Report Selector & Filters */}
@@ -417,7 +486,9 @@ export default function ReportsPage() {
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-white">{reportData.title}</h2>
+                <h2 className="text-xl font-bold text-white">
+                  {reportData.title}
+                </h2>
                 <p className="text-slate-400 text-sm mt-1">
                   {reportData.rows?.length || 0} records • Generated{" "}
                   {new Date(reportData.metadata?.generated_at).toLocaleString()}
@@ -468,7 +539,10 @@ export default function ReportsPage() {
                       {key.replace(/_/g, " ")}
                     </p>
                     <p className="text-white text-lg font-bold mt-1">
-                      ₹{typeof value === "number" ? value.toFixed(2) : value}
+                      ₹
+                      {typeof value === "number"
+                        ? (value as number).toFixed(2)
+                        : String(value)}
                     </p>
                   </div>
                 ))}
@@ -487,7 +561,9 @@ export default function ReportsPage() {
       {!reportData && !isLoading && (
         <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
           <div className="text-slate-500">
-            <p className="text-sm font-medium">Select a report and click "Generate Report" to view data</p>
+            <p className="text-sm font-medium">
+              Select a report and click "Generate Report" to view data
+            </p>
           </div>
         </div>
       )}

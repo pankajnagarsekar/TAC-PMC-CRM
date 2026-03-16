@@ -17,6 +17,13 @@ import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { Vendor, CodeMaster } from "@/types/api";
 import { formatCurrency } from "@tac-pmc/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@tac-pmc/ui";
 import { ColDef } from "ag-grid-community";
 
 interface LineItem {
@@ -50,6 +57,8 @@ export default function NewWorkOrderPage() {
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [isGridValid, setIsGridValid] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
+  const [showOverBudgetWarning, setShowOverBudgetWarning] = useState(false);
 
   // Initialize Idempotency Key
   useEffect(() => {
@@ -138,10 +147,19 @@ export default function NewWorkOrderPage() {
   };
 
   const removeLineItem = (index: number) => {
-    if (lineItems.length === 1) return;
+    setDeleteRowIndex(index);
+  };
+
+  const confirmDeleteRow = () => {
+    if (deleteRowIndex === null) return;
+    if (lineItems.length === 1) {
+      setDeleteRowIndex(null);
+      return;
+    }
     const newItems = [...lineItems];
-    newItems.splice(index, 1);
+    newItems.splice(deleteRowIndex, 1);
     setLineItems(newItems.map((item, i) => ({ ...item, sr_no: i + 1 })));
+    setDeleteRowIndex(null);
   };
 
   const onCellValueChanged = (event: any) => {
@@ -160,8 +178,10 @@ export default function NewWorkOrderPage() {
   const validateRow = useCallback((data: LineItem): RowValidation => {
     const errors = [];
     if (!data.description) errors.push("Description is required");
-    if (data.qty < 0) errors.push("Quantity must be >= 0");
+    if (data.qty <= 0) errors.push("Quantity must be > 0");
     if (data.rate < 0) errors.push("Rate must be >= 0");
+    if (data.total <= 0 && data.qty > 0 && data.rate > 0)
+      errors.push("Total must be > 0");
 
     return {
       rowIndex: data.sr_no - 1,
@@ -184,18 +204,19 @@ export default function NewWorkOrderPage() {
         ...formData,
         project_id: activeProject.project_id || activeProject._id,
         line_items: lineItems,
-        idempotency_key: idempotencyKey,
       };
 
       const response = await api.post(
-        `/api/work-orders/${activeProject._id || activeProject.project_id}`,
+        `/api/projects/${activeProject._id || activeProject.project_id}/work-orders`,
         payload,
+        {
+          headers: { "Idempotency-Key": idempotencyKey },
+        },
       );
 
       if (response.data._warning === "over_budget") {
-        alert(
-          "WARNING: This Work Order exceeds the allocated category budget.",
-        );
+        setShowOverBudgetWarning(true);
+        return;
       }
 
       router.push(`/admin/work-orders/${response.data._id}`);
@@ -467,6 +488,84 @@ export default function NewWorkOrderPage() {
           height="300px"
         />
       </div>
+
+      {/* Delete Row Confirmation Dialog */}
+      <Dialog
+        open={deleteRowIndex !== null}
+        onOpenChange={() => setDeleteRowIndex(null)}
+      >
+        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              <AlertTriangle className="text-amber-500" size={24} />
+              Delete Row
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-300">
+              Are you sure you want to delete this line item? This action cannot
+              be undone.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-3">
+            <button
+              onClick={() => setDeleteRowIndex(null)}
+              className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteRow}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors"
+            >
+              Delete Row
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Over Budget Warning Dialog */}
+      <Dialog
+        open={showOverBudgetWarning}
+        onOpenChange={setShowOverBudgetWarning}
+      >
+        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
+              <AlertTriangle className="text-amber-500" size={24} />
+              Budget Warning
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-300">
+              This Work Order exceeds the allocated category budget. Do you want
+              to proceed anyway?
+            </p>
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <p className="text-amber-500 text-sm">
+                The WO will be saved but flagged for management review.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-3">
+            <button
+              onClick={() => setShowOverBudgetWarning(false)}
+              className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
+            >
+              Review Details
+            </button>
+            <button
+              onClick={() => {
+                setShowOverBudgetWarning(false);
+                router.push(`/admin/work-orders`);
+              }}
+              className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors"
+            >
+              Save Anyway
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
