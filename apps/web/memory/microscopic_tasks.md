@@ -521,10 +521,10 @@
 - [x] **7.7.1** Implement Admin Mobile Petty Cash/OVH specialized UI (negative cash red state, threshold banner, correct project-scoped API)
 - [x] **7.7.2** Implement Mobile Client Dashboard routing + permissions parity aligned to `global_settings.client_permissions`
 - [x] **7.7.3** Implement Mobile report rendering parity (Weekly/15-Day/Monthly + PDF export & share access)
-    - Add Report Selector on Mobile Client Dashboard (if reports permission enabled)
-    - Add backend-driven report list for mobile view
-    - Implement "Email PDF Report" button on mobile for Weekly/15-Day/Monthly variants
-    - Support mobile-friendly list rendering of Progress Reports
+  - Add Report Selector on Mobile Client Dashboard (if reports permission enabled)
+  - Add backend-driven report list for mobile view
+  - Implement "Email PDF Report" button on mobile for Weekly/15-Day/Monthly variants
+  - Support mobile-friendly list rendering of Progress Reports
 
 ---
 
@@ -607,9 +607,9 @@
 ### 9.4 — Remaining Structural Cleanup (Not Yet Remediated)
 
 - [x] **9.4.1** Deduplicate conflicting legacy endpoints in `server.py` (`/projects`, `/codes`, etc.) and keep one canonical implementation per route
-- [ ] **9.4.2** Standardize financial collection schema usage to one model (`project_category_budgets + category_id`) across services/indexes
-- [ ] **9.4.3** Remove duplicate model declarations in `apps/api/models.py` (`CashTransaction`, `FundAllocation`) and align single authoritative shape
-- [ ] **9.4.4** Complete `admin-only` class tagging across all create/edit/delete actions for strict client-role UI hardening
+- [x] **9.4.2** Standardize financial collection schema usage to one model (`project_category_budgets + category_id`) across services/indexes
+- [x] **9.4.3** Remove duplicate model declarations in `apps/api/models.py` (`CashTransaction`, `FundAllocation`) and align single authoritative shape
+- [x] **9.4.4** Complete `admin-only` class tagging across all create/edit/delete actions for strict client-role UI hardening
 
 ---
 

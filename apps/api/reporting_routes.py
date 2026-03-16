@@ -389,7 +389,7 @@ async def get_project_summary(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    financials = await db.project_budgets.find({"project_id": project_id}).to_list(length=100)
+    financials = await db.project_category_budgets.find({"project_id": project_id}).to_list(length=100)
     
     total_budget = sum(f.get("approved_budget_amount", 0) for f in financials)
     total_committed = sum(f.get("committed_value", 0) for f in financials)

@@ -39,22 +39,22 @@ async def get_project_financials(
     await permission_checker.check_project_access(user, project_id, require_write=False)
 
     # 1. Get all budgets for the project (contains the primary versioning)
-    budgets = await db.project_budgets.find({"project_id": project_id}).to_list(length=500)
+    budgets = await db.project_category_budgets.find({"project_id": project_id}).to_list(length=500)
     
     # 2. Get all financial state records for the project
     states = await db.financial_state.find({"project_id": project_id}).to_list(length=500)
-    state_map = {s.get("category_id") or s.get("code_id"): s for s in states}
+    state_map = {s.get("category_id"): s for s in states}
     
     # 3. Join them
     results = []
     for b in budgets:
-        cid = b.get("category_id") or b.get("code_id")
+        cid = b.get("category_id")
         fs = state_map.get(cid, {})
         
         # Merge data into DerivedFinancialState structure
         result = {
             "project_id": project_id,
-            "code_id": cid,
+            "category_id": cid,
             "approved_budget_amount": b.get("approved_budget_amount", 0),
             "committed_value": fs.get("committed_value", 0),
             "certified_value": fs.get("certified_value", 0),
@@ -94,7 +94,7 @@ class _HardenedEngine:
         
         async with db_manager.transaction_session() as session:
             # 1. Validate budget exists and belongs to org
-            budget = await db_manager.db.project_budgets.find_one({
+            budget = await db_manager.db.project_category_budgets.find_one({
                 "_id": ObjectId(budget_id)
             }, session=session)
 
@@ -146,7 +146,7 @@ class _HardenedEngine:
                 committed = Decimal(str(budget.get("committed_amount", "0")))
                 update_fields["remaining_budget"] = Decimal128(str(new_amount - committed))
 
-            await db_manager.db.project_budgets.update_one(
+            await db_manager.db.project_category_budgets.update_one(
                 {"_id": ObjectId(budget_id)},
                 {"$set": update_fields, "$inc": {"version": 1}},
                 session=session
@@ -154,12 +154,12 @@ class _HardenedEngine:
 
             # 5. Trigger financial recalculation
             project_id = budget.get("project_id")
-            code_id = budget.get("code_id")
+            category_id = budget.get("category_id")
 
-            if project_id and code_id:
+            if project_id and category_id:
                 await financial_service.recalculate_project_code_financials(
                     project_id=project_id,
-                    code_id=code_id,
+                    category_id=category_id,
                     session=session
                 )
 
@@ -230,17 +230,17 @@ async def initialize_project_budgets(
 
     async with db_manager.transaction_session() as session:
         for code in codes:
-            code_id = str(code["_id"])
+            category_id = str(code["_id"])
             # Check if exists
-            existing = await db.project_budgets.find_one({
+            existing = await db.project_category_budgets.find_one({
                 "project_id": project_id,
-                "code_id": code_id
+                "category_id": category_id
             }, session=session)
 
             if not existing:
                 budget_doc = {
                     "project_id": project_id,
-                    "code_id": code_id,
+                    "category_id": category_id,
                     "approved_budget_amount": Decimal128("0.0"),
                     "committed_amount": Decimal128("0.0"),
                     "remaining_budget": Decimal128("0.0"),
@@ -248,7 +248,7 @@ async def initialize_project_budgets(
                     "updated_at": datetime.utcnow(),
                     "version": 1
                 }
-                await db.project_budgets.insert_one(budget_doc, session=session)
+                await db.project_category_budgets.insert_one(budget_doc, session=session)
 
         # Recalculate everything for this project
         # Note: financial_service.recalculate_all_project_financials does not yet accept session

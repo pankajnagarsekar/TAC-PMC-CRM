@@ -325,7 +325,7 @@ class SnapshotEngine:
         ).to_list(length=None)
 
         # Get budgets
-        budgets = await self.db.project_budgets.find(
+        budgets = await self.db.project_category_budgets.find(
             {"project_id": project_id}
         ).to_list(length=None)
 

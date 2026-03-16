@@ -34,19 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [accessToken, user, router, clearAuth, mounted]);
 
-  if (!mounted) return null;
-
-  if (!user || !accessToken) {
-    return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-        <div className="text-orange-500 animate-pulse font-bold tracking-widest uppercase text-xs">
-          Authenticating Secure Session...
-        </div>
-      </div>
-    );
-  }
-
-  const isClient = user.role === 'Client';
+  const isClient = user?.role === 'Client';
 
   useEffect(() => {
     if (!mounted) return;
@@ -59,6 +47,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       document.body.classList.remove('is-client');
     };
   }, [isClient, mounted]);
+
+  if (!mounted) return null;
+
+  if (!user || !accessToken) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="text-orange-500 animate-pulse font-bold tracking-widest uppercase text-xs">
+          Authenticating Secure Session...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex h-screen overflow-hidden ${isClient ? 'is-client' : ''}`} style={{ background: '#0f172a' }}>

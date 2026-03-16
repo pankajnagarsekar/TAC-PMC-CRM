@@ -30,17 +30,10 @@ class FinancialRecalculationService:
         - over_commit_flag: True if committed_value > approved_budget_amount
         """
         # Get the budget for this project+category
-        budget = await self.db.project_budgets.find_one({
+        budget = await self.db.project_category_budgets.find_one({
             "project_id": project_id,
             "category_id": category_id
         }, session=session)
-
-        if not budget:
-            # Fallback to legacy code_id mapping if category_id not found during transition
-            budget = await self.db.project_budgets.find_one({
-                "project_id": project_id,
-                "code_id": category_id
-            }, session=session)
 
         if not budget:
             logger.warning(
@@ -114,7 +107,7 @@ class FinancialRecalculationService:
         Iterates over all budgets for the project and recalculates each one.
         Returns a summary of the project-level totals.
         """
-        budgets = await self.db.project_budgets.find(
+        budgets = await self.db.project_category_budgets.find(
             {"project_id": project_id}
         ).to_list(length=None)
 
@@ -128,7 +121,7 @@ class FinancialRecalculationService:
         categories_recalculated = 0
 
         for budget in budgets:
-            category_id = budget.get("category_id") or budget.get("code_id")
+            category_id = budget.get("category_id")
             if not category_id:
                 continue
 
@@ -172,7 +165,7 @@ class FinancialRecalculationService:
             }},
         ]
 
-        result = await self.db.project_budgets.aggregate(
+        result = await self.db.project_category_budgets.aggregate(
             pipeline, session=session
         ).to_list(length=1)
 

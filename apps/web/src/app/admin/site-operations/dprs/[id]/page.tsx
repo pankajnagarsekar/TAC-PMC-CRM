@@ -166,13 +166,13 @@ export default function DPRDetailPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setRejectDialogOpen(true)}
-              className="px-5 py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-bold hover:bg-rose-500/5 transition-all flex items-center gap-2"
+              className="admin-only px-5 py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-bold hover:bg-rose-500/5 transition-all flex items-center gap-2"
             >
               <X size={16} /> Reject Report
             </button>
             <button
               onClick={handleApprove}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2"
+              className="admin-only px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-2"
             >
               <Check size={16} /> Approve DPR
             </button>

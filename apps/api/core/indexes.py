@@ -31,10 +31,10 @@ async def ensure_indexes(db) -> None:
 
     # ── Project Category Budgets ─────────────────────────────────────────
     await safe_create_index(
-        db.project_budgets,
-        [("project_id", 1), ("code_id", 1)],
+        db.project_category_budgets,
+        [("project_id", 1), ("category_id", 1)],
         unique=True,
-        name="idx_budget_project_code"
+        name="idx_budget_project_category"
     )
 
     # ── Work Orders ──────────────────────────────────────────────────────

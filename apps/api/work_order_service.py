@@ -46,9 +46,9 @@ class WorkOrderService:
                     return db_manager.from_bson(existing_wo)
 
             # 2. Validate Category Budget exists
-            budget = await self.db.project_budgets.find_one({
+            budget = await self.db.project_category_budgets.find_one({
                 "project_id": project_id,
-                "code_id": category_id
+                "category_id": category_id
             }, session=session)
 
             if not budget:
@@ -107,7 +107,7 @@ class WorkOrderService:
             # Warning flag if over budget (per spec, we don't block saving)
             warning = "over_budget" if new_remaining < 0 else None
 
-            await self.db.project_budgets.update_one(
+            await self.db.project_category_budgets.update_one(
                 {"_id": budget["_id"]},
                 {"$set": {
                     "remaining_budget": Decimal128(str(new_remaining)),
@@ -196,7 +196,7 @@ class WorkOrderService:
             old_category_id = old_wo["category_id"]
             project_id = old_wo["project_id"]
 
-            await self.db.project_budgets.update_one(
+            await self.db.project_category_budgets.update_one(
                 {"project_id": project_id, "category_id": old_category_id},
                 {"$inc": {
                     "remaining_budget": Decimal128(str(old_grand_total)),
@@ -232,7 +232,7 @@ class WorkOrderService:
             new_category_id = wo_data.get("category_id", old_category_id)
             
             # Check if budget exists for new category
-            budget = await self.db.project_budgets.find_one({
+            budget = await self.db.project_category_budgets.find_one({
                 "project_id": project_id,
                 "category_id": new_category_id
             }, session=session)
@@ -240,7 +240,7 @@ class WorkOrderService:
             if not budget:
                 raise HTTPException(status_code=400, detail="Target category budget not initialized.")
 
-            await self.db.project_budgets.update_one(
+            await self.db.project_category_budgets.update_one(
                 {"_id": budget["_id"]},
                 {"$inc": {
                     "remaining_budget": Decimal128(str(-grand_total)),
@@ -327,7 +327,7 @@ class WorkOrderService:
             project_id = wo["project_id"]
             category_id = wo["category_id"]
 
-            await self.db.project_budgets.update_one(
+            await self.db.project_category_budgets.update_one(
                 {"project_id": project_id, "category_id": category_id},
                 {"$inc": {
                     "remaining_budget": Decimal128(str(grand_total)),

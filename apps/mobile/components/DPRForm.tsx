@@ -190,7 +190,7 @@ export default function DPRForm({
         });
         showAlert('Transcribed', 'Voice has been converted to text');
       } else if (result.error) {
-        showAlert('Transcription Failed', result.note || result.error);
+        showAlert('Transcription Failed', result.error || result.note || 'Unknown error');
       }
     } catch (error) {
       console.error('Transcription error:', error);

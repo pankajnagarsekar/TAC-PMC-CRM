@@ -223,11 +223,11 @@ class BackgroundJobEngine:
             ).to_list(length=None)
 
             for state in states:
-                code_id = state.get("code_id")
+                category_id = state.get("category_id")
 
                 # Get budget
-                budget = await self.db.project_budgets.find_one(
-                    {"project_id": project_id, "code_id": code_id}
+                budget = await self.db.project_category_budgets.find_one(
+                    {"project_id": project_id, "category_id": category_id}
                 )
 
                 if not budget:
@@ -275,7 +275,7 @@ class BackgroundJobEngine:
                     alert_doc = {
                         "organisation_id": organisation_id,
                         "project_id": project_id,
-                        "code_id": code_id,
+                        "category_id": category_id,
                         "alert_type": "FINANCIAL_INTEGRITY_VIOLATION",
                         "severity": "HIGH",
                         "violations": violation_details,
@@ -286,7 +286,7 @@ class BackgroundJobEngine:
 
                     violations.append({
                         "project_id": project_id,
-                        "code_id": code_id,
+                        "category_id": category_id,
                         "violations": violation_details
                     })
 
@@ -295,7 +295,7 @@ class BackgroundJobEngine:
                         organisation_id=organisation_id,
                         project_id=project_id,
                         event_type="INTEGRITY_VIOLATION",
-                        message=f"Financial integrity violation detected for code {code_id}",
+                        message=f"Financial integrity violation detected for category {category_id}",
                         data={"violations": violation_details}
                     )
 

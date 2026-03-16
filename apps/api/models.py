@@ -224,7 +224,7 @@ class CodeMasterUpdate(BaseModel):
 class ProjectBudget(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
-    code_id: str
+    category_id: str
     approved_budget_amount: Decimal
     committed_amount: Decimal = Decimal("0.0")
     remaining_budget: Decimal = Decimal("0.0")
@@ -238,13 +238,14 @@ class ProjectBudget(BaseModel):
 
 class ProjectBudgetCreate(BaseModel):
     project_id: str
-    code_id: str
+    category_id: str
     approved_budget_amount: Decimal
     description: Optional[str] = None
 
 
 class ProjectBudgetUpdate(BaseModel):
     approved_budget_amount: Optional[Decimal] = None
+    version: int
 
 
 # =============================================================================
@@ -480,49 +481,6 @@ class DPR(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
-
-
-# =============================================================================
-# LIQUIDITY ENGINE MODELS (PHASE 3)
-# =============================================================================
-class FundAllocation(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    project_id: str
-    category_id: str
-    allocation_total: Decimal = Decimal("0.0")
-    allocation_remaining: Decimal = Decimal("0.0")
-    last_replenished: datetime = Field(default_factory=datetime.utcnow)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
-
-
-class CashTransaction(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    project_id: str
-    category_id: str
-    amount: Decimal = Decimal("0.0")
-    type: Literal["CREDIT", "DEBIT"] = "DEBIT"
-    purpose: Optional[str] = None
-    bill_reference: Optional[str] = None
-    receipt_photo: Optional[str] = None
-    vendor_name: Optional[str] = None
-    created_by: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
-
-
-class CashTransactionCreate(BaseModel):
-    project_id: str
-    category_id: str
-    amount: Decimal
-    type: Literal["CREDIT", "DEBIT"] = "DEBIT"
-    purpose: Optional[str] = None
-    bill_reference: Optional[str] = None
-    receipt_photo: Optional[str] = None # OCR integration point
-    vendor_name: Optional[str] = None
-    bill_date: Optional[datetime] = None
 
 
 # =============================================================================

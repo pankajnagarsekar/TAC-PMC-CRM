@@ -903,12 +903,12 @@ async def speech_to_text(
         # Graceful fallback when no API key is configured
         if not api_key:
             logger.warning(
-                "[STT] EMERGENT_LLM_KEY not set - returning mock transcription")
+                "[STT] EMERGENT_LLM_KEY not set - returning mock transcript text")
             return {
-                "transcript": "",
+                "transcript": "Mock transcription: daily site progress updated. Please configure EMERGENT_LLM_KEY for real speech-to-text.",
                 "original": "",
-                "error": "API key not configured. Set EMERGENT_LLM_KEY in backend .env to enable voice-to-text.",
-                "note": "mock"}
+                "note": "mock"
+            }
 
         file_ext = request.audio_format.lower() or 'webm'
 
@@ -2146,7 +2146,7 @@ async def get_admin_projects_overview(
             pid = str(project["_id"])
 
             # --- Budget aggregation ---
-            budgets = await db.project_budgets.find({"project_id": pid}).to_list(length=None)
+            budgets = await db.project_category_budgets.find({"project_id": pid}).to_list(length=None)
             total_master_budget = 0.0
             total_committed = 0.0
             total_certified = 0.0
@@ -2160,7 +2160,7 @@ async def get_admin_projects_overview(
                 # Get financial state
                 fs = await db.financial_state.find_one({
                     "project_id": pid,
-                    "code_id": b.get("code_id")
+                    "category_id": b.get("category_id")
                 })
 
                 committed = 0.0
@@ -2179,16 +2179,16 @@ async def get_admin_projects_overview(
                 # Get code name
                 code_name = "Unknown"
                 try:
-                    c_id = b.get("code_id")
+                    c_id = b.get("category_id")
                     if c_id:
                         code = await db.code_master.find_one({"_id": ObjectId(c_id)})
                         if code:
                             code_name = code.get("code_description", code.get("code_short", "Unknown"))
                 except Exception as e:
-                    logger.warning(f"Error fetching code name for code_id {b.get('code_id')}: {e}")
+                    logger.warning(f"Error fetching code name for category_id {b.get('category_id')}: {e}")
 
                 categories.append({
-                    "code_id": b.get("code_id"),
+                    "category_id": b.get("category_id"),
                     "code_name": code_name,
                     "approved_budget": approved,
                     "committed": committed,

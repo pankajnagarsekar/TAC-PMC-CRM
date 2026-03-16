@@ -112,7 +112,7 @@ export default function ClientsPage() {
         field: "_id",
         width: 120,
         cellRenderer: (params: any) => (
-          <div className="flex items-center justify-end h-full px-2 gap-1">
+          <div className="flex items-center justify-end h-full px-2 gap-1 admin-only">
             <button
               onClick={() => handleEdit(params.data)}
               className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
@@ -175,7 +175,7 @@ export default function ClientsPage() {
 
         <button
           onClick={handleAddNew}
-          className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+          className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-lg shadow-orange-900/20 active:scale-95"
         >
           <Plus size={18} />
           Add New Client
