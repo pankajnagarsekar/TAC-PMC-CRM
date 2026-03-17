@@ -10,6 +10,42 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Token blacklist storage (in-memory for now, can be moved to Redis in production)
+_token_blacklist: set = set()
+
+
+def revoke_token(jti: str) -> None:
+    """Add token JTI to blacklist"""
+    _token_blacklist.add(jti)
+
+
+def is_token_revoked(jti: str) -> bool:
+    """Check if token JTI is in blacklist"""
+    return jti in _token_blacklist
+
+
+def revoke_access_token(token: str) -> None:
+    """Revoke an access token by extracting its JTI and adding to blacklist"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+        jti = payload.get("jti")
+        if jti:
+            revoke_token(jti)
+    except jwt.JWTError:
+        pass  # Invalid token, nothing to revoke
+
+
+def revoke_refresh_token(token: str) -> None:
+    """Revoke a refresh token by extracting its JTI and adding to blacklist"""
+    try:
+        payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+        jti = payload.get("jti")
+        if jti:
+            revoke_token(jti)
+    except jwt.JWTError:
+        pass  # Invalid token, nothing to revoke
+
+
 # Load env in auth.py directly to ensure it works regardless of import order
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
@@ -25,6 +61,7 @@ if not SECRET_KEY or not REFRESH_SECRET_KEY:
 
 # CORRECTED: Access token expires in 30 minutes (not 30 days!)
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 # Refresh token expires in 7 days
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
@@ -46,8 +83,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-        data: dict,
-        expires_delta: Optional[timedelta] = None) -> str:
+    data: dict,
+    expires_delta: Optional[timedelta] = None
+) -> str:
     """
     Create JWT access token.
     CORRECTED: Expires in 30 minutes (not 30 days).
@@ -57,8 +95,15 @@ def create_access_token(
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-    to_encode.update({"exp": expire, "type": "access"})
+    
+    # Generate unique token identifier for revocation support
+    jti = secrets.token_urlsafe(32)
+    
+    to_encode.update({
+        "exp": expire,
+        "type": "access",
+        "jti": jti
+    })
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -69,36 +114,37 @@ def create_refresh_token(user_id: str) -> str:
     Expires in 7 days.
     """
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
     # Generate unique token identifier
     jti = secrets.token_urlsafe(32)
-
     to_encode = {
         "user_id": user_id,
         "exp": expire,
         "type": "refresh",
         "jti": jti
     }
-
     encoded_jwt = jwt.encode(
-        to_encode,
-        REFRESH_SECRET_KEY,
-        algorithm=ALGORITHM)
+        to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(token: str, check_revocation: bool = True) -> dict:
     """Decode and validate JWT access token"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
         # Verify token type
         if payload.get("type") != "access":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token type"
             )
-
+        # Check if token is revoked
+        if check_revocation:
+            jti = payload.get("jti")
+            if jti and is_token_revoked(jti):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked"
+                )
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -112,18 +158,24 @@ def decode_access_token(token: str) -> dict:
         )
 
 
-def decode_refresh_token(token: str) -> dict:
+def decode_refresh_token(token: str, check_revocation: bool = True) -> dict:
     """Decode and validate JWT refresh token"""
     try:
         payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-
         # Verify token type
         if payload.get("type") != "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token type"
             )
-
+        # Check if token is revoked
+        if check_revocation:
+            jti = payload.get("jti")
+            if jti and is_token_revoked(jti):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked"
+                )
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -138,7 +190,8 @@ def decode_refresh_token(token: str) -> dict:
 
 
 async def get_current_user(
-        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
     """Extract and validate current user from JWT token"""
     if not credentials:
         raise HTTPException(
@@ -147,14 +200,12 @@ async def get_current_user(
         )
     token = credentials.credentials
     payload = decode_access_token(token)
-
     user_id = payload.get("user_id")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials"
         )
-
     return payload
 
 
@@ -166,21 +217,21 @@ async def get_token_from_header_or_query(
     Dependency that extracts JWT from either:
     1. Authorization: Bearer <token> header
     2. ?token=<token> query parameter
+    
     Useful for browser-initiated downloads (Excel export).
     """
     actual_token = None
-
     if credentials:
         actual_token = credentials.credentials
     elif token:
         actual_token = token
-
+    
     if not actual_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
-
+    
     payload = decode_access_token(actual_token)
     user_id = payload.get("user_id")
     if user_id is None:
@@ -188,5 +239,4 @@ async def get_token_from_header_or_query(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials"
         )
-
     return payload
