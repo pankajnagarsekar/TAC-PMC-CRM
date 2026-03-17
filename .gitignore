@@ -20,3 +20,6 @@ yarn.lock
 *.log
 tmp/
 .aider*
+.agents/
+.emergent/
+
