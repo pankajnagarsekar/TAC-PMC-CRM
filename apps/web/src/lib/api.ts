@@ -1,13 +1,15 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { errorLogger } from "./errorLogger";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Axios instance — all requests go through here
 // ──────────────────────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL: BACKEND_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
   timeout: 15000,
 });
 
@@ -16,30 +18,30 @@ const api = axios.create({
 // ──────────────────────────────────────────────────────────────────────────
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token');
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("access_token");
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
       // Inject Active Project ID into headers if present
       try {
-        const storedProjectJson = localStorage.getItem('crm-project');
+        const storedProjectJson = localStorage.getItem("crm-project");
         if (storedProjectJson) {
-           const { state } = JSON.parse(storedProjectJson);
-           if (state?.activeProject?._id) {
-             config.headers['X-Project-Id'] = state.activeProject._id;
-           } else if (state?.activeProject?.project_id) {
-             config.headers['X-Project-Id'] = state.activeProject.project_id;
-           }
+          const { state } = JSON.parse(storedProjectJson);
+          if (state?.activeProject?._id) {
+            config.headers["X-Project-Id"] = state.activeProject._id;
+          } else if (state?.activeProject?.project_id) {
+            config.headers["X-Project-Id"] = state.activeProject.project_id;
+          }
         }
       } catch (e) {
-        console.error('Failed to parse project storage', e);
+        errorLogger.error("Failed to parse project storage", e);
       }
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -48,16 +50,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = localStorage.getItem("refresh_token");
         if (!refreshToken) {
           clearTokens();
-          window.location.href = '/login';
+          window.location.href = "/login";
           return Promise.reject(error);
         }
 
@@ -66,8 +70,8 @@ api.interceptors.response.use(
         });
 
         const { access_token, refresh_token } = res.data;
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('refresh_token', refresh_token);
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
 
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
@@ -75,20 +79,20 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch {
         clearTokens();
-        window.location.href = '/login';
+        window.location.href = "/login";
         return Promise.reject(error);
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 function clearTokens() {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
   }
 }
 

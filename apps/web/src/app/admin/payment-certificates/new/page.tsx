@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { v4 as uuidv4 } from "uuid";
 import {
   ArrowLeft,
   Save,
@@ -20,10 +19,13 @@ import {
 } from "ag-grid-community";
 
 import api, { fetcher } from "@/lib/api";
+import { useRequestLock } from "@/lib/requestLock";
+import { getOrCreateIdempotencyKey } from "@/lib/idempotency";
 import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { formatCurrency } from "@tac-pmc/ui";
 import { CodeMaster, WorkOrder } from "@/types/api";
+import { v4 as uuidv4 } from "uuid";
 
 // Need a specific interface for PC line items, different from WO
 interface PCLineItem {
@@ -73,7 +75,7 @@ export default function NewPaymentCertificatePage() {
 
   // Generate idempotency layer on mount
   useEffect(() => {
-    setIdempotencyKey(uuidv4());
+    setIdempotencyKey(getOrCreateIdempotencyKey("PC_CREATE"));
   }, []);
 
   // Sync Category when WO selected
@@ -104,6 +106,11 @@ export default function NewPaymentCertificatePage() {
         totalPayable: payable,
       };
     }, [lineItems, retentionPercent]);
+
+  const { executeWithLock: executePcCreateWithLock } = useRequestLock({
+    operationId: "PC_CREATE",
+    timeoutMs: 30000,
+  });
 
   const handleSave = async () => {
     if (!activeProject) return;
@@ -138,13 +145,21 @@ export default function NewPaymentCertificatePage() {
         })),
       };
 
-      const res = await api.post(
-        `/api/projects/${activeProject.project_id}/payment-certificates`,
-        payload,
-        {
-          headers: { "Idempotency-Key": idempotencyKey },
-        },
-      );
+      const res = await executePcCreateWithLock(async () => {
+        return await api.post(
+          `/api/projects/${activeProject.project_id}/payment-certificates`,
+          payload,
+          {
+            headers: { "Idempotency-Key": idempotencyKey },
+          },
+        );
+      });
+
+      if (!res) {
+        setError("Request is already in progress. Please wait.");
+        setIsSubmitting(false);
+        return;
+      }
 
       router.push(`/admin/payment-certificates/${res.data._id}`);
       router.refresh();

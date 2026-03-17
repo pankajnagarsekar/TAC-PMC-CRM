@@ -13,6 +13,7 @@ from permissions import PermissionChecker
 from audit_service import AuditService
 from cash_service import CashService
 from core.rate_limit import limiter
+from core.performance import measure_performance
 
 cash_router = APIRouter(prefix="/api/projects", tags=["Cash Transactions"])
 
@@ -97,6 +98,9 @@ async def create_cash_transaction(
 ):
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
     await checker.check_project_access(user, project_id, require_write=True)
     
     audit_service = AuditService(db)
@@ -162,18 +166,19 @@ async def create_cash_transaction(
         res = await db.cash_transactions.insert_one(doc, session=session)
         doc["_id"] = res.inserted_id
         
-        # Log action
-        await audit_service.log_action(
-            organisation_id=user["organisation_id"],
-            module_name="CASH_TRANSACTIONS",
-            entity_type="CASH_TRANSACTION",
-            entity_id=str(res.inserted_id),
-            action_type="CREATE",
-            user_id=user["user_id"],
-            project_id=project_id,
-            new_value=payload.dict(),
-            session=session
-        )
+            # Log action with FULL JSON snapshot
+            doc_full = serialize_doc(doc)
+            await audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="CASH_TRANSACTIONS",
+                entity_type="CASH_TRANSACTION",
+                entity_id=str(res.inserted_id),
+                action_type="CREATE",
+                user_id=user["user_id"],
+                project_id=project_id,
+                new_value=doc_full,  # FULL JSON snapshot per spec 6.1.2
+                session=session
+            )
         
         # Record for idempotency
         await record_operation(db, session, idempotency_key, "CASH_TRANSACTION", response_payload=serialize_doc(doc))

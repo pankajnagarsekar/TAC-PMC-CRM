@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from fastapi import HTTPException, status
 import logging
 
@@ -85,6 +85,10 @@ class AuditService:
         entity_type: Optional[str] = None,
         entity_id: Optional[str] = None,
         project_id: Optional[str] = None,
+        action_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         limit: int = 100,
         cursor: Optional[datetime] = None
     ):
@@ -97,10 +101,25 @@ class AuditService:
             query["entity_id"] = entity_id
         if project_id:
             query["project_id"] = project_id
+        if action_type:
+            query["action_type"] = action_type
+        if user_id:
+            query["user_id"] = user_id
+        
+        # Date range filter
+        if start_date or end_date:
+            date_filter = {}
+            if start_date:
+                date_filter["$gte"] = start_date
+            if end_date:
+                date_filter["$lte"] = end_date
+            query["timestamp"] = date_filter
             
         if cursor:
             # Assumes descending sort
-            query["timestamp"] = {"$lt": cursor}
+            if "timestamp" not in query:
+                query["timestamp"] = {}
+            query["timestamp"]["$lt"] = cursor
 
         cursor_obj = self.collection.find(query).sort("timestamp", -1).limit(limit)
         logs = await cursor_obj.to_list(length=limit)

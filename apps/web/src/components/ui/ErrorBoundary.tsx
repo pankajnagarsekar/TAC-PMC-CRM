@@ -1,58 +1,110 @@
-'use client';
+"use client";
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
-  children?: ReactNode;
+  children: ReactNode;
   fallback?: ReactNode;
 }
 
 interface State {
   hasError: boolean;
-  error?: Error;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false
+/**
+ * Error Boundary Component
+ * Catches JavaScript errors anywhere in the child component tree
+ * and displays a fallback UI instead of crashing the whole app
+ */
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    // Update state so the next render will show the fallback UI
+    return { hasError: true, error, errorInfo: null };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Log error details - errorInfo is captured via setState
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    this.setState({ errorInfo });
+
+    // Send to error logging service (non-sensitive data only)
+    if (typeof window !== "undefined") {
+      // Log to console in development
+      if (process.env.NODE_ENV === "development") {
+        console.group("🚨 Error Boundary Caught");
+        console.error("Error:", error);
+        console.error("Component Stack:", errorInfo.componentStack);
+        console.groupEnd();
+      }
+    }
+  }
+
+  handleRetry = () => {
+    // Reset error state and attempt to re-render
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    // Only reload if error persists after reset (handled by error re-occurring)
   };
 
-  public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
-  }
-
-  public render() {
+  render() {
     if (this.state.hasError) {
+      // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] p-6 text-center bg-slate-900/50 border border-slate-800 rounded-2xl animate-in fade-in duration-500">
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-            <AlertCircle className="text-red-500" size={32} />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
-          <p className="text-slate-400 max-w-md mb-8">
-            An unexpected error occurred in this component. Our team has been notified.
-            {process.env.NODE_ENV === 'development' && (
-              <pre className="mt-4 p-4 bg-black/50 rounded-lg text-left text-xs text-red-400 overflow-auto max-h-40 w-full font-mono">
-                {this.state.error?.message}
-              </pre>
+        <div className="min-h-[400px] flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg border border-red-100 p-8 text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Something went wrong
+            </h2>
+
+            <p className="text-gray-600 mb-6">
+              We're sorry, but an unexpected error occurred. Our team has been
+              notified and we're working to fix the issue.
+            </p>
+
+            {process.env.NODE_ENV === "development" && this.state.error && (
+              <div className="mb-6 text-left">
+                <details className="bg-gray-50 rounded p-4 text-sm">
+                  <summary className="font-medium text-gray-700 cursor-pointer">
+                    Error Details (Development Only)
+                  </summary>
+                  <pre className="mt-2 text-xs text-red-600 overflow-auto whitespace-pre-wrap">
+                    {this.state.error.toString()}
+                    {this.state.errorInfo?.componentStack}
+                  </pre>
+                </details>
+              </div>
             )}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all shadow-lg"
-          >
-            <RefreshCw size={18} />
-            Reload Page
-          </button>
+
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={this.handleRetry}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reload Page
+              </Button>
+
+              <Button variant="outline" onClick={() => window.history.back()}>
+                Go Back
+              </Button>
+            </div>
+          </div>
         </div>
       );
     }

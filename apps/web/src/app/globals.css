@@ -61,16 +61,37 @@ body {
   background: var(--accent);
 }
 
-/* AG Grid - Premium Glass Integration */
+/*
+ * AG Grid — Excel-Faithful Theme (Spec §4)
+ *
+ * IMPORTANT: No backdrop-filter, no transparency, no glassmorphism.
+ * These grids handle large financial datasets and must remain legible,
+ * performant, and Excel-faithful with solid backgrounds and visible borders.
+ *
+ * Glass effects (glass-panel-luxury / glass-card-premium) are permitted
+ * ONLY on: Sidebar, NavHeader, KPICards, Modal backdrops, Charts.
+ * They are FORBIDDEN on any AG Grid wrapper or data row container.
+ */
 .ag-theme-alpine-dark {
-  --ag-background-color: transparent !important;
-  --ag-odd-row-background-color: transparent !important;
-  --ag-header-background-color: rgba(30, 41, 59, 0.3) !important;
+  /* Solid backgrounds — no transparency */
+  --ag-background-color: #0c1425 !important;
+  --ag-odd-row-background-color: #0f172a !important;
+  --ag-header-background-color: #1e293b !important;
+
+  /* Foreground */
   --ag-header-foreground-color: var(--text-secondary);
-  --ag-row-hover-color: rgba(255, 255, 255, 0.03);
-  --ag-selected-row-background-color: rgba(249, 115, 22, 0.08);
-  --ag-border-color: rgba(255, 255, 255, 0.05);
-  --ag-cell-horizontal-border: solid transparent;
+  --ag-foreground-color: var(--text-primary);
+
+  /* High-contrast Excel-faithful borders */
+  --ag-border-color: rgba(148, 163, 184, 0.15);
+  --ag-cell-horizontal-border: solid rgba(148, 163, 184, 0.10);
+  --ag-row-border-color: rgba(148, 163, 184, 0.10);
+
+  /* Perceptible interactions */
+  --ag-row-hover-color: rgba(249, 115, 22, 0.05);
+  --ag-selected-row-background-color: rgba(249, 115, 22, 0.10);
+
+  /* Typography */
   --ag-font-family: inherit;
   --ag-font-size: 13px;
   --ag-grid-size: 6px;
@@ -150,16 +171,32 @@ body {
   box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
 }
 
-/* AG Grid Overrides for Rows */
+/* AG Grid Row Overrides — solid, no backdrop-filter */
 .ag-row {
-  transition: background-color 0.2s ease;
+  transition: background-color 0.15s ease;
+  /* No backdrop-filter permitted here */
+}
+
+.ag-row-odd {
+  background-color: #0f172a;
+}
+
+.ag-row-even {
+  background-color: #0c1425;
 }
 
 .ag-row-hover {
-  background-color: rgba(255, 255, 255, 0.02) !important;
+  /* Perceptible accent tint — still solid, legible at large datasets */
+  background-color: rgba(249, 115, 22, 0.05) !important;
 }
 
 .ag-cell-focus {
   border: 1px solid var(--accent) !important;
   outline: none !important;
+}
+
+/* Right-align numeric cells per Spec §9 */
+.ag-cell-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

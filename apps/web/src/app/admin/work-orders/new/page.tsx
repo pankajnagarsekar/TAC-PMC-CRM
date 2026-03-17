@@ -12,7 +12,8 @@ import {
   Loader2,
 } from "lucide-react";
 import api, { fetcher } from "@/lib/api";
-import { v4 as uuidv4 } from "uuid";
+import { useRequestLock } from "@/lib/requestLock";
+import { idempotency } from "@/lib/idempotency";
 import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { Vendor, CodeMaster } from "@/types/api";
@@ -59,10 +60,14 @@ export default function NewWorkOrderPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
   const [showOverBudgetWarning, setShowOverBudgetWarning] = useState(false);
+  const { executeWithLock: executeWorkOrderSaveWithLock } = useRequestLock({
+    operationId: "WORK_ORDER_SAVE",
+    timeoutMs: 30000,
+  });
 
   // Initialize Idempotency Key
   useEffect(() => {
-    setIdempotencyKey(uuidv4());
+    setIdempotencyKey(idempotency.get("WO_CREATE"));
   }, []);
 
   const { data: vendors } = useSWR<Vendor[]>("/api/vendors", fetcher);
@@ -206,13 +211,15 @@ export default function NewWorkOrderPage() {
         line_items: lineItems,
       };
 
-      const response = await api.post(
-        `/api/projects/${activeProject._id || activeProject.project_id}/work-orders`,
-        payload,
-        {
-          headers: { "Idempotency-Key": idempotencyKey },
-        },
-      );
+      const response = await executeWorkOrderSaveWithLock(async () => {
+        return await api.post(
+          `/api/projects/${activeProject._id || activeProject.project_id}/work-orders`,
+          payload,
+          {
+            headers: { "Idempotency-Key": idempotencyKey },
+          },
+        );
+      });
 
       if (response.data._warning === "over_budget") {
         setShowOverBudgetWarning(true);
@@ -233,7 +240,7 @@ export default function NewWorkOrderPage() {
         alert(detail || "Failed to save Work Order");
       }
       // Regenerate key on failure so user can try again safely
-      setIdempotencyKey(uuidv4());
+      setIdempotencyKey(idempotency.get("WO_CREATE"));
     } finally {
       setIsSaving(false);
     }

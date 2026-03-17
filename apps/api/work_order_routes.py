@@ -3,7 +3,6 @@ from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime
-
 from core.database import get_db, db_manager
 from auth import get_current_user
 from models import WorkOrderCreate, WorkOrder, WorkOrderUpdate
@@ -14,6 +13,7 @@ from fastapi import Request
 
 router = APIRouter(prefix="/api/work-orders", tags=["Work Orders"])
 project_scoped_router = APIRouter(prefix="/api/projects", tags=["Work Orders"])
+
 
 # Used strictly for organization-scoped global lists, e.g. "All WOs"
 @router.get("", response_model=dict)
@@ -26,7 +26,7 @@ async def list_work_orders(
 ):
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
-    
+
     query = {"organisation_id": user["organisation_id"]}
     if project_id:
         await checker.check_project_access(user, project_id)
@@ -40,7 +40,7 @@ async def list_work_orders(
             raise HTTPException(status_code=400, detail="Invalid cursor format")
 
     wos = await db.work_orders.find(query).sort("created_at", -1).limit(limit).to_list(length=limit)
-    
+
     next_cursor = None
     if len(wos) == limit:
         last_wo = wos[-1]
@@ -82,16 +82,22 @@ async def create_work_order(
     current_user: dict = Depends(get_current_user)
 ):
     from server import audit_service, financial_service
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
     await checker.check_project_access(user, project_id, require_write=True)
-    
+
     # Lazy instantiate the service
     wo_service = WorkOrderService(db, audit_service, financial_service)
-    
+
     # Pass down the structured Pydantic data
     wo_dict = wo_data.model_dump()
-    
+
     # Execute the rigorous transaction
     result = await wo_service.create_work_order(wo_dict, user, project_id)
     return result
@@ -108,15 +114,21 @@ async def create_work_order_by_project(
     current_user: dict = Depends(get_current_user)
 ):
     from server import audit_service, financial_service
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
     await checker.check_project_access(user, project_id, require_write=True)
-    
+
     wo_service = WorkOrderService(db, audit_service, financial_service)
     wo_dict = wo_data.model_dump()
     if idempotency_key:
         wo_dict["idempotency_key"] = idempotency_key
-    
+
     result = await wo_service.create_work_order(wo_dict, user, project_id)
     return result
 
@@ -137,12 +149,10 @@ async def get_work_order(
         "_id": ObjectId(wo_id),
         "organisation_id": user["organisation_id"]
     })
-    
     if not wo:
         raise HTTPException(status_code=404, detail="Work Order not found")
-    
+
     await checker.check_project_access(user, wo["project_id"])
-        
     return db_manager.from_bson(wo)
 
 
@@ -157,14 +167,18 @@ async def update_work_order_status(
     current_user: dict = Depends(get_current_user)
 ):
     from server import audit_service
-    
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
-    
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
     valid_statuses = ["Draft", "Pending", "Completed", "Closed", "Cancelled"]
     if status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Invalid status")
-        
+
     if not ObjectId.is_valid(wo_id):
         raise HTTPException(status_code=400, detail="Invalid WO ID format")
 
@@ -172,29 +186,31 @@ async def update_work_order_status(
         "_id": ObjectId(wo_id),
         "organisation_id": user["organisation_id"]
     })
-    
     if not wo:
         raise HTTPException(status_code=404, detail="Work Order not found")
-    
+
     await checker.check_project_access(user, wo["project_id"], require_write=True)
-        
+
     current_version = wo.get("version", 1)
     if current_version != expected_version:
-        raise HTTPException(status_code=409, detail={"error": "concurrency_conflict", "message": "Record was modified in another session. Please refresh."})
+        raise HTTPException(status_code=409, detail={
+            "error": "concurrency_conflict",
+            "message": "Record was modified in another session. Please refresh."
+        })
 
     old_status = wo.get("status")
-    
+
     # State Machine Rules (Tech Arch §6.1)
     # Allowed transitions:
     # - Draft → Pending
     # - Pending → Completed
     # - Completed → Closed
     # - Draft|Pending|Completed → Cancelled (only if no PCs exist)
-    
+
     # Rule 1: Cannot change status from Closed
     if old_status == "Closed":
         raise HTTPException(status_code=400, detail="Cannot change status of a Closed Work Order")
-    
+
     # Rule 2: Define valid next status based on current
     valid_transitions = {
         "Draft": ["Pending", "Cancelled"],
@@ -202,16 +218,19 @@ async def update_work_order_status(
         "Completed": ["Closed", "Cancelled"],
         "Cancelled": []
     }
-    
+
     if status not in valid_transitions.get(old_status, []):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status transition from '{old_status}' to '{status}'. Allowed: {valid_transitions.get(old_status, [])}"
         )
-        
+
     # Rule 3: Cancellation requires no active PCs
     if status == "Cancelled":
-        pcs = await db.payment_certificates.find_one({"work_order_id": wo_id, "status": {"$ne": "Cancelled"}})
+        pcs = await db.payment_certificates.find_one({
+            "work_order_id": wo_id,
+            "status": {"$ne": "Cancelled"}
+        })
         if pcs:
             raise HTTPException(status_code=400, detail="Cannot cancel Work Order with active Payment Certificates")
 
@@ -219,7 +238,7 @@ async def update_work_order_status(
         {"_id": ObjectId(wo_id)},
         {"$set": {"status": status, "updated_at": datetime.utcnow()}, "$inc": {"version": 1}}
     )
-    
+
     await audit_service.log_action(
         organisation_id=user["organisation_id"],
         module_name="WORK_ORDERS",
@@ -245,9 +264,14 @@ async def update_work_order(
     current_user: dict = Depends(get_current_user)
 ):
     from server import audit_service, financial_service
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
-    
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
     wo_service = WorkOrderService(db, audit_service, financial_service)
     result = await wo_service.update_work_order(wo_id, wo_data.model_dump(exclude_none=True), user)
     return result
@@ -260,10 +284,14 @@ async def delete_work_order(
     current_user: dict = Depends(get_current_user)
 ):
     from server import audit_service, financial_service
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
-    
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
     wo_service = WorkOrderService(db, audit_service, financial_service)
     result = await wo_service.delete_work_order(wo_id, user)
     return result
-

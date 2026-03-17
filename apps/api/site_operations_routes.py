@@ -15,6 +15,7 @@ dpr_router = APIRouter(prefix="/api", tags=["DPR"])
 attendance_router = APIRouter(prefix="/api", tags=["Attendance"])
 voice_log_router = APIRouter(prefix="/api", tags=["Voice Logs"])
 
+
 class _LazyDB:
     def __getattr__(self, name):
         database = db_manager.db
@@ -60,6 +61,7 @@ VALID_DPR_TRANSITIONS = {
     DPR_STATUS_REJECTED: [DPR_STATUS_DRAFT]  # Can be resubmitted from rejected
 }
 
+
 def serialize_doc(doc):
     if doc is None:
         return None
@@ -91,6 +93,7 @@ def validate_dpr_transition(current_status: str, target_status: str) -> bool:
         return False
     return target_status in VALID_DPR_TRANSITIONS[current_status]
 
+
 # ============================================
 # DPR ENDPOINTS
 # ============================================
@@ -112,7 +115,6 @@ async def list_project_dprs(
     query = {"project_id": project_id}
     if status_filter:
         query["status"] = status_filter
-    
     if start_date or end_date:
         date_query = {}
         if start_date:
@@ -120,9 +122,10 @@ async def list_project_dprs(
         if end_date:
             date_query["$lte"] = datetime.fromisoformat(end_date)
         query["date"] = date_query
-        
+    
     dprs = await db.dprs.find(query).sort("date", -1).skip(skip).limit(limit).to_list(length=limit)
     return [serialize_doc(d) for d in dprs]
+
 
 @router.get("/dprs/{dpr_id}", response_model=dict)
 async def get_dpr_detail(dpr_id: str, current_user: dict = Depends(get_current_user)):
@@ -131,16 +134,19 @@ async def get_dpr_detail(dpr_id: str, current_user: dict = Depends(get_current_u
     dpr = await db.dprs.find_one({"_id": ObjectId(dpr_id)})
     if not dpr:
         raise HTTPException(status_code=404, detail="DPR not found")
-    
     await permission_checker.check_project_access(user, dpr["project_id"])
     dpr = serialize_doc(dpr)
     dpr = await enrich_dpr_with_admin_names(dpr)
     return dpr
 
+
 @router.patch("/dprs/{dpr_id}/approve", status_code=status.HTTP_200_OK)
 async def approve_dpr(dpr_id: str, current_user: dict = Depends(get_current_user)):
     """Approve a DPR (Admin only) - Transitions DRAFT/PENDING_APPROVAL → APPROVED"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     # Fetch current DPR to validate transition
@@ -153,9 +159,8 @@ async def approve_dpr(dpr_id: str, current_user: dict = Depends(get_current_user
     # Validate transition to APPROVED
     if not validate_dpr_transition(current_status, DPR_STATUS_APPROVED):
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid transition: cannot approve DPR with status '{current_status}'. "
-                   f"DPR must be in {', '.join(VALID_DPR_TRANSITIONS.keys())} state."
+            status_code=400, detail=f"Invalid transition: cannot approve DPR with status '{current_status}'. "
+            f"DPR must be in {', '.join(VALID_DPR_TRANSITIONS.keys())} state."
         )
     
     result = await db.dprs.find_one_and_update(
@@ -168,7 +173,7 @@ async def approve_dpr(dpr_id: str, current_user: dict = Depends(get_current_user
         return_document=True
     )
     
-    # Audit log
+    # Audit log with FULL JSON snapshot
     await audit_service.log_action(
         organisation_id=user["organisation_id"],
         module_name="SITE_OPERATIONS",
@@ -176,10 +181,13 @@ async def approve_dpr(dpr_id: str, current_user: dict = Depends(get_current_user
         entity_id=dpr_id,
         action_type="APPROVE",
         user_id=user["user_id"],
-        project_id=result["project_id"]
+        project_id=result["project_id"],
+        old_value=serialize_doc(dpr),  # FULL JSON snapshot per spec 6.1.2
+        new_value=serialize_doc(result)  # FULL JSON snapshot per spec 6.1.2
     )
     
     return {"status": DPR_STATUS_APPROVED, "message": "DPR approved successfully"}
+
 
 @router.patch("/dprs/{dpr_id}/reject", status_code=status.HTTP_200_OK)
 async def reject_dpr(
@@ -189,6 +197,9 @@ async def reject_dpr(
 ):
     """Reject a DPR (Admin only) - Transitions DRAFT/PENDING_APPROVAL → REJECTED"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     # Fetch current DPR to validate transition
@@ -201,9 +212,8 @@ async def reject_dpr(
     # Validate transition to REJECTED
     if not validate_dpr_transition(current_status, DPR_STATUS_REJECTED):
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid transition: cannot reject DPR with status '{current_status}'. "
-                   f"DPR must be in {', '.join(VALID_DPR_TRANSITIONS.keys())} state."
+            status_code=400, detail=f"Invalid transition: cannot reject DPR with status '{current_status}'. "
+            f"DPR must be in {', '.join(VALID_DPR_TRANSITIONS.keys())} state."
         )
     
     result = await db.dprs.find_one_and_update(
@@ -217,7 +227,7 @@ async def reject_dpr(
         return_document=True
     )
     
-    # Audit log
+    # Audit log with FULL JSON snapshot
     await audit_service.log_action(
         organisation_id=user["organisation_id"],
         module_name="SITE_OPERATIONS",
@@ -225,10 +235,13 @@ async def reject_dpr(
         entity_id=dpr_id,
         action_type="REJECT",
         user_id=user["user_id"],
-        project_id=result["project_id"]
+        project_id=result["project_id"],
+        old_value=serialize_doc(dpr),  # FULL JSON snapshot per spec 6.1.2
+        new_value=serialize_doc(result)  # FULL JSON snapshot per spec 6.1.2
     )
     
     return {"status": DPR_STATUS_REJECTED, "message": "DPR rejected successfully"}
+
 
 # ============================================
 # ATTENDANCE ENDPOINTS
@@ -246,7 +259,6 @@ async def list_project_attendance(
     await permission_checker.check_project_access(user, project_id)
     
     query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
-    
     if start_date or end_date:
         date_query = {}
         if start_date:
@@ -254,15 +266,31 @@ async def list_project_attendance(
         if end_date:
             date_query["$lte"] = datetime.fromisoformat(end_date)
         query["check_in_time"] = date_query
-        
+    
     records = await db.attendance.find(query).sort("check_in_time", -1).to_list(length=200)
     return [serialize_doc(r) for r in records]
+
 
 @router.patch("/attendance/{log_id}/verify", status_code=status.HTTP_200_OK)
 async def verify_attendance(log_id: str, current_user: dict = Depends(get_current_user)):
     """Verify attendance record (Admin only)"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
+    
+    # Get current state for audit BEFORE update
+    existing = await db.attendance.find_one({"_id": ObjectId(log_id)})
+    collection_name = "attendance"
+    
+    if not existing:
+        # Fallback to workers_daily_logs if not in attendance
+        existing = await db.workers_daily_logs.find_one({"_id": ObjectId(log_id)})
+        collection_name = "workers_daily_logs"
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
     
     result = await db.attendance.find_one_and_update(
         {"_id": ObjectId(log_id)},
@@ -285,11 +313,22 @@ async def verify_attendance(log_id: str, current_user: dict = Depends(get_curren
             }},
             return_document=True
         )
-        
-    if not result:
-        raise HTTPException(status_code=404, detail="Attendance record not found")
+    
+    # Audit log with FULL JSON snapshots
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="SITE_OPERATIONS",
+        entity_type="ATTENDANCE",
+        entity_id=log_id,
+        action_type="VERIFY",
+        user_id=user["user_id"],
+        project_id=result.get("project_id"),
+        old_value=serialize_doc(existing),  # FULL JSON snapshot per spec 6.1.2
+        new_value=serialize_doc(result)     # FULL JSON snapshot per spec 6.1.2
+    )
     
     return {"status": "verified"}
+
 
 # ============================================
 # VOICE LOG ENDPOINTS
@@ -321,6 +360,7 @@ async def list_project_voice_logs(
         enriched_logs.append(log)
     return enriched_logs
 
+
 @router.get("/voice-logs/{log_id}", response_model=dict)
 async def get_voice_log_detail(log_id: str, current_user: dict = Depends(get_current_user)):
     """Get single voice log detail"""
@@ -328,7 +368,6 @@ async def get_voice_log_detail(log_id: str, current_user: dict = Depends(get_cur
     log = await db.voice_logs.find_one({"_id": ObjectId(log_id)})
     if not log:
         raise HTTPException(status_code=404, detail="Voice log not found")
-    
     await permission_checker.check_project_access(user, log["project_id"])
     return serialize_doc(log)
 
@@ -354,7 +393,6 @@ async def list_project_dprs_spec(
     query = {"project_id": project_id}
     if status_filter:
         query["status"] = status_filter
-    
     if start_date or end_date:
         date_query = {}
         if start_date:
@@ -362,7 +400,7 @@ async def list_project_dprs_spec(
         if end_date:
             date_query["$lte"] = datetime.fromisoformat(end_date)
         query["date"] = date_query
-        
+    
     dprs = await db.dprs.find(query).sort("date", -1).skip(skip).limit(limit).to_list(length=limit)
     return [serialize_doc(d) for d in dprs]
 
@@ -374,7 +412,6 @@ async def get_dpr_detail_spec(dpr_id: str, current_user: dict = Depends(get_curr
     dpr = await db.dprs.find_one({"_id": ObjectId(dpr_id)})
     if not dpr:
         raise HTTPException(status_code=404, detail="DPR not found")
-    
     await permission_checker.check_project_access(user, dpr["project_id"])
     dpr = serialize_doc(dpr)
     dpr = await enrich_dpr_with_admin_names(dpr)
@@ -385,6 +422,9 @@ async def get_dpr_detail_spec(dpr_id: str, current_user: dict = Depends(get_curr
 async def approve_dpr_spec(dpr_id: str, current_user: dict = Depends(get_current_user)):
     """Approve a DPR (Admin only) - Transitions DRAFT/PENDING_APPROVAL → APPROVED (spec-compliant)"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     dpr = await db.dprs.find_one({"_id": ObjectId(dpr_id)})
@@ -392,11 +432,9 @@ async def approve_dpr_spec(dpr_id: str, current_user: dict = Depends(get_current
         raise HTTPException(status_code=404, detail="DPR not found")
     
     current_status = dpr.get("status", DPR_STATUS_DRAFT)
-    
     if not validate_dpr_transition(current_status, DPR_STATUS_APPROVED):
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid transition: cannot approve DPR with status '{current_status}'."
+            status_code=400, detail=f"Invalid transition: cannot approve DPR with status '{current_status}'."
         )
     
     result = await db.dprs.find_one_and_update(
@@ -409,6 +447,7 @@ async def approve_dpr_spec(dpr_id: str, current_user: dict = Depends(get_current
         return_document=True
     )
     
+    # Audit log with FULL JSON snapshot
     await audit_service.log_action(
         organisation_id=user["organisation_id"],
         module_name="SITE_OPERATIONS",
@@ -416,7 +455,9 @@ async def approve_dpr_spec(dpr_id: str, current_user: dict = Depends(get_current
         entity_id=dpr_id,
         action_type="APPROVE",
         user_id=user["user_id"],
-        project_id=result["project_id"]
+        project_id=result["project_id"],
+        old_value=serialize_doc(dpr),  # FULL JSON snapshot per spec 6.1.2
+        new_value=serialize_doc(result)  # FULL JSON snapshot per spec 6.1.2
     )
     
     return {"status": DPR_STATUS_APPROVED, "message": "DPR approved successfully"}
@@ -430,6 +471,9 @@ async def reject_dpr_spec(
 ):
     """Reject a DPR (Admin only) - Transitions DRAFT/PENDING_APPROVAL → REJECTED (spec-compliant)"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     dpr = await db.dprs.find_one({"_id": ObjectId(dpr_id)})
@@ -437,11 +481,9 @@ async def reject_dpr_spec(
         raise HTTPException(status_code=404, detail="DPR not found")
     
     current_status = dpr.get("status", DPR_STATUS_DRAFT)
-    
     if not validate_dpr_transition(current_status, DPR_STATUS_REJECTED):
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid transition: cannot reject DPR with status '{current_status}'."
+            status_code=400, detail=f"Invalid transition: cannot reject DPR with status '{current_status}'."
         )
     
     result = await db.dprs.find_one_and_update(
@@ -455,6 +497,7 @@ async def reject_dpr_spec(
         return_document=True
     )
     
+    # Audit log with FULL JSON snapshot
     await audit_service.log_action(
         organisation_id=user["organisation_id"],
         module_name="SITE_OPERATIONS",
@@ -462,7 +505,9 @@ async def reject_dpr_spec(
         entity_id=dpr_id,
         action_type="REJECT",
         user_id=user["user_id"],
-        project_id=result["project_id"]
+        project_id=result["project_id"],
+        old_value=serialize_doc(dpr),  # FULL JSON snapshot per spec 6.1.2
+        new_value=serialize_doc(result)  # FULL JSON snapshot per spec 6.1.2
     )
     
     return {"status": DPR_STATUS_REJECTED, "message": "DPR rejected successfully"}
@@ -484,7 +529,6 @@ async def list_project_attendance_spec(
     await permission_checker.check_project_access(user, project_id)
     
     query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
-    
     if start_date or end_date:
         date_query = {}
         if start_date:
@@ -492,7 +536,7 @@ async def list_project_attendance_spec(
         if end_date:
             date_query["$lte"] = datetime.fromisoformat(end_date)
         query["check_in_time"] = date_query
-        
+    
     records = await db.attendance.find(query).sort("check_in_time", -1).to_list(length=200)
     return [serialize_doc(r) for r in records]
 
@@ -501,7 +545,20 @@ async def list_project_attendance_spec(
 async def verify_attendance_spec(log_id: str, current_user: dict = Depends(get_current_user)):
     """Verify attendance record (Admin only) (spec-compliant)"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
+    
+    # Get current state for audit BEFORE update
+    existing = await db.attendance.find_one({"_id": ObjectId(log_id)})
+    
+    if not existing:
+        # Fallback to workers_daily_logs if not in attendance
+        existing = await db.workers_daily_logs.find_one({"_id": ObjectId(log_id)})
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
     
     result = await db.attendance.find_one_and_update(
         {"_id": ObjectId(log_id)},
@@ -523,9 +580,19 @@ async def verify_attendance_spec(log_id: str, current_user: dict = Depends(get_c
             }},
             return_document=True
         )
-        
-    if not result:
-        raise HTTPException(status_code=404, detail="Attendance record not found")
+    
+    # Audit log with FULL JSON snapshots
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="SITE_OPERATIONS",
+        entity_type="ATTENDANCE",
+        entity_id=log_id,
+        action_type="VERIFY",
+        user_id=user["user_id"],
+        project_id=result.get("project_id"),
+        old_value=serialize_doc(existing),  # FULL JSON snapshot per spec 6.1.2
+        new_value=serialize_doc(result)     # FULL JSON snapshot per spec 6.1.2
+    )
     
     return {"status": "verified"}
 
@@ -559,7 +626,6 @@ async def get_voice_log_detail_spec(log_id: str, current_user: dict = Depends(ge
     log = await db.voice_logs.find_one({"_id": ObjectId(log_id)})
     if not log:
         raise HTTPException(status_code=404, detail="Voice log not found")
-    
     await permission_checker.check_project_access(user, log["project_id"])
     log = serialize_doc(log)
     log = await enrich_voice_log_with_supervisor(log)

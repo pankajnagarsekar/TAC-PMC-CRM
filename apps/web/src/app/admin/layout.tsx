@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import Sidebar from '@/components/layout/Sidebar';
 import ProjectSelectorModal from '@/components/layout/ProjectSelectorModal';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -117,7 +118,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Main content - Refined Spacing */}
         <main className={`flex-1 overflow-y-auto p-8 relative ${isClient ? 'client-readonly' : ''} custom-scrollbar`}>
           <div className="max-w-[1600px] mx-auto">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

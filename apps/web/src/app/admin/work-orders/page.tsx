@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
+import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
 
 interface CategoryInfo {
   _id: string;
@@ -31,6 +32,7 @@ export default function WorkOrdersPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isMoreLoading, setIsMoreLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch categories and vendors for name resolution
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function WorkOrdersPage() {
         setVendors(venRes.data || []);
       } catch (err) {
         console.error("Failed to fetch lookups", err);
+        setFetchError("Failed to load lookup data.");
       }
     };
 
@@ -91,6 +94,7 @@ export default function WorkOrdersPage() {
         setNextCursor(res.data.next_cursor);
       } catch (err) {
         console.error("Failed to fetch WOs", err);
+        setFetchError("Failed to load work orders.");
       } finally {
         setIsInitialLoading(false);
         setIsMoreLoading(false);
@@ -219,7 +223,12 @@ export default function WorkOrdersPage() {
         </div>
       </div>
 
-      {!activeProject ? (
+      {fetchError ? (
+        <NetworkErrorRetry
+          message={fetchError}
+          onRetry={() => { setFetchError(null); fetchWorkOrders(); }}
+        />
+      ) : !activeProject ? (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center shadow-xl">
           <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-white mb-2">

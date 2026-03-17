@@ -182,6 +182,9 @@ async def list_clients(
 async def create_client(client_data: ClientCreate, current_user: dict = Depends(get_current_user)):
     """Create a new client"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     client_dict = client_data.dict()
@@ -219,6 +222,9 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
 async def update_client(client_id: str, client_data: ClientUpdate, current_user: dict = Depends(get_current_user)):
     """Update a client"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     update_data = {k: v for k, v in client_data.dict().items() if v is not None}
@@ -250,6 +256,9 @@ async def update_client(client_id: str, client_data: ClientUpdate, current_user:
 async def delete_client(client_id: str, current_user: dict = Depends(get_current_user)):
     """Soft delete a client by setting active_status to false"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     # Check if client has associated projects
@@ -300,6 +309,9 @@ async def list_site_overheads(project_id: str, current_user: dict = Depends(get_
 async def create_site_overhead(entry_data: SiteOverheadCreate, current_user: dict = Depends(get_current_user)):
     """Create a new site overhead entry"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     # Check project
@@ -333,6 +345,9 @@ async def create_site_overhead(entry_data: SiteOverheadCreate, current_user: dic
 async def update_site_overhead(entry_id: str, entry_data: SiteOverheadUpdate, current_user: dict = Depends(get_current_user)):
     """Update a site overhead entry"""
     user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
     update_data = {k: v for k, v in entry_data.dict().items() if v is not None}

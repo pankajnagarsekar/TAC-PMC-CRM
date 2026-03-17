@@ -24,11 +24,12 @@ import { formatCurrency } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import KPICard from "@/components/ui/KPICard";
 import { DonutChart, BarChart } from "@tremor/react";
+import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
 
 export default function AdminDashboard() {
   const { activeProject } = useProjectStore();
 
-  const { data: financials } = useSWR<DerivedFinancialState[]>(
+  const { data: financials, error: financialsError, mutate: retryFinancials } = useSWR<DerivedFinancialState[]>(
     activeProject
       ? `/api/v2/projects/${activeProject.project_id}/financials`
       : null,
@@ -98,6 +99,17 @@ export default function AdminDashboard() {
             dashboard.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (financialsError) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <NetworkErrorRetry
+          message="Failed to load dashboard data."
+          onRetry={() => retryFinancials()}
+        />
       </div>
     );
   }

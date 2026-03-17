@@ -1,8 +1,7 @@
 """
 Work Order Business Logic Service
-
-Implements the MongoDB Multi-Document Transactions for creating and updating
-Work Orders as defined in the Enterprise Technical Architecture Specification.
+Implements the MongoDB Multi-Document Transactions for creating and updating Work Orders
+as defined in the Enterprise Technical Architecture Specification.
 """
 import logging
 from datetime import datetime
@@ -11,8 +10,10 @@ from bson import ObjectId, Decimal128
 from fastapi import HTTPException
 from core.database import db_manager
 from core.idempotency import check_idempotency, record_operation, get_recorded_operation
+from core.performance import measure_performance
 
 logger = logging.getLogger(__name__)
+
 
 class WorkOrderService:
     def __init__(self, db, audit_service, financial_service):
@@ -20,11 +21,11 @@ class WorkOrderService:
         self.audit_service = audit_service
         self.financial_service = financial_service
 
+    @measure_performance("WORK_ORDER_SAVE")
     async def create_work_order(self, wo_data: dict, current_user: dict, project_id: str) -> dict:
         """
         Creates a Work Order inside a strict MongoDB ACID transaction.
-        Enforces single-category constraint, calculates totals, deducts budget,
-        and logs audit trail.
+        Enforces single-category constraint, calculates totals, deducts budget, and logs audit trail.
         """
         idempotency_key = wo_data.get("idempotency_key")
         organisation_id = current_user.get("organisation_id")
@@ -38,10 +39,11 @@ class WorkOrderService:
                 recorded_response = await get_recorded_operation(self.db, session, idempotency_key)
                 if recorded_response:
                     return recorded_response
-                
+
                 # Fallback: check legacy records without payload
                 existing_wo = await self.db.work_orders.find_one(
-                    {"idempotency_key": idempotency_key}, session=session
+                    {"idempotency_key": idempotency_key},
+                    session=session
                 )
                 if existing_wo:
                     return db_manager.from_bson(existing_wo)
@@ -51,7 +53,6 @@ class WorkOrderService:
                 "project_id": project_id,
                 "category_id": category_id
             }, session=session)
-
             if not budget:
                 raise HTTPException(status_code=400, detail="Category budget not initialized for this project.")
 
@@ -61,7 +62,6 @@ class WorkOrderService:
                 "organisation_id": organisation_id,
                 "active_status": True
             }, session=session)
-
             if not vendor:
                 raise HTTPException(status_code=400, detail="Invalid or inactive vendor.")
 
@@ -76,11 +76,10 @@ class WorkOrderService:
                 line_total = self.financial_service.round_half_up(qty * rate)
                 item["total"] = line_total
                 subtotal += line_total
-            
+
             subtotal = self.financial_service.round_half_up(subtotal)
             discount = self.financial_service.round_half_up(Decimal(str(wo_data.get("discount", 0))))
             total_before_tax = self.financial_service.round_half_up(subtotal - discount)
-
             cgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("cgst", 0))))
             sgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("sgst", 0))))
             grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
@@ -88,12 +87,11 @@ class WorkOrderService:
             retention_percent = Decimal(str(wo_data.get("retention_percent", 0)))
             retention_amount = self.financial_service.round_half_up(grand_total * (retention_percent / Decimal("100")))
             total_payable = self.financial_service.round_half_up(grand_total - retention_amount)
-            actual_payable = total_payable # Can be modified later if needed
+            actual_payable = total_payable  # Can be modified later if needed
 
             # 5. Auto-generate WO Ref
             settings = await self.db.global_settings.find_one({"organisation_id": organisation_id}, session=session)
             prefix = settings.get("wo_prefix", "WO-") if settings else "WO-"
-            
             # Simple sequence generator (can be moved to a dedicated counter collection in future)
             count = await self.db.work_orders.count_documents({"organisation_id": organisation_id}, session=session)
             wo_ref = f"{prefix}{count + 1:04d}"
@@ -101,10 +99,9 @@ class WorkOrderService:
             # 6. Apply Budget Constraint (deduct remaining, add committed)
             old_remaining = Decimal(str(budget.get("remaining_budget", 0)))
             old_committed = Decimal(str(budget.get("committed_amount", 0)))
-            
             new_remaining = old_remaining - grand_total
             new_committed = old_committed + grand_total
-            
+
             # Warning flag if over budget (per spec, we don't block saving)
             warning = "over_budget" if new_remaining < 0 else None
 
@@ -150,13 +147,11 @@ class WorkOrderService:
             wo_id = str(result.inserted_id)
             wo_doc["_id"] = result.inserted_id
 
-            # 9. Record operation & Audit Log
+            # 9. Record operation & Audit Log with FULL JSON snapshot
             response_doc = db_manager.from_bson(wo_doc)
             if warning:
                 response_doc["_warning"] = warning
-                
             await record_operation(self.db, session, idempotency_key, "WORK_ORDER", response_payload=response_doc)
-            
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
                 module_name="WORK_ORDERS",
@@ -164,15 +159,15 @@ class WorkOrderService:
                 entity_id=wo_id,
                 action_type="CREATE",
                 user_id=user_id,
-                new_value={"wo_ref": wo_ref, "grand_total": float(grand_total), "category_id": category_id},
+                new_value=response_doc,  # FULL JSON snapshot per spec 6.1.2
                 session=session
             )
 
             # 10. Update Master Budget
             await self.financial_service.recalculate_master_budget(project_id, session=session)
-
             return response_doc
 
+    @measure_performance("WORK_ORDER_SAVE")
     async def update_work_order(self, wo_id: str, wo_data: dict, current_user: dict) -> dict:
         """
         Updates a Work Order (Draft only) and synchronizes budget deductions.
@@ -186,7 +181,6 @@ class WorkOrderService:
                 "_id": ObjectId(wo_id),
                 "organisation_id": organisation_id
             }, session=session)
-
             if not old_wo:
                 raise HTTPException(status_code=404, detail="Work Order not found.")
 
@@ -208,12 +202,13 @@ class WorkOrderService:
                 "work_order_id": wo_id,
                 "status": {"$ne": "Cancelled"}
             }).to_list(length=None)
-            
             linked_pc_total = sum(float(pc.get("grand_total", Decimal128("0")).to_decimal()) for pc in linked_pcs)
+
             old_grand_total = Decimal(str(old_wo["grand_total"].to_decimal()))
             old_category_id = old_wo["category_id"]
             project_id = old_wo["project_id"]
 
+            # 2. Reverse old budget impact
             await self.db.project_category_budgets.update_one(
                 {"project_id": project_id, "category_id": old_category_id},
                 {"$inc": {
@@ -241,27 +236,25 @@ class WorkOrderService:
             cgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("cgst", 0))))
             sgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("sgst", 0))))
             grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
-            
+
             # 4.1 Linked-PC Lock Rule: cannot reduce grand_total below sum of linked PCs
             if linked_pc_total > 0 and grand_total < Decimal(str(linked_pc_total)):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Cannot reduce WO total below ₹{linked_pc_total}. There are linked Payment Certificates with total ₹{linked_pc_total}."
                 )
-            
+
             retention_percent = Decimal(str(wo_data.get("retention_percent", 0)))
             retention_amount = self.financial_service.round_half_up(grand_total * (retention_percent / Decimal("100")))
             total_payable = self.financial_service.round_half_up(grand_total - retention_amount)
 
             # 4. Apply new budget impact
             new_category_id = wo_data.get("category_id", old_category_id)
-            
             # Check if budget exists for new category
             budget = await self.db.project_category_budgets.find_one({
                 "project_id": project_id,
                 "category_id": new_category_id
             }, session=session)
-            
             if not budget:
                 raise HTTPException(status_code=400, detail="Target category budget not initialized.")
 
@@ -292,14 +285,15 @@ class WorkOrderService:
                 "line_items": [db_manager.to_bson(item) for item in wo_data.get("line_items", [])],
                 "updated_at": datetime.utcnow()
             }
-
             await self.db.work_orders.update_one(
                 {"_id": ObjectId(wo_id)},
                 {"$set": update_fields, "$inc": {"version": 1}},
                 session=session
             )
 
-            # 6. Audit Log
+            # 6. Audit Log with FULL JSON snapshots
+            old_wo_full = db_manager.from_bson(old_wo)
+            new_wo_full = db_manager.from_bson(await self.db.work_orders.find_one({"_id": ObjectId(wo_id)}, session=session))
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
                 module_name="WORK_ORDERS",
@@ -308,14 +302,13 @@ class WorkOrderService:
                 action_type="UPDATE",
                 user_id=current_user.get("user_id"),
                 project_id=project_id,
-                old_value={"grand_total": float(old_grand_total)},
-                new_value={"grand_total": float(grand_total)},
+                old_value=old_wo_full,  # FULL JSON snapshot per spec 6.1.2
+                new_value=new_wo_full,  # FULL JSON snapshot per spec 6.1.2
                 session=session
             )
 
             # 7. Refresh Financials
             await self.financial_service.recalculate_master_budget(project_id, session=session)
-
             updated_wo = await self.db.work_orders.find_one({"_id": ObjectId(wo_id)}, session=session)
             return db_manager.from_bson(updated_wo)
 
@@ -330,7 +323,6 @@ class WorkOrderService:
                 "_id": ObjectId(wo_id),
                 "organisation_id": organisation_id
             }, session=session)
-
             if not wo:
                 raise HTTPException(status_code=404, detail="Work Order not found.")
 
@@ -343,15 +335,16 @@ class WorkOrderService:
                 "work_order_id": wo_id,
                 "status": {"$ne": "Cancelled"}
             }, session=session)
-            
             if linked_pc:
                 raise HTTPException(status_code=400, detail="Cannot delete Work Order with linked Payment Certificates.")
 
-            # 1. Revert budget impact
+            # Capture full WO state before deletion for audit
+            wo_full = db_manager.from_bson(wo)
             grand_total = Decimal(str(wo["grand_total"].to_decimal()))
             project_id = wo["project_id"]
             category_id = wo["category_id"]
 
+            # 1. Revert budget impact
             await self.db.project_category_budgets.update_one(
                 {"project_id": project_id, "category_id": category_id},
                 {"$inc": {
@@ -364,7 +357,7 @@ class WorkOrderService:
             # 2. Delete WO
             await self.db.work_orders.delete_one({"_id": ObjectId(wo_id)}, session=session)
 
-            # 3. Audit Log
+            # 3. Audit Log with FULL JSON snapshot of deleted document
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
                 module_name="WORK_ORDERS",
@@ -373,10 +366,10 @@ class WorkOrderService:
                 action_type="DELETE",
                 user_id=current_user.get("user_id"),
                 project_id=project_id,
+                old_value=wo_full,  # FULL JSON snapshot per spec 6.1.2
                 session=session
             )
 
             # 4. Refresh Financials
             await self.financial_service.recalculate_master_budget(project_id, session=session)
-
             return {"status": "success", "message": "Work Order deleted and budget restored."}

@@ -10,6 +10,7 @@ from decimal import Decimal
 from bson import ObjectId, Decimal128
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from core.performance import measure_performance
 
 logger = logging.getLogger(__name__)
 
