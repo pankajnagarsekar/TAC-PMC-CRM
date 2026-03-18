@@ -34,8 +34,9 @@ class PaymentCertificateService:
         async with db_manager.transaction_session() as session:
             # 1. Idempotency Check
             if idempotency_key:
+                # SECURITY: organisation_id MUST be included to prevent cross-tenant leakage
                 existing_pc = await self.db.payment_certificates.find_one(
-                    {"idempotency_key": idempotency_key},
+                    {"idempotency_key": idempotency_key, "organisation_id": organisation_id},
                     session=session
                 )
                 if existing_pc:
@@ -69,11 +70,17 @@ class PaymentCertificateService:
             sgst_amount = self.financial_service.round_half_up(total_after_retention * sgst_rate / Decimal("100"))
             grand_total = self.financial_service.round_half_up(total_after_retention + cgst_amount + sgst_amount)
 
-            # 3. Auto-generate PC Ref
+            # 3. Auto-generate PC Ref — atomic sequence to prevent duplicate IDs under concurrent load
             settings = await self.db.global_settings.find_one({"organisation_id": organisation_id}, session=session)
             prefix = settings.get("pc_prefix", "PC-") if settings else "PC-"
-            count = await self.db.payment_certificates.count_documents({"organisation_id": organisation_id}, session=session)
-            pc_ref = f"{prefix}{count + 1:04d}"
+            seq_doc = await self.db.sequences.find_one_and_update(
+                {"_id": f"pc_seq_{organisation_id}"},
+                {"$inc": {"seq": 1}},
+                upsert=True,
+                return_document=True,
+                session=session
+            )
+            pc_ref = f"{prefix}{seq_doc['seq']:04d}"
 
             # 4. Construct PC Document
             pc_doc = {

@@ -68,7 +68,7 @@ class CashService:
                         "threshold": float,
                         "days_since_last_pc_close": int | None,
                         "is_negative": bool,
-                        "is_below_threshold": bool
+                        "threshold_breached": bool
                     }
                 ],
                 "summary": {
@@ -77,86 +77,129 @@ class CashService:
                 }
             }
         """
-        # Get project for threshold values
+        now = datetime.now(timezone.utc)
+
+        # ── Round-trip 1: project (for threshold values) ─────────────────────
         project = await self.db.projects.find_one({"project_id": project_id})
-        
-        # Get all categories for this organisation with budget_type = fund_transfer
+
+        # ── Round-trip 2: fund_transfer categories for this organisation ──────
         categories = await self.db.categories.find({
             "organisation_id": organisation_id,
             "budget_type": "fund_transfer"
         }).to_list(length=100)
-        
-        # Get all fund allocations for this project
-        allocations = await self.db.fund_allocations.find({"project_id": project_id}).to_list(length=100)
-        
-        # Build allocation lookup by category_id
-        allocation_by_cat = {str(a.get("category_id")): a for a in allocations}
-        
+
+        if not categories:
+            return {"categories": [], "summary": {"total_cash_in_hand": 0.0, "days_since_last_pc_close": 0}}
+
+        category_ids = [str(cat["_id"]) for cat in categories]
+
+        # ── Round-trip 3: single aggregation — replaces N find_one calls ──────
+        # Pipeline joins fund_allocations → payment_certificates and resolves
+        # the latest "Closed + fund_request" PC date per category in one shot.
+        pipeline = [
+            # Start from fund_allocations scoped to this project + relevant cats
+            {
+                "$match": {
+                    "project_id": project_id,
+                    "category_id": {"$in": category_ids}
+                }
+            },
+            # Join payment_certificates on matching project + category + status
+            {
+                "$lookup": {
+                    "from": "payment_certificates",
+                    "let": {"cat_id": "$category_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$project_id", project_id]},
+                                        {"$eq": ["$category_id", "$$cat_id"]},
+                                        {"$eq": ["$status", "Closed"]},
+                                        {"$eq": ["$fund_request", True]}
+                                    ]
+                                }
+                            }
+                        },
+                        # Only carry the field we need — minimise network payload
+                        {"$project": {"updated_at": 1, "_id": 0}}
+                    ],
+                    "as": "closed_pcs"
+                }
+            },
+            # Resolve the single latest close date per allocation document
+            {
+                "$addFields": {
+                    "last_pc_close_date": {"$max": "$closed_pcs.updated_at"}
+                }
+            },
+            # Drop the joined array — no longer needed
+            {
+                "$project": {"closed_pcs": 0}
+            }
+        ]
+
+        allocation_docs = await self.db.fund_allocations.aggregate(pipeline).to_list(length=200)
+
+        # ── Pure Python O(N) merge — zero additional DB calls ─────────────────
+        allocation_by_cat = {str(doc["category_id"]): doc for doc in allocation_docs}
+        category_map = {str(cat["_id"]): cat for cat in categories}
+
         default_threshold = Decimal("1000.0")
-        
         categories_data = []
         total_cash_in_hand = Decimal("0")
-        
-        for cat in categories:
-            cat_id = str(cat.get("_id"))
-            allocation = allocation_by_cat.get(cat_id)
-            
-            if not allocation:
+
+        for cat_id, allocation in allocation_by_cat.items():
+            cat = category_map.get(cat_id)
+            if not cat:
                 continue
-            
+
             threshold = self._get_threshold_for_category(cat, project)
-            
+
             # Per Spec §5.1: cash_in_hand = allocation_received - total_expenses
-            allocation_received = Decimal(str(allocation.get("allocation_received", Decimal128("0")).to_decimal()))
-            total_expenses = Decimal(str(allocation.get("total_expenses", Decimal128("0")).to_decimal()))
-            cash_in_hand = allocation_received - total_expenses
-            total_cash_in_hand += cash_in_hand
-            
-            # Find last PC close date for this category
-            last_pc = await self.db.payment_certificates.find_one(
-                {
-                    "project_id": project_id,
-                    "category_id": cat_id,
-                    "status": "Closed",
-                    "fund_request": True
-                },
-                sort=[("updated_at", -1)]
-            )
-            
-            days_since_last_pc_close = None
-            if last_pc and last_pc.get("updated_at"):
-                last_date = last_pc["updated_at"]
-                if last_date.tzinfo is None:
-                    last_date = last_date.replace(tzinfo=timezone.utc)
-                diff = datetime.now(timezone.utc) - last_date
-                days_since_last_pc_close = diff.days
-            
-            is_negative = cash_in_hand < 0
-            threshold_breached = cash_in_hand <= threshold  # 3.2.5: Use threshold_breached per spec
-            
-            # Per Spec §5.1: allocation_remaining = allocation_original - allocation_received
-            allocation_original = Decimal(str(allocation.get("allocation_original", Decimal128("0")).to_decimal()))
-            allocation_received = Decimal(str(allocation.get("allocation_received", Decimal128("0")).to_decimal()))
+            def _dec(val):
+                """Safely coerce Decimal128 / str / int / float → Decimal."""
+                if isinstance(val, Decimal128):
+                    return Decimal(str(val.to_decimal()))
+                return Decimal(str(val)) if val is not None else Decimal("0")
+
+            allocation_received  = _dec(allocation.get("allocation_received"))
+            total_expenses       = _dec(allocation.get("total_expenses"))
+            allocation_original  = _dec(allocation.get("allocation_original"))
+
+            cash_in_hand         = allocation_received - total_expenses
             allocation_remaining = allocation_original - allocation_received
+            total_cash_in_hand  += cash_in_hand
+
+            # last_pc_close_date is resolved from the $lookup/$max in the aggregation
+            days_since_last_pc_close = None
+            last_close = allocation.get("last_pc_close_date")
+            if last_close:
+                if isinstance(last_close, datetime) and last_close.tzinfo is None:
+                    last_close = last_close.replace(tzinfo=timezone.utc)
+                days_since_last_pc_close = (now - last_close).days
 
             categories_data.append({
-                "category_id": cat_id,
-                "category_name": cat.get("category_name"),
-                "cash_in_hand": float(cash_in_hand),
-                "allocation_remaining": float(allocation_remaining),  # FIXED: Now correctly calculated per spec
-                "allocation_total": float(allocation_original),
-                "threshold": float(threshold),
+                "category_id":              cat_id,
+                "category_name":            cat.get("category_name"),
+                "cash_in_hand":             float(cash_in_hand),
+                "allocation_remaining":     float(allocation_remaining),
+                "allocation_total":         float(allocation_original),
+                "threshold":                float(threshold),
                 "days_since_last_pc_close": days_since_last_pc_close,
-                "is_negative": is_negative,
-                "threshold_breached": threshold_breached  # 3.2.5: Fixed field name per spec
+                "is_negative":              cash_in_hand < 0,
+                "threshold_breached":       cash_in_hand <= threshold,
             })
-        
-        # For backward compatibility, also return summary totals
+
         return {
             "categories": categories_data,
             "summary": {
                 "total_cash_in_hand": float(total_cash_in_hand),
-                "days_since_last_pc_close": min([c["days_since_last_pc_close"] for c in categories_data if c["days_since_last_pc_close"] is not None] or [0])
+                "days_since_last_pc_close": min(
+                    (c["days_since_last_pc_close"] for c in categories_data if c["days_since_last_pc_close"] is not None),
+                    default=0
+                )
             }
         }
 

@@ -41,8 +41,9 @@ class WorkOrderService:
                     return recorded_response
 
                 # Fallback: check legacy records without payload
+                # SECURITY: organisation_id MUST be included to prevent cross-tenant leakage
                 existing_wo = await self.db.work_orders.find_one(
-                    {"idempotency_key": idempotency_key},
+                    {"idempotency_key": idempotency_key, "organisation_id": organisation_id},
                     session=session
                 )
                 if existing_wo:
@@ -97,12 +98,17 @@ class WorkOrderService:
             total_payable = self.financial_service.round_half_up(grand_total - retention_amount)
             actual_payable = total_payable  # Can be modified later if needed
 
-            # 5. Auto-generate WO Ref
+            # 5. Auto-generate WO Ref — atomic sequence to prevent duplicate IDs under concurrent load
             settings = await self.db.global_settings.find_one({"organisation_id": organisation_id}, session=session)
             prefix = settings.get("wo_prefix", "WO-") if settings else "WO-"
-            # Simple sequence generator (can be moved to a dedicated counter collection in future)
-            count = await self.db.work_orders.count_documents({"organisation_id": organisation_id}, session=session)
-            wo_ref = f"{prefix}{count + 1:04d}"
+            seq_doc = await self.db.sequences.find_one_and_update(
+                {"_id": f"wo_seq_{organisation_id}"},
+                {"$inc": {"seq": 1}},
+                upsert=True,
+                return_document=True,
+                session=session
+            )
+            wo_ref = f"{prefix}{seq_doc['seq']:04d}"
 
             # 6. Apply Budget Constraint (deduct remaining, add committed)
             old_remaining = Decimal(str(budget.get("remaining_budget", 0)))

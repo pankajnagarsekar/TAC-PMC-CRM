@@ -113,15 +113,15 @@ class Project(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
-    project_retention_percentage: Decimal = Decimal("0.0")
-    project_cgst_percentage: Decimal = Decimal("9.0")
-    project_sgst_percentage: Decimal = Decimal("9.0")
-    completion_percentage: Decimal = Decimal("0.0")
+    project_retention_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    project_cgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    project_sgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    completion_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     # Financial summary per DB Schema §2.2
-    master_original_budget: Decimal = Decimal("0.0")
-    master_remaining_budget: Decimal = Decimal("0.0")
-    threshold_petty: Decimal = Decimal("0.0")
-    threshold_ovh: Decimal = Decimal("0.0")
+    master_original_budget: Decimal = Field(Decimal("0.0"), ge=0)
+    master_remaining_budget: Decimal = Field(Decimal("0.0"), ge=0)
+    threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
+    threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
     version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -136,12 +136,12 @@ class ProjectCreate(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
-    project_retention_percentage: Decimal = Decimal("0.0")
-    project_cgst_percentage: Decimal = Decimal("9.0")
-    project_sgst_percentage: Decimal = Decimal("9.0")
-    completion_percentage: Decimal = Decimal("0.0")
-    threshold_petty: Decimal = Decimal("0.0")
-    threshold_ovh: Decimal = Decimal("0.0")
+    project_retention_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    project_cgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    project_sgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    completion_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
+    threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
 
 class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
@@ -151,12 +151,12 @@ class ProjectUpdate(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
-    project_retention_percentage: Optional[Decimal] = None
-    project_cgst_percentage: Optional[Decimal] = None
-    project_sgst_percentage: Optional[Decimal] = None
-    completion_percentage: Optional[Decimal] = None
-    threshold_petty: Optional[Decimal] = None
-    threshold_ovh: Optional[Decimal] = None
+    project_retention_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    project_cgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    project_sgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    completion_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    threshold_petty: Optional[Decimal] = Field(None, ge=0)
+    threshold_ovh: Optional[Decimal] = Field(None, ge=0)
 
 class Client(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -225,9 +225,9 @@ class ProjectBudget(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
     category_id: str
-    original_budget: Decimal
-    committed_amount: Decimal = Decimal("0.0")
-    remaining_budget: Decimal = Decimal("0.0")
+    original_budget: Decimal = Field(..., ge=0)
+    committed_amount: Decimal = Field(Decimal("0.0"), ge=0)
+    remaining_budget: Decimal = Field(Decimal("0.0"), ge=0)
     description: Optional[str] = None
     version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -239,12 +239,12 @@ class ProjectBudget(BaseModel):
 class ProjectBudgetCreate(BaseModel):
     project_id: str
     category_id: str
-    original_budget: Decimal
+    original_budget: Decimal = Field(..., ge=0)
     description: Optional[str] = None
 
 
 class ProjectBudgetUpdate(BaseModel):
-    original_budget: Optional[Decimal] = None
+    original_budget: Optional[Decimal] = Field(None, ge=0)
     version: int
 
 
@@ -255,7 +255,7 @@ class SiteOverhead(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: Optional[str] = None
     project_id: str
-    amount: Decimal = Decimal("0.0")
+    amount: Decimal = Field(Decimal("0.0"), ge=0)
     purpose: str
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -265,12 +265,12 @@ class SiteOverhead(BaseModel):
 
 class SiteOverheadCreate(BaseModel):
     project_id: str
-    amount: Decimal
+    amount: Decimal = Field(..., ge=0)
     purpose: str
 
 
 class SiteOverheadUpdate(BaseModel):
-    amount: Optional[Decimal] = None
+    amount: Optional[Decimal] = Field(None, ge=0)
     purpose: Optional[str] = None
     description: Optional[str] = None
     version: int
@@ -330,9 +330,9 @@ class GlobalSettings(BaseModel):
     phone: str = ""
     gst_number: str = ""
     pan_number: str = ""
-    cgst_percentage: Decimal = Decimal("9.0")
-    sgst_percentage: Decimal = Decimal("9.0")
-    retention_percentage: Decimal = Decimal("5.0")
+    cgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    sgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    retention_percentage: Decimal = Field(Decimal("5.0"), ge=0, le=100)
     wo_prefix: str = "WO"
     pc_prefix: str = "PC"
     invoice_prefix: str = "INV"
@@ -369,17 +369,17 @@ class Token(BaseModel):
 class WorkerEntry(BaseModel):
     worker_name: str = ""
     skill_type: str = ""
-    hours_worked: Decimal = Decimal("8.0")
-    rate_per_hour: Decimal = Decimal("0.0")
+    hours_worked: Decimal = Field(Decimal("8.0"), ge=0)
+    rate_per_hour: Decimal = Field(Decimal("0.0"), ge=0)
     remarks: Optional[str] = None
 
 
 class VendorWorkerEntry(BaseModel):
     vendor_id: Optional[str] = None
     vendor_name: str = ""
-    workers_count: int = 0
+    workers_count: int = Field(0, ge=0)
     skill_type: str = ""
-    rate_per_worker: Decimal = Decimal("0.0")
+    rate_per_worker: Decimal = Field(Decimal("0.0"), ge=0)
     remarks: Optional[str] = None
 
 
@@ -489,10 +489,10 @@ class DPR(BaseModel):
 class PCLineItem(BaseModel):
     sr_no: int
     scope_of_work: str = ""
-    rate: Decimal = Decimal("0.0")
-    qty: Decimal = Decimal("0.0")
+    rate: Decimal = Field(Decimal("0.0"), ge=0)
+    qty: Decimal = Field(Decimal("0.0"), ge=0)
     unit: str = ""
-    total: Decimal = Decimal("0.0")
+    total: Decimal = Field(Decimal("0.0"), ge=0)
 
 
 class PaymentCertificate(BaseModel):
@@ -503,13 +503,13 @@ class PaymentCertificate(BaseModel):
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
     pc_ref: str = ""
-    subtotal: Decimal = Decimal("0.0")
-    retention_percent: Decimal = Decimal("0.0")
-    retention_amount: Decimal = Decimal("0.0")
-    total_payable: Decimal = Decimal("0.0")
-    cgst: Decimal = Decimal("0.0")
-    sgst: Decimal = Decimal("0.0")
-    grand_total: Decimal = Decimal("0.0")
+    subtotal: Decimal = Field(Decimal("0.0"), ge=0)
+    retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    retention_amount: Decimal = Field(Decimal("0.0"), ge=0)
+    total_payable: Decimal = Field(Decimal("0.0"), ge=0)
+    cgst: Decimal = Field(Decimal("0.0"), ge=0)
+    sgst: Decimal = Field(Decimal("0.0"), ge=0)
+    grand_total: Decimal = Field(Decimal("0.0"), ge=0)
     status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
     fund_request: bool = False
     line_items: List[PCLineItem] = Field(default_factory=list)
@@ -519,9 +519,9 @@ class PaymentCertificate(BaseModel):
     vendor_name: Optional[str] = None
     invoice_number: Optional[str] = None
     date: Optional[str] = None
-    amount: Optional[Decimal] = None
-    gst_amount: Decimal = Decimal("0.0")
-    total_amount: Optional[Decimal] = None
+    amount: Optional[Decimal] = Field(None, ge=0)
+    gst_amount: Decimal = Field(Decimal("0.0"), ge=0)
+    total_amount: Optional[Decimal] = Field(None, ge=0)
     ocr_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -534,16 +534,16 @@ class PaymentCertificateCreate(BaseModel):
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
     line_items: List[PCLineItem] = Field(default_factory=list)
-    retention_percent: Decimal = Decimal("0.0")
+    retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     fund_request: bool = False
     idempotency_key: Optional[str] = None
     # Legacy fields
     vendor_name: Optional[str] = None
     invoice_number: Optional[str] = None
     date: Optional[str] = None
-    amount: Optional[Decimal] = None
-    gst_amount: Decimal = Decimal("0.0")
-    total_amount: Optional[Decimal] = None
+    amount: Optional[Decimal] = Field(None, ge=0)
+    gst_amount: Decimal = Field(Decimal("0.0"), ge=0)
+    total_amount: Optional[Decimal] = Field(None, ge=0)
     ocr_id: Optional[str] = None
 
 
@@ -554,9 +554,9 @@ class GlobalSettingsUpdate(BaseModel):
     phone: Optional[str] = None
     gst_number: Optional[str] = None
     pan_number: Optional[str] = None
-    cgst_percentage: Optional[Decimal] = None
-    sgst_percentage: Optional[Decimal] = None
-    retention_percentage: Optional[Decimal] = None
+    cgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    sgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    retention_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
     wo_prefix: Optional[str] = None
     pc_prefix: Optional[str] = None
     invoice_prefix: Optional[str] = None
@@ -610,9 +610,9 @@ class VendorUpdate(BaseModel):
 class WOLineItem(BaseModel):
     sr_no: int
     description: str = ""
-    qty: Decimal = Decimal("0.0")
-    rate: Decimal = Decimal("0.0")
-    total: Decimal = Decimal("0.0")
+    qty: Decimal = Field(Decimal("0.0"), ge=0)
+    rate: Decimal = Field(Decimal("0.0"), ge=0)
+    total: Decimal = Field(Decimal("0.0"), ge=0)
 
 
 class WorkOrder(BaseModel):
@@ -622,16 +622,16 @@ class WorkOrder(BaseModel):
     category_id: str
     vendor_id: Optional[str] = None
     wo_ref: str = ""
-    subtotal: Decimal = Decimal("0.0")
-    discount: Decimal = Decimal("0.0")
-    total_before_tax: Decimal = Decimal("0.0")
-    cgst: Decimal = Decimal("0.0")
-    sgst: Decimal = Decimal("0.0")
-    grand_total: Decimal = Decimal("0.0")
-    retention_percent: Decimal = Decimal("0.0")
-    retention_amount: Decimal = Decimal("0.0")
-    total_payable: Decimal = Decimal("0.0")
-    actual_payable: Decimal = Decimal("0.0")
+    subtotal: Decimal = Field(Decimal("0.0"), ge=0)
+    discount: Decimal = Field(Decimal("0.0"), ge=0)
+    total_before_tax: Decimal = Field(Decimal("0.0"), ge=0)
+    cgst: Decimal = Field(Decimal("0.0"), ge=0)
+    sgst: Decimal = Field(Decimal("0.0"), ge=0)
+    grand_total: Decimal = Field(Decimal("0.0"), ge=0)
+    retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    retention_amount: Decimal = Field(Decimal("0.0"), ge=0)
+    total_payable: Decimal = Field(Decimal("0.0"), ge=0)
+    actual_payable: Decimal = Field(Decimal("0.0"), ge=0)
     status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
     line_items: List[WOLineItem] = Field(default_factory=list)
     version: int = 1
@@ -646,8 +646,8 @@ class WorkOrderCreate(BaseModel):
     category_id: str
     vendor_id: Optional[str] = None
     line_items: List[WOLineItem] = Field(default_factory=list)
-    discount: Decimal = Decimal("0.0")
-    retention_percent: Decimal = Decimal("0.0")
+    discount: Decimal = Field(Decimal("0.0"), ge=0)
+    retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     idempotency_key: Optional[str] = None
 
 
@@ -655,8 +655,8 @@ class WorkOrderUpdate(BaseModel):
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
     line_items: Optional[List[WOLineItem]] = None
-    discount: Optional[Decimal] = None
-    retention_percent: Optional[Decimal] = None
+    discount: Optional[Decimal] = Field(None, ge=0)
+    retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)
     expected_version: int
 
 
@@ -667,7 +667,7 @@ class CashTransaction(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
     category_id: str
-    amount: Decimal = Decimal("0.0")
+    amount: Decimal = Field(Decimal("0.0"), ge=0)
     type: Literal["DEBIT", "CREDIT"] = "DEBIT"
     purpose: Optional[str] = None
     bill_reference: Optional[str] = None
@@ -680,7 +680,7 @@ class CashTransaction(BaseModel):
 
 class CashTransactionCreate(BaseModel):
     category_id: str
-    amount: Decimal = Decimal("0.0")
+    amount: Decimal = Field(Decimal("0.0"), ge=0)
     type: Literal["DEBIT", "CREDIT"] = "DEBIT"
     purpose: Optional[str] = None
     bill_reference: Optional[str] = None

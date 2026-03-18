@@ -99,20 +99,37 @@ class FinancialRecalculationService:
 
         return financial_doc
 
+    # Hard ceiling: a single project is not expected to exceed this many budget
+    # codes.  If this limit is ever reached the recalculation is still correct
+    # for the first MAX_BUDGET_CODES rows, but the warning signals that the
+    # collection should be reviewed before the next scale boundary.
+    _MAX_BUDGET_CODES = 1000
+
     async def recalculate_all_project_financials(self, project_id, session=None):
         """
         Recalculate financial state for ALL categories in a project.
 
         Iterates over all budgets for the project and recalculates each one.
         Returns a summary of the project-level totals.
+
+        Safety: caps the cursor at _MAX_BUDGET_CODES rows to prevent application-
+        level memory exhaustion as project histories scale.  A warning is emitted
+        if the cap is reached so operations can investigate the data volume.
         """
         budgets = await self.db.project_category_budgets.find(
             {"project_id": project_id}
-        ).to_list(length=None)
+        ).to_list(length=self._MAX_BUDGET_CODES)
 
         if not budgets:
             logger.warning(f"No budgets found for project={project_id}")
             return {"project_id": project_id, "categories_recalculated": 0}
+
+        if len(budgets) == self._MAX_BUDGET_CODES:
+            logger.warning(
+                f"recalculate_all_project_financials hit the {self._MAX_BUDGET_CODES}-row "
+                f"ceiling for project={project_id}. Some budget codes may have been "
+                f"skipped. Investigate project_category_budgets collection volume."
+            )
 
         total_budget = Decimal("0")
         total_committed = Decimal("0")
