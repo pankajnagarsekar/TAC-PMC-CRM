@@ -728,10 +728,12 @@ class FundAllocation(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
     category_id: str
-    allocation_original: Decimal = Decimal("0.0")
-    allocation_received: Decimal = Decimal("0.0")
-    allocation_remaining: Decimal = Decimal("0.0")
-    last_pc_closed_date: Optional[datetime] = None
+    allocation_original: Decimal = Decimal("0.0")  # Per Spec §5.1: category budget set in project
+    allocation_received: Decimal = Decimal("0.0")   # Per Spec §5.1: total money received from client
+    allocation_remaining: Decimal = Decimal("0.0")  # Per Spec §5.1: allocation_original - allocation_received
+    cash_in_hand: Decimal = Decimal("0.0")          # Per Spec §5.1: allocation_received - total_expenses
+    total_expenses: Decimal = Decimal("0.0")        # Per Spec §5.1: SUM(all expense logs)
+    last_pc_closed_date: Optional[datetime] = None  # Per Spec §5.2: Timer resets ONLY on PC CLOSE
     version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

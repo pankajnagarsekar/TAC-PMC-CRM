@@ -145,16 +145,33 @@ async def create_cash_transaction(
         new_cash_in_hand = None
 
         if payload.type == "DEBIT":
-            curr_rem = float(allocation.get("allocation_remaining", Decimal128("0")).to_decimal())
-            req_amount = float(payload.amount)
-            # 8.4.1: Allow negative cash-in-hand instead of blocking
-            new_amount = curr_rem - req_amount
-            new_cash_in_hand = new_amount
+            expense_amount = Decimal(str(payload.amount))
+
+            # Per Spec §5.3: On expense log:
+            # - cash_in_hand -= expense_amount
+            # - total_expenses += expense_amount
+            # Does NOT affect allocation_remaining
+
+            current_cash = Decimal(str(allocation.get("cash_in_hand", Decimal128("0")).to_decimal()))
+            current_expenses = Decimal(str(allocation.get("total_expenses", Decimal128("0")).to_decimal()))
+
+            new_cash = current_cash - expense_amount
+            new_expenses = current_expenses + expense_amount
+            new_cash_in_hand = float(new_cash)
+
             await db.fund_allocations.update_one(
                 {"_id": allocation["_id"]},
-                {"$set": {"allocation_remaining": Decimal128(str(new_amount))}},
+                {"$set": {
+                    "cash_in_hand": Decimal128(str(new_cash)),
+                    "total_expenses": Decimal128(str(new_expenses))
+                }},
                 session=session
             )
+        else:
+            # For CREDIT or other transaction types, just record the transaction
+            # without modifying fund allocations
+            current_cash = Decimal(str(allocation.get("cash_in_hand", Decimal128("0")).to_decimal()))
+            new_cash_in_hand = float(current_cash)
 
         doc = payload.dict()
         doc["project_id"] = project_id
@@ -165,37 +182,37 @@ async def create_cash_transaction(
         
         res = await db.cash_transactions.insert_one(doc, session=session)
         doc["_id"] = res.inserted_id
-        
-            # Log action with FULL JSON snapshot
-            doc_full = serialize_doc(doc)
-            await audit_service.log_action(
-                organisation_id=user["organisation_id"],
-                module_name="CASH_TRANSACTIONS",
-                entity_type="CASH_TRANSACTION",
-                entity_id=str(res.inserted_id),
-                action_type="CREATE",
-                user_id=user["user_id"],
-                project_id=project_id,
-                new_value=doc_full,  # FULL JSON snapshot per spec 6.1.2
-                session=session
-            )
-        
-        # Record for idempotency
-        await record_operation(db, session, idempotency_key, "CASH_TRANSACTION", response_payload=serialize_doc(doc))
 
-        response = serialize_doc(doc)
-        
-        # Add warning flags per 3.2.2 spec
-        if new_cash_in_hand is not None:
-            if new_cash_in_hand < 0:
-                warnings.append("negative_cash")
-            elif new_cash_in_hand <= float(threshold):
-                warnings.append("threshold_breach")
-        
-        if warnings:
-            response["warnings"] = warnings
+    # Log action with FULL JSON snapshot
+    doc_full = serialize_doc(doc)
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="CASH_TRANSACTIONS",
+        entity_type="CASH_TRANSACTION",
+        entity_id=str(res.inserted_id),
+        action_type="CREATE",
+        user_id=user["user_id"],
+        project_id=project_id,
+        new_value=doc_full,  # FULL JSON snapshot per spec 6.1.2
+        session=session
+    )
 
-        return response
+    # Record for idempotency
+    await record_operation(db, session, idempotency_key, "CASH_TRANSACTION", response_payload=serialize_doc(doc))
+
+    response = serialize_doc(doc)
+
+    # Add warning flags per 3.2.2 spec
+    if new_cash_in_hand is not None:
+        if new_cash_in_hand < 0:
+            warnings.append("negative_cash")
+        elif new_cash_in_hand <= float(threshold):
+            warnings.append("threshold_breach")
+
+    if warnings:
+        response["warnings"] = warnings
+
+    return response
 
 
 @cash_router.get("/{project_id}/cash-transactions")

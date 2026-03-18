@@ -106,7 +106,10 @@ class CashService:
             
             threshold = self._get_threshold_for_category(cat, project)
             
-            cash_in_hand = Decimal(str(float(allocation.get("allocation_remaining", Decimal128("0")).to_decimal())))
+            # Per Spec §5.1: cash_in_hand = allocation_received - total_expenses
+            allocation_received = Decimal(str(allocation.get("allocation_received", Decimal128("0")).to_decimal()))
+            total_expenses = Decimal(str(allocation.get("total_expenses", Decimal128("0")).to_decimal()))
+            cash_in_hand = allocation_received - total_expenses
             total_cash_in_hand += cash_in_hand
             
             # Find last PC close date for this category
@@ -131,12 +134,17 @@ class CashService:
             is_negative = cash_in_hand < 0
             threshold_breached = cash_in_hand <= threshold  # 3.2.5: Use threshold_breached per spec
             
+            # Per Spec §5.1: allocation_remaining = allocation_original - allocation_received
+            allocation_original = Decimal(str(allocation.get("allocation_original", Decimal128("0")).to_decimal()))
+            allocation_received = Decimal(str(allocation.get("allocation_received", Decimal128("0")).to_decimal()))
+            allocation_remaining = allocation_original - allocation_received
+
             categories_data.append({
                 "category_id": cat_id,
                 "category_name": cat.get("category_name"),
                 "cash_in_hand": float(cash_in_hand),
-                "allocation_remaining": float(cash_in_hand),
-                "allocation_total": float(allocation.get("allocation_original", Decimal128("0")).to_decimal()),
+                "allocation_remaining": float(allocation_remaining),  # FIXED: Now correctly calculated per spec
+                "allocation_total": float(allocation_original),
                 "threshold": float(threshold),
                 "days_since_last_pc_close": days_since_last_pc_close,
                 "is_negative": is_negative,

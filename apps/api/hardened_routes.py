@@ -148,7 +148,6 @@ async def get_cash_summary(
     
     project = await db.projects.find_one({"project_id": project_id})
     organisation_id = user.get("organisation_id")
-    
     default_threshold = Decimal("1000.0")
     
     categories = await db.categories.find({
@@ -175,12 +174,14 @@ async def get_cash_summary(
             default_threshold
         )))
         
-        cash_in_hand = Decimal(str(float(allocation.get("allocation_remaining", Decimal128("0")).to_decimal())))
+        # Per Spec §5.1: cash_in_hand = allocation_received - total_expenses
+        allocation_received = Decimal(str(allocation.get("allocation_received", Decimal128("0")).to_decimal()))
+        total_expenses = Decimal(str(allocation.get("total_expenses", Decimal128("0")).to_decimal()))
+        cash_in_hand = allocation_received - total_expenses
         total_cash_in_hand += cash_in_hand
         
         last_pc_date = allocation.get("last_pc_closed_date")
         days_since_last_pc_close = None
-        
         if last_pc_date:
             days_since_last_pc_close = (datetime.utcnow() - last_pc_date).days
             if latest_pc_close is None or last_pc_date > latest_pc_close:
@@ -216,7 +217,6 @@ _db = None
 _audit_service = None
 _financial_service = None
 
-
 def init_hardened_engine(db, audit_service, financial_service):
     """Initialize the hardened engine with database and service references."""
     global _db, _audit_service, _financial_service
@@ -227,7 +227,12 @@ def init_hardened_engine(db, audit_service, financial_service):
 
 class _HardenedEngine:
     async def modify_budget(
-        self, budget_id, organisation_id, user_id, new_amount, expected_version: int
+        self,
+        budget_id,
+        organisation_id,
+        user_id,
+        new_amount,
+        expected_version: int
     ):
         from server import audit_service, financial_service
         
@@ -254,7 +259,6 @@ class _HardenedEngine:
                 {"_id": ObjectId(budget.get("project_id"))},
                 session=session
             )
-            
             if not project or project.get("organisation_id") != organisation_id:
                 raise HTTPException(
                     status_code=403,
@@ -296,7 +300,6 @@ class _HardenedEngine:
             # 5. Trigger financial recalculation
             project_id = budget.get("project_id")
             category_id = budget.get("category_id")
-            
             if project_id and category_id:
                 await financial_service.recalculate_project_code_financials(
                     project_id=project_id,
@@ -349,7 +352,6 @@ async def update_budget_hardened(
     from server import permission_checker
     
     user = await permission_checker.get_authenticated_user(current_user)
-    
     # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
     await permission_checker.check_web_crm_access(user)
     await permission_checker.check_client_readonly(user)
@@ -376,7 +378,6 @@ async def initialize_project_budgets(
     from server import db, permission_checker, financial_service
     
     user = await permission_checker.get_authenticated_user(current_user)
-    
     # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
     await permission_checker.check_web_crm_access(user)
     await permission_checker.check_client_readonly(user)
@@ -429,28 +430,130 @@ async def initialize_project_budgets(
                     
                     original_budget = float(category_budget.get("original_budget", Decimal128("0")).to_decimal()) if category_budget else 0.0
                     
-                    allocation_doc = {
-                        "project_id": project_id,
-                        "category_id": category_id,
-                        "allocation_original": Decimal128(str(original_budget)),
-                        "allocation_received": Decimal128("0.0"),
-                        "allocation_remaining": Decimal128(str(original_budget)),  # Per spec: allocation_remaining = original_budget
-                        "last_pc_closed_date": None,
-                        "version": 1,
-                        "created_at": datetime.utcnow()
-                    }
-                    await db.fund_allocations.insert_one(allocation_doc, session=session)
-                    fund_transfer_count += 1
-        
-        # Recalculate everything for this project
-        # Note: financial_service.recalculate_all_project_financials does not yet accept session
-        await financial_service.recalculate_all_project_financials(project_id)
-        
-        # Compute master budgets after initialization
-        await financial_service.recalculate_master_budget(project_id, session=session)
-    
+                allocation_doc = {
+                    "project_id": project_id,
+                    "category_id": category_id,
+                    "allocation_original": Decimal128(str(original_budget)),  # Per Spec §5.1: category budget set in project
+                    "allocation_received": Decimal128("0.0"),  # Per Spec §5.1: total money received from client
+                    "allocation_remaining": Decimal128(str(original_budget)),  # Per Spec §5.1: allocation_original - allocation_received
+                    "cash_in_hand": Decimal128("0.0"),  # Per Spec §5.1: allocation_received - total_expenses
+                    "total_expenses": Decimal128("0.0"),  # Per Spec §5.1: SUM(all expense logs)
+                    "last_pc_closed_date": None,  # Per Spec §5.2: Timer resets ONLY on PC CLOSE
+                    "version": 1,
+                    "created_at": datetime.utcnow()
+                }
+                await db.fund_allocations.insert_one(allocation_doc, session=session)
+                fund_transfer_count += 1
+
+            # Recalculate everything for this project
+            # Note: financial_service.recalculate_all_project_financials does not yet accept session
+            await financial_service.recalculate_all_project_financials(project_id)
+
+            # Compute master budgets after initialization
+            await financial_service.recalculate_master_budget(project_id, session=session)
+
     return {
         "status": "success",
         "message": f"Initialized budgets for {len(codes)} categories",
         "fund_allocations_created": fund_transfer_count
+    }
+
+
+@hardened_router.delete("/codes/{code_id}")
+async def delete_category(
+    code_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete a category (code_master) with hard constraint validation.
+    
+    Prevents deletion if category is referenced by:
+    - project_category_budgets
+    - work_orders
+    - payment_certificates
+    - fund_allocations
+    
+    Performs soft delete (sets active_status=false) if no references exist.
+    """
+    from server import db, permission_checker, audit_service
+    
+    user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+    
+    # Validate code_id format
+    try:
+        code_obj_id = ObjectId(code_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid category ID format")
+    
+    # Check if category exists
+    category = await db.code_master.find_one({"_id": code_obj_id})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Check if category is already inactive
+    if not category.get("active_status", True):
+        raise HTTPException(status_code=400, detail="Category is already deleted")
+    
+    # Check references in financial collections
+    # 1. Check project_category_budgets
+    budget_refs = await db.project_category_budgets.count_documents({"category_id": code_id})
+    
+    # 2. Check work_orders
+    wo_refs = await db.work_orders.count_documents({"category_id": code_id})
+    
+    # 3. Check payment_certificates
+    pc_refs = await db.payment_certificates.count_documents({"category_id": code_id})
+    
+    # 4. Check fund_allocations
+    fund_refs = await db.fund_allocations.count_documents({"category_id": code_id})
+    
+    total_refs = budget_refs + wo_refs + pc_refs + fund_refs
+    
+    if total_refs > 0:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "CATEGORY_HAS_REFERENCES",
+                "message": f"Cannot delete category: referenced by {budget_refs} budget(s), {wo_refs} work order(s), {pc_refs} payment certificate(s), {fund_refs} fund allocation(s)",
+                "references": {
+                    "budgets": budget_refs,
+                    "work_orders": wo_refs,
+                    "payment_certificates": pc_refs,
+                    "fund_allocations": fund_refs
+                }
+            }
+        )
+    
+    # Perform soft delete (set active_status to false)
+    await db.code_master.update_one(
+        {"_id": code_obj_id},
+        {"$set": {"active_status": False, "updated_at": datetime.utcnow()}}
+    )
+    
+    # Audit log
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="CATEGORY_MANAGEMENT",
+        entity_type="CODE_MASTER",
+        entity_id=code_id,
+        action_type="DELETE",
+        user_id=user["user_id"],
+        old_value={
+            "code": category.get("code"),
+            "category_name": category.get("category_name"),
+            "active_status": True
+        },
+        new_value={"active_status": False}
+    )
+    
+    return {
+        "status": "success",
+        "message": "Category deleted successfully",
+        "category_id": code_id,
+        "code": category.get("code"),
+        "category_name": category.get("category_name")
     }

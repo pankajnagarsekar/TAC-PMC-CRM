@@ -68,7 +68,7 @@ class WorkOrderService:
             # 4. Strict Financial Validation
             await self.financial_service.validate_financial_document("WORK_ORDER", wo_data, project_id, session=session)
 
-            # 5. Server-Side Calculations
+            # 5. Server-Side Calculations (per CRM Spec §3.3)
             subtotal = Decimal("0.0")
             for item in wo_data.get("line_items", []):
                 qty = Decimal(str(item.get("qty", 0)))
@@ -76,14 +76,22 @@ class WorkOrderService:
                 line_total = self.financial_service.round_half_up(qty * rate)
                 item["total"] = line_total
                 subtotal += line_total
-
             subtotal = self.financial_service.round_half_up(subtotal)
             discount = self.financial_service.round_half_up(Decimal(str(wo_data.get("discount", 0))))
             total_before_tax = self.financial_service.round_half_up(subtotal - discount)
-            cgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("cgst", 0))))
-            sgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("sgst", 0))))
-            grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
 
+            # Get project tax rates for server-side calculation (per Spec §3.3)
+            project = await self.db.projects.find_one(
+                {"_id": ObjectId(project_id)} if len(project_id) == 24 else {"project_id": project_id},
+                session=session
+            )
+            cgst_rate = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
+            sgst_rate = Decimal(str(project.get("project_sgst_percentage", "9.0"))) if project else Decimal("9.0")
+
+            # Calculate CGST/SGST server-side (per Spec §3.3)
+            cgst = self.financial_service.round_half_up(total_before_tax * cgst_rate / Decimal("100"))
+            sgst = self.financial_service.round_half_up(total_before_tax * sgst_rate / Decimal("100"))
+            grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
             retention_percent = Decimal(str(wo_data.get("retention_percent", 0)))
             retention_amount = self.financial_service.round_half_up(grand_total * (retention_percent / Decimal("100")))
             total_payable = self.financial_service.round_half_up(grand_total - retention_amount)
@@ -151,6 +159,7 @@ class WorkOrderService:
             response_doc = db_manager.from_bson(wo_doc)
             if warning:
                 response_doc["_warning"] = warning
+
             await record_operation(self.db, session, idempotency_key, "WORK_ORDER", response_payload=response_doc)
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
@@ -165,6 +174,7 @@ class WorkOrderService:
 
             # 10. Update Master Budget
             await self.financial_service.recalculate_master_budget(project_id, session=session)
+
             return response_doc
 
     @measure_performance("WORK_ORDER_SAVE")
@@ -203,7 +213,6 @@ class WorkOrderService:
                 "status": {"$ne": "Cancelled"}
             }).to_list(length=None)
             linked_pc_total = sum(float(pc.get("grand_total", Decimal128("0")).to_decimal()) for pc in linked_pcs)
-
             old_grand_total = Decimal(str(old_wo["grand_total"].to_decimal()))
             old_category_id = old_wo["category_id"]
             project_id = old_wo["project_id"]
@@ -221,7 +230,7 @@ class WorkOrderService:
             # 3. Strict Financial Validation
             await self.financial_service.validate_financial_document("WORK_ORDER", wo_data, project_id, session=session)
 
-            # 4. Calculate new totals
+            # 4. Calculate new totals (per CRM Spec §3.3)
             subtotal = Decimal("0.0")
             for item in wo_data.get("line_items", []):
                 qty = Decimal(str(item.get("qty", 0)))
@@ -229,12 +238,21 @@ class WorkOrderService:
                 line_total = self.financial_service.round_half_up(qty * rate)
                 item["total"] = line_total
                 subtotal += line_total
-
             subtotal = self.financial_service.round_half_up(subtotal)
             discount = self.financial_service.round_half_up(Decimal(str(wo_data.get("discount", 0))))
             total_before_tax = self.financial_service.round_half_up(subtotal - discount)
-            cgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("cgst", 0))))
-            sgst = self.financial_service.round_half_up(Decimal(str(wo_data.get("sgst", 0))))
+
+            # Get project tax rates for server-side calculation (per Spec §3.3)
+            project = await self.db.projects.find_one(
+                {"_id": ObjectId(project_id)} if len(project_id) == 24 else {"project_id": project_id},
+                session=session
+            )
+            cgst_rate = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
+            sgst_rate = Decimal(str(project.get("project_sgst_percentage", "9.0"))) if project else Decimal("9.0")
+
+            # Calculate CGST/SGST server-side (per Spec §3.3)
+            cgst = self.financial_service.round_half_up(total_before_tax * cgst_rate / Decimal("100"))
+            sgst = self.financial_service.round_half_up(total_before_tax * sgst_rate / Decimal("100"))
             grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
 
             # 4.1 Linked-PC Lock Rule: cannot reduce grand_total below sum of linked PCs
@@ -250,6 +268,7 @@ class WorkOrderService:
 
             # 4. Apply new budget impact
             new_category_id = wo_data.get("category_id", old_category_id)
+
             # Check if budget exists for new category
             budget = await self.db.project_category_budgets.find_one({
                 "project_id": project_id,
@@ -372,4 +391,5 @@ class WorkOrderService:
 
             # 4. Refresh Financials
             await self.financial_service.recalculate_master_budget(project_id, session=session)
+
             return {"status": "success", "message": "Work Order deleted and budget restored."}
