@@ -62,7 +62,7 @@ class DatabaseManager:
         elif isinstance(doc, list):
             return [DatabaseManager.from_bson(v) for v in doc]
         elif isinstance(doc, Decimal128):
-            return doc.to_decimal()
+            return str(doc.to_decimal())
         elif isinstance(doc, ObjectId):
             return str(doc)
         else:

@@ -144,34 +144,39 @@ async def create_cash_transaction(
         warnings = []
         new_cash_in_hand = None
 
+        # ── Atomic balance update on fund_allocations ────────────────────────
+        # Use $inc instead of read→compute→$set to avoid TOCTOU races when
+        # concurrent transactions hit the same allocation document.
+        #
+        # DEBIT  → cash_in_hand decreases; total_expenses increases.
+        # CREDIT → cash_in_hand increases only (allocation_remaining is managed
+        #          separately by the fund-transfer workflow, not here).
+        # Per Spec §5.3 — does NOT touch allocation_remaining for plain expenses.
+
+        inc_amount = Decimal(str(payload.amount))
+
         if payload.type == "DEBIT":
-            expense_amount = Decimal(str(payload.amount))
+            inc_ops = {
+                "cash_in_hand":  Decimal128(str(-inc_amount)),   # subtract
+                "total_expenses": Decimal128(str(inc_amount)),   # accumulate
+            }
+        else:  # CREDIT
+            inc_ops = {
+                "cash_in_hand": Decimal128(str(inc_amount)),     # add
+            }
 
-            # Per Spec §5.3: On expense log:
-            # - cash_in_hand -= expense_amount
-            # - total_expenses += expense_amount
-            # Does NOT affect allocation_remaining
+        updated_alloc = await db.fund_allocations.find_one_and_update(
+            {"_id": allocation["_id"]},
+            {"$inc": inc_ops},
+            return_document=True,   # return the doc AFTER the increment
+            session=session
+        )
 
-            current_cash = Decimal(str(allocation.get("cash_in_hand", Decimal128("0")).to_decimal()))
-            current_expenses = Decimal(str(allocation.get("total_expenses", Decimal128("0")).to_decimal()))
-
-            new_cash = current_cash - expense_amount
-            new_expenses = current_expenses + expense_amount
-            new_cash_in_hand = float(new_cash)
-
-            await db.fund_allocations.update_one(
-                {"_id": allocation["_id"]},
-                {"$set": {
-                    "cash_in_hand": Decimal128(str(new_cash)),
-                    "total_expenses": Decimal128(str(new_expenses))
-                }},
-                session=session
+        if updated_alloc is not None:
+            raw = updated_alloc.get("cash_in_hand", Decimal128("0"))
+            new_cash_in_hand = float(
+                raw.to_decimal() if isinstance(raw, Decimal128) else Decimal(str(raw))
             )
-        else:
-            # For CREDIT or other transaction types, just record the transaction
-            # without modifying fund allocations
-            current_cash = Decimal(str(allocation.get("cash_in_hand", Decimal128("0")).to_decimal()))
-            new_cash_in_hand = float(current_cash)
 
         doc = payload.dict()
         doc["project_id"] = project_id

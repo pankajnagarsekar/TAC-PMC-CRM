@@ -4,7 +4,7 @@ Implements the MongoDB Multi-Document Transactions for creating and updating Wor
 as defined in the Enterprise Technical Architecture Specification.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from bson import ObjectId, Decimal128
 from fastapi import HTTPException
@@ -124,7 +124,7 @@ class WorkOrderService:
                 {"$set": {
                     "remaining_budget": Decimal128(str(new_remaining)),
                     "committed_amount": Decimal128(str(new_committed)),
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.now(timezone.utc)
                 }},
                 session=session
             )
@@ -152,8 +152,8 @@ class WorkOrderService:
                 "line_items": [db_manager.to_bson(item) for item in wo_data.get("line_items", [])],
                 "idempotency_key": idempotency_key,
                 "version": 1,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
             }
 
             # 8. Insert WO
@@ -308,7 +308,7 @@ class WorkOrderService:
                 "retention_amount": Decimal128(str(retention_amount)),
                 "total_payable": Decimal128(str(total_payable)),
                 "line_items": [db_manager.to_bson(item) for item in wo_data.get("line_items", [])],
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
             await self.db.work_orders.update_one(
                 {"_id": ObjectId(wo_id)},

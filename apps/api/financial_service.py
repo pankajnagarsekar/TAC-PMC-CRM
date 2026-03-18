@@ -215,41 +215,40 @@ class FinancialRecalculationService:
 
     async def compute_cash_in_hand(self, project_id, category_id, session=None):
         """
-        Compute cash-in-hand for a fund-transfer category (Petty Cash / OVH).
+        Return the current cash-in-hand for a fund-transfer category.
 
-        cash_in_hand = SUM(CREDIT) - SUM(DEBIT) from cash_transactions.
+        The value is read directly from fund_allocations.cash_in_hand, which is
+        maintained as an atomic running counter via $inc on every DEBIT and CREDIT
+        recorded in cash_transactions.  This is O(1) against a unique-indexed
+        document — no aggregation over the transactions collection is needed.
+
+        Falls back to Decimal("0") if no allocation document exists.
         """
-        pipeline = [
-            {"$match": {
-                "project_id": project_id,
-                "category_id": category_id,
-            }},
-            {"$group": {
-                "_id": "$type",
-                "total": {"$sum": "$amount"},
-            }},
-        ]
+        from bson import Decimal128 as _D128
 
-        results = await self.db.cash_transactions.aggregate(
-            pipeline, session=session
-        ).to_list(length=10)
-
-        credits = Decimal("0")
-        debits = Decimal("0")
-
-        for r in results:
-            if r["_id"] == "CREDIT":
-                credits = Decimal(str(r["total"]))
-            elif r["_id"] == "DEBIT":
-                debits = Decimal(str(r["total"]))
-
-        cash_in_hand = credits - debits
-
-        logger.info(
-            f"Cash-in-hand for project={project_id}, category={category_id}: "
-            f"credits={credits}, debits={debits}, balance={cash_in_hand}"
+        allocation = await self.db.fund_allocations.find_one(
+            {"project_id": project_id, "category_id": category_id},
+            {"cash_in_hand": 1},   # projection — only the balance field
+            session=session
         )
 
+        if not allocation:
+            logger.warning(
+                f"compute_cash_in_hand: no fund_allocation found for "
+                f"project={project_id}, category={category_id}. Returning 0."
+            )
+            return Decimal("0")
+
+        raw = allocation.get("cash_in_hand", _D128("0"))
+        cash_in_hand = (
+            Decimal(str(raw.to_decimal())) if isinstance(raw, _D128)
+            else Decimal(str(raw))
+        )
+
+        logger.info(
+            f"compute_cash_in_hand: project={project_id}, category={category_id}, "
+            f"balance={cash_in_hand} (read from fund_allocations)"
+        )
         return cash_in_hand
 
     async def check_threshold_breach(self, project_id, category_id, session=None):

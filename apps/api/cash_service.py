@@ -29,7 +29,7 @@ class CashService:
             if k == '_id' and isinstance(v, ObjectId):
                 serialized[k] = str(v)
             elif isinstance(v, Decimal128):
-                serialized[k] = float(v.to_decimal())
+                serialized[k] = str(v.to_decimal())
             elif isinstance(v, datetime):
                 serialized[k] = v.isoformat()
             else:
@@ -183,10 +183,10 @@ class CashService:
             categories_data.append({
                 "category_id":              cat_id,
                 "category_name":            cat.get("category_name"),
-                "cash_in_hand":             float(cash_in_hand),
-                "allocation_remaining":     float(allocation_remaining),
-                "allocation_total":         float(allocation_original),
-                "threshold":                float(threshold),
+                "cash_in_hand":             str(cash_in_hand),
+                "allocation_remaining":     str(allocation_remaining),
+                "allocation_total":         str(allocation_original),
+                "threshold":                str(threshold),
                 "days_since_last_pc_close": days_since_last_pc_close,
                 "is_negative":              cash_in_hand < 0,
                 "threshold_breached":       cash_in_hand <= threshold,
@@ -195,7 +195,7 @@ class CashService:
         return {
             "categories": categories_data,
             "summary": {
-                "total_cash_in_hand": float(total_cash_in_hand),
+                "total_cash_in_hand": str(total_cash_in_hand),
                 "days_since_last_pc_close": min(
                     (c["days_since_last_pc_close"] for c in categories_data if c["days_since_last_pc_close"] is not None),
                     default=0

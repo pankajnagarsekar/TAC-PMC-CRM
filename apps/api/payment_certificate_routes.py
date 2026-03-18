@@ -5,7 +5,9 @@ from bson import ObjectId
 from datetime import datetime
 from core.database import get_db
 from auth import get_current_user
-from payment_certificate_service import create_payment_certificate, close_payment_certificate
+from payment_certificate_service import PaymentCertificateService
+from audit_service import AuditService
+from financial_service import FinancialRecalculationService
 from core.rate_limit import limiter
 from permissions import PermissionChecker
 
@@ -26,6 +28,14 @@ def serialize_doc(doc: dict) -> dict:
 pc_router = APIRouter(prefix="/api", tags=["Payment Certificates"])
 
 
+# --- Service dependency ---
+def get_pc_service(db=Depends(get_db)) -> PaymentCertificateService:
+    """FastAPI dependency that wires up PaymentCertificateService with its dependencies."""
+    audit_service = AuditService(db)
+    financial_service = FinancialRecalculationService(db)
+    return PaymentCertificateService(db, audit_service, financial_service)
+
+
 # --- Incoming Schemas ---
 class PCLineItemCreate(BaseModel):
     sr_no: int
@@ -37,9 +47,19 @@ class PCLineItemCreate(BaseModel):
 
 class PaymentCertificateCreate(BaseModel):
     work_order_id: Optional[str] = None
-    category_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    description: Optional[str] = ""
+    pc_type: Optional[str] = "WO_LINKED"
     retention_percent: float = 5.0
     line_items: List[PCLineItemCreate]
+
+
+class PaymentCertificateUpdate(BaseModel):
+    work_order_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    description: Optional[str] = ""
+    retention_percent: Optional[float] = None
+    line_items: Optional[List[PCLineItemCreate]] = None
 
 
 # --- Routes ---
@@ -51,7 +71,8 @@ async def create_pc(
     payload: PaymentCertificateCreate,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
     db=Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    pc_service: PaymentCertificateService = Depends(get_pc_service)
 ):
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
@@ -62,15 +83,45 @@ async def create_pc(
     await checker.check_project_access(user, project_id, require_write=True)
 
     try:
-        user_id = user.get("user_id") or "system"
-        pc_doc = await create_payment_certificate(
-            db=db,
-            project_id=project_id,
-            user_id=user_id,
-            pc_data=payload.dict(),
-            idempotency_key=idempotency_key
+        pc_data = payload.dict()
+        pc_data["idempotency_key"] = idempotency_key
+
+        result = await pc_service.create_payment_certificate(
+            pc_data=pc_data,
+            current_user=user,
+            project_id=project_id
         )
-        return serialize_doc(pc_doc)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@pc_router.put("/payment-certificates/{pc_id}")
+@limiter.limit("10/minute")
+async def update_pc(
+    request: Request,
+    pc_id: str,
+    payload: PaymentCertificateUpdate,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    pc_service: PaymentCertificateService = Depends(get_pc_service)
+):
+    checker = PermissionChecker(db)
+    user = await checker.get_authenticated_user(current_user)
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
+    try:
+        result = await pc_service.update_payment_certificate(
+            pc_id=pc_id,
+            pc_data=payload.dict(exclude_none=True),
+            current_user=user
+        )
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -82,9 +133,9 @@ async def create_pc(
 async def close_pc(
     request: Request,
     pc_id: str,
-    expected_version: int = Query(..., description="The version of the document to update"),
     db=Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    pc_service: PaymentCertificateService = Depends(get_pc_service)
 ):
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
@@ -94,13 +145,43 @@ async def close_pc(
     await checker.check_client_readonly(user)
 
     try:
-        user_id = user.get("user_id") or "system"
-        res = await close_payment_certificate(db, pc_id, user_id, expected_version)
-        return res
+        result = await pc_service.close_payment_certificate(
+            pc_id=pc_id,
+            current_user=user
+        )
+        return result
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to close PC: {e}")
+
+
+@pc_router.delete("/payment-certificates/{pc_id}")
+@limiter.limit("10/minute")
+async def delete_pc(
+    request: Request,
+    pc_id: str,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    pc_service: PaymentCertificateService = Depends(get_pc_service)
+):
+    checker = PermissionChecker(db)
+    user = await checker.get_authenticated_user(current_user)
+
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await checker.check_web_crm_access(user)
+    await checker.check_client_readonly(user)
+
+    try:
+        result = await pc_service.delete_payment_certificate(
+            pc_id=pc_id,
+            current_user=user
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @pc_router.get("/projects/{project_id}/payment-certificates")
@@ -117,7 +198,7 @@ async def list_project_pcs(
     await checker.check_project_access(user, project_id)
 
     try:
-        query = {"project_id": project_id}
+        query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
         if work_order_id:
             query["work_order_id"] = work_order_id
 
@@ -138,8 +219,9 @@ async def list_project_pcs(
             if isinstance(ts, datetime):
                 next_cursor = ts.isoformat()
 
+        from core.database import db_manager
         return {
-            "items": [serialize_doc(doc) for doc in docs],
+            "items": [db_manager.from_bson(doc) for doc in docs],
             "next_cursor": next_cursor
         }
     except HTTPException:
@@ -158,14 +240,18 @@ async def get_single_pc(
     user = await checker.get_authenticated_user(current_user)
 
     try:
-        doc = await db.payment_certificates.find_one({"_id": ObjectId(pc_id)})
+        doc = await db.payment_certificates.find_one({
+            "_id": ObjectId(pc_id),
+            "organisation_id": user["organisation_id"]
+        })
         if not doc:
             raise HTTPException(status_code=404, detail="Payment Certificate not found")
 
         # Check project access
         await checker.check_project_access(user, doc.get("project_id"))
 
-        return serialize_doc(doc)
+        from core.database import db_manager
+        return db_manager.from_bson(doc)
     except HTTPException:
         raise
     except Exception as e:

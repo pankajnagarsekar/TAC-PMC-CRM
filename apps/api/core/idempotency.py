@@ -3,7 +3,7 @@ Idempotency utilities for financial operations.
 Prevents duplicate transaction execution via operation_logs collection.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ async def record_operation(db, session, operation_key: str, entity_type: str, re
             "operation_key": operation_key,
             "entity_type": entity_type,
             "response_payload": response_payload,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         },
         session=session
     )

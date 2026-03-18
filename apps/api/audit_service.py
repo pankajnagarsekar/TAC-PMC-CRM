@@ -1,5 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Union
 from fastapi import HTTPException, status
 import logging
@@ -69,7 +69,7 @@ class AuditService:
                 "old_value_json": old_value,
                 "new_value_json": new_value,
                 "user_id": user_id,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.now(timezone.utc)
             }
 
             await self.collection.insert_one(audit_entry, session=session)

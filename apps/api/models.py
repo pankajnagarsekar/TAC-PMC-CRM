@@ -1,5 +1,5 @@
 # MongoDB Pydantic v2 Models
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Annotated, Literal
 from decimal import Decimal
 from bson import ObjectId
@@ -26,7 +26,7 @@ PyObjectId = Annotated[str, BeforeValidator(validate_object_id)]
 class Organisation(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -49,8 +49,8 @@ class User(BaseModel):
     dpr_generation_permission: bool = False
     assigned_projects: List[str] = Field(default_factory=list)
     screen_permissions: List[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -95,7 +95,7 @@ class UserProjectMap(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     user_id: str
     project_id: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -123,8 +123,8 @@ class Project(BaseModel):
     threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
     version: int = 1
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -166,8 +166,8 @@ class Client(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -198,8 +198,8 @@ class CodeMaster(BaseModel):
     code_description: str = ""  # Legacy alias for category_name
     budget_type: Optional[Literal["commitment", "fund_transfer"]] = "commitment"
     active_status: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -230,8 +230,8 @@ class ProjectBudget(BaseModel):
     remaining_budget: Decimal = Field(Decimal("0.0"), ge=0)
     description: Optional[str] = None
     version: int = 1
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -258,7 +258,7 @@ class SiteOverhead(BaseModel):
     amount: Decimal = Field(Decimal("0.0"), ge=0)
     purpose: str
     created_by: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -288,7 +288,7 @@ class DerivedFinancialState(BaseModel):
     certified_value: Decimal = Decimal("0.0")
     balance_budget_remaining: Decimal = Decimal("0.0")
     over_commit_flag: bool = False
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     version: int = 1
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
@@ -308,7 +308,7 @@ class AuditLog(BaseModel):
     project_id: Optional[str] = None
     old_value: Optional[dict] = None
     new_value: Optional[dict] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -340,7 +340,7 @@ class GlobalSettings(BaseModel):
     currency: str = "INR"
     currency_symbol: str = "₹"
     client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -398,8 +398,8 @@ class WorkersDailyLog(BaseModel):
     site_conditions: Optional[str] = None
     remarks: Optional[str] = None
     status: str = "draft"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -444,7 +444,7 @@ class Notification(BaseModel):
     sender_name: Optional[str] = None
     is_read: bool = False
     read_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -478,7 +478,7 @@ class DPR(BaseModel):
     rejected_by: Optional[str] = None
     rejected_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -523,7 +523,7 @@ class PaymentCertificate(BaseModel):
     gst_amount: Decimal = Field(Decimal("0.0"), ge=0)
     total_amount: Optional[Decimal] = Field(None, ge=0)
     ocr_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -579,8 +579,8 @@ class Vendor(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     active_status: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -635,8 +635,8 @@ class WorkOrder(BaseModel):
     status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
     line_items: List[WOLineItem] = Field(default_factory=list)
     version: int = 1
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -673,7 +673,7 @@ class CashTransaction(BaseModel):
     bill_reference: Optional[str] = None
     image_url: Optional[str] = None
     created_by: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -702,7 +702,7 @@ class VendorLedgerEntry(BaseModel):
     ref_id: str  # PC or WO id
     entry_type: Literal["PC_CERTIFIED", "PAYMENT_MADE", "RETENTION_HELD"]
     amount: Decimal = Decimal("0.0")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -716,7 +716,7 @@ class VoiceLog(BaseModel):
     supervisor_id: str
     audio_url: str
     transcribed_text: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -735,7 +735,7 @@ class FundAllocation(BaseModel):
     total_expenses: Decimal = Decimal("0.0")        # Per Spec §5.1: SUM(all expense logs)
     last_pc_closed_date: Optional[datetime] = None  # Per Spec §5.2: Timer resets ONLY on PC CLOSE
     version: int = 1
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -748,6 +748,6 @@ class OperationLog(BaseModel):
     operation_key: str
     entity_type: str
     response_payload: Optional[dict] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

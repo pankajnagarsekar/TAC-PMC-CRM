@@ -4,7 +4,7 @@ Implements the MongoDB Multi-Document Transactions for creating and updating Pay
 as defined in the Enterprise Technical Architecture Specification.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from bson import ObjectId, Decimal128
 from fastapi import HTTPException
@@ -102,8 +102,8 @@ class PaymentCertificateService:
                 "line_items": [db_manager.to_bson(item) for item in pc_data.get("line_items", [])],
                 "idempotency_key": idempotency_key,
                 "version": 1,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
             }
 
             # 5. Insert PC
@@ -190,7 +190,7 @@ class PaymentCertificateService:
                 "sgst": Decimal128(str(sgst_amount)),
                 "grand_total": Decimal128(str(grand_total)),
                 "line_items": [db_manager.to_bson(item) for item in pc_data.get("line_items", [])],
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
             await self.db.payment_certificates.update_one(
                 {"_id": ObjectId(pc_id)},
@@ -243,7 +243,7 @@ class PaymentCertificateService:
             # Update status to Closed
             await self.db.payment_certificates.update_one(
                 {"_id": ObjectId(pc_id)},
-                {"$set": {"status": "Closed", "closed_at": datetime.utcnow(), "updated_at": datetime.utcnow()}},
+                {"$set": {"status": "Closed", "closed_at": datetime.now(timezone.utc), "updated_at": datetime.now(timezone.utc)}},
                 session=session
             )
 
@@ -286,8 +286,8 @@ class PaymentCertificateService:
                             "allocation_received": Decimal128(str(new_received)),
                             "allocation_remaining": Decimal128(str(new_remaining)),
                             "cash_in_hand": Decimal128(str(new_cash)),
-                            "last_pc_closed_date": datetime.utcnow(),
-                            "updated_at": datetime.utcnow()
+                            "last_pc_closed_date": datetime.now(timezone.utc),
+                            "updated_at": datetime.now(timezone.utc)
                         }},
                         session=session
                     )
