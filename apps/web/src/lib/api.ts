@@ -102,3 +102,35 @@ export default api;
 // SWR Fetcher — used across all useSWR hooks
 // ──────────────────────────────────────────────────────────────────────────
 export const fetcher = (url: string) => api.get(url).then((r) => r.data);
+
+// ──────────────────────────────────────────────────────────────────────────
+// Scheduler Service
+// ──────────────────────────────────────────────────────────────────────────
+export const schedulerApi = {
+  calculate: (projectId: string, tasks: any[], projectStart: string) =>
+    api.post(`/api/projects/${projectId}/calculate`, { tasks, project_start: projectStart }),
+
+  save: (projectId: string, tasks: any[], projectStart: string, totalCost: number) =>
+    api.post(`/api/projects/${projectId}/save`, {
+      tasks,
+      project_start: projectStart,
+      total_cost: totalCost
+    }),
+
+  load: (projectId: string) =>
+    api.get(`/api/projects/${projectId}/load`),
+
+  exportPdf: (projectId: string) =>
+    api.post(`/api/projects/${projectId}/export/pdf`),
+
+  getExportStatus: (projectId: string) =>
+    api.get(`/api/projects/${projectId}/export/status`),
+
+  importMpp: (projectId: string, formData: FormData) =>
+    api.post(`/api/projects/${projectId}/import`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    }).then(res => res.data),
+
+  getCashFlow: (projectId: string) =>
+    api.post(`/api/projects/${projectId}/report/cash-flow`),
+};

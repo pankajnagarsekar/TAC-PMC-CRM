@@ -13,11 +13,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, accessToken, clearAuth } = useAuthStore();
   const { activeProject } = useProjectStore();
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('sidebar-collapsed');
+      if (savedState === 'true') {
+        setIsSidebarCollapsed(true);
+      }
+    }
   }, []);
+
+  const handleToggleSidebar = () => {
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem('sidebar-collapsed', String(newState));
+  };
 
   // Auth guard
   useEffect(() => {
@@ -63,9 +76,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className={`flex h-screen overflow-hidden ${isClient ? 'is-client' : ''} bg-[#0b0f1a]`}>
-      <Sidebar onProjectSwitch={() => setShowProjectModal(true)} />
+      <Sidebar
+        onProjectSwitch={() => setShowProjectModal(true)}
+        isCollapsed={isSidebarCollapsed}
+        onToggle={handleToggleSidebar}
+      />
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden relative">
         {/* Background Decor - Subtle Ambient Light */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[120px] -z-10 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 blur-[100px] -z-10 pointer-events-none" />

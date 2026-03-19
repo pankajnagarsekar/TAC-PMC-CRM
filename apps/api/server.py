@@ -28,6 +28,7 @@ from core.database import db_manager  # noqa: E402
 from reporting_routes import reporting_router  # noqa: E402
 from settings_routes import settings_router  # noqa: E402
 from audit_routes import router as audit_router  # noqa: E402
+from project_scheduler_routes import scheduler_router  # noqa: E402
 from core.indexes import ensure_indexes  # noqa: E402
 from core.rate_limit import init_rate_limiting  # noqa: E402
 
@@ -122,6 +123,7 @@ app.add_middleware(
 )
 
 app.include_router(audit_router, prefix="/api")
+app.include_router(scheduler_router, prefix="/api/projects")
 
 # Create router with /api prefix
 api_router = APIRouter(prefix="/api")
