@@ -8,7 +8,7 @@ load_dotenv(ROOT_DIR / '.env')
 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Response, Cookie, Query  # noqa: E402
-from fastapi.security import HTTPBearer  # noqa: E402
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
 from bson import ObjectId, Decimal128  # noqa: E402

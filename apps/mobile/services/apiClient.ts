@@ -506,19 +506,49 @@ export const pettyCashApi = {
 // ============================================
 // HARDENED CASH API (Phase 7 Parity)
 // ============================================
+
+/**
+ * A single financial category as returned by the server's cash-summary endpoint.
+ * All balance flags (`is_negative`, `threshold_breached`) are computed exclusively
+ * server-side and must never be derived or overridden on the client.
+ */
+export interface CashCategory {
+  category_id: string;
+  category_name: string;
+  cash_in_hand: number;
+  allocation_total: number;
+  /** True when this category's cash-in-hand balance falls below zero. Server-computed. */
+  is_negative: boolean;
+  /** True when this category has breached the configured threshold. Server-computed. */
+  threshold_breached: boolean;
+}
+
+/**
+ * Full response envelope for `cashApi.getSummary`.
+ * Conforms strictly to the v2 nested category schema returned by `GET /api/projects/:id/cash-summary`.
+ */
+export interface CashSummaryResponse {
+  categories: CashCategory[];
+  summary: {
+    total_cash_in_hand: number;
+  };
+}
+
 export const cashApi = {
-  getSummary: (projectId: string): Promise<{
-    cash_in_hand: number;
-    allocation_remaining: number;
-    allocation_total: number;
-    threshold: number;
-    days_since_last_pc_close: number | null;
-    flags: {
-      is_negative: boolean;
-      is_below_threshold: boolean;
-    }
-  }> => request(`/api/projects/${projectId}/cash-summary`),
-  
+  /**
+   * Fetches the cash position summary for a project, broken down by server-computed categories.
+   *
+   * @param projectId - The project to query.
+   * @returns A `CashSummaryResponse` with a `categories` array and aggregate `summary`.
+   *
+   * @remarks
+   * The legacy root-level `flags` object (`is_negative`, `is_below_threshold`) has been
+   * removed. Consumers must read per-category flags from `CashCategory.is_negative` and
+   * `CashCategory.threshold_breached` instead.
+   */
+  getSummary: (projectId: string): Promise<CashSummaryResponse> =>
+    request(`/api/projects/${projectId}/cash-summary`),
+
   listTransactions: (projectId: string, params?: { category_id?: string; cursor?: string; limit?: number }): Promise<{
     items: any[];
     next_cursor: string | null;
@@ -530,13 +560,26 @@ export const cashApi = {
     return request(`/api/projects/${projectId}/cash-transactions?${query}`);
   },
 
+  /**
+   * POSTs a raw cash transaction entry to the server.
+   *
+   * @param projectId - The project context for the transaction.
+   * @param data - Raw entry payload (description, amount, category_id, attachments, etc.).
+   * @param idempotencyKey - A unique key (UUID v4 recommended) to prevent duplicate submissions.
+   *
+   * @security **Client-side math is strictly forbidden.**
+   * This method must only be used to POST raw entry data.
+   * All balance calculations, running totals, `cash_in_hand` updates, and flag evaluations
+   * (`is_negative`, `threshold_breached`) are performed exclusively server-side.
+   * Never pre-compute or inject derived financial values into `data` before calling this method.
+   */
   createTransaction: (projectId: string, data: any, idempotencyKey: string): Promise<any> => {
     return request(`/api/projects/${projectId}/cash-transactions`, {
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
-  }
+  },
 };
 
 // ============================================

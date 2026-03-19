@@ -369,7 +369,10 @@ export function logApiError(
   });
 }
 
-export default {
+export const errorLogger = {
+  error: logError,
+  warn: logWarning,
+  info: logInfo,
   logError,
   logWarning,
   logInfo,
@@ -384,3 +387,5 @@ export default {
   cleanupErrorHandlers,
   logApiError,
 };
+
+export default errorLogger;

@@ -36,7 +36,7 @@ api.interceptors.request.use(
           }
         }
       } catch (e) {
-        errorLogger.error("Failed to parse project storage", e);
+        errorLogger.error("Failed to parse project storage", { error: e });
       }
     }
     return config;
