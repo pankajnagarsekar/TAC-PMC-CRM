@@ -29,7 +29,7 @@ import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
 export default function AdminDashboard() {
   const { activeProject } = useProjectStore();
 
-  const { data: financials, error: financialsError, mutate: retryFinancials } = useSWR<DerivedFinancialState[]>(
+  const { data: financials, error: financialsError, isLoading, mutate: retryFinancials } = useSWR<DerivedFinancialState[]>(
     activeProject
       ? `/api/v2/projects/${activeProject.project_id}/financials`
       : null,
@@ -103,11 +103,31 @@ export default function AdminDashboard() {
     );
   }
 
+  if (isLoading && !financials) {
+    return (
+      <div className="p-6 space-y-10 animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="space-y-4">
+            <div className="h-10 w-64 bg-slate-800 rounded-2xl" />
+            <div className="h-4 w-48 bg-slate-800/50 rounded-lg" />
+          </div>
+          <div className="h-12 w-40 bg-slate-800 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-32 bg-slate-800/40 rounded-[2.5rem] border border-white/5" />
+          ))}
+        </div>
+        <div className="h-[400px] bg-slate-800/20 rounded-[3rem] border border-white/5" />
+      </div>
+    );
+  }
+
   if (financialsError) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
         <NetworkErrorRetry
-          message="Failed to load dashboard data."
+          message="System Intelligence Offline. Reconnecting..."
           onRetry={() => retryFinancials()}
         />
       </div>
@@ -166,7 +186,7 @@ export default function AdminDashboard() {
   // Quick Links Configuration
   const quickLinks = [
     {
-      href: "/admin/projects/" + activeProject.project_id,
+      href: "/admin/projects/" + (activeProject.project_id || ""),
       icon: TrendingUp,
       label: "Project Overview",
       color: "#3b82f6",
@@ -313,7 +333,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <Link
-                href={`/admin/projects/${activeProject.project_id}`}
+                href={`/admin/projects/${activeProject.project_id || ""}`}
                 className="bg-white/5 hover:bg-white/10 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 active:scale-95 border border-white/5"
               >
                 Full Analysis <ArrowUpRight size={14} />
@@ -325,9 +345,9 @@ export default function AdminDashboard() {
                 const pct =
                   f.original_budget > 0
                     ? Math.min(
-                        100,
-                        (f.committed_value / f.original_budget) * 100,
-                      )
+                      100,
+                      (f.committed_value / f.original_budget) * 100,
+                    )
                     : 0;
                 const isOver = f.over_commit_flag;
                 return (
@@ -512,7 +532,7 @@ export default function AdminDashboard() {
               <p className="text-white text-3xl font-black tracking-tight">
                 {pettyCashData?.days_since_last_pc_close != null
                   ? `${pettyCashData.days_since_last_pc_close}`
-                  : "--"}{" "}
+                  : "None"}{" "}
                 <span className="text-lg font-medium text-slate-500">days</span>
               </p>
               <p className="text-slate-600 text-[10px] font-medium uppercase tracking-wider">
@@ -521,13 +541,12 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider ${
-              (pettyCashData?.days_since_last_pc_close ?? 0) >= 15
-                ? "bg-rose-500 text-white"
-                : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
-                  ? "bg-amber-500 text-white"
-                  : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-            }`}
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider ${(pettyCashData?.days_since_last_pc_close ?? 0) >= 15
+              ? "bg-rose-500 text-white"
+              : (pettyCashData?.days_since_last_pc_close ?? 0) >= 11
+                ? "bg-amber-500 text-white"
+                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+              }`}
           >
             {(pettyCashData?.days_since_last_pc_close ?? 0) >= 15
               ? "Overdue"
@@ -580,7 +599,7 @@ export default function AdminDashboard() {
               <p className="text-white text-3xl font-black tracking-tight">
                 {ovhCashData?.days_since_last_pc_close != null
                   ? `${ovhCashData.days_since_last_pc_close}`
-                  : "--"}{" "}
+                  : "None"}{" "}
                 <span className="text-lg font-medium text-slate-500">days</span>
               </p>
               <p className="text-slate-600 text-[10px] font-medium uppercase tracking-wider">
@@ -589,13 +608,12 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider ${
-              (ovhCashData?.days_since_last_pc_close ?? 0) >= 15
-                ? "bg-rose-500 text-white"
-                : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
-                  ? "bg-amber-500 text-white"
-                  : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-            }`}
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider ${(ovhCashData?.days_since_last_pc_close ?? 0) >= 15
+              ? "bg-rose-500 text-white"
+              : (ovhCashData?.days_since_last_pc_close ?? 0) >= 11
+                ? "bg-amber-500 text-white"
+                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+              }`}
           >
             {(ovhCashData?.days_since_last_pc_close ?? 0) >= 15
               ? "Overdue"

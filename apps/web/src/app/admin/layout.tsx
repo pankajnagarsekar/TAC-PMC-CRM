@@ -7,6 +7,10 @@ import { useProjectStore } from '@/store/projectStore';
 import Sidebar from '@/components/layout/Sidebar';
 import ProjectSelectorModal from '@/components/layout/ProjectSelectorModal';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+
+// CE-01: Register AG Grid modules globally once
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -82,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onToggle={handleToggleSidebar}
       />
 
-      <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden relative">
+      <div className={`flex-1 flex flex-col transition-all duration-300 overflow-hidden relative ${isSidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
         {/* Background Decor - Subtle Ambient Light */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[120px] -z-10 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 blur-[100px] -z-10 pointer-events-none" />
@@ -133,8 +137,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Main content - Refined Spacing */}
-        <main className={`flex-1 overflow-y-auto p-8 relative ${isClient ? 'client-readonly' : ''} custom-scrollbar`}>
-          <div className="max-w-[1600px] mx-auto">
+        <main className={`flex-1 overflow-y-auto p-8 relative ${isClient ? 'client-readonly' : ''} custom-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out`}>
+          <div className="max-w-[1700px] mx-auto">
             <ErrorBoundary>
               {children}
             </ErrorBoundary>

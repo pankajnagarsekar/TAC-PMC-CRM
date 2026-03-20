@@ -95,14 +95,14 @@ const NAV_ITEMS: NavItem[] = [
     label: "Site Operations",
     key: "site_operations",
     children: [
-      { href: "/admin/site-operations/dprs", label: "DPRs", key: "dprs" },
+      { href: "/admin/site-operations?tab=dprs", label: "DPRs", key: "dprs" },
       {
-        href: "/admin/site-operations/attendance",
+        href: "/admin/site-operations?tab=attendance",
         label: "Attendance",
         key: "attendance",
       },
       {
-        href: "/admin/site-operations/voice-logs",
+        href: "/admin/site-operations?tab=voice-logs",
         label: "Voice Logs",
         key: "voice_logs",
       },

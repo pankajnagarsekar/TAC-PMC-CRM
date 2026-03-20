@@ -13,6 +13,7 @@ export default function DPRTab() {
   const { activeProject } = useProjectStore();
   const [dprs, setDprs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -26,8 +27,18 @@ export default function DPRTab() {
 
   const fetchDPRs = async () => {
     if (!activeProject?.project_id) return;
+
+    // Safety timeout to prevent stuck loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError("Report connection timed out. Please refresh.");
+      }
+    }, 10000);
+
     try {
       setLoading(true);
+      setError(null);
       let url = `/api/projects/${activeProject.project_id}/dprs`;
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.append("status_filter", statusFilter);
@@ -36,9 +47,11 @@ export default function DPRTab() {
 
       const response = await api.get(`${url}?${params.toString()}`);
       setDprs(response.data);
-    } catch (error) {
-      console.error("Error fetching DPRs:", error);
+    } catch (err: any) {
+      console.error("Error fetching DPRs:", err);
+      setError(err.response?.data?.detail || "Failed to retrieve project reports.");
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -101,17 +114,17 @@ export default function DPRTab() {
         flex: 2,
         cellRenderer: (params: any) => (
           <span className="text-xs text-slate-500 truncate block">
-            {params.value || "No notes..."}
+            {params.value || "No notes recorded..."}
           </span>
         ),
       },
       {
-        headerName: "Photos",
+        headerName: "Media",
         field: "photos",
         flex: 0.5,
         cellRenderer: (params: any) => (
-          <span className="text-slate-400 font-mono text-xs">
-            {params.value?.length || 0}
+          <span className={`text-xs font-mono ${params.value?.length ? 'text-orange-400' : 'text-slate-700'}`}>
+            [{params.value?.length || 0}]
           </span>
         ),
       },
@@ -123,7 +136,7 @@ export default function DPRTab() {
             onClick={() =>
               router.push(`/admin/site-operations/dprs/${params.data._id}`)
             }
-            className="text-orange-500 hover:text-orange-400 text-xs font-semibold flex items-center gap-1"
+            className="text-orange-500 hover:text-orange-400 text-xs font-semibold flex items-center gap-1 transition-colors"
           >
             Details <ExternalLink size={12} />
           </button>
@@ -171,14 +184,14 @@ export default function DPRTab() {
             <Calendar size={14} className="text-slate-500" />
             <input
               type="date"
-              className="bg-transparent text-sm text-slate-300 outline-none"
+              className="bg-transparent text-sm text-slate-300 outline-none select-none"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
             <span className="text-slate-600">-</span>
             <input
               type="date"
-              className="bg-transparent text-sm text-slate-300 outline-none"
+              className="bg-transparent text-sm text-slate-300 outline-none select-none"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
@@ -186,7 +199,14 @@ export default function DPRTab() {
         </div>
       </div>
 
-      <div className="h-[500px]">
+      <div className="h-[500px] relative">
+        {error && (
+          <div className="absolute inset-x-0 -top-2 flex justify-center z-10">
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-tighter backdrop-blur-md">
+              {error}
+            </div>
+          </div>
+        )}
         <FinancialGrid<any>
           columnDefs={columnDefs}
           rowData={dprs}

@@ -73,6 +73,11 @@ api.interceptors.response.use(
         localStorage.setItem("access_token", access_token);
         localStorage.setItem("refresh_token", refresh_token);
 
+        // Update session cookie for middleware (30 days max-age)
+        if (typeof window !== 'undefined') {
+          document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax`;
+        }
+
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
         }
@@ -108,23 +113,23 @@ export const fetcher = (url: string) => api.get(url).then((r) => r.data);
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
   calculate: (projectId: string, tasks: any[], projectStart: string) =>
-    api.post(`/api/projects/${projectId}/calculate`, { tasks, project_start: projectStart }),
+    api.post(`/api/projects/${projectId}/calculate`, { tasks, project_start: projectStart }).then(res => res.data),
 
   save: (projectId: string, tasks: any[], projectStart: string, totalCost: number) =>
     api.post(`/api/projects/${projectId}/save`, {
       tasks,
       project_start: projectStart,
       total_cost: totalCost
-    }),
+    }).then(res => res.data),
 
   load: (projectId: string) =>
-    api.get(`/api/projects/${projectId}/load`),
+    api.get(`/api/projects/${projectId}/load`).then(res => res.data),
 
   exportPdf: (projectId: string) =>
-    api.post(`/api/projects/${projectId}/export/pdf`),
+    api.post(`/api/projects/${projectId}/export/pdf`).then(res => res.data),
 
   getExportStatus: (projectId: string) =>
-    api.get(`/api/projects/${projectId}/export/status`),
+    api.get(`/api/projects/${projectId}/export/status`).then(res => res.data),
 
   importMpp: (projectId: string, formData: FormData) =>
     api.post(`/api/projects/${projectId}/import`, formData, {
@@ -132,5 +137,5 @@ export const schedulerApi = {
     }).then(res => res.data),
 
   getCashFlow: (projectId: string) =>
-    api.post(`/api/projects/${projectId}/report/cash-flow`),
+    api.post(`/api/projects/${projectId}/report/cash-flow`).then(res => res.data),
 };

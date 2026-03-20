@@ -1,3 +1,5 @@
+import { toast as sonnerToast } from "sonner";
+
 export interface ToastProps {
   title?: string;
   description?: string;
@@ -8,9 +10,16 @@ export function useToast() {
   return {
     toast: (props: ToastProps) => {
       console.log(`[Toast] ${props.title}: ${props.description}`);
-      // Fallback for UI visibility during development
+
+      const options = {
+        description: props.description,
+        duration: 5000,
+      };
+
       if (props.variant === 'destructive') {
-        alert(`${props.title}\n\n${props.description}`);
+        sonnerToast.error(props.title || "Error", options);
+      } else {
+        sonnerToast.success(props.title || "Success", options);
       }
     }
   };

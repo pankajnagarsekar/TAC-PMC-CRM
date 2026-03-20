@@ -67,7 +67,7 @@ export default function GanttChart({ tasks }: GanttChartProps) {
                 ) : (
                     <div style={{ width: chartWidth, minHeight: tasks.length * rowHeight + headerHeight }} className="relative">
                         {/* Header */}
-                        <svg width={chartWidth} height={headerHeight} className="sticky top-0 z-10 bg-slate-900/80 backdrop-blur-md border-b border-white/5">
+                        <svg width={chartWidth} height={headerHeight} className="sticky top-0 z-20 bg-slate-950 border-b border-white/10">
                             {months.map((month, idx) => {
                                 const monthStart = startOfMonth(month);
                                 const xStart = differenceInDays(monthStart > minDate ? monthStart : minDate, minDate) * dayWidth;

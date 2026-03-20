@@ -32,9 +32,8 @@ export default function SiteOperationsPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${
-              activeTab === tab.id ? "text-orange-500" : "text-slate-500 hover:text-slate-300"
-            }`}
+            className={`flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${activeTab === tab.id ? "text-orange-500" : "text-slate-500 hover:text-slate-300"
+              }`}
           >
             <tab.icon size={16} />
             {tab.label}

@@ -3,10 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
 import {
   Plus,
   Search,
@@ -19,17 +16,21 @@ import {
   ExternalLink,
   Wallet,
   Loader2,
+  LayoutGrid
 } from "lucide-react";
 import api, { fetcher } from "@/lib/api";
 import { Project } from "@/types/api";
 import ProjectModal from "@/components/projects/ProjectModal";
+import FinancialGrid from "@/components/ui/FinancialGrid";
 
 export default function ProjectsPage() {
   const {
     data: projects,
     mutate,
     isLoading,
+    error
   } = useSWR<Project[]>("/api/projects", fetcher);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | undefined>(
@@ -40,19 +41,19 @@ export default function ProjectsPage() {
   const columnDefs: ColDef<Project>[] = useMemo(
     () => [
       {
-        headerName: "Project Name",
+        headerName: "Project Identity",
         field: "project_name",
-        flex: 2,
+        flex: 2.5,
         cellRenderer: (params: any) => (
           <div className="flex items-center gap-3 py-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
-              <Layout size={16} />
+            <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 shadow-inner">
+              <LayoutGrid size={18} />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-white leading-tight">
+              <span className="font-bold text-white leading-tight">
                 {params.value}
               </span>
-              <span className="text-[10px] text-slate-500 font-mono mt-0.5">
+              <span className="text-[10px] text-slate-500 font-mono mt-0.5 tracking-wider">
                 {params.data.project_code || "NO-CODE"}
               </span>
             </div>
@@ -60,13 +61,13 @@ export default function ProjectsPage() {
         ),
       },
       {
-        headerName: "Client",
+        headerName: "Stakeholder",
         field: "client_name",
         flex: 1.5,
         cellRenderer: (params: any) => (
           <div className="flex items-center gap-2 text-slate-300">
             <Building size={14} className="text-slate-500" />
-            {params.value || "Direct Project"}
+            <span className="font-medium text-xs">{params.value || "Internal"}</span>
           </div>
         ),
       },
@@ -78,73 +79,76 @@ export default function ProjectsPage() {
           <div className="flex items-center gap-2 text-slate-400 text-xs">
             <MapPin size={12} className="text-slate-600" />
             <span className="truncate">
-              {params.value || params.data.city || "N/A"}
+              {params.value || params.data.city || "Remote"}
             </span>
           </div>
         ),
       },
       {
-        headerName: "Status",
+        headerName: "Operational Status",
         field: "status",
-        width: 130,
-        cellRenderer: (params: any) => (
-          <div className="flex items-center h-full">
-            <span
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                params.value === "active"
-                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                  : params.value === "completed"
-                    ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                    : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
-              }`}
-            >
-              {params.value === "active" ? (
-                <CheckCircle2 size={10} />
-              ) : (
-                <XCircle size={10} />
-              )}
-              {params.value}
-            </span>
-          </div>
-        ),
+        width: 150,
+        cellRenderer: (params: any) => {
+          const status = params.value?.toLowerCase() || 'pending';
+          return (
+            <div className="flex items-center h-full">
+              <span
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${status === "active"
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.05)]"
+                    : status === "completed"
+                      ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                      : "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                  }`}
+              >
+                {status === "active" ? (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                ) : (
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                )}
+                {status}
+              </span>
+            </div>
+          );
+        }
       },
       {
-        headerName: "",
+        headerName: "Actions",
         field: "_id",
-        width: 120,
+        width: 140,
+        cellClass: "admin-only",
         cellRenderer: (params: any) => (
-          <div className="flex items-center justify-end h-full gap-2 px-2 admin-only">
+          <div className="flex items-center justify-end h-full gap-1 px-1">
             <button
               onClick={() => handleEdit(params.data)}
-              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
-              title="Edit Project"
+              className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all active:scale-90"
+              title="Edit Profile"
             >
-              <Edit2 size={16} />
+              <Edit2 size={15} />
             </button>
             <button
               onClick={() => handleInitializeBudgets(params.value)}
               disabled={!!initLoading}
-              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500 transition-colors disabled:opacity-50"
-              title="Initialize Budgets"
+              className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-400 hover:text-emerald-500 transition-all active:scale-90 disabled:opacity-50"
+              title="Compute Budgets"
             >
               {initLoading === params.value ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={15} className="animate-spin" />
               ) : (
-                <Wallet size={16} />
+                <Wallet size={15} />
               )}
             </button>
             <Link
               href={`/admin/projects/${params.data._id}`}
-              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-orange-500 transition-colors"
-              title="View Details"
+              className="p-2 hover:bg-orange-500/10 rounded-lg text-slate-400 hover:text-orange-500 transition-all active:scale-90"
+              title="Enterprise View"
             >
-              <ExternalLink size={16} />
+              <ExternalLink size={15} />
             </Link>
           </div>
         ),
       },
     ],
-    [],
+    [initLoading],
   );
 
   function handleEdit(project: Project) {
@@ -159,86 +163,102 @@ export default function ProjectsPage() {
 
   async function handleInitializeBudgets(projectId: string) {
     if (
-      !confirm("This will initialize 0.00 budget for all categories. Continue?")
+      !confirm("System will initialize base-level budgets for all cost codes. Proceed?")
     )
       return;
     setInitLoading(projectId);
     try {
       await api.post(`/api/v2/projects/${projectId}/initialize-budgets`);
-      alert("Budgets initialized successfully.");
+      alert("Project financial structure initialized.");
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to initialize budgets.");
+      alert(err.response?.data?.detail || "Failed to initialize financials.");
     } finally {
       setInitLoading(null);
     }
   }
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Layout className="text-orange-500" />
-            Project Management
+    <div className="p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
+      {/* Header Container */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
+            <div className="p-2 bg-orange-500/10 border border-orange-500/20 rounded-2xl shadow-inner">
+              <Layout size={24} className="text-orange-500" />
+            </div>
+            Portfolio Control
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Initialize projects, track budgets and manage site locations.
+          <p className="text-slate-500 text-sm font-medium pl-14">
+            Monitoring <span className="text-orange-500/80 font-bold">{projects?.length || 0}</span> strategic assets across the organization.
           </p>
         </div>
 
         <button
           onClick={handleAddNew}
-          className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+          className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-[1.2rem] font-black text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-900/20 active:scale-95 border border-white/10"
         >
-          <Plus size={18} />
-          New Project
+          <Plus size={18} strokeWidth={3} />
+          Create New Asset
         </button>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800/50">
-        <div className="relative w-full sm:w-80">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Search projects..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* Main Glass Shell */}
+      <div className="bg-slate-900/40 border border-white/5 rounded-[2.5rem] p-6 space-y-6 shadow-2xl backdrop-blur-sm overflow-hidden">
+        {/* Visual Controls */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:w-96 group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-500 transition-colors"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search project registry..."
+              className="w-full bg-slate-950/80 border border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500/40 transition-all placeholder:text-slate-700"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-8 px-6 py-2 bg-slate-950/40 rounded-2xl border border-white/5">
+            <div className="flex items-center gap-3 group">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Active</span>
+                <span className="text-xs text-white font-bold">{projects?.filter((p) => p.status === "active").length || 0}</span>
+              </div>
+            </div>
+            <div className="w-px h-6 bg-white/5" />
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-orange-500/50" />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Global</span>
+                <span className="text-xs text-white font-bold">{projects?.length || 0} Assets</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            {projects?.filter((p) => p.status === "active").length || 0} Active
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium border-l border-slate-800 pl-6">
-            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-            {projects?.length || 0} Total Projects
-          </div>
+        {/* Intelligence Grid */}
+        <div className="relative min-h-[500px]">
+          {error ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-rose-500/5 border border-rose-500/20 rounded-[2rem]">
+              <div className="text-center space-y-4">
+                <XCircle className="w-12 h-12 text-rose-500 mx-auto opacity-50" />
+                <p className="text-rose-200 font-bold">Registry Access Failure</p>
+                <button onClick={() => mutate()} className="text-[10px] font-black uppercase tracking-widest text-white bg-rose-600 px-4 py-2 rounded-xl">Retry Connection</button>
+              </div>
+            </div>
+          ) : (
+            <FinancialGrid<Project>
+              rowData={projects || []}
+              columnDefs={columnDefs}
+              loading={isLoading}
+              height="calc(100vh - 380px)"
+              quickFilterText={searchTerm}
+            />
+          )}
         </div>
-      </div>
-
-      {/* Grid */}
-      <div className="ag-theme-alpine-dark w-full aspect-[2/1] min-h-[500px] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-        <AgGridReact
-          rowData={projects}
-          columnDefs={columnDefs}
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-          }}
-          quickFilterText={searchTerm}
-          pagination={true}
-          paginationPageSize={10}
-          onGridReady={(params) => params.api.sizeColumnsToFit()}
-        />
       </div>
 
       <ProjectModal
@@ -247,32 +267,6 @@ export default function ProjectsPage() {
         onSuccess={() => mutate()}
         project={selectedProject}
       />
-
-      <style jsx global>{`
-        .ag-theme-alpine-dark {
-          --ag-background-color: #020617;
-          --ag-header-background-color: #0f172a;
-          --ag-border-color: #1e293b;
-          --ag-secondary-border-color: #1e293b;
-          --ag-header-foreground-color: #94a3b8;
-          --ag-data-color: #f8fafc;
-          --ag-odd-row-background-color: #020617;
-          --ag-row-hover-color: rgba(249, 115, 22, 0.05);
-          --ag-selected-row-background-color: rgba(249, 115, 22, 0.1);
-          --ag-font-family: "Inter", sans-serif;
-          --ag-font-size: 13px;
-        }
-        .ag-header-cell-label {
-          justify-content: start;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          font-size: 11px;
-        }
-        .ag-row {
-          border-bottom-color: #0f172a !important;
-        }
-      `}</style>
     </div>
   );
 }

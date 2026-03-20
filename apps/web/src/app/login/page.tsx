@@ -36,8 +36,8 @@ export default function LoginPage() {
       // Persist auth (also sets cookie-compatible localStorage for middleware)
       setAuth(user, access_token, refresh_token);
 
-      // Set a cookie so middleware can check on server side
-      document.cookie = `crm_token=${access_token}; path=/; max-age=1800; SameSite=Lax`;
+      // Set a cookie so middleware can check on server side (30 days max-age)
+      document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax`;
 
       // Role-based redirect
       if (user.role === 'Admin') {
@@ -52,7 +52,7 @@ export default function LoginPage() {
       const detail = axiosError?.response?.data?.detail;
       setError(
         (typeof detail === 'string' ? detail : JSON.stringify(detail)) ||
-          'Login failed. Please check your credentials.'
+        'Login failed. Please check your credentials.'
       );
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function LoginPage() {
               <span className="text-gradient-orange italic">Masterfully Built.</span>
             </h1>
             <p className="text-slate-400 text-xl leading-relaxed mb-16 opacity-80">
-              Transforming construction finance with real-time analytics 
+              Transforming construction finance with real-time analytics
               and immutable traceability at scale.
             </p>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 { label: 'Automated Reporting', icon: '02' },
                 { label: 'Secure Architecture', icon: '03' },
               ].map((item, i) => (
-                <div key={item.label} 
+                <div key={item.label}
                   className="glass-card rounded-[1.5rem] p-5 flex items-center gap-6 group hover:translate-x-2 transition-transform duration-500"
                   style={{ transitionDelay: `${i * 150}ms` }}>
                   <span className="text-xs font-black text-orange-500/40 tracking-widest group-hover:text-orange-500 transition-colors uppercase">{item.icon}</span>

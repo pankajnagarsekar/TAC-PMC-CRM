@@ -299,15 +299,18 @@ export default function FinancialGrid<T extends any>({
           --ag-font-size: 13px !important;
           --ag-font-family: inherit !important;
           --ag-border-radius: 12px !important;
-          --ag-grid-size: 6px !important;
-          --ag-list-item-height: 32px !important;
+          --ag-grid-size: 8px !important;
+          --ag-list-item-height: 36px !important;
+          --ag-cell-horizontal-padding: 24px !important;
         }
 
         .ag-theme-quartz-dark .ag-header-cell {
           font-weight: 700 !important;
-          letter-spacing: 0.05em !important;
+          letter-spacing: 0.08em !important;
           text-transform: uppercase !important;
           font-size: 10px !important;
+          padding-left: 24px !important;
+          padding-right: 24px !important;
         }
 
         .ag-theme-quartz-dark .ag-row {

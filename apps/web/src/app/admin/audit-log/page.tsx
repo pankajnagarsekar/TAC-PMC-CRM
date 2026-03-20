@@ -13,7 +13,10 @@ import {
   FileText,
   Calendar,
   Eye,
+  X
 } from "lucide-react";
+import api from "@/lib/api";
+import { exportToCSV } from "@/lib/utils";
 
 interface AuditLog {
   log_id: string;
@@ -88,6 +91,7 @@ export default function AuditLogPage() {
 
       const params = new URLSearchParams();
       params.append("limit", "50");
+      params.append("page", pageNum.toString());
 
       if (filters.entity_type)
         params.append("entity_type", filters.entity_type);
@@ -96,13 +100,9 @@ export default function AuditLogPage() {
       if (filters.action_type)
         params.append("action_type", filters.action_type);
 
-      const response = await fetch(`/api/audit-logs?${params.toString()}`);
+      const response = await api.get(`/api/audit-logs?${params.toString()}`);
+      const data = response.data;
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch audit logs");
-      }
-
-      const data = await response.json();
       setLogs(append ? [...logs, ...data] : data);
       setHasMore(data.length === 50);
     } catch (err) {
@@ -113,8 +113,9 @@ export default function AuditLogPage() {
   };
 
   useEffect(() => {
-    fetchLogs(1, false);
+    fetchLogs(page, false);
   }, [
+    page,
     filters.entity_type,
     filters.entity_id,
     filters.project_id,
@@ -151,80 +152,80 @@ export default function AuditLogPage() {
   const getActionColor = (action: string) => {
     switch (action) {
       case "CREATE":
-        return "bg-green-100 text-green-800";
+        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
       case "UPDATE":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       case "DELETE":
-        return "bg-red-100 text-red-800";
+        return "bg-rose-500/10 text-rose-500 border-rose-500/20";
       case "CLOSE":
-        return "bg-purple-100 text-purple-800";
+        return "bg-purple-500/10 text-purple-500 border-purple-500/20";
       case "APPROVE":
-        return "bg-emerald-100 text-emerald-800";
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
       case "REJECT":
-        return "bg-orange-100 text-orange-800";
+        return "bg-orange-500/10 text-orange-500 border-orange-500/20";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-slate-500/10 text-slate-400 border-slate-500/20";
     }
   };
 
   const exportLogs = () => {
-    const dataStr = JSON.stringify(logs, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `audit-logs-${new Date().toISOString().split("T")[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportToCSV(logs, "audit_ledger");
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <History className="w-6 h-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <History className="text-blue-500" />
+            Audit Ledger
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            System-wide activity tracking for security and financial integrity.
+          </p>
         </div>
-        <p className="text-gray-600">
-          Track all changes to financial records, projects, and system data
-        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => fetchLogs(page, false)}
+            className="p-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
+          >
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={exportLogs}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-all border border-white/5"
+          >
+            <Download className="w-4 h-4" />
+            Export Data
+          </button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      {/* Filters Container */}
+      <div className="bg-slate-900/40 border border-white/5 rounded-[2rem] overflow-hidden">
+        <div className="p-5 border-b border-white/5 flex items-center justify-between">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
+            className={`flex items-center gap-2 font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${showFilters ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white/5 text-slate-400'}`}
           >
             <Filter className="w-4 h-4" />
-            <span className="font-medium">Filters</span>
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fetchLogs(1, false)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-              title="Refresh"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={exportLogs}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
+
+          <div className="hidden md:flex gap-4">
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Live Monitoring Active
+            </div>
           </div>
         </div>
 
         {showFilters && (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6 bg-slate-950/20">
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
                 Entity Type
               </label>
               <select
@@ -232,7 +233,7 @@ export default function AuditLogPage() {
                 onChange={(e) =>
                   handleFilterChange("entity_type", e.target.value)
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl text-sm focus:outline-none focus:border-blue-500/50"
               >
                 {ENTITY_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -242,16 +243,16 @@ export default function AuditLogPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Action
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                Action Type
               </label>
               <select
                 value={filters.action_type}
                 onChange={(e) =>
                   handleFilterChange("action_type", e.target.value)
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl text-sm focus:outline-none focus:border-blue-500/50"
               >
                 {ACTION_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -261,9 +262,9 @@ export default function AuditLogPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Entity ID
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                Identifier ID
               </label>
               <input
                 type="text"
@@ -271,127 +272,86 @@ export default function AuditLogPage() {
                 onChange={(e) =>
                   handleFilterChange("entity_id", e.target.value)
                 }
-                placeholder="Filter by ID..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="ID Search..."
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl text-sm focus:outline-none focus:border-blue-500/50 placeholder:text-slate-700"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project ID
-              </label>
-              <input
-                type="text"
-                value={filters.project_id}
-                onChange={(e) =>
-                  handleFilterChange("project_id", e.target.value)
-                }
-                placeholder="Filter by project..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div className="flex items-end">
+            <div className="flex items-end gap-3">
               <button
                 onClick={clearFilters}
-                className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                className="flex-1 px-4 py-2.5 text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5"
               >
-                Clear Filters
+                Reset
               </button>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* Logs Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {/* Table Data */}
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Timestamp
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Action
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Entity
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Module
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Project
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Details
-                </th>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-950/40 border-b border-white/5">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Timestamp</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Action</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Entity</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">User</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Project</th>
+                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">inspect</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-white/[0.02]">
               {logs.map((log) => (
                 <tr
                   key={log.log_id}
-                  className="hover:bg-gray-50 transition-colors"
+                  className="hover:bg-white/[0.01] transition-colors group"
                 >
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-400 font-mono">
                     {formatDate(log.created_at)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getActionColor(
+                      className={`inline-flex px-2.5 py-1 text-[10px] font-black rounded-lg border leading-none transition-all group-hover:scale-105 ${getActionColor(
                         log.action_type,
                       )}`}
                     >
                       {log.action_type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span>{log.entity_type}</span>
-                      <span className="text-gray-400 text-xs">
-                        ({log.entity_id.slice(-8)})
-                      </span>
+                      <FileText className="w-4 h-4 text-slate-600" />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-white font-bold">{log.entity_type}</span>
+                        <span className="text-[10px] text-slate-600 font-mono">#{log.entity_id.slice(-8)}</span>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    {log.module_name}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-400" />
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2 text-xs text-slate-300">
+                      <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
+                        {(log.user_name || "U").charAt(0)}
+                      </div>
                       <span>{log.user_name || log.user_id.slice(-8)}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-400">
                     {log.project_id ? (
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>
+                        <Calendar className="w-3 h-3 text-slate-600" />
+                        <span className="max-w-[150px] truncate">
                           {log.project_name || log.project_id.slice(-8)}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-slate-700">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <button
                       onClick={() => setSelectedLog(log)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="View Details"
+                      className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all active:scale-90"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -403,169 +363,100 @@ export default function AuditLogPage() {
         </div>
 
         {logs.length === 0 && !loading && (
-          <div className="p-8 text-center text-gray-500">
-            <History className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No audit logs found</p>
-            <p className="text-sm">Try adjusting your filters</p>
+          <div className="p-20 text-center text-slate-600">
+            <History className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <p className="text-lg font-bold text-slate-500">No History Records</p>
+            <p className="text-sm">Try adjusting your filters to find specific activity.</p>
           </div>
         )}
 
-        {loading && (
-          <div className="p-8 text-center">
-            <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
-            <p className="text-gray-500">Loading audit logs...</p>
+        {/* Pagination & Footer */}
+        <div className="px-6 py-4 bg-slate-950/40 border-t border-white/5 flex items-center justify-between">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+            {logs.length} Entry Results
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-2 text-slate-500 hover:text-white bg-white/5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-white px-3 py-1 bg-white/5 rounded-lg border border-white/5">
+              {page}
+            </span>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!hasMore}
+              className="p-2 text-slate-500 hover:text-white bg-white/5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-        )}
-
-        {/* Pagination */}
-        {logs.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">Showing {logs.length} logs</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm text-gray-600">Page {page}</span>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!hasMore}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* Luxury Modal for Details */}
       {selectedLog && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedLog(null)}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Audit Log Details
-              </h2>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-white/10 rounded-[3rem] shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-br from-white/[0.02] to-transparent">
+              <div>
+                <h2 className="text-2xl font-black text-white tracking-tight">Audit Details</h2>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Log ID: {selectedLog.log_id}</p>
+              </div>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="p-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-2xl transition-all"
               >
-                ×
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-4 overflow-y-auto max-h-[60vh]">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+            <div className="p-8 overflow-y-auto space-y-10 custom-scrollbar">
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Execution Time</label>
+                  <p className="text-sm text-white font-mono">{formatDate(selectedLog.created_at)}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Action Classification</label>
                   <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      Timestamp
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {formatDate(selectedLog.created_at)}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      Action
-                    </label>
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getActionColor(
-                        selectedLog.action_type,
-                      )}`}
-                    >
+                    <span className={`inline-flex px-3 py-1 text-[10px] font-black rounded-lg border ${getActionColor(selectedLog.action_type)}`}>
                       {selectedLog.action_type}
                     </span>
                   </div>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      Entity Type
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {selectedLog.entity_type}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      Entity ID
-                    </label>
-                    <p className="text-sm text-gray-900 font-mono">
-                      {selectedLog.entity_id}
-                    </p>
-                  </div>
+              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Affected Entity</label>
+                  <p className="text-sm text-white font-black">{selectedLog.entity_type}</p>
                 </div>
-
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">
-                    Module
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedLog.module_name}
-                  </p>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">System Module</label>
+                  <p className="text-sm text-white font-medium">{selectedLog.module_name || 'Global'}</p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      User ID
-                    </label>
-                    <p className="text-sm text-gray-900 font-mono">
-                      {selectedLog.user_id}
-                    </p>
-                  </div>
-                  {selectedLog.user_name && (
-                    <div>
-                      <label className="text-xs font-medium text-gray-500 uppercase">
-                        User Name
-                      </label>
-                      <p className="text-sm text-gray-900">
-                        {selectedLog.user_name}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {selectedLog.project_id && (
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      Project
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {selectedLog.project_name || selectedLog.project_id}
-                    </p>
-                  </div>
-                )}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block">Data Payload Change</label>
 
                 {selectedLog.previous_state && (
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      Previous State
-                    </label>
-                    <pre className="mt-1 p-3 bg-gray-50 rounded-lg text-xs text-gray-700 overflow-auto max-h-40">
+                  <div className="rounded-2xl bg-black/40 border border-white/5 p-5 space-y-3">
+                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Previous State</p>
+                    <pre className="text-[11px] text-slate-400 font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(selectedLog.previous_state, null, 2)}
                     </pre>
                   </div>
                 )}
 
                 {selectedLog.new_value && (
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase">
-                      New Value
-                    </label>
-                    <pre className="mt-1 p-3 bg-gray-50 rounded-lg text-xs text-gray-700 overflow-auto max-h-40">
+                  <div className="rounded-2xl bg-orange-500/[0.03] border border-orange-500/10 p-5 space-y-3">
+                    <p className="text-[9px] font-bold text-orange-500/50 uppercase tracking-widest">New Values Applied</p>
+                    <pre className="text-[11px] text-orange-200/70 font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(selectedLog.new_value, null, 2)}
                     </pre>
                   </div>
@@ -573,12 +464,12 @@ export default function AuditLogPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 flex justify-end">
+            <div className="p-8 border-t border-white/5 bg-slate-950/20">
               <button
                 onClick={() => setSelectedLog(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                className="w-full py-4 text-sm font-black text-slate-200 bg-white/5 hover:bg-white/10 rounded-2xl transition-all uppercase tracking-[0.2em]"
               >
-                Close
+                Acknowledge & Close
               </button>
             </div>
           </div>

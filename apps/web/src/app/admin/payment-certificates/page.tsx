@@ -163,10 +163,10 @@ export default function PaymentCertificatesPage() {
             </div>
             <Link
               href="/admin/payment-certificates/new"
-              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-emerald-500/20"
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-orange-500/20 active:scale-95"
             >
               <Plus size={18} />
-              Create PC
+              Create Certificate
             </Link>
           </div>
         )}

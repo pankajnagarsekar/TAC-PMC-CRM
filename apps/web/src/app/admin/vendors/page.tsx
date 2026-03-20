@@ -8,6 +8,7 @@ import {
   Trash2,
   ShieldCheck,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Vendor } from "@tac-pmc/types";
@@ -104,41 +105,50 @@ export default function VendorsPage() {
     }
   };
 
-  const handleDelete = async (vendorId: string) => {
-    // Find the vendor object
-    const vendor = vendors.find((v) => (v._id || (v as any).id) === vendorId);
-    if (vendor) {
-      handleDeleteClick(vendor);
-    }
-  };
-
   const columnDefs: ColDef<Vendor>[] = [
-    { field: "name", headerName: "Vendor Name", flex: 2, minWidth: 200 },
-    { field: "gstin", headerName: "GSTIN", flex: 1, minWidth: 150 },
+    {
+      field: "name",
+      headerName: "Vendor Profile",
+      flex: 2,
+      minWidth: 200,
+      cellRenderer: (params: any) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 font-bold text-[10px]">
+            {params.value.substring(0, 2).toUpperCase()}
+          </div>
+          <span className="text-white font-bold">{params.value}</span>
+        </div>
+      )
+    },
+    { field: "gstin", headerName: "Tax Identifier", flex: 1, minWidth: 150 },
     {
       field: "contact_person",
-      headerName: "Contact Person",
+      headerName: "Primary Contact",
       flex: 1.2,
       minWidth: 150,
+      cellRenderer: (params: any) => (
+        <span className="text-slate-400 font-medium">{params.value || "—"}</span>
+      )
     },
-    { field: "phone", headerName: "Phone", flex: 1, minWidth: 120 },
+    { field: "phone", headerName: "Contact Number", flex: 1, minWidth: 120 },
     {
-      headerName: "Actions",
-      width: 100,
+      headerName: "Control",
+      width: 120,
       pinned: "right",
+      cellClass: "admin-only",
       cellRenderer: (params: { data: Vendor }) => (
-        <div className="flex items-center gap-2 h-full admin-only">
+        <div className="flex items-center justify-end gap-1 h-full px-2">
           <button
             onClick={() => handleEdit(params.data)}
-            className="p-1 hover:text-orange-500 transition-colors"
+            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-orange-500 transition-all active:scale-90"
           >
-            <Edit2 size={14} />
+            <Edit2 size={15} />
           </button>
           <button
             onClick={() => handleDeleteClick(params.data)}
-            className="p-1 hover:text-red-500 transition-colors"
+            className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-500 hover:text-rose-500 transition-all active:scale-90"
           >
-            <Trash2 size={14} />
+            <Trash2 size={15} />
           </button>
         </div>
       ),
@@ -146,49 +156,59 @@ export default function VendorsPage() {
   ];
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <ShieldCheck className="text-orange-500" />
-            Vendor Management
+    <div className="p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
+            <div className="p-2 bg-orange-500/10 border border-orange-500/20 rounded-2xl shadow-inner">
+              <ShieldCheck size={24} className="text-orange-500" />
+            </div>
+            Vendor Registry
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Manage all construction vendors and material suppliers
+          <p className="text-slate-500 text-sm font-medium pl-14">
+            Verified materials supply chain and resource management.
           </p>
         </div>
+
         <button
           onClick={handleCreate}
-          className="admin-only flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+          className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-[1.2rem] font-black text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-900/20 active:scale-95 border border-white/10"
         >
-          <Plus size={18} />
-          Add Vendor
+          <Plus size={18} strokeWidth={3} />
+          Onboard Vendor
         </button>
       </div>
 
-      <div className="bg-[#1e293b]/50 border border-slate-800 rounded-2xl p-4">
-        <div className="relative mb-6">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Search vendors by name, GSTIN, or contact..."
-            className="w-full bg-[#0f172a] border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all"
-            value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearchTerm(e.target.value)
-            }
-          />
+      <div className="bg-slate-900/40 border border-white/5 rounded-[2.5rem] p-6 space-y-6 shadow-2xl backdrop-blur-sm overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:w-96 group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-500 transition-colors"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search partner network..."
+              className="w-full bg-slate-950/80 border border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500/40 transition-all placeholder:text-slate-700"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+            <Users className="text-orange-500/50" size={14} />
+            <span className="text-[10px] font-black text-orange-500/80 uppercase tracking-widest leading-none">
+              {vendors.length} Total Partners Attached
+            </span>
+          </div>
         </div>
 
         <FinancialGrid
           rowData={filteredVendors}
           columnDefs={columnDefs}
-          height="calc(100vh - 280px)"
+          height="calc(100vh - 380px)"
           editable={false}
-          className="rounded-xl overflow-hidden border border-slate-700"
+          quickFilterText={searchTerm}
         />
       </div>
 
@@ -199,39 +219,38 @@ export default function VendorsPage() {
         vendor={selectedVendor}
       />
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl font-bold">
-              <AlertTriangle className="text-red-500" size={24} />
-              Delete Vendor
+        <DialogContent className="bg-slate-950 border border-white/10 text-white max-w-md rounded-[2.5rem] shadow-2xl backdrop-blur-2xl">
+          <DialogHeader className="p-6">
+            <DialogTitle className="flex items-center gap-4 text-2xl font-black tracking-tight">
+              <div className="p-2 bg-rose-500/10 rounded-xl">
+                <AlertTriangle className="text-rose-500" size={24} />
+              </div>
+              Offboard Vendor
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-slate-300">
-              Are you sure you want to delete{" "}
-              <strong className="text-white">{vendorToDelete?.name}</strong>?
+          <div className="px-8 py-4">
+            <p className="text-slate-400 leading-relaxed font-medium">
+              You are about to revoke system access for <strong className="text-white font-bold">{vendorToDelete?.name}</strong>. This action is logged for security auditing.
             </p>
-            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <p className="text-amber-500 text-sm">
-                This vendor will be deactivated. If they have linked Work
-                Orders, deletion will be blocked.
+            <div className="mt-6 p-4 bg-amber-500/[0.03] border border-amber-500/10 rounded-2xl">
+              <p className="text-amber-500 text-xs font-bold uppercase tracking-widest text-center">
+                Financial Dependency Check Required
               </p>
             </div>
           </div>
-          <DialogFooter className="flex gap-3">
+          <DialogFooter className="p-8 pt-4 flex gap-4">
             <button
               onClick={() => setDeleteDialogOpen(false)}
-              className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
+              className="flex-1 px-6 py-4 bg-white/5 border border-white/5 text-slate-400 font-bold rounded-2xl hover:bg-white/10 transition-all uppercase text-[10px] tracking-widest"
             >
               Cancel
             </button>
             <button
               onClick={confirmDelete}
-              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors"
+              className="flex-1 px-6 py-4 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 uppercase text-[10px] tracking-widest border border-white/10"
             >
-              Delete Vendor
+              Confirm Offboarding
             </button>
           </DialogFooter>
         </DialogContent>
