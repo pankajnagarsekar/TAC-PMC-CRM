@@ -102,7 +102,7 @@ export const setAuthToken = async (token: string): Promise<void> => {
   }
   try {
     if (SecureStore) await SecureStore.setItemAsync('access_token', token);
-  } catch {}
+  } catch { }
 };
 
 export const clearAuthToken = async (): Promise<void> => {
@@ -112,7 +112,7 @@ export const clearAuthToken = async (): Promise<void> => {
   }
   try {
     if (SecureStore) await SecureStore.deleteItemAsync('access_token');
-  } catch {}
+  } catch { }
 };
 
 // ============================================
@@ -165,7 +165,7 @@ async function request<T>(
   requiresAuth = true
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -188,7 +188,7 @@ async function request<T>(
       const newToken = await storage.get(TOKEN_KEYS.ACCESS);
       headers['Authorization'] = `Bearer ${newToken}`;
       const retryResponse = await fetch(url, { ...options, headers });
-      
+
       if (!retryResponse.ok) {
         const error = await retryResponse.json().catch(() => ({ detail: 'Request failed' }));
         throw new ApiError(error.detail, retryResponse.status, error);
@@ -540,11 +540,6 @@ export const cashApi = {
    *
    * @param projectId - The project to query.
    * @returns A `CashSummaryResponse` with a `categories` array and aggregate `summary`.
-   *
-   * @remarks
-   * The legacy root-level `flags` object (`is_negative`, `is_below_threshold`) has been
-   * removed. Consumers must read per-category flags from `CashCategory.is_negative` and
-   * `CashCategory.threshold_breached` instead.
    */
   getSummary: (projectId: string): Promise<CashSummaryResponse> =>
     request(`/api/projects/${projectId}/cash-summary`),
@@ -567,11 +562,7 @@ export const cashApi = {
    * @param data - Raw entry payload (description, amount, category_id, attachments, etc.).
    * @param idempotencyKey - A unique key (UUID v4 recommended) to prevent duplicate submissions.
    *
-   * @security **Client-side math is strictly forbidden.**
-   * This method must only be used to POST raw entry data.
-   * All balance calculations, running totals, `cash_in_hand` updates, and flag evaluations
-   * (`is_negative`, `threshold_breached`) are performed exclusively server-side.
-   * Never pre-compute or inject derived financial values into `data` before calling this method.
+   * @security warning: "Client-side math is strictly forbidden. This method must only be used to POST raw entry data; balances are calculated server-side."
    */
   createTransaction: (projectId: string, data: any, idempotencyKey: string): Promise<any> => {
     return request(`/api/projects/${projectId}/cash-transactions`, {
