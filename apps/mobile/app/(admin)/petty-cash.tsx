@@ -274,7 +274,7 @@ export default function SiteFundsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => syncFunds(true)} tintColor={Colors.primary} />
         }
         ListEmptyComponent={
-          !loading && <Text style={styles.emptyText}>No recent entries found.</Text>
+          !loading ? <Text style={styles.emptyText}>No recent entries found.</Text> : null
         }
       />
 

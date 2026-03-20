@@ -257,6 +257,15 @@ export class RequestLock {
 // Global request lock instance
 export const globalRequestLock = new RequestLock();
 
+export const idempotency = {
+  get: getOrCreateIdempotencyKey,
+  generate: generateIdempotencyKey,
+  clear: clearIdempotencyKey,
+  execute: executeWithIdempotency,
+  withHeader: withIdempotencyKey,
+  isInFlight: isRequestInFlight,
+};
+
 export default {
   generateIdempotencyKey,
   getOrCreateIdempotencyKey,

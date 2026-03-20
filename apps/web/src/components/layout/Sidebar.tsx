@@ -22,7 +22,9 @@ import {
   ShieldCheck,
   CalendarDays,
   ChevronLeft,
+  ChevronsUpDown,
 } from "lucide-react";
+import { useProjectStore } from "@/store/projectStore";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
 import useSWR from "swr";
@@ -130,13 +132,14 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  onProjectSwitch: _onProjectSwitch,
+  onProjectSwitch,
   isCollapsed = false,
   onToggle,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
+  const { activeProject } = useProjectStore();
   const { data: settings } = useSWR<GlobalSettings>(
     "/api/settings",
     fetcher
@@ -173,64 +176,89 @@ export default function Sidebar({
   });
 
   return (
-    <aside className={`${isCollapsed ? "w-20" : "w-64"} glass-panel-luxury border-r border-white/5 h-screen flex flex-col transition-all duration-300`}>
-      {/* Logo Area */}
-      <div className={`p-6 border-b border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent relative ${isCollapsed ? 'flex justify-center' : ''}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-orange-500/20 glow-primary shrink-0">
-            <BarChart3 size={20} className="text-white" />
-          </div>
-          {!isCollapsed && (
-            <div className="animate-in fade-in duration-300">
-              <h1 className="text-lg font-bold tracking-tight text-white leading-none">TAC PMC</h1>
-              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-[0.2em] mt-1">Financial Suite</p>
+    <aside className={`${isCollapsed ? "w-16" : "w-60"} zinc-sidebar h-screen flex flex-col transition-all duration-300 z-50`}>
+      {/* Brand & Project Switcher */}
+      <div className="flex flex-col border-b border-zinc-800/50">
+        <div className={`h-14 flex items-center px-4 shrink-0 ${isCollapsed ? 'justify-center px-0' : ''}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+              <BarChart3 size={18} className="text-white" />
             </div>
-          )}
+            {!isCollapsed && (
+              <h1 className="text-sm font-bold tracking-tight text-zinc-100 uppercase">TAC CRM</h1>
+            )}
+          </div>
+
+          <button
+            onClick={onToggle}
+            className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#09090b] border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white transition-all shadow-md ${isCollapsed ? 'rotate-180' : ''}`}
+          >
+            <ChevronLeft size={14} />
+          </button>
         </div>
 
-        <button
-          onClick={onToggle}
-          className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-slate-400 hover:text-accent transition-all z-50 shadow-xl ${isCollapsed ? 'rotate-180' : ''}`}
-        >
-          <ChevronLeft size={14} />
-        </button>
+        {/* Project Switcher Trigger */}
+        {!isCollapsed && (
+          <div className="px-3 pb-4">
+            <button
+              onClick={onProjectSwitch}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800/50 transition-all text-left group"
+            >
+              <div className="w-5 h-5 rounded bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                <span className="text-[10px] font-bold text-indigo-400">
+                  {activeProject?.project_code?.[0] || 'P'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-zinc-300 truncate">
+                  {activeProject?.project_name || 'Select Project'}
+                </p>
+                {activeProject && (
+                  <p className="text-[9px] text-zinc-500 font-mono tracking-tighter truncate">
+                    {activeProject.project_code}
+                  </p>
+                )}
+              </div>
+              <ChevronsUpDown size={12} className="text-zinc-600 group-hover:text-zinc-400" />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+      {/* Navigation - RuixenUI Style */}
+      <nav className="flex-1 overflow-y-auto pt-2 px-3 space-y-0.5 custom-scrollbar">
         {filteredNavItems.map((item) => {
           const isActive = pathname === item.href || (item.children && item.children.some(c => pathname === c.href));
           return (
-            <div key={item.key} className="space-y-1">
+            <div key={item.key} className="space-y-0.5">
               <Link
                 href={item.href}
                 title={isCollapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative ${isActive
-                  ? 'bg-accent/10 text-accent font-semibold shadow-inner'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 group relative ${isActive
+                  ? 'bg-[#18181b] text-white font-medium'
+                  : 'text-zinc-500 hover:bg-[#18181b] hover:text-zinc-200'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
-                {isActive && !isCollapsed && (
-                  <div className="absolute left-0 w-1 h-6 bg-accent rounded-r-full shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                {isActive && (
+                  <div className="absolute left-0 w-[2px] h-4 bg-indigo-500 rounded-r-full" />
                 )}
-                <span className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110 group-hover:text-accent'} shrink-0`}>
-                  {item.icon && <item.icon size={18} />}
+                <span className={`shrink-0 transition-colors ${isActive ? 'text-indigo-400' : 'group-hover:text-zinc-200'}`}>
+                  {item.icon && <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} />}
                 </span>
-                {!isCollapsed && <span className="text-sm tracking-wide truncate animate-in fade-in slide-in-from-left-2 duration-300">{item.label}</span>}
-                {item.children && !isCollapsed && (
-                  <ChevronRight size={14} className={`ml-auto transition-transform ${isActive ? 'rotate-90 text-accent' : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`} />
+                {!isCollapsed && (
+                  <span className="text-[13px] tracking-normal truncate">{item.label}</span>
                 )}
               </Link>
 
               {item.children && isActive && !isCollapsed && (
-                <div className="ml-9 space-y-1">
+                <div className="ml-7 my-1 border-l border-[#27272a] space-y-0.5">
                   {item.children.map(child => {
                     const isChildActive = pathname === child.href;
                     return (
                       <Link
                         key={child.key}
                         href={child.href}
-                        className={`block py-2 px-3 text-xs rounded-lg transition-colors ${isChildActive ? 'text-accent font-medium bg-accent/5' : 'text-slate-500 hover:text-slate-300'
+                        className={`block py-1.5 px-4 text-[12px] transition-colors ${isChildActive ? 'text-indigo-400 font-medium' : 'text-zinc-500 hover:text-zinc-300'
                           }`}
                       >
                         {child.label}
@@ -244,26 +272,25 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* User Session */}
-      <div className={`p-4 border-t border-white/5 ${isCollapsed ? 'flex justify-center' : ''}`}>
-        <div className={`bg-white/5 rounded-2xl p-4 border border-white/5 glass-panel-luxury mb-3 group transition-all hover:bg-white/[0.08] ${isCollapsed ? 'p-2 rounded-xl' : ''}`}>
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center border-b border-white/5 pb-2 mb-2' : 'mb-3'}`}>
-            <div className="w-9 h-9 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center text-sm font-bold text-orange-500 shadow-inner shrink-0">
-              {user?.name?.[0]?.toUpperCase() || 'A'}
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0 animate-in fade-in duration-300">
-                <p className="text-xs font-bold text-white truncate leading-tight">{user?.name || 'Admin User'}</p>
-                <p className="text-[10px] text-slate-400 truncate">{user?.email || 'admin@tacpmc.in'}</p>
+      {/* Footer Area - Refined Session */}
+      <div className="p-3 border-t border-[#27272a]">
+        <div className={`p-2 rounded-lg bg-[#18181b]/50 border border-[#27272a] ${isCollapsed ? 'flex justify-center' : ''}`}>
+          {!isCollapsed && (
+            <div className="flex items-center gap-3 mb-2 px-1">
+              <div className="w-7 h-7 rounded-full bg-zinc-800 border border-[#27272a] flex items-center justify-center text-[10px] font-bold text-indigo-400 shrink-0">
+                {user?.name?.[0]?.toUpperCase() || 'A'}
               </div>
-            )}
-          </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-zinc-200 truncate">{user?.name || 'Admin'}</p>
+                <p className="text-[9px] text-zinc-500 truncate">{user?.email}</p>
+              </div>
+            </div>
+          )}
           <button
             onClick={handleLogout}
-            title={isCollapsed ? "Sign Out" : undefined}
-            className={`w-full py-2 px-4 rounded-xl bg-slate-800/50 hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-[11px] font-semibold transition-all border border-white/5 flex items-center justify-center gap-2 ${isCollapsed ? 'px-0 border-none bg-transparent hover:bg-transparent' : ''}`}
+            className={`w-full py-1.5 rounded-md hover:bg-red-500/10 text-zinc-500 hover:text-red-400 text-[11px] font-medium transition-all flex items-center justify-center gap-2 ${isCollapsed ? 'w-8 h-8 p-0 rounded-full' : ''}`}
           >
-            <LogOut size={14} />
+            <LogOut size={13} />
             {!isCollapsed && <span>Sign Out</span>}
           </button>
         </div>

@@ -60,11 +60,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-mesh-ultra font-sans selection:bg-orange-500/30 overflow-hidden relative">
-      {/* Background Aurora Glows */}
+    <div className="min-h-screen flex bg-mesh-ultra font-sans selection:bg-indigo-500/30 overflow-hidden relative">
+      {/* Background Aurora Glows - Indigo for RuixenUI */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/[0.07] rounded-full blur-[160px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-orange-600/[0.05] rounded-full blur-[180px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/[0.07] rounded-full blur-[160px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-zinc-800/[0.05] rounded-full blur-[180px]" />
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       </div>
 
@@ -73,19 +73,19 @@ export default function LoginPage() {
         <div className="hidden lg:flex flex-col justify-between w-[45%] p-20">
           <div className="animate-in fade-in slide-in-from-top-4 duration-700">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/20"
-                style={{ background: 'linear-gradient(135deg, #F97316 0%, #ea6a0e 100%)' }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/20"
+                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
                 <BarChart3 size={28} className="text-white" />
               </div>
-              <span className="text-white font-black text-2xl tracking-tighter uppercase">TAC-PMC</span>
+              <span className="text-white font-black text-2xl tracking-tighter uppercase">TAC PMC</span>
             </div>
-            <div className="h-[2px] w-14 bg-orange-500/40 rounded-full" />
+            <div className="h-[2px] w-14 bg-indigo-500/40 rounded-full" />
           </div>
 
           <div className="max-w-lg">
             <h1 className="text-6xl font-black text-white leading-[1.1] mb-8 tracking-tighter animate-in fade-in slide-in-from-left-6 duration-1000">
               Financial Integrity,<br />
-              <span className="text-gradient-orange italic">Masterfully Built.</span>
+              <span className="text-indigo-400 italic">Masterfully Built.</span>
             </h1>
             <p className="text-slate-400 text-xl leading-relaxed mb-16 opacity-80">
               Transforming construction finance with real-time analytics
@@ -101,7 +101,7 @@ export default function LoginPage() {
                 <div key={item.label}
                   className="glass-card rounded-[1.5rem] p-5 flex items-center gap-6 group hover:translate-x-2 transition-transform duration-500"
                   style={{ transitionDelay: `${i * 150}ms` }}>
-                  <span className="text-xs font-black text-orange-500/40 tracking-widest group-hover:text-orange-500 transition-colors uppercase">{item.icon}</span>
+                  <span className="text-xs font-black text-indigo-500/40 tracking-widest group-hover:text-indigo-500 transition-colors uppercase">{item.icon}</span>
                   <span className="text-white/90 font-bold text-base tracking-wide">{item.label}</span>
                 </div>
               ))}
@@ -142,7 +142,7 @@ export default function LoginPage() {
                 <div className="space-y-3">
                   <label className="block text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] ml-2">Identity</label>
                   <div className="relative group/input">
-                    <Mail size={20} className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-orange-500 transition-colors z-20" />
+                    <Mail size={20} className="absolute left-8 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within/input:text-indigo-500 transition-colors z-20" />
                     <input
                       id="email"
                       type="email"
@@ -151,7 +151,7 @@ export default function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="admin@tacpmc.com"
-                      className="input-glass w-full pl-[5.5rem] pr-6 py-5 rounded-2xl text-white text-base placeholder:text-slate-800 outline-none"
+                      className="input-glass w-full pl-[5.5rem] pr-6 py-5 rounded-2xl text-white text-base placeholder:text-zinc-800 outline-none focus:ring-1 focus:ring-indigo-500/50"
                     />
                   </div>
                 </div>
@@ -192,13 +192,14 @@ export default function LoginPage() {
                   id="login-btn"
                   type="submit"
                   disabled={loading}
-                  className="btn-premium-orange w-full h-20 rounded-2xl font-bold text-white text-sm tracking-[0.3em] uppercase transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl shadow-orange-500/20 active:scale-[0.98] outline-none"
+                  className="w-full h-16 rounded-2xl font-bold text-white text-sm tracking-[0.3em] uppercase transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl shadow-indigo-500/20 active:scale-[0.98] outline-none"
+                  style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}
                 >
                   <span className="relative z-10 flex items-center justify-center gap-4">
                     {loading ? (
-                      <><span className="w-5 h-5 border-[3px] border-white border-t-transparent rounded-full animate-spin" /> AUTHORIZING...</>
+                      <><span className="w-4 h-4 border-[2px] border-white border-t-transparent rounded-full animate-spin" /> AUTHORIZING...</>
                     ) : (
-                      <>ESTABLISH CONNECTION <BarChart3 size={20} className="opacity-60" /></>
+                      <>ESTABLISH CONNECTION <BarChart3 size={18} className="opacity-60" /></>
                     )}
                   </span>
                 </button>
