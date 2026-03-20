@@ -19,7 +19,7 @@ from auth import get_current_user
 from decimal import Decimal
 from bson import Decimal128
 from models import ProjectBudget, ProjectBudgetCreate, ProjectBudgetUpdate, DerivedFinancialState
-from reporting_routes import serialize_doc
+from core.utils import serialize_doc
 
 logger = logging.getLogger(__name__)
 

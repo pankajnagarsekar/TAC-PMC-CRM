@@ -12,7 +12,7 @@ export default function DPRTab() {
   const router = useRouter();
   const { activeProject } = useProjectStore();
   const [dprs, setDprs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

@@ -107,7 +107,7 @@ class Project(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: str
     project_name: str
-    client_id: str
+    client_id: Optional[str] = None
     project_code: Optional[str] = None
     status: str = "active"
     address: Optional[str] = None
@@ -130,7 +130,7 @@ class Project(BaseModel):
 
 class ProjectCreate(BaseModel):
     project_name: str
-    client_id: str
+    client_id: Optional[str] = None
     project_code: Optional[str] = None
     status: str = "active"
     address: Optional[str] = None

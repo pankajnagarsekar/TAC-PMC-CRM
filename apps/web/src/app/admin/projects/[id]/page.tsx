@@ -3,10 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
-import { AgGridReact } from "ag-grid-react";
+import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
 import {
   ArrowLeft,
   TrendingUp,
@@ -34,12 +32,13 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
   const { setActiveProject } = useProjectStore();
 
-  const { data: project, mutate: mutateProject } = useSWR<Project>(
+  const { data: project, error: projectError, mutate: mutateProject, isLoading: projectLoading } = useSWR<Project>(
     `/api/projects/${projectId}`,
     fetcher,
   );
   const {
     data: financials,
+    error: financialsError,
     mutate: mutateFinancials,
     isLoading: financialsLoading,
   } = useSWR<DerivedFinancialState[]>(
@@ -143,9 +142,29 @@ export default function ProjectDetailPage() {
     [mutateFinancials],
   );
 
-  if (!project || financialsLoading) {
+  if (projectError || financialsError) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <div className="text-center">
+          <h3 className="text-white font-bold">Failed to load project details</h3>
+          <p className="text-slate-500 text-sm">The intelligence module could not retrieve data for this reference.</p>
+        </div>
+        <button
+          onClick={() => router.push("/admin/projects")}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-all"
+        >
+          Return to Registry
+        </button>
+      </div>
+    );
+  }
+
+  if (projectLoading || financialsLoading || !project) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
       </div>
     );
@@ -258,23 +277,14 @@ export default function ProjectDetailPage() {
           </div>
         </div>
 
-        <div className="ag-theme-alpine-dark w-full h-[600px] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative">
-          {savingId && (
-            <div className="absolute inset-0 z-10 bg-slate-950/20 backdrop-blur-[1px] flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
-            </div>
-          )}
-          <AgGridReact
-            rowData={financials}
-            columnDefs={columnDefs}
-            defaultColDef={{
-              sortable: true,
-              filter: true,
-              resizable: true,
-            }}
-            onGridReady={(params) => params.api.sizeColumnsToFit()}
-          />
-        </div>
+        <FinancialGrid
+          rowData={financials || []}
+          columnDefs={columnDefs}
+          loading={financialsLoading}
+          height="600px"
+          editable={true}
+          onCellValueChanged={columnDefs[1].onCellValueChanged}
+        />
       </div>
 
       {/* Linked Certificates section */}
@@ -290,26 +300,7 @@ export default function ProjectDetailPage() {
         }}
       />
 
-      <style jsx global>{`
-        .ag-theme-alpine-dark {
-          --ag-background-color: #020617;
-          --ag-header-background-color: #0f172a;
-          --ag-border-color: #1e293b;
-          --ag-secondary-border-color: #1e293b;
-          --ag-header-foreground-color: #94a3b8;
-          --ag-data-color: #f8fafc;
-          --ag-odd-row-background-color: #020617;
-          --ag-row-hover-color: rgba(249, 115, 22, 0.05);
-          --ag-selected-row-background-color: rgba(249, 115, 22, 0.1);
-        }
-        .ag-header-cell-label {
-          justify-content: start;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          font-size: 11px;
-        }
-      `}</style>
+
     </div>
   );
 }

@@ -2,9 +2,7 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import { AgGridReact } from "ag-grid-react";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
+import FinancialGrid from "@/components/ui/FinancialGrid";
 import {
   Users,
   Plus,
@@ -95,11 +93,10 @@ export default function ClientsPage() {
         cellRenderer: (params: any) => (
           <div className="flex items-center h-full">
             <span
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                params.value
-                  ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                  : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
-              }`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${params.value
+                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
+                }`}
             >
               {params.value ? (
                 <CheckCircle2 size={10} />
@@ -222,20 +219,24 @@ export default function ClientsPage() {
       </div>
 
       {/* Grid */}
-      <div className="ag-theme-alpine-dark w-full aspect-[2/1] min-h-[500px] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-        <AgGridReact
-          rowData={clients as any}
-          columnDefs={columnDefs as any}
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-          }}
-          quickFilterText={searchTerm}
-          pagination={true}
-          paginationPageSize={10}
-          onGridReady={(params) => params.api.sizeColumnsToFit()}
-        />
+      <div className="relative">
+        {!isLoading && (!clients || clients.length === 0) ? (
+          <div className="empty-state-luxury min-h-[400px]">
+            <div className="empty-state-luxury-icon">
+              <Users size={32} />
+            </div>
+            <h3 className="empty-state-luxury-title">No Clients Logged</h3>
+            <p className="empty-state-luxury-desc">Your strategic stakeholder database is empty. Add a client to link with project assets.</p>
+          </div>
+        ) : (
+          <FinancialGrid
+            rowData={clients || []}
+            columnDefs={columnDefs}
+            quickFilterText={searchTerm}
+            loading={isLoading}
+            height="500px"
+          />
+        )}
       </div>
 
       <ClientModal
@@ -283,31 +284,7 @@ export default function ClientsPage() {
         </Dialog>
       )}
 
-      <style jsx global>{`
-        .ag-theme-alpine-dark {
-          --ag-background-color: #020617;
-          --ag-header-background-color: #0f172a;
-          --ag-border-color: #1e293b;
-          --ag-secondary-border-color: #1e293b;
-          --ag-header-foreground-color: #94a3b8;
-          --ag-data-color: #f8fafc;
-          --ag-odd-row-background-color: #020617;
-          --ag-row-hover-color: rgba(249, 115, 22, 0.05);
-          --ag-selected-row-background-color: rgba(249, 115, 22, 0.1);
-          --ag-font-family: "Inter", sans-serif;
-          --ag-font-size: 13px;
-        }
-        .ag-header-cell-label {
-          justify-content: start;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          font-size: 11px;
-        }
-        .ag-row {
-          border-bottom-color: #0f172a !important;
-        }
-      `}</style>
+
     </div>
   );
 }

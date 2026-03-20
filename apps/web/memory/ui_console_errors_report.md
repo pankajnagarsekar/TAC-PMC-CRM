@@ -1,189 +1,123 @@
-# TAC-PMC-CRM — UI & Console Errors Report
+TAC PMC CRM Unique Issues Report
 
-## CONSOLE ERRORS
+CRITICAL ISSUES
 
-### CE-01 — AG Grid: No Modules Registered (Error #272)
-**Status:** ✅ CONFIRMED  
-**Affected:** Clients, Projects, Categories, Work Orders — all render blank table areas  
+BUG 001 Reports page not rendering
+Reports route redirects to dashboard because page file is missing
+Fix create app admin reports page
 
-**Fix:**  
-Add:
-```ts
-ModuleRegistry.registerModules([AllCommunityModule])
-```
-Once globally in `_app.tsx` or a shared AG Grid config wrapper.
+BUG 002 Projects list API failure
+Projects API not returning data causing empty list
+Fix repair api projects endpoint and error handling
 
----
+BUG 003 Project detail page infinite loading
+Project detail fetch never resolves and loading state not cleared
+Fix add proper try catch and finally to stop loading
 
-### CE-02 — Next.js (15.1.0) Outdated
-**Status:** ✅ CONFIRMED  
+BUG 004 Categories grid stuck loading
+Row data not set causing infinite loading state
+Fix set empty array on error and success mapping
 
-**Fix:**  
-```bash
-npm install next@latest
-```
+BUG 005 Site operations grids not loading
+DPR and attendance grids stuck due to missing row data
+Fix ensure API response sets row data or empty array
 
----
+BUG 006 Work orders list blank after loading
+Component not rendering after loading completes
+Fix always render grid with fallback state
 
-## 🔴 CRITICAL ROUTING ERRORS
+BUG 007 Site overheads add transaction not working
+Button click has no handler or modal not wired
+Fix attach onClick and render modal
 
-### UR-01 — Session Expiry / Logout Loop (CRITICAL)
-**Status:** ✅ CONFIRMED  
+BUG 008 Voice logs not loading
+Recording list fetch failing or not updating state
+Fix add error and empty state handling
 
-Session expires in under 5–10 seconds. Any direct URL navigation triggers immediate logout.
+BUG 009 Modal rendering off screen
+All modals positioned outside viewport due to CSS issue
+Fix center modal using fixed position and transform
 
-**Fix:**  
-- Set:
-```ts
-maxAge: 30 * 24 * 60 * 60
-```
-- Add silent refresh token mechanism
+BUG 010 Dashboard NaN percentage
+Division by zero causing NaN display
+Fix guard against zero values
 
----
+BUG 011 Duplicate petty cash stat card
+Same stat card rendered twice
+Fix remove duplicate and restore correct metric
 
-### UR-02 — Site Overheads → 404 Not Found (CRITICAL)
-**Status:** ✅ CONFIRMED  
+BUG 012 Retention amount negative zero
+Calculation displays negative zero
+Fix normalize zero display
 
-**Fix:**  
-Create:
-```
-app/admin/site-overheads/page.tsx
-```
+BUG 013 AG grid theme inconsistency
+Some pages use light theme breaking UI consistency
+Fix apply dark theme globally
 
----
+BUG 014 AG grid column truncation
+Column widths too small causing unreadable headers
+Fix auto size columns and define min widths
 
-### UR-03 — Reports Page Not Navigating / Missing (CRITICAL)
-**Status:** ✅ CONFIRMED  
+BUG 015 Scheduler crash on calculation
+Undefined value used with toLocaleString causing crash
+Fix add null checks and validation
 
-**Fix:**  
-Create:
-```
-app/admin/reports/page.tsx
-```
+BUG 016 Project switcher not loading projects
+Separate API call failing in modal
+Fix align with main projects API and auth
 
----
+BUG 017 Sidebar layout overlap
+Main content hidden behind sidebar
+Fix add left margin to layout
 
-### UR-04 — Dashboard Links Point to Undefined Project (CRITICAL)
-**Status:** ✅ CONFIRMED  
+BUG 018 Missing routes causing 404
+Users and site overhead pages missing
+Fix create required route files
 
-**Fix:**  
-Use:
-```ts
-project?.id ?? ''
-```
+BUG 019 Charts not showing data
+Dashboard charts receive no data
+Fix validate API and props mapping
 
----
+BUG 020 Error handling missing across app
+Many components fail silently without fallback UI
+Fix add consistent error boundaries and empty states
 
-## 🟠 UI ERRORS
+BUG 021 Session expiry too aggressive
+Session expires within seconds breaking navigation
+Fix increase session max age and add refresh logic
 
-### UI-01 — Sidebar Overlapping Main Content
-**Status:** ✅ CONFIRMED  
+BUG 022 Next version outdated
+Framework outdated warning present
+Fix upgrade next package
 
-**Fix:**  
-Add `ml-64` to layout.
+BUG 023 404 page not styled
+Default blank page shown without layout
+Fix create custom not found page with layout
 
----
+BUG 024 Persistent error toast
+Error indicator does not auto dismiss
+Fix add timeout or restrict to dev mode
 
-### UI-02 — DPR Table Stuck on Loading
-**Status:** ✅ CONFIRMED  
+BUG 025 Vendors grid theme mismatch
+Vendors page uses incorrect grid styling
+Fix apply consistent dark theme
 
-**Fix:**  
-Add error handling + timeout fallback.
+BUG 026 Projects page blank on direct navigation
+Page fails to render without navigation context
+Fix add error boundary and handle async errors
 
----
+BUG 027 Submenu styling missing
+Sidebar submenu lacks indentation and active state
+Fix add padding and highlight styles
 
-### UI-03 — Audit Log Theme Mismatch
-**Status:** ✅ CONFIRMED  
+BUG 028 Missing empty states
+Multiple pages show blank UI instead of empty state
+Fix add fallback messages for no data
 
-**Fix:**  
-Apply dark theme styles.
+BUG 029 Broken dashboard links
+Links use undefined project id
+Fix wait for project data before rendering links
 
----
-
-### UI-04 — CTA Button Color Inconsistency
-**Status:** ✅ CONFIRMED  
-
-**Fix:**  
-Use `bg-orange-500`.
-
----
-
-### UI-05 — Dashboard Charts Show "No data"
-**Status:** ✅ CONFIRMED  
-
-**Fix:**  
-Debug API + props.
-
----
-
-### UI-06 — Dashboard Stat Cards Hidden
-**Status:** ✅ CONFIRMED  
-
-**Fix:**  
-Same as UI-01.
-
----
-
-### UI-07 — TEAM Link → 404
-**Status:** ✅ CONFIRMED  
-
-**Fix:**  
-Create users page or update route.
-
----
-
-## 🟡 MINOR / LOW PRIORITY
-
-### M-01 — Petty Cash Cards Hidden
-Fix: Same as UI-01
-
-### M-02 — "SINCE LAST PC CLOSE" Shows --
-Fix: Show fallback text
-
-### M-03 — Sub-menu Styling Missing
-Fix: Add padding + styling
-
----
-
-## 🆕 NEW ISSUES
-
-### NEW-01 — Vendors AG Grid Theme Issue
-Fix: Use `ag-theme-quartz-dark`
-
-### NEW-02 — Projects Page Blank on Direct Navigation
-Fix: Add ErrorBoundary
-
-### NEW-03 — 404 Page Unstyled
-Fix: Create `app/not-found.tsx`
-
-### NEW-04 — Error Count Accumulation
-Fix: Resolved via CE-01
-
-### NEW-05 — Persistent Error Toast
-Fix: Add auto-dismiss
-
----
-
-## SUMMARY TABLE
-
-| #  | Issue ID | Severity    | Page(s)                                    | Fix Summary                                                      |
-| -- | -------- | ----------- | ------------------------------------------ | ---------------------------------------------------------------- |
-| 1  | UR-01    | 🔴 CRITICAL | All                                        | Increase JWT maxAge, add token refresh                           |
-| 2  | CE-01    | 🔴 CRITICAL | Clients, Projects, Categories, Work Orders | Register AG Grid modules globally                                |
-| 3  | UI-01    | 🔴 CRITICAL | All                                        | Add ml-64 to layout                                              |
-| 4  | UR-02    | 🔴 CRITICAL | Site Overheads                             | Create page.tsx                                                  |
-| 5  | UR-03    | 🔴 CRITICAL | Reports                                    | Create page.tsx                                                  |
-| 6  | UR-04    | 🔴 CRITICAL | Dashboard                                  | Fix project ID handling                                          |
-| 7  | NEW-01   | 🟠 HIGH     | Vendors                                    | Apply dark AG Grid theme                                         |
-| 8  | NEW-02   | 🟠 HIGH     | Projects                                   | Add ErrorBoundary                                                |
-| 9  | UI-02    | 🟠 HIGH     | Site Operations                            | Fix DPR API handling                                             |
-| 10 | UI-03    | 🟠 HIGH     | Audit Log                                  | Apply dark theme                                                 |
-| 11 | UI-07    | 🟠 HIGH     | Dashboard                                  | Fix TEAM route                                                   |
-| 12 | NEW-03   | 🟠 HIGH     | 404 pages                                  | Create custom not-found page                                     |
-| 13 | UI-04    | 🟡 MEDIUM   | Payment Cert                               | Fix CTA color                                                    |
-| 14 | UI-05    | 🟡 MEDIUM   | Dashboard                                  | Fix chart data                                                   |
-| 15 | CE-02    | 🟡 MEDIUM   | All                                        | Upgrade Next.js                                                  |
-| 16 | NEW-04   | 🟡 MEDIUM   | All                                        | Fixed via CE-01                                                  |
-| 17 | M-03     | 🟡 LOW      | Site Operations                            | Improve sub-menu styling                                         |
-| 18 | M-02     | 🟡 LOW      | Dashboard                                  | Add fallback text                                                |
-| 19 | NEW-05   | 🟢 LOW      | All (dev)                                  | Auto-dismiss toast                                               |
+BUG 030 Data fetch not standardized
+Multiple inconsistent API handling patterns
+Fix centralize fetch logic and error handling

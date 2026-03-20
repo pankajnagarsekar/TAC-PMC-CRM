@@ -89,12 +89,26 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<"excel" | "pdf" | null>(null);
 
-  // Redirect if no project selected
+  // Removed redirect - using conditional render instead
+  /*
   useEffect(() => {
     if (!activeProject?.project_id) {
       router.push("/admin/dashboard");
     }
   }, [activeProject, router]);
+  */
+
+  if (!activeProject) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] animate-in fade-in duration-500">
+        <div className="p-20 text-center glass-panel-luxury rounded-[2.5rem] border border-dashed border-white/5">
+          <BarChart3 size={48} className="mx-auto text-slate-800 mb-6 opacity-20" />
+          <p className="text-slate-500 font-bold tracking-tight uppercase text-xs">No Project Context</p>
+          <p className="text-slate-700 text-[10px] mt-1 uppercase tracking-widest">Select a project via the sidebar to access financial intelligence.</p>
+        </div>
+      </div>
+    );
+  }
 
   const generateReport = async () => {
     if (!activeProject?.project_id) return;

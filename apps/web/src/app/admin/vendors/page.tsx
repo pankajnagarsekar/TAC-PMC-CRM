@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   Users,
+  Store,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Vendor } from "@tac-pmc/types";
@@ -203,13 +204,23 @@ export default function VendorsPage() {
           </div>
         </div>
 
-        <FinancialGrid
-          rowData={filteredVendors}
-          columnDefs={columnDefs}
-          height="calc(100vh - 380px)"
-          editable={false}
-          quickFilterText={searchTerm}
-        />
+        {!isLoading && filteredVendors.length === 0 ? (
+          <div className="empty-state-luxury min-h-[300px]">
+            <div className="empty-state-luxury-icon">
+              <Store size={32} />
+            </div>
+            <h3 className="empty-state-luxury-title">No Partners Identified</h3>
+            <p className="empty-state-luxury-desc">Your verified supply chain is currently empty. Onboard your first partner to continue.</p>
+          </div>
+        ) : (
+          <FinancialGrid
+            rowData={filteredVendors}
+            columnDefs={columnDefs}
+            height="calc(100vh - 380px)"
+            editable={false}
+            quickFilterText={searchTerm}
+          />
+        )}
       </div>
 
       <VendorModal

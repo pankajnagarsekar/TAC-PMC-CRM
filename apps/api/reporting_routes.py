@@ -10,6 +10,7 @@ from core.export_service import ExportService
 from core.reporting_service import ReportingService
 from core.job_orchestrator import job_orchestrator
 from auth import get_current_user
+from core.utils import serialize_doc
 from permissions import PermissionChecker
 from fastapi import BackgroundTasks
 
@@ -364,15 +365,7 @@ async def get_job_status(job_id: str):
 # LEGACY ENDPOINTS (DEPRECATED - For backward compatibility)
 # ============================================
 
-def serialize_doc(doc):
-    """Helper to serialize MongoDB docs"""
-    if doc is None:
-        return None
-    doc["_id"] = str(doc["_id"])
-    for key, value in doc.items():
-        if isinstance(value, datetime):
-            doc[key] = value.isoformat()
-    return doc
+# Local serialize_doc removed, using core.utils.serialize_doc
 
 
 @reporting_router.get("/projects/{project_id}/summary")

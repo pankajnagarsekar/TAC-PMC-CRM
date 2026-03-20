@@ -116,6 +116,7 @@ async def seed():
             "project_name": project_name,
             "project_code": "SA-001",
             "organisation_id": org_id,
+            "client_id": "DEFAULT_CLIENT",
             "status": "active",
             "created_at": datetime.utcnow(),
         }

@@ -21,7 +21,7 @@ interface VoiceLog {
 export default function VoiceLogsTab() {
   const { activeProject } = useProjectStore();
   const [logs, setLogs] = useState<VoiceLog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<VoiceLog | null>(null);
 
   useEffect(() => {
@@ -40,6 +40,7 @@ export default function VoiceLogsTab() {
       setLogs(response.data);
     } catch (error) {
       console.error("Error fetching voice logs:", error);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -76,11 +77,10 @@ export default function VoiceLogsTab() {
           logs.map((log) => (
             <div
               key={log._id}
-              className={`group cursor-pointer p-4 rounded-2xl border transition-all relative ${
-                selectedLog?._id === log._id
-                  ? "bg-orange-500/10 border-orange-500/30 shadow-lg shadow-orange-950/20"
-                  : "bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80"
-              }`}
+              className={`group cursor-pointer p-4 rounded-2xl border transition-all relative ${selectedLog?._id === log._id
+                ? "bg-orange-500/10 border-orange-500/30 shadow-lg shadow-orange-950/20"
+                : "bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80"
+                }`}
               onClick={() => setSelectedLog(log)}
             >
               <div className="flex items-start justify-between gap-3">

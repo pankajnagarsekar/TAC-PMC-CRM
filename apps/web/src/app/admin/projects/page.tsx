@@ -16,7 +16,8 @@ import {
   ExternalLink,
   Wallet,
   Loader2,
-  LayoutGrid
+  LayoutGrid,
+  AlertTriangle
 } from "lucide-react";
 import api, { fetcher } from "@/lib/api";
 import { Project } from "@/types/api";
@@ -94,10 +95,10 @@ export default function ProjectsPage() {
             <div className="flex items-center h-full">
               <span
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${status === "active"
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.05)]"
-                    : status === "completed"
-                      ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                      : "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.05)]"
+                  : status === "completed"
+                    ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                    : "bg-slate-500/10 text-slate-500 border-slate-500/20"
                   }`}
               >
                 {status === "active" ? (
@@ -242,11 +243,29 @@ export default function ProjectsPage() {
         {/* Intelligence Grid */}
         <div className="relative min-h-[500px]">
           {error ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-rose-500/5 border border-rose-500/20 rounded-[2rem]">
-              <div className="text-center space-y-4">
-                <XCircle className="w-12 h-12 text-rose-500 mx-auto opacity-50" />
-                <p className="text-rose-200 font-bold">Registry Access Failure</p>
-                <button onClick={() => mutate()} className="text-[10px] font-black uppercase tracking-widest text-white bg-rose-600 px-4 py-2 rounded-xl">Retry Connection</button>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-rose-500/5 border border-rose-500/20 rounded-[2rem] gap-4">
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+                <AlertTriangle size={24} />
+              </div>
+              <div className="text-center">
+                <h3 className="text-white font-bold">Registry Access Failure</h3>
+                <p className="text-slate-500 text-xs mt-1">Unable to synchronise with project database. Check connection.</p>
+              </div>
+              <button
+                onClick={() => mutate()}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all"
+              >
+                Retry Connection
+              </button>
+            </div>
+          ) : projects && projects.length === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center p-8">
+              <div className="empty-state-luxury max-w-sm">
+                <div className="empty-state-luxury-icon">
+                  <Building size={32} />
+                </div>
+                <h3 className="empty-state-luxury-title">Registry Empty</h3>
+                <p className="empty-state-luxury-desc">Your project portfolio is currently unpopulated. Initiate a new asset to begin tracking.</p>
               </div>
             </div>
           ) : (

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { schedulerApi } from "@/lib/api";
-import { AlertTriangle, Play, Save, FileDown, CheckCircle, Info, Plus, Upload } from "lucide-react";
+import { AlertTriangle, Play, Save, FileDown, CheckCircle, Info, Plus, Upload, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import SchedulerGrid from "@/components/scheduler/SchedulerGrid";
 import GanttChart from "@/components/scheduler/GanttChart";
@@ -60,7 +60,7 @@ export default function ProjectSchedulerPage() {
             toast.success("Schedule calculated using Layer 3 engine");
 
             if (!res.verification.is_aligned) {
-                toast.warning(`Budget Mismatch: Scheduled ₹${res.total_scheduled_cost} exceeds Work Orders ₹${res.verification.baseline}`);
+                toast.warning(`Budget Mismatch: Scheduled ₹${(res.total_scheduled_cost ?? 0).toLocaleString('en-IN')} exceeds Work Orders ₹${(res.verification.baseline ?? 0).toLocaleString('en-IN')}`);
             }
         } catch (e: any) {
             const reviewErrors = e.response?.data?.detail?.review_errors;
@@ -144,11 +144,13 @@ export default function ProjectSchedulerPage() {
 
     if (!activeProject) {
         return (
-            <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-                <div className="text-center p-12 rounded-[40px] bg-slate-900/40 border border-white/5 backdrop-blur-2xl">
-                    <AlertTriangle size={32} className="text-orange-500 mx-auto mb-6" />
-                    <h3 className="text-white font-black text-2xl mb-3 tracking-tight">No Project Selected</h3>
-                    <p className="text-slate-400 text-sm max-w-[240px] mx-auto">Select a project to access the Scheduler.</p>
+            <div className="flex items-center justify-center min-h-[500px]">
+                <div className="empty-state-luxury max-w-sm">
+                    <div className="empty-state-luxury-icon">
+                        <CalendarDays size={32} />
+                    </div>
+                    <h3 className="empty-state-luxury-title">No Project Context</h3>
+                    <p className="empty-state-luxury-desc">Select an operational project to access the Scheduler and path calculation engine.</p>
                 </div>
             </div>
         );
@@ -227,7 +229,7 @@ export default function ProjectSchedulerPage() {
                         {verification && (
                             <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${verification.is_aligned ? 'text-emerald-400 bg-emerald-400/5 border-emerald-400/20' : 'text-rose-400 bg-rose-400/5 border-rose-400/20'}`}>
                                 {verification.is_aligned ? <CheckCircle size={12} /> : <AlertTriangle size={12} />}
-                                Financial Alignment: {verification.is_aligned ? 'Verified' : `Delta ₹${verification.difference.toLocaleString()}`}
+                                Financial Alignment: {verification.is_aligned ? 'Verified' : `Delta ₹${(verification.difference ?? 0).toLocaleString('en-IN')}`}
                             </div>
                         )}
                     </div>

@@ -86,11 +86,16 @@ export default function ExpenseEntryModal({
       );
       const allocations = response.data.items || [];
 
-      // Extract unique categories
+      // Extract unique categories and filter by user requirement (Petty Cash/OVH only)
       const uniqueCategories: Category[] = [];
       const seen = new Set();
       for (const alloc of allocations) {
-        if (alloc.category_name && !seen.has(alloc.category_id)) {
+        const name = alloc.category_name || "";
+        const isMatch = name.toLowerCase().includes("petty cash") ||
+          name.toLowerCase().includes("ovh") ||
+          name.toLowerCase().includes("overhead");
+
+        if (isMatch && !seen.has(alloc.category_id)) {
           seen.add(alloc.category_id);
           uniqueCategories.push({
             _id: alloc.category_id,

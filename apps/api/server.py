@@ -48,33 +48,10 @@ from auth import (  # noqa: E402
 from audit_service import AuditService  # noqa: E402
 from financial_service import FinancialRecalculationService  # noqa: E402
 from permissions import PermissionChecker  # noqa: E402
+from core.utils import serialize_doc  # noqa: E402
 
 
-def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
-    """Serialize MongoDB document for JSON response (handles Decimal128, ObjectId, datetime)"""
-    if doc is None:
-        return None
-    result = {}
-    for key, value in doc.items():
-        if isinstance(value, ObjectId):
-            result[key] = str(value)
-        elif isinstance(value, Decimal128):
-            result[key] = float(value.to_decimal())
-        elif isinstance(value, datetime):
-            result[key] = value.isoformat()
-        elif isinstance(value, dict):
-            result[key] = serialize_doc(value)
-        elif isinstance(value, list):
-            result[key] = [
-                serialize_doc(item) if isinstance(item, dict)
-                else float(item.to_decimal()) if isinstance(item, Decimal128)
-                else str(item) if isinstance(item, ObjectId)
-                else item
-                for item in value
-            ]
-        else:
-            result[key] = value
-    return result
+# Local serialize_doc removed, using core.utils.serialize_doc
 
 
 # MongoDB connection
@@ -1128,76 +1105,7 @@ async def approve_petty_cash(
 # ============================================
 # ORGANIZATION SETTINGS
 # ============================================
-@api_router.get("/organisation-settings")
-async def get_organisation_settings(
-    current_user: dict = Depends(get_current_user)
-):
-    """Get organisation settings"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    settings = await db.organisation_settings.find_one({
-        "organisation_id": user["organisation_id"]
-    })
-    if not settings:
-        # Return defaults
-        return {
-            "organisation_id": user["organisation_id"],
-            "name": "My Organisation",
-            "address": "",
-            "email": "",
-            "phone": "",
-            "gst_number": "",
-            "pan_number": "",
-            "cgst_percentage": 9.0,
-            "sgst_percentage": 9.0,
-            "wo_prefix": "WO",
-            "pc_prefix": "PC",
-            "invoice_prefix": "INV",
-            "terms_and_conditions": "",
-            "currency": "INR",
-            "currency_symbol": "₹",
-        }
-    settings["settings_id"] = str(settings.pop("_id"))
-    return settings
-
-
-@api_router.put("/organisation-settings")
-async def update_organisation_settings(
-    data: dict,
-    current_user: dict = Depends(get_current_user)
-):
-    """Update organisation settings"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    await permission_checker.check_admin_role(user)
-
-    update_data = {
-        "organisation_id": user["organisation_id"],
-        "name": data.get("name", ""),
-        "address": data.get("address", ""),
-        "email": data.get("email", ""),
-        "phone": data.get("phone", ""),
-        "logo_base64": data.get("logo_base64", ""),
-        "gst_number": data.get("gst_number", ""),
-        "pan_number": data.get("pan_number", ""),
-        "cgst_percentage": float(data.get("cgst_percentage", 9.0)),
-        "sgst_percentage": float(data.get("sgst_percentage", 9.0)),
-        "wo_prefix": data.get("wo_prefix", "WO"),
-        "pc_prefix": data.get("pc_prefix", "PC"),
-        "invoice_prefix": data.get("invoice_prefix", "INV"),
-        "terms_and_conditions": data.get("terms_and_conditions", ""),
-        "currency": data.get("currency", "INR"),
-        "currency_symbol": data.get("currency_symbol", "₹"),
-        "owner_name": data.get("owner_name", ""),
-        "owner_mobile": data.get("owner_mobile", ""),
-        "owner_address": data.get("owner_address", ""),
-        "owner_email": data.get("owner_email", ""),
-        "updated_at": datetime.utcnow(),
-    }
-    await db.organisation_settings.update_one(
-        {"organisation_id": user["organisation_id"]},
-        {"$set": update_data},
-        upsert=True
-    )
-    return {"message": "Settings updated successfully", **update_data}
+# (Organisation settings handled by settings_routes.py)
 
 
 # ============================================
@@ -1633,48 +1541,51 @@ async def get_unread_count(
     return {"unread_count": count}
 
 
-@api_router.get("/settings", response_model=GlobalSettings)
-async def get_global_settings(current_user: dict = Depends(get_current_user)):
-    """Fetch global settings for the user's organisation."""
+@api_router.get("/projects", response_model=List[Project])
+async def list_projects(current_user: dict = Depends(get_current_user)):
+    """Fetch all projects for the user's organisation."""
     user = await permission_checker.get_authenticated_user(current_user)
-    settings = await db.global_settings.find_one({"organisation_id": user["organisation_id"]})
-    if not settings:
-        # Return defaults if not initialized
-        return GlobalSettings(
-            organisation_id=user["organisation_id"],
-            cgst_percentage=Decimal("9.0"),
-            sgst_percentage=Decimal("9.0"),
-            retention_percentage=Decimal("5.0"),
-            terms_and_conditions="Standard terms and conditions apply."
-        )
-    settings["id"] = str(settings.pop("_id"))
-    return settings
+    
+    org_id = user.get("organisation_id")
+    if not org_id:
+        logging.error(f"User {user.get('user_id')} has no organisation_id assigned")
+        raise HTTPException(status_code=400, detail="User has no organization assigned")
+        
+    logging.info(f"Fetching projects for org: {org_id}")
+    
+    # 6.3 check
+    await permission_checker.check_web_crm_access(user)
+    
+    projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
+    for p in projects:
+        p["project_id"] = str(p["_id"])
+    return projects
 
 
-@api_router.put("/settings")
-async def update_global_settings(
-    settings_update: dict,
-    current_user: dict = Depends(get_current_user)
-):
-    """Update global settings. Restricted to Admins."""
+@api_router.get("/projects/{project_id}", response_model=Project)
+async def get_project(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Fetch details for a single project."""
     user = await permission_checker.get_authenticated_user(current_user)
-    await permission_checker.check_admin_role(user)
-
-    # Ensure updated_at is fresh
-    settings_update["updated_at"] = datetime.utcnow()
-
-    # Convert numeric fields to Decimal if present to maintain financial integrity
-    for field in ["cgst_percentage", "sgst_percentage", "retention_percentage"]:
-        if field in settings_update and settings_update[field] is not None:
-            settings_update[field] = Decimal(str(settings_update[field]))
-
-    # Upsert the global settings for the organisation
-    await db.global_settings.update_one(
-        {"organisation_id": user["organisation_id"]},
-        {"$set": settings_update},
-        upsert=True
-    )
-    return {"status": "success", "message": "Settings updated"}
+    
+    # 6.3 check
+    await permission_checker.check_web_crm_access(user)
+    
+    # Check project access (this also validates organisation isolation)
+    await permission_checker.check_project_access(user, project_id, require_write=False)
+    
+    # Try finding by project_id field first, then by string ObjectId
+    project = await db.projects.find_one({"project_id": project_id})
+    if not project:
+        try:
+            project = await db.projects.find_one({"_id": ObjectId(project_id)})
+        except:
+            pass
+            
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    project["project_id"] = str(project["_id"])
+    return project
 
 
 @api_router.get("/health")

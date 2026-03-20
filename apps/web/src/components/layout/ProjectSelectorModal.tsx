@@ -1,48 +1,37 @@
-'use client';
-
-import { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProjectStore } from '@/store/projectStore';
-import api from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 import { Project } from '@/types/api';
-import { FolderOpen, Search, X, ChevronRight } from 'lucide-react';
+import { FolderOpen, Search, X, ChevronRight, AlertTriangle, Building2, Loader2, Target } from 'lucide-react';
 
 interface ProjectSelectorModalProps {
   onClose: () => void;
 }
 
 export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalProps) {
+  const { user } = useAuthStore();
   const { activeProject, setActiveProject } = useProjectStore();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [filtered, setFiltered] = useState<Project[]>([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    async function loadProjects() {
-      try {
-        const res = await api.get<Project[]>('/api/projects');
-        setProjects(res.data);
-        setFiltered(res.data);
-      } catch {
-        setError('Failed to load projects.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadProjects();
-  }, []);
+  const { data: projects, error, isLoading, mutate } = useSWR<Project[]>(
+    user ? '/api/projects' : null,
+    fetcher,
+    { revalidateOnFocus: true }
+  );
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
+    if (!projects) return [];
     const q = search.toLowerCase();
-    setFiltered(
-      projects.filter(
-        (p) =>
-          p.project_name.toLowerCase().includes(q) ||
-          (p.project_code || '').toLowerCase().includes(q)
-      )
+    return projects.filter(
+      (p) =>
+        p.project_name.toLowerCase().includes(q) ||
+        (p.project_code || '').toLowerCase().includes(q)
     );
   }, [search, projects]);
+
+
 
   function selectProject(project: Project) {
     setActiveProject(project);
@@ -91,23 +80,40 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
         </div>
 
         {/* List */}
-        <div className="max-h-80 overflow-y-auto p-3">
-          {loading && (
-            <div className="flex items-center justify-center py-8 gap-3">
-              <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-400 text-sm">Loading projects...</span>
+        <div className="max-h-80 overflow-y-auto p-3 custom-scrollbar">
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 size={24} className="text-orange-500 animate-spin opacity-50" />
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Synchronizing Registry...</span>
             </div>
           )}
 
           {error && (
-            <div className="text-center py-8 text-red-400 text-sm">{error}</div>
+            <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                <AlertTriangle size={20} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-white text-sm font-bold">Failed to load projects</p>
+                <p className="text-slate-500 text-xs text-balance">The system couldn't verify your project permissions.</p>
+              </div>
+              <button
+                onClick={() => mutate()}
+                className="px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+              >
+                Retry Auth Sync
+              </button>
+            </div>
           )}
 
-          {!loading && !error && filtered.length === 0 && (
-            <div className="text-center py-8 text-slate-500 text-sm">No projects found</div>
+          {!isLoading && !error && filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 opacity-40">
+              <Building2 size={32} className="text-slate-600" />
+              <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest italic">No assets match your search</span>
+            </div>
           )}
 
-          {!loading && !error && filtered.map((project) => {
+          {!isLoading && !error && filtered.map((project: Project) => {
             const isActive = activeProject?.project_id === project.project_id;
             return (
               <button
@@ -153,7 +159,7 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
         {/* Footer */}
         <div className="px-6 py-3 border-t text-center" style={{ borderColor: '#334155' }}>
           <p className="text-slate-600 text-xs">
-            {projects.length} project{projects.length !== 1 ? 's' : ''} available
+            {projects?.length || 0} project{projects?.length !== 1 ? 's' : ''} available
           </p>
         </div>
       </div>

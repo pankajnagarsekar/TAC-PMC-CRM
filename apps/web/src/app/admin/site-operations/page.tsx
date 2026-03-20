@@ -4,15 +4,28 @@ import React, { useState } from "react";
 import DPRTab from "@/components/site-operations/DPRTab";
 import AttendanceTab from "@/components/site-operations/AttendanceTab";
 import VoiceLogsTab from "@/components/site-operations/VoiceLogsTab";
-import { HardHat, FileText, Users, Mic } from "lucide-react";
+import FundsTab from "@/components/site-operations/FundsTab";
+import { HardHat, FileText, Users, Mic, Wallet } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 export default function SiteOperationsPage() {
-  const [activeTab, setActiveTab] = useState("dprs");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "dprs";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Sync activeTab when searchParams change (sidebar click)
+  React.useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const tabs = [
     { id: "dprs", label: "DPR Review", icon: FileText },
     { id: "attendance", label: "Worker Attendance", icon: Users },
     { id: "voice-logs", label: "Voice Logs", icon: Mic },
+    { id: "funds", label: "Site Funds", icon: Wallet },
   ];
 
   return (
@@ -23,7 +36,7 @@ export default function SiteOperationsPage() {
             <HardHat className="text-orange-500" />
             Site Operations
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Review daily reports, verify attendance, and monitor site voice logs.</p>
+          <p className="text-slate-500 text-sm mt-1">Review daily reports, verify attendance, and monitor site liquidity.</p>
         </div>
       </div>
 
@@ -48,6 +61,7 @@ export default function SiteOperationsPage() {
         {activeTab === "dprs" && <DPRTab />}
         {activeTab === "attendance" && <AttendanceTab />}
         {activeTab === "voice-logs" && <VoiceLogsTab />}
+        {activeTab === "funds" && <FundsTab />}
       </div>
     </div>
   );

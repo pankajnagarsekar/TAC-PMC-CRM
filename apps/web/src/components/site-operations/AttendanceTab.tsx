@@ -19,7 +19,7 @@ export default function AttendanceTab() {
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
   const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export default function AttendanceTab() {
       setLogs(response.data);
     } catch (error) {
       console.error("Error fetching attendance:", error);
+      setLogs([]);
     } finally {
       setLoading(false);
     }

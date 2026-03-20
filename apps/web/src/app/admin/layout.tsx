@@ -16,7 +16,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, accessToken, clearAuth } = useAuthStore();
+    const { user, accessToken, clearAuth, _hasHydrated } = useAuthStore();
     const { activeProject } = useProjectStore();
     const [showProjectModal, setShowProjectModal] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -40,17 +40,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     // Auth guard
     useEffect(() => {
-        if (!mounted) return;
+        if (!mounted || !_hasHydrated) return;
+
         if (!accessToken || !user) {
             router.replace('/login');
             return;
         }
+
         if (user.role !== 'Admin' && user.role !== 'Client') {
             clearAuth();
             router.replace('/login');
             return;
         }
-    }, [accessToken, user, router, clearAuth, mounted]);
+    }, [accessToken, user, router, clearAuth, mounted, _hasHydrated]);
 
     // Derive breadcrumbs from pathname
     const breadcrumbItems = pathname
@@ -62,9 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             href: `/admin/${segment}`
         }));
 
-    if (!mounted) return null;
-
-    if (!user || !accessToken) {
+    if (!mounted || !_hasHydrated) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-zinc-500 animate-pulse font-medium text-xs tracking-widest uppercase">

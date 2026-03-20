@@ -19,13 +19,17 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // ── Indian currency formatter ───────────────────────────────────────────
 export function formatINR(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return "";
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "";
+  const rawNum = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(rawNum)) return "";
+
+  // Guard against -0 and floating point rounding errors near zero
+  const num = Math.abs(rawNum) < 0.0001 ? 0 : rawNum;
+
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(num);
 }
 

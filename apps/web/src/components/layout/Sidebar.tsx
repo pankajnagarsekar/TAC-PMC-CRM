@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -80,18 +79,6 @@ const NAV_ITEMS: NavItem[] = [
   },
   { href: "/admin/ocr", icon: Scan, label: "AI OCR Scanner", key: "ocr" },
   {
-    href: "/admin/petty-cash",
-    icon: Wallet,
-    label: "Petty Cash",
-    key: "petty_cash",
-  },
-  {
-    href: "/admin/site-overheads",
-    icon: Building2,
-    label: "Site Overheads",
-    key: "site_overheads",
-  },
-  {
     href: "/admin/site-operations",
     icon: HardHat,
     label: "Site Operations",
@@ -107,6 +94,11 @@ const NAV_ITEMS: NavItem[] = [
         href: "/admin/site-operations?tab=voice-logs",
         label: "Voice Logs",
         key: "voice_logs",
+      },
+      {
+        href: "/admin/site-operations?tab=funds",
+        label: "Site Funds",
+        key: "funds",
       },
     ],
   },
@@ -137,6 +129,7 @@ export default function Sidebar({
   onToggle,
 }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
   const { activeProject } = useProjectStore();
@@ -251,14 +244,19 @@ export default function Sidebar({
               </Link>
 
               {item.children && isActive && !isCollapsed && (
-                <div className="ml-7 my-1 border-l border-[#27272a] space-y-0.5">
+                <div className="ml-7 my-1 border-l border-zinc-800/50 space-y-0.5">
                   {item.children.map(child => {
-                    const isChildActive = pathname === child.href;
+                    const childPath = child.href.split('?')[0];
+                    const childTab = new URLSearchParams(child.href.split('?')[1]).get('tab');
+                    const isSideChildActive = pathname === childPath && (childTab ? searchParams.get('tab') === childTab : true);
+
                     return (
                       <Link
                         key={child.key}
                         href={child.href}
-                        className={`block py-1.5 px-4 text-[12px] transition-colors ${isChildActive ? 'text-indigo-400 font-medium' : 'text-zinc-500 hover:text-zinc-300'
+                        className={`block py-1.5 px-4 text-[12px] transition-all duration-200 ${isSideChildActive
+                          ? 'text-indigo-400 font-bold border-l-2 border-indigo-500 -ml-[1px] pl-[15px] bg-indigo-500/5'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
                           }`}
                       >
                         {child.label}

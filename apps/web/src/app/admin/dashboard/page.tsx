@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { fetcher } from "@/lib/api";
 import { DerivedFinancialState } from "@/types/api";
-import { formatCurrency } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import {
   Table,
@@ -26,6 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
+import { formatCurrencySafe, formatPercentSafe, normalizeFinancial } from "@/lib/formatters";
+import FinancialChart from "@/components/ui/FinancialChart";
 
 export default function AdminDashboard() {
   const { activeProject } = useProjectStore();
@@ -37,23 +38,36 @@ export default function AdminDashboard() {
     fetcher,
   );
 
+  const chartData = React.useMemo(() => {
+    if (!financials) return [];
+    return financials.slice(0, 8).map(f => ({
+      name: f.category_id.substring(0, 10),
+      budget: normalizeFinancial(f.original_budget),
+      committed: normalizeFinancial(f.committed_value)
+    }));
+  }, [financials]);
+
   if (!activeProject) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50">
-        <LayoutGrid size={40} className="text-zinc-300 dark:text-zinc-700 mb-4" />
-        <h3 className="text-zinc-500 dark:text-zinc-400 font-medium text-sm">No Project Context</h3>
-        <p className="text-zinc-400 dark:text-zinc-500 text-xs mt-1">Select a project via the sidebar to view financials.</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="empty-state-luxury max-w-sm text-center">
+          <div className="empty-state-luxury-icon mb-4">
+            <LayoutGrid size={32} />
+          </div>
+          <h3 className="empty-state-luxury-title">No Project Selected</h3>
+          <p className="empty-state-luxury-desc">Select an active operational project from the sidebar to initialize financial intelligence.</p>
+        </div>
       </div>
     );
   }
 
   if (isLoading && !financials) {
     return (
-      <div className="space-y-8 animate-pulse">
+      <div className="space-y-8 animate-pulse p-6">
         <div className="grid grid-cols-4 gap-0 border border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-zinc-50/50 dark:bg-zinc-900/50" />)}
         </div>
-        <div className="h-[400px] border border-zinc-200 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-900/20" />
+        <div className="h-[400px] border border-zinc-200 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-900/20 rounded-[2rem]" />
       </div>
     );
   }
@@ -69,36 +83,45 @@ export default function AdminDashboard() {
     );
   }
 
-  // Aggregate metrics
-  const totalBudget = financials?.reduce((sum, f) => sum + (f.original_budget || 0), 0) ?? 0;
-  const totalCommitted = financials?.reduce((sum, f) => sum + (f.committed_value || 0), 0) ?? 0;
-  const totalCertified = financials?.reduce((sum, f) => sum + (f.certified_value || 0), 0) ?? 0;
-  const totalRemaining = financials?.reduce((sum, f) => sum + (f.balance_budget_remaining || 0), 0) ?? 0;
+  // Aggregate metrics with safety
+  const totalBudget = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.original_budget)), 0) ?? 0;
+  const totalCommitted = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.committed_value)), 0) ?? 0;
+  const totalCertified = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.certified_value)), 0) ?? 0;
+  const totalRemaining = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.balance_budget_remaining)), 0) ?? 0;
 
   return (
     <div className="space-y-8 pb-12">
       {/* minimalist KPI Sparks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border border-zinc-200 dark:border-zinc-800 divide-y md:divide-y-0 md:divide-x divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border border-zinc-200 dark:border-zinc-800 divide-y md:divide-y-0 md:divide-x divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden text-zinc-900 dark:text-zinc-50">
         <div className="kpi-spark">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Total Budget</span>
-          <span className="text-xl font-black text-zinc-900 dark:text-zinc-50">{formatCurrency(totalBudget)}</span>
+          <span className="text-xl font-black">{formatCurrencySafe(totalBudget)}</span>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="pill-status bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">Baseline</span>
           </div>
         </div>
         <div className="kpi-spark">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Committed Value</span>
-          <span className="text-xl font-black text-zinc-900 dark:text-zinc-50">{formatCurrency(totalCommitted)}</span>
+          <span className="text-xl font-black">{formatCurrencySafe(totalCommitted)}</span>
           <div className="flex items-center gap-1.5 mt-1">
-            <div className="h-1 flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden">
-              <div className="h-full bg-indigo-500" style={{ width: `${(totalCommitted / totalBudget) * 100}%` }} />
-            </div>
-            <span className="text-[10px] font-mono text-zinc-400">{((totalCommitted / totalBudget) * 100).toFixed(0)}%</span>
+            {(() => {
+              const commitPct = totalBudget > 0 ? (totalCommitted / totalBudget) * 100 : 0;
+              const displayPct = isNaN(commitPct) ? 0 : commitPct;
+              return (
+                <>
+                  <div className="h-1 flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${Math.min(100, displayPct)}%` }} />
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-400">{formatPercentSafe(displayPct)}</span>
+                </>
+              );
+            })()}
           </div>
         </div>
+
         <div className="kpi-spark">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Certified (Billed)</span>
-          <span className="text-xl font-black text-zinc-900 dark:text-zinc-50">{formatCurrency(totalCertified)}</span>
+          <span className="text-xl font-black">{formatCurrencySafe(totalCertified)}</span>
           <div className="flex items-center gap-1.5 mt-1">
             <TrendingUp size={12} className="text-emerald-500" />
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">On Track</span>
@@ -106,8 +129,8 @@ export default function AdminDashboard() {
         </div>
         <div className="kpi-spark">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Allocated Balance</span>
-          <span className={`text-xl font-black ${totalRemaining < 0 ? 'text-rose-600' : 'text-zinc-900 dark:text-zinc-50'}`}>
-            {formatCurrency(totalRemaining)}
+          <span className={`text-xl font-black ${totalRemaining < 0 ? 'text-rose-600' : ''}`}>
+            {formatCurrencySafe(totalRemaining)}
           </span>
           <div className="flex items-center gap-1.5 mt-1">
             {totalRemaining < 0 ? (
@@ -117,6 +140,19 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Financial Analytics Chart */}
+      <div className="grid grid-cols-1 gap-6">
+        <FinancialChart
+          title="Top Budget Allocation vs Commitment"
+          data={chartData}
+          dataKeys={[
+            { key: 'budget', color: '#6366f1', label: 'Budget' },
+            { key: 'committed', color: '#f97316', label: 'Committed' }
+          ]}
+          height={350}
+        />
       </div>
 
       {/* Unified Enterprise Data Ledger */}
@@ -131,7 +167,7 @@ export default function AdminDashboard() {
             </h3>
           </div>
           <Link
-            href={`/admin/projects/${activeProject.project_id || activeProject._id}`}
+            href={`/admin/projects/${activeProject.project_id || activeProject._id || ""}`}
             className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 transition-colors"
           >
             See Detailed Analysis <ExternalLink size={12} />
@@ -159,9 +195,9 @@ export default function AdminDashboard() {
                       {f.category_id}
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-zinc-500">{formatCurrency(f.original_budget)}</TableCell>
+                  <TableCell className="font-mono text-zinc-500">{formatCurrencySafe(f.original_budget)}</TableCell>
                   <TableCell className="font-mono font-semibold text-zinc-900 dark:text-zinc-200">
-                    {formatCurrency(f.committed_value)}
+                    {formatCurrencySafe(f.committed_value)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3 min-w-[120px]">
@@ -172,13 +208,13 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <span className={`text-[10px] font-bold font-mono ${f.over_commit_flag ? 'text-rose-600' : 'text-zinc-500'}`}>
-                        {utilPct.toFixed(1)}%
+                        {formatPercentSafe(utilPct, 1)}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-mono font-bold">
                     <span className={f.balance_budget_remaining < 0 ? 'text-rose-600' : 'text-zinc-900 dark:text-zinc-100'}>
-                      {formatCurrency(f.balance_budget_remaining)}
+                      {formatCurrencySafe(f.balance_budget_remaining)}
                     </span>
                   </TableCell>
                 </TableRow>
