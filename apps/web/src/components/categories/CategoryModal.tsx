@@ -47,8 +47,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
     setLoading(true);
     setError(null);
     try {
-      if (category?.code_id) {
-        await api.put(`/api/codes/${category.code_id}`, formData);
+      const activeId = category?.code_id || (category as any)?._id;
+      if (activeId) {
+        await api.put(`/api/codes/${activeId}`, formData);
       } else {
         await api.post('/api/codes', formData);
       }
@@ -61,18 +62,18 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
     }
   };
 
-  const inputStyle = "w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors placeholder:text-slate-600";
-  const labelStyle = "block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider";
+  const inputStyle = "w-full bg-white dark:bg-slate-900 border border-zinc-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:border-orange-500/50 transition-colors placeholder:text-zinc-400 dark:placeholder:text-slate-600";
+  const labelStyle = "block text-xs font-semibold text-zinc-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl p-0 overflow-hidden shadow-2xl">
-        <DialogHeader className="p-6 border-b border-slate-900">
-          <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+      <DialogContent className="bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-900 text-zinc-900 dark:text-white max-w-md rounded-2xl p-0 overflow-hidden shadow-2xl">
+        <DialogHeader className="p-6 border-b border-zinc-100 dark:border-slate-900">
+          <DialogTitle className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
             <Hash className="text-orange-500" size={20} />
             {category ? 'Edit Category' : 'Add Category'}
           </DialogTitle>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">
             {category ? 'Update this budget category.' : 'Define a new budget category for all projects.'}
           </p>
         </DialogHeader>
@@ -127,7 +128,7 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border border-slate-800 text-slate-400 hover:bg-slate-900 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              className="flex-1 border border-zinc-200 dark:border-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-100 dark:hover:bg-slate-900 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             >
               Cancel
             </button>

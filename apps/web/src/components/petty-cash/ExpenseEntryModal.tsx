@@ -260,13 +260,13 @@ export default function ExpenseEntryModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg mx-4 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-slate-900 border border-zinc-200 dark:border-slate-800 rounded-xl w-full max-w-lg mx-4 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-800">
-          <h2 className="text-xl font-semibold text-white">Record Expense</h2>
+        <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-slate-800">
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Record Expense</h2>
           <button
             onClick={handleClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-zinc-500 dark:text-slate-400 hover:text-orange-500 transition-colors"
           >
             <X size={20} />
           </button>
@@ -276,11 +276,11 @@ export default function ExpenseEntryModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Category Selector */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Category
             </label>
             {isLoadingCategories ? (
-              <div className="flex items-center gap-2 text-slate-400">
+              <div className="flex items-center gap-2 text-zinc-500 dark:text-slate-400 font-mono text-[10px] uppercase tracking-widest">
                 <Loader2 size={16} className="animate-spin" />
                 Loading categories...
               </div>
@@ -291,7 +291,7 @@ export default function ExpenseEntryModal({
                   setFormData({ ...formData, category_id: e.target.value })
                 }
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-zinc-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors"
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
@@ -305,11 +305,11 @@ export default function ExpenseEntryModal({
 
           {/* Amount */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Amount (₹)
             </label>
             <div className="relative">
-              <IndianRupeeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <IndianRupeeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input
                 type="number"
                 step="0.01"
@@ -320,14 +320,14 @@ export default function ExpenseEntryModal({
                 }
                 required
                 placeholder="0.00"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors font-mono"
               />
             </div>
           </div>
 
           {/* Bill Image Upload with OCR */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Bill Image (Optional)
             </label>
             <input
@@ -342,17 +342,17 @@ export default function ExpenseEntryModal({
               <div className="border-2 border-dashed border-amber-500/50 bg-amber-500/5 rounded-lg p-6 text-center">
                 <Loader2 className="w-8 h-8 text-amber-500 mx-auto mb-2 animate-spin" />
                 <p className="text-sm text-amber-400">Scanning document...</p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-zinc-500 dark:text-slate-500 mt-1">
                   Extracting amount and invoice details
                 </p>
               </div>
             ) : previewUrl ? (
               <div className="space-y-3">
-                <div className="relative border-2 border-slate-700 rounded-lg overflow-hidden">
+                <div className="relative border-2 border-zinc-200 dark:border-slate-700 rounded-lg overflow-hidden">
                   <img
                     src={previewUrl}
                     alt="Bill preview"
-                    className="w-full h-48 object-contain bg-slate-950"
+                    className="w-full h-48 object-contain bg-zinc-50 dark:bg-slate-950"
                   />
                   <button
                     type="button"
@@ -364,7 +364,7 @@ export default function ExpenseEntryModal({
                         fileInputRef.current.value = "";
                       }
                     }}
-                    className="absolute top-2 right-2 bg-slate-900/80 text-white p-1 rounded-full hover:bg-red-500"
+                    className="absolute top-2 right-2 bg-zinc-900/80 dark:bg-slate-900/80 text-white p-1 rounded-full hover:bg-rose-500 transition-colors"
                   >
                     <X size={16} />
                   </button>
@@ -372,26 +372,26 @@ export default function ExpenseEntryModal({
 
                 {/* OCR Result */}
                 {ocrResult && (
-                  <div className="bg-slate-800 rounded-lg p-3 flex items-center justify-between">
+                  <div className="bg-zinc-50 dark:bg-slate-800 rounded-lg p-3 flex items-center justify-between border border-zinc-200 dark:border-slate-700/50">
                     <div className="flex items-center gap-2">
                       {ocrResult.confidence_score >= 0.5 ? (
-                        <CheckCircle size={16} className="text-emerald-400" />
+                        <CheckCircle size={16} className="text-emerald-500" />
                       ) : (
-                        <AlertCircle size={16} className="text-amber-400" />
+                        <AlertCircle size={16} className="text-amber-500" />
                       )}
-                      <span className="text-sm text-slate-300">
+                      <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 dark:text-slate-300">
                         OCR Confidence:{" "}
                         <span
                           className={getConfidenceColor(
                             ocrResult.confidence_score,
-                          )}
+                          ) + " font-mono"}
                         >
                           {Math.round(ocrResult.confidence_score * 100)}%
                         </span>
                       </span>
                     </div>
                     {ocrResult.extracted_amount && (
-                      <span className="text-sm text-slate-400">
+                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white font-mono">
                         Amount: ₹{ocrResult.extracted_amount}
                       </span>
                     )}
@@ -401,14 +401,14 @@ export default function ExpenseEntryModal({
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-amber-500/50 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-zinc-200 dark:border-slate-700 rounded-lg p-6 text-center hover:border-amber-500/50 transition-colors cursor-pointer group"
               >
-                <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">
+                <Upload className="w-8 h-8 text-zinc-400 dark:text-slate-500 mx-auto mb-2 group-hover:text-amber-500 transition-colors" />
+                <p className="text-sm text-zinc-500 dark:text-slate-400 font-semibold">
                   Drop file here or click to upload
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  PNG, JPG, PDF up to 10MB - Auto-scans for amount
+                <p className="text-[10px] text-zinc-400 dark:text-slate-500 mt-1 uppercase tracking-widest">
+                  PNG, JPG, PDF up to 10MB
                 </p>
               </div>
             )}
@@ -416,7 +416,7 @@ export default function ExpenseEntryModal({
 
           {/* Purpose */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Purpose
             </label>
             <input
@@ -427,13 +427,13 @@ export default function ExpenseEntryModal({
               }
               required
               placeholder="What was this expense for?"
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
             />
           </div>
 
           {/* Bill Reference */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Bill Reference
             </label>
             <div className="flex gap-2">
@@ -444,7 +444,7 @@ export default function ExpenseEntryModal({
                   setFormData({ ...formData, bill_reference: e.target.value })
                 }
                 placeholder="Invoice/Bill number"
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                className="flex-1 bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors font-mono"
               />
             </div>
           </div>
@@ -479,14 +479,14 @@ export default function ExpenseEntryModal({
             <button
               type="button"
               onClick={handleClose}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-lg transition-colors"
+              className="flex-1 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-600 dark:text-slate-300 font-medium py-2.5 rounded-lg transition-colors border border-zinc-200 dark:border-transparent"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading || isLoadingCategories}
-              className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-not-allowed text-slate-900 font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
             >
               {isLoading ? (
                 <>

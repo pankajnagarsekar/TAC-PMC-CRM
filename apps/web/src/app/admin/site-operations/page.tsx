@@ -32,20 +32,20 @@ export default function SiteOperationsPage() {
     <div className="p-6 space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
             <HardHat className="text-orange-500" />
             Site Operations
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Review daily reports, verify attendance, and monitor site liquidity.</p>
+          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">Review daily reports, verify attendance, and monitor site liquidity.</p>
         </div>
       </div>
 
-      <div className="flex border-b border-slate-800 gap-6">
+      <div className="flex border-b border-zinc-200 dark:border-slate-800 gap-6">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${activeTab === tab.id ? "text-orange-500" : "text-slate-500 hover:text-slate-300"
+            className={`flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${activeTab === tab.id ? "text-orange-600 dark:text-orange-500" : "text-zinc-400 dark:text-slate-500 hover:text-zinc-900 dark:hover:text-slate-300"
               }`}
           >
             <tab.icon size={16} />

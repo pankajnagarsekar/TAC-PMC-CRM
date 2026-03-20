@@ -34,7 +34,7 @@ export default function FundsTab() {
             headerName: "Expense Description",
             field: "purpose",
             flex: 2,
-            cellClass: "font-semibold text-white"
+            cellClass: "font-semibold text-zinc-900 dark:text-white"
         },
         {
             headerName: "Disbursement",
@@ -52,10 +52,10 @@ export default function FundsTab() {
             flex: 1.2,
             cellRenderer: (params: any) => (
                 <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 text-[9px] font-black uppercase">
+                    <div className="w-5 h-5 rounded bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 flex items-center justify-center text-zinc-500 dark:text-slate-500 text-[9px] font-black uppercase">
                         {params.data.created_by_name?.[0] || 'U'}
                     </div>
-                    <span className="text-slate-500 text-[10px] uppercase font-black tracking-widest">{params.data.created_by_name || "System"}</span>
+                    <span className="text-zinc-500 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest">{params.data.created_by_name || "System"}</span>
                 </div>
             )
         }
@@ -69,11 +69,11 @@ export default function FundsTab() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
                 <div className="empty-state-luxury max-w-sm text-center">
-                    <div className="empty-state-luxury-icon mb-4">
+                    <div className="empty-state-luxury-icon mb-4 text-zinc-400 dark:text-slate-800">
                         <Building2 size={32} />
                     </div>
-                    <h3 className="empty-state-luxury-title">No Project Context</h3>
-                    <p className="empty-state-luxury-desc">Select a project to manage site funds and overheads.</p>
+                    <h3 className="empty-state-luxury-title text-zinc-900 dark:text-white">No Project Context</h3>
+                    <p className="empty-state-luxury-desc text-zinc-500 dark:text-slate-500">Select a project to manage site funds and overheads.</p>
                 </div>
             </div>
         );
@@ -83,34 +83,34 @@ export default function FundsTab() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
                         Site Fund Ledger
                     </h2>
-                    <p className="text-slate-500 text-xs mt-1">Managed site liquidity and maintenance disbursements.</p>
+                    <p className="text-zinc-500 dark:text-slate-500 text-xs mt-1">Managed site liquidity and maintenance disbursements.</p>
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div className="flex flex-col items-end px-4 py-2 bg-slate-950/50 border border-white/5 rounded-2xl">
-                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Total Utilization</span>
-                        <span className="text-lg font-mono font-black text-white">{formatCurrency(totalOverheads)}</span>
+                    <div className="flex flex-col items-end px-4 py-2 bg-zinc-50 dark:bg-slate-950/50 border border-zinc-200 dark:border-white/5 rounded-2xl">
+                        <span className="text-[9px] text-zinc-500 dark:text-slate-500 font-black uppercase tracking-widest">Total Utilization</span>
+                        <span className="text-lg font-mono font-black text-zinc-900 dark:text-white">{formatCurrency(totalOverheads)}</span>
                     </div>
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-900/20 flex items-center gap-3 border border-white/10"
+                        className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-900/20 flex items-center gap-3 border border-orange-500/20"
                     >
                         <Plus size={16} strokeWidth={3} /> Add Transaction
                     </button>
                 </div>
             </div>
 
-            <div className="bg-slate-900/40 border border-white/5 rounded-[2rem] p-6 shadow-2xl backdrop-blur-md">
+            <div className="bg-white dark:bg-slate-900/40 border border-zinc-200 dark:border-white/5 rounded-[2rem] p-6 shadow-2xl backdrop-blur-md">
                 <div className="relative min-h-[400px]">
                     {error ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
                             <AlertTriangle className="text-rose-500 opacity-20" size={48} />
                             <div className="text-center">
-                                <h3 className="text-white font-bold">Query Failure</h3>
-                                <p className="text-slate-500 text-xs mt-1">Failed to retrieve fund records.</p>
+                                <h3 className="text-zinc-900 dark:text-white font-bold">Query Failure</h3>
+                                <p className="text-zinc-500 dark:text-slate-500 text-xs mt-1">Failed to retrieve fund records.</p>
                             </div>
                             <button onClick={() => mutate()} className="text-[10px] font-bold text-orange-500 underline uppercase tracking-widest">Retry Connection</button>
                         </div>

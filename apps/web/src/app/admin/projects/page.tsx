@@ -190,7 +190,7 @@ export default function ProjectsPage() {
             Portfolio Control
           </h1>
           <p className="text-slate-500 text-sm font-medium pl-14">
-            Monitoring <span className="text-orange-500/80 font-bold">{projects?.length || 0}</span> strategic assets across the organization.
+            Monitoring <span className="text-orange-500/80 font-bold">{projects?.length || 0}</span> strategic projects across the organization.
           </p>
         </div>
 
@@ -199,42 +199,42 @@ export default function ProjectsPage() {
           className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-[1.2rem] font-black text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-900/20 active:scale-95 border border-white/10"
         >
           <Plus size={18} strokeWidth={3} />
-          Create New Asset
+          Create New Project
         </button>
       </div>
 
       {/* Main Glass Shell */}
-      <div className="bg-slate-900/40 border border-white/5 rounded-[2.5rem] p-6 space-y-6 shadow-2xl backdrop-blur-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900/40 border border-zinc-200 dark:border-white/5 rounded-[2.5rem] p-6 space-y-6 shadow-2xl backdrop-blur-sm overflow-hidden">
         {/* Visual Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:w-96 group">
             <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-500 transition-colors"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-slate-500 group-focus-within:text-orange-500 transition-colors"
               size={18}
             />
             <input
               type="text"
               placeholder="Search project registry..."
-              className="w-full bg-slate-950/80 border border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500/40 transition-all placeholder:text-slate-700"
+              className="w-full bg-zinc-50 dark:bg-slate-950/80 border border-zinc-200 dark:border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500/40 transition-all placeholder:text-zinc-400 dark:placeholder:text-slate-700"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center gap-8 px-6 py-2 bg-slate-950/40 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-8 px-6 py-2 bg-zinc-50 dark:bg-slate-950/40 rounded-2xl border border-zinc-200 dark:border-white/5">
             <div className="flex items-center gap-3 group">
               <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
               <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Active</span>
-                <span className="text-xs text-white font-bold">{projects?.filter((p) => p.status === "active").length || 0}</span>
+                <span className="text-[10px] text-zinc-500 dark:text-slate-500 font-black uppercase tracking-widest leading-none">Active</span>
+                <span className="text-xs text-zinc-900 dark:text-white font-bold">{projects?.filter((p) => p.status === "active").length || 0}</span>
               </div>
             </div>
-            <div className="w-px h-6 bg-white/5" />
+            <div className="w-px h-6 bg-zinc-200 dark:bg-white/5" />
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-orange-500/50" />
               <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Global</span>
-                <span className="text-xs text-white font-bold">{projects?.length || 0} Assets</span>
+                <span className="text-[10px] text-zinc-500 dark:text-slate-500 font-black uppercase tracking-widest leading-none">Global</span>
+                <span className="text-xs text-zinc-900 dark:text-white font-bold">{projects?.length || 0} Projects</span>
               </div>
             </div>
           </div>
@@ -248,8 +248,8 @@ export default function ProjectsPage() {
                 <AlertTriangle size={24} />
               </div>
               <div className="text-center">
-                <h3 className="text-white font-bold">Registry Access Failure</h3>
-                <p className="text-slate-500 text-xs mt-1">Unable to synchronise with project database. Check connection.</p>
+                <h3 className="text-zinc-900 dark:text-white font-bold">Registry Access Failure</h3>
+                <p className="text-zinc-500 dark:text-slate-500 text-xs mt-1">Unable to synchronise with project database. Check connection.</p>
               </div>
               <button
                 onClick={() => mutate()}
@@ -265,7 +265,7 @@ export default function ProjectsPage() {
                   <Building size={32} />
                 </div>
                 <h3 className="empty-state-luxury-title">Registry Empty</h3>
-                <p className="empty-state-luxury-desc">Your project portfolio is currently unpopulated. Initiate a new asset to begin tracking.</p>
+                <p className="empty-state-luxury-desc">Your project portfolio is currently unpopulated. Initiate a new project to begin tracking.</p>
               </div>
             </div>
           ) : (

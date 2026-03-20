@@ -23,11 +23,6 @@ export const useProjectStore = create<ProjectState>()(
         // This prevents cross-project data bleeding
         mutate(() => true, undefined, { revalidate: false });
         set({ activeProject: project });
-        
-        // Force full page reload to ensure fresh session and state
-        if (typeof window !== 'undefined') {
-          window.location.reload();
-        }
       },
 
       clearProject: () => {

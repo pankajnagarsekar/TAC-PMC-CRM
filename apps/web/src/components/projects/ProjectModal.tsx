@@ -153,10 +153,10 @@ export default function ProjectModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-950 border-slate-800 text-white">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 text-zinc-900 dark:text-white">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
-            <Layout className="text-orange-500" />
+            <Layout className="text-orange-600 dark:text-orange-500" />
             {project ? "Edit Project" : "Create New Project"}
           </DialogTitle>
         </DialogHeader>
@@ -171,13 +171,13 @@ export default function ProjectModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Basic Info */}
-            <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800/50">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+            <div className="space-y-4 bg-zinc-50 dark:bg-slate-900/50 p-4 rounded-xl border border-zinc-200 dark:border-slate-800/50">
+              <h3 className="text-sm font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider">
                 Basic Information
               </h3>
 
               <div className="space-y-2">
-                <label className="text-xs text-slate-500">Project Name</label>
+                <label className="text-xs text-zinc-500 dark:text-slate-500">Project Name</label>
                 <div className="relative">
                   <Building
                     size={14}
@@ -185,7 +185,7 @@ export default function ProjectModal({
                   />
                   <input
                     required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm focus:border-orange-500/50 outline-none"
+                    className="w-full bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-900 dark:text-white focus:border-orange-500/50 outline-none"
                     value={formData.project_name}
                     onChange={(e) =>
                       setFormData({ ...formData, project_name: e.target.value })
@@ -204,7 +204,7 @@ export default function ProjectModal({
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600"
                     />
                     <input
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm focus:border-orange-500/50 outline-none"
+                      className="w-full bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-900 dark:text-white focus:border-orange-500/50 outline-none"
                       value={formData.project_code}
                       onChange={(e) =>
                         setFormData({
@@ -219,7 +219,7 @@ export default function ProjectModal({
                 <div className="space-y-2">
                   <label className="text-xs text-slate-500">Client</label>
                   <select
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-orange-500/50 outline-none"
+                    className="w-full bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-orange-500/50 outline-none"
                     value={formData.client_id}
                     onChange={(e) =>
                       setFormData({ ...formData, client_id: e.target.value })
@@ -298,7 +298,7 @@ export default function ProjectModal({
                 <input
                   type="number"
                   step="0.1"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-orange-500/50 outline-none"
+                  className="w-full bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-orange-500/50 outline-none"
                   value={formData.project_retention_percentage}
                   onChange={(e) =>
                     setFormData({
@@ -390,10 +390,10 @@ export default function ProjectModal({
           </div>
 
           {/* Budget Initialization Grid */}
-          <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800/50">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+          <div className="space-y-4 bg-zinc-50 dark:bg-slate-900/50 p-4 rounded-xl border border-zinc-200 dark:border-slate-800/50">
+            <h3 className="text-sm font-semibold text-zinc-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
               Budget Initialization
-              <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded border border-orange-500/20">
+              <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-500 px-2 py-0.5 rounded border border-orange-200 dark:border-orange-500/20">
                 Set category limits
               </span>
             </h3>
@@ -402,25 +402,25 @@ export default function ProjectModal({
               {codes?.map((code) => (
                 <div
                   key={code._id}
-                  className="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2 hover:border-slate-700 transition-colors"
+                  className="bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg p-3 space-y-2 hover:border-orange-500/30 dark:hover:border-slate-700 transition-colors shadow-sm"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-300 truncate pr-2">
+                    <span className="text-xs font-medium text-zinc-700 dark:text-slate-300 truncate pr-2">
                       {code.category_name}
                     </span>
-                    <span className="text-[10px] text-slate-600 font-mono">
+                    <span className="text-[10px] text-zinc-400 dark:text-slate-600 font-mono">
                       {code.code}
                     </span>
                   </div>
                   <div className="relative">
                     <DollarSign
                       size={12}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-slate-600"
                     />
                     <input
                       type="number"
                       placeholder="0.00"
-                      className="w-full bg-slate-900 border border-slate-800 rounded-md pl-7 pr-3 py-1.5 text-xs focus:border-orange-500/50 outline-none text-orange-400 font-mono"
+                      className="w-full bg-zinc-50 dark:bg-slate-900 border border-zinc-100 dark:border-slate-800 rounded-md pl-7 pr-3 py-1.5 text-xs focus:border-orange-500/50 outline-none text-orange-600 dark:text-orange-400 font-mono"
                       value={budgets[code._id || ""] || ""}
                       onChange={(e) =>
                         handleBudgetChange(code._id || "", e.target.value)
@@ -430,7 +430,7 @@ export default function ProjectModal({
                 </div>
               ))}
               {(!codes || codes.length === 0) && (
-                <div className="col-span-full py-8 text-center text-slate-600 border border-dashed border-slate-800 rounded-xl">
+                <div className="col-span-full py-8 text-center text-zinc-400 dark:text-slate-600 border border-dashed border-zinc-200 dark:border-slate-800 rounded-xl">
                   No budget categories found. Please add categories first.
                 </div>
               )}

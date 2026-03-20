@@ -30,11 +30,13 @@ function formatINRShort(value: number): string {
   return `₹${value}`;
 }
 
+import { useTheme } from 'next-themes';
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload) return null;
   return (
-    <div className="rounded-lg px-3 py-2 shadow-xl" style={{ background: '#1e293b', border: '1px solid #334155' }}>
-      <p className="text-xs text-slate-400 mb-1 font-medium">{label}</p>
+    <div className="rounded-lg px-3 py-2 shadow-xl bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700">
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.value)}
@@ -53,22 +55,26 @@ export default function FinancialChart({
   className = '',
   formatCurrency = true,
 }: FinancialChartProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const gridColor = isDark ? '#334155' : '#e2e8f0';
+  const textColor = isDark ? '#94a3b8' : '#64748b';
   const yTickFormatter = formatCurrency ? formatINRShort : (v: number) => String(v);
 
   return (
-    <div className={`rounded-xl p-4 ${className}`} style={{ background: '#1e293b', border: '1px solid #334155' }}>
+    <div className={`rounded-xl p-4 border bg-white dark:bg-slate-900 border-zinc-200 dark:border-slate-800 ${className}`}>
       {title && (
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">{title}</h3>
+        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">{title}</h3>
       )}
       <ResponsiveContainer width="100%" height={height}>
         {type === 'bar' ? (
           <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#334155' }} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: '#334155' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+            <XAxis dataKey="name" tick={{ fill: textColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} />
+            <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
             <Tooltip content={<CustomTooltip />} />
             <Legend
-              wrapperStyle={{ fontSize: 11, color: '#94a3b8' }}
+              wrapperStyle={{ fontSize: 11, color: textColor }}
               iconType="square"
               iconSize={10}
             />
@@ -78,11 +84,11 @@ export default function FinancialChart({
           </BarChart>
         ) : (
           <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#334155' }} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: '#334155' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+            <XAxis dataKey="name" tick={{ fill: textColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} />
+            <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: textColor }} />
             {dataKeys.map(({ key, color, label }) => (
               <Line key={key} type="monotone" dataKey={key} name={label} stroke={color} strokeWidth={2} dot={{ r: 3 }} />
             ))}

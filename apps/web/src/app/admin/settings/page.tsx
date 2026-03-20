@@ -137,11 +137,11 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
             <Settings className="text-orange-500" />
             Global Settings
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">
             Manage company identity and system-wide financial taxonomies.
           </p>
         </div>
@@ -163,13 +163,13 @@ export default function SettingsPage() {
         {/* Left Column: Company Profile & Logo */}
         <div className="lg:col-span-1 space-y-6">
           {/* Logo Section */}
-          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900/50 border border-zinc-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Globe size={16} className="text-orange-500" />
               Company Branding
             </h3>
 
-            <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-800 rounded-xl bg-slate-950/50 group hover:border-orange-500/50 transition-colors">
+            <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-zinc-200 dark:border-slate-800 rounded-xl bg-zinc-50/50 dark:bg-slate-950/50 group hover:border-orange-500/50 transition-colors">
               {globalSettings.logo_base64 ? (
                 <div className="relative group/img">
                   <img
@@ -194,10 +194,10 @@ export default function SettingsPage() {
                   className="flex flex-col items-center gap-2 cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center text-slate-500 group-hover:text-orange-500 transition-colors border border-slate-800">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-slate-900 flex items-center justify-center text-zinc-400 dark:text-slate-500 group-hover:text-orange-500 transition-colors border border-zinc-200 dark:border-slate-800">
                     <Upload size={20} />
                   </div>
-                  <span className="text-xs text-slate-500 font-medium">
+                  <span className="text-xs text-zinc-500 dark:text-slate-500 font-medium">
                     Upload Company Logo
                   </span>
                 </div>
@@ -213,14 +213,14 @@ export default function SettingsPage() {
           </div>
 
           {/* Profile Fields */}
-          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900/50 border border-zinc-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Building2 size={16} className="text-orange-500" />
               Company Profile
             </h3>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">
+                <label className="text-[10px] font-bold text-zinc-400 dark:text-slate-500 uppercase">
                   Registered Name
                 </label>
                 <input
@@ -232,12 +232,12 @@ export default function SettingsPage() {
                       name: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
+                  className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500"
                   placeholder="e.g. TAC Project Management Consultants"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">
+                <label className="text-[10px] font-bold text-zinc-400 dark:text-slate-500 uppercase">
                   Office Address
                 </label>
                 <textarea
@@ -249,7 +249,7 @@ export default function SettingsPage() {
                       address: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 resize-none"
+                  className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500 resize-none"
                   placeholder="Enter full physical address..."
                 />
               </div>
@@ -443,7 +443,7 @@ export default function SettingsPage() {
                         invoice_prefix: e.target.value,
                       })
                     }
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                    className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                   />
                 </div>
               </div>

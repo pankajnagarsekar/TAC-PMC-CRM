@@ -74,17 +74,17 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
     }
   }
 
-  const inputStyle = "w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 transition-colors placeholder:text-slate-600";
-  const labelStyle = "block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider px-1";
+  const inputStyle = "w-full bg-white dark:bg-slate-900 border border-zinc-200 dark:border-slate-800 rounded-xl px-4 py-3 text-zinc-900 dark:text-white text-sm focus:outline-none focus:border-orange-500/50 transition-colors placeholder:text-zinc-400 dark:placeholder:text-slate-600";
+  const labelStyle = "block text-xs font-semibold text-zinc-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider px-1";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-lg rounded-2xl p-0 overflow-hidden shadow-2xl">
-        <DialogHeader className="p-6 border-b border-slate-900 bg-slate-950/50">
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+      <DialogContent className="bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-900 text-zinc-900 dark:text-white max-w-lg rounded-2xl p-0 overflow-hidden shadow-2xl">
+        <DialogHeader className="p-6 border-b border-zinc-100 dark:border-slate-900 bg-zinc-50/50 dark:bg-slate-950/50">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
             {client ? 'Edit Client Details' : 'Onboard New Client'}
           </DialogTitle>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">
             {client ? 'Update existing client profile and business information.' : 'Enter client details to initialize their account in the CRM.'}
           </p>
         </DialogHeader>
@@ -155,7 +155,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
             <button
               type="button"
               onClick={onClose}
-              className={`${buttonBase} flex-1 sm:flex-none border border-slate-800 text-slate-400 hover:bg-slate-900`}
+              className={`${buttonBase} flex-1 sm:flex-none border border-zinc-200 dark:border-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-100 dark:hover:bg-slate-900`}
             >
               Cancel
             </button>

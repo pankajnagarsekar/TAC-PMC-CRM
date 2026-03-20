@@ -52,10 +52,10 @@ export default function ClientsPage() {
         flex: 2,
         cellRenderer: (params: any) => (
           <div className="flex items-center gap-3 py-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-500">
               <Building2 size={16} />
             </div>
-            <span className="font-semibold text-white">{params.value}</span>
+            <span className="font-semibold text-zinc-900 dark:text-white">{params.value}</span>
           </div>
         ),
       },
@@ -81,7 +81,7 @@ export default function ClientsPage() {
         field: "gst_number",
         flex: 1,
         cellRenderer: (params: any) => (
-          <code className="text-[11px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800 text-slate-400">
+          <code className="text-[11px] bg-zinc-100 dark:bg-slate-900 px-2 py-0.5 rounded border border-zinc-200 dark:border-slate-800 text-zinc-600 dark:text-slate-400">
             {params.value || "N/A"}
           </code>
         ),
@@ -122,14 +122,14 @@ export default function ClientsPage() {
           <div className="flex items-center justify-end h-full px-2 gap-1 admin-only">
             <button
               onClick={() => handleEdit(params.data)}
-              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
               title="Edit Client"
             >
               <Edit2 size={16} />
             </button>
             <button
               onClick={() => handleDelete(params.data)}
-              className="p-2 hover:bg-red-800 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               title="Delete Client"
             >
               <Trash2 size={16} />
@@ -176,11 +176,11 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
             <Users className="text-orange-500" />
             Client Management
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">
             Manage construction clients, billing info and project associations.
           </p>
         </div>
@@ -195,16 +195,16 @@ export default function ClientsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800/50">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900/50 p-4 rounded-2xl border border-zinc-200 dark:border-slate-800/50">
         <div className="relative w-full sm:w-80">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-slate-500"
             size={18}
           />
           <input
             type="text"
             placeholder="Search by name, email or GST..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+            className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500/50 transition-colors"
             value={searchTerm}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setSearchTerm(e.target.value)

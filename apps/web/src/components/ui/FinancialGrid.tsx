@@ -2,6 +2,7 @@
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
+import { useTheme } from "next-themes";
 import type {
   ColDef,
   GridReadyEvent,
@@ -93,6 +94,9 @@ export default function FinancialGrid<T extends any>({
     Map<number, RowValidation>
   >(new Map());
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   // Auto-incrementing Sr No column
   const srNoCol: ColDef<T> = useMemo(
     () => ({
@@ -101,9 +105,9 @@ export default function FinancialGrid<T extends any>({
       width: 60,
       pinned: "left",
       editable: false,
-      cellStyle: { textAlign: "center", fontWeight: 600, color: "#94a3b8" },
+      cellStyle: { textAlign: "center", fontWeight: 600, color: isDark ? "#94a3b8" : "#64748b" },
     }),
-    [],
+    [isDark],
   );
 
   // Merge columns
@@ -238,13 +242,15 @@ export default function FinancialGrid<T extends any>({
     [rowValidations],
   );
 
+  const gridTheme = isDark ? "ag-theme-quartz-dark" : "ag-theme-quartz";
+
   return (
     <div className={`financial-grid-container ${className}`}>
       {invalidCount > 0 && (
         <div
           className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg text-sm"
           style={{
-            background: "rgba(239,68,68,0.1)",
+            background: isDark ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.05)",
             color: "#ef4444",
             border: "1px solid rgba(239,68,68,0.2)",
           }}
@@ -255,7 +261,7 @@ export default function FinancialGrid<T extends any>({
       )}
       <div
         style={{ height, width: "100%" }}
-        className="ag-theme-quartz-dark glass-panel-luxury rounded-xl overflow-hidden shadow-2xl transition-all duration-500"
+        className={`${gridTheme} glass-panel-luxury dark:glass-panel-luxury rounded-xl overflow-hidden shadow-2xl transition-all duration-500`}
       >
         <AgGridReact<T>
           ref={gridRef}
@@ -286,19 +292,14 @@ export default function FinancialGrid<T extends any>({
         />
       </div>
       <style jsx global>{`
-        .ag-theme-quartz-dark {
-          --ag-background-color: transparent !important;
-          --ag-header-background-color: rgba(30, 41, 59, 0.4) !important;
-          --ag-header-foreground-color: #94a3b8 !important;
-          --ag-foreground-color: #e2e8f0 !important;
-          --ag-border-color: rgba(255, 255, 255, 0.05) !important;
-          --ag-row-hover-color: rgba(249, 115, 22, 0.08) !important;
-          --ag-selected-row-background-color: rgba(
-            249,
-            115,
-            22,
-            0.15
-          ) !important;
+        .ag-theme-quartz-dark, .ag-theme-quartz {
+          --ag-background-color: ${isDark ? 'transparent' : '#ffffff'} !important;
+          --ag-header-background-color: ${isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(241, 245, 249, 0.6)'} !important;
+          --ag-header-foreground-color: ${isDark ? '#94a3b8' : '#64748b'} !important;
+          --ag-foreground-color: ${isDark ? '#e2e8f0' : '#1e293b'} !important;
+          --ag-border-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'} !important;
+          --ag-row-hover-color: ${isDark ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.05)'} !important;
+          --ag-selected-row-background-color: ${isDark ? 'rgba(249, 115, 22, 0.15)' : 'rgba(249, 115, 22, 0.1)'} !important;
           --ag-range-selection-border-color: #f97316 !important;
           --ag-font-size: 13px !important;
           --ag-font-family: inherit !important;
@@ -308,7 +309,7 @@ export default function FinancialGrid<T extends any>({
           --ag-cell-horizontal-padding: 24px !important;
         }
 
-        .ag-theme-quartz-dark .ag-header-cell {
+        .ag-theme-quartz-dark .ag-header-cell, .ag-theme-quartz .ag-header-cell {
           font-weight: 700 !important;
           letter-spacing: 0.08em !important;
           text-transform: uppercase !important;
@@ -317,35 +318,25 @@ export default function FinancialGrid<T extends any>({
           padding-right: 24px !important;
         }
 
-        .ag-theme-quartz-dark .ag-row {
-          transition: background-color 0.2s ease !important;
-        }
-
-        .ag-theme-quartz-dark .ag-cell-inline-editing {
-          background: #1e293b !important;
+        .ag-theme-quartz-dark .ag-cell-inline-editing, .ag-theme-quartz .ag-cell-inline-editing {
+          background: ${isDark ? '#1e293b' : '#ffffff'} !important;
           border: 1.5px solid #f97316 !important;
           border-radius: 8px !important;
           box-shadow: 0 0 20px rgba(249, 115, 22, 0.3) !important;
         }
 
-        .ag-theme-quartz-dark .ag-cell-inline-editing input {
-          color: #f8fafc !important;
+        .ag-theme-quartz-dark .ag-cell-inline-editing input, .ag-theme-quartz .ag-cell-inline-editing input {
+          color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
           background: transparent !important;
           font-weight: 600 !important;
         }
 
         /* Row-level validation indicators */
-        .ag-theme-quartz-dark .row-invalid {
+        .ag-theme-quartz-dark .row-invalid, .ag-theme-quartz .row-invalid {
           border-left: 4px solid #ef4444 !important;
         }
-        .ag-theme-quartz-dark .row-valid {
+        .ag-theme-quartz-dark .row-valid, .ag-theme-quartz .row-valid {
           border-left: 4px solid #10b981 !important;
-        }
-        .ag-theme-quartz-dark .row-invalid .ag-cell {
-          background: rgba(239, 68, 68, 0.08) !important;
-        }
-        .ag-theme-quartz-dark .row-valid .ag-cell {
-          background: rgba(16, 185, 129, 0.04) !important;
         }
       `}</style>
     </div>

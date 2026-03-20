@@ -65,7 +65,7 @@ export default function CategoriesPage() {
         field: "category_name",
         flex: 2,
         cellRenderer: (params: any) => (
-          <span className="font-semibold text-white">{params.value}</span>
+          <span className="font-semibold text-zinc-900 dark:text-white">{params.value}</span>
         ),
       },
       {
@@ -108,14 +108,14 @@ export default function CategoriesPage() {
           <div className="flex items-center justify-end h-full px-2 gap-1 admin-only">
             <button
               onClick={() => handleEdit(params.data)}
-              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
               title="Edit Category"
             >
               <Edit2 size={16} />
             </button>
             <button
               onClick={() => handleDelete(params.data)}
-              className="p-2 hover:bg-red-800 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               title="Delete Category"
             >
               <Trash2 size={16} />
@@ -184,11 +184,11 @@ export default function CategoriesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
             <Tag className="text-orange-500" />
             Budget Categories
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">
             Define cost heads and categories for project budgeting.
           </p>
         </div>
@@ -203,16 +203,16 @@ export default function CategoriesPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800/50">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900/50 p-4 rounded-2xl border border-zinc-200 dark:border-slate-800/50 shadow-sm">
         <div className="relative w-full sm:w-80">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-slate-500"
             size={18}
           />
           <input
             type="text"
             placeholder="Search categories..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+            className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500/50 transition-colors"
             value={searchTerm}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setSearchTerm(e.target.value)
@@ -237,10 +237,10 @@ export default function CategoriesPage() {
       />
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-white">
+        <DialogContent className="bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 text-zinc-900 dark:text-white">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Tag className="text-orange-500" />
+              <Tag className="text-orange-600 dark:text-orange-500" />
               {selectedCode ? "Edit Category" : "Add New Category"}
             </DialogTitle>
           </DialogHeader>
@@ -264,7 +264,7 @@ export default function CategoriesPage() {
                 />
                 <input
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm focus:border-orange-500/50 outline-none"
+                  className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 text-zinc-900 dark:text-white rounded-lg pl-9 pr-4 py-2 text-sm focus:border-orange-500/50 outline-none"
                   value={formData.code}
                   onChange={(e) =>
                     setFormData({
@@ -281,7 +281,7 @@ export default function CategoriesPage() {
               <label className="text-xs text-slate-500">Category Name</label>
               <input
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-orange-500/50 outline-none"
+                className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-100 dark:border-slate-800 text-zinc-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500/50 outline-none"
                 value={formData.category_name}
                 onChange={(e) =>
                   setFormData({ ...formData, category_name: e.target.value })
@@ -293,7 +293,7 @@ export default function CategoriesPage() {
             <div className="space-y-2">
               <label className="text-xs text-slate-500">Description</label>
               <textarea
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:border-orange-500/50 outline-none min-h-[100px]"
+                className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-orange-500/50 outline-none min-h-[100px]"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })

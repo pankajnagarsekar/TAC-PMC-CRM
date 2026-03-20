@@ -65,11 +65,16 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 .high-density-grid {
-  background-image: radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, hsl(var(--border)) 0.5px, transparent 0);
   background-size: 24px 24px;
 }
 
 .zinc-sidebar {
+  background-color: white;
+  border-right: 1px solid var(--color-zinc-200);
+}
+
+.dark .zinc-sidebar {
   background-color: #09090b;
   border-right: 1px solid hsl(var(--border) / 0.1);
 }
@@ -79,8 +84,7 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 1rem;
-  border: 1px solid;
-  border-color: var(--color-zinc-200);
+  border: 1px solid var(--color-zinc-200);
   background-color: transparent;
 }
 
@@ -88,18 +92,25 @@
   border-color: var(--color-zinc-800);
 }
 
-/* MODAL / DIALOG FIXES (BUG 009) */
-[role="dialog"] {
+/* Strictly center all Radix Dialog Contents */
+div[role="dialog"][data-state="open"] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  z-index: 50 !important;
   max-height: 92vh !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
 }
 
-/* Ensure Radix DialogContent is strictly centered */
-div[data-state="open"].fixed.left-\[50\%\] {
-  top: 50% !important;
-  transform: translate(-50%, -50%) !important;
+/* Ensure backdrop covers full screen and is centered */
+div[data-radix-focus-guard]+div {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* IMPROVED SCROLLBARS FOR LUXURY UI */

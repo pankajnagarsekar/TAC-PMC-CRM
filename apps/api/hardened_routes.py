@@ -378,6 +378,8 @@ async def initialize_project_budgets(
     from server import db, permission_checker, financial_service
     
     user = await permission_checker.get_authenticated_user(current_user)
+    logger.info(f"Initializing budgets for project {project_id} by user {user['user_id']}")
+    
     # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
     await permission_checker.check_web_crm_access(user)
     await permission_checker.check_client_readonly(user)
@@ -385,6 +387,7 @@ async def initialize_project_budgets(
     
     # 1. Get all codes
     codes = await db.code_master.find({"active_status": True}).to_list(length=None)
+    logger.info(f"Found {len(codes)} active codes to initialize")
     
     async with db_manager.transaction_session() as session:
         fund_transfer_count = 0

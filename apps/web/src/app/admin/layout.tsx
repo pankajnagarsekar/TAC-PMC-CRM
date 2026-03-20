@@ -59,14 +59,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .split('/')
         .filter(Boolean)
         .slice(1) // Skip 'admin'
-        .map((segment) => ({
-            label: segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' '),
-            href: `/admin/${segment}`
-        }));
+        .map((segment) => {
+            let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
 
-    if (!mounted || !_hasHydrated) {
+            // If segment is a MongoDB ID and matches active project, use its name
+            if (activeProject && (segment === activeProject.project_id || segment === activeProject._id)) {
+                label = activeProject.project_name;
+            } else if (segment.match(/^[0-9a-fA-F]{24}$/)) {
+                label = "Loading Project...";
+            }
+
+            return {
+                label,
+                href: `/admin/${segment}`
+            };
+        });
+
+    if (!mounted) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
+                <div className="text-zinc-500 animate-pulse font-medium text-xs tracking-widest uppercase">
+                    Initializing...
+                </div>
+            </div>
+        );
+    }
+
+    if (!_hasHydrated) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
                 <div className="text-zinc-500 animate-pulse font-medium text-xs tracking-widest uppercase">
                     Authenticating...
                 </div>
@@ -97,11 +118,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         {/* User Session */}
                         <div className="flex items-center gap-3">
                             <div className="flex flex-col items-end">
-                                <span className="text-foreground text-[11px] font-bold leading-none">{user.name}</span>
-                                <span className="text-muted-foreground text-[9px] uppercase tracking-wider mt-0.5">{user.role}</span>
+                                <span className="text-foreground text-[11px] font-bold leading-none">{user?.name}</span>
+                                <span className="text-muted-foreground text-[9px] uppercase tracking-wider mt-0.5">{user?.role}</span>
                             </div>
                             <div className="w-8 h-8 rounded-full bg-secondary border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-[10px] font-black text-indigo-500">
-                                {user.name?.[0]?.toUpperCase()}
+                                {user?.name?.[0]?.toUpperCase()}
                             </div>
                         </div>
                     </div>

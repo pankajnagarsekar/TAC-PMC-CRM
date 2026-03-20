@@ -1588,6 +1588,115 @@ async def get_project(project_id: str, current_user: dict = Depends(get_current_
     return project
 
 
+@api_router.put("/projects/{project_id}", response_model=Project)
+async def update_project(
+    project_id: str, 
+    project_data: ProjectUpdate, 
+    current_user: dict = Depends(get_current_user)
+):
+    """Update project details."""
+    user = await permission_checker.get_authenticated_user(current_user)
+    
+    # Check web CRM access and admin role
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_admin_role(user)
+    
+    # Check if project access (this also validates organisation isolation)
+    await permission_checker.check_project_access(user, project_id, require_write=True)
+    
+    update_dict = {k: v for k, v in project_data.dict(exclude_unset=True).items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    # Find and update
+    try:
+        query = {"_id": ObjectId(project_id)}
+    except:
+        query = {"project_id": project_id}
+
+    result = await db.projects.find_one_and_update(
+        query,
+        {"$set": update_dict},
+        return_document=True
+    )
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Audit log
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="PROJECT_MANAGEMENT",
+        entity_type="PROJECT",
+        entity_id=project_id,
+        action_type="UPDATE",
+        user_id=user["user_id"],
+        new_value=update_dict
+    )
+    
+    result["project_id"] = str(result["_id"])
+    return serialize_doc(result)
+
+
+@api_router.post("/projects/{project_id}/budgets", response_model=ProjectBudget)
+async def create_or_update_project_budget(
+    project_id: str,
+    budget_data: ProjectBudgetCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create or update a budget allocation for a project category."""
+    user = await permission_checker.get_authenticated_user(current_user)
+    
+    # 6.3 checks
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+    
+    # Check project access
+    await permission_checker.check_project_access(user, project_id, require_write=True)
+    
+    # Check if category exists
+    category_id = budget_data.category_id
+    category = await db.code_master.find_one({"_id": ObjectId(category_id)})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    budget_dict = budget_data.dict()
+    budget_dict["project_id"] = project_id
+    budget_dict["organisation_id"] = user["organisation_id"]
+    budget_dict["updated_at"] = datetime.utcnow()
+    
+    # Upsert logic
+    query = {"project_id": project_id, "category_id": category_id}
+    existing = await db.project_category_budgets.find_one(query)
+    
+    if existing:
+        # Update
+        await db.project_category_budgets.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {
+                "original_budget": Decimal128(str(budget_data.original_budget)),
+                "description": budget_data.description,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
+    else:
+        # Create
+        budget_dict["created_at"] = datetime.utcnow()
+        budget_dict["original_budget"] = Decimal128(str(budget_data.original_budget))
+        budget_dict["committed_amount"] = Decimal128("0.0")
+        budget_dict["remaining_budget"] = Decimal128(str(budget_data.original_budget))
+        budget_dict["version"] = 1
+        
+        insert_res = await db.project_category_budgets.insert_one(budget_dict)
+        result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
+        
+    # Recalculate project financials after budget change
+    await financial_service.recalculate_all_project_financials(project_id)
+    
+    return serialize_doc(result)
+
+
 @api_router.get("/health")
 async def health_check():
     """Health check endpoint"""
