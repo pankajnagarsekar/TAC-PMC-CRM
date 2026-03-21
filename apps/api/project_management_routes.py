@@ -77,8 +77,8 @@ project_management_router = APIRouter(
 # MongoDB
 mongo_url = os.environ.get(
     'MONGO_URL',
-    'mongodb://localhost:27017/?replicaSet=rs0')
-db_name = os.environ.get('DB_NAME', 'construction_management')
+    'mongodb://localhost:27017')
+db_name = os.environ.get('DB_NAME', 'tac_pmc_crm')
 ai_api_key = os.environ.get('EMERGENT_LLM_KEY')
 
 client = AsyncIOMotorClient(mongo_url)
@@ -2154,7 +2154,8 @@ async def get_admin_projects_overview(
             categories = []
 
             for b in budgets:
-                approved = b.get("original_budget", 0)
+                raw_approved = b.get("original_budget", 0)
+                approved = float(serialize_mongo_doc(raw_approved)) if raw_approved else 0.0
                 total_master_budget += approved
 
                 # Get financial state
@@ -2168,9 +2169,9 @@ async def get_admin_projects_overview(
                 remaining = approved
 
                 if fs:
-                    committed = fs.get("committed_value", 0)
-                    certified = fs.get("certified_value", 0)
-                    remaining = fs.get("balance_budget_remaining", approved)
+                    committed = float(serialize_mongo_doc(fs.get("committed_value", 0)) or 0)
+                    certified = float(serialize_mongo_doc(fs.get("certified_value", 0)) or 0)
+                    remaining = float(serialize_mongo_doc(fs.get("balance_budget_remaining", approved)) or approved)
 
                 total_committed += committed
                 total_certified += certified
@@ -2219,7 +2220,7 @@ async def get_admin_projects_overview(
                 {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
             ]
             petty_result = await db.petty_cash.aggregate(petty_pipeline).to_list(length=1)
-            petty_cash_total = petty_result[0]["total"] if petty_result else 0
+            petty_cash_total = float(serialize_mongo_doc(petty_result[0]["total"])) if petty_result else 0.0
 
             result.append({
                 "project_id": pid,
@@ -2245,7 +2246,7 @@ async def get_admin_projects_overview(
                 },
             })
 
-        return {"projects": result}
+        return {"projects": [serialize_mongo_doc(p) for p in result]}
 
     except Exception as e:
         logger.error(f"Projects overview error: {e}")

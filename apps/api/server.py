@@ -1559,7 +1559,7 @@ async def list_projects(current_user: dict = Depends(get_current_user)):
     projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
     for p in projects:
         p["project_id"] = str(p["_id"])
-    return projects
+    return [serialize_doc(p) for p in projects]
 
 
 @api_router.get("/projects/{project_id}", response_model=Project)
@@ -1585,7 +1585,7 @@ async def get_project(project_id: str, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=404, detail="Project not found")
         
     project["project_id"] = str(project["_id"])
-    return project
+    return serialize_doc(project)
 
 
 @api_router.put("/projects/{project_id}", response_model=Project)

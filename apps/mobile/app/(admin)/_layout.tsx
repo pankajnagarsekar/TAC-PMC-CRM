@@ -55,6 +55,15 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="projects"
+        options={{
+          title: 'Projects',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="business-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="dpr"
         options={{
           title: 'DPR',
@@ -70,6 +79,13 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="petty-cash"
+        options={{
+          title: 'Petty Cash',
+          href: null, // Keep null to hide from bottom tab strip, but reachable via push
         }}
       />
       <Tabs.Screen
@@ -107,13 +123,7 @@ export default function AdminLayout() {
           href: null,
         }}
       />
-      <Tabs.Screen
-        name="petty-cash"
-        options={{
-          headerShown: true,
-          title: 'Petty Cash',
-        }}
-      />
+
       <Tabs.Screen
         name="workers-report"
         options={{

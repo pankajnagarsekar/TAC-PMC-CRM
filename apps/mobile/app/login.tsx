@@ -49,12 +49,12 @@ export default function LoginScreen() {
 
       // Redirect based on role
       if (role === 'Admin') {
-        router.replace('/(admin)/dashboard');
+        router.replace('/(admin)/projects');
       } else if (role === 'Supervisor') {
         router.replace('/(supervisor)/dashboard');
       } else {
         // Default redirect
-        router.replace('/(admin)/dashboard');
+        router.replace('/(admin)/projects');
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -82,10 +82,10 @@ export default function LoginScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Image 
-              source={require('../assets/images/logo.png')} 
-              style={styles.logo} 
-              resizeMode="contain" 
+            <Image
+              source={require('../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
             />
             <Text style={styles.subtitle}>Sign in to your dashboard</Text>
           </View>
@@ -143,7 +143,7 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
             </TouchableOpacity>
-            
+
             <View style={styles.footer}>
               <Text style={styles.footerText}>© {new Date().getFullYear()} Third Angle Concepts. All rights reserved.</Text>
             </View>

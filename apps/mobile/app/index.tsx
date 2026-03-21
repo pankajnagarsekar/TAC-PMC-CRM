@@ -23,7 +23,7 @@ export default function Index() {
     }
 
     if (user.role === 'Admin') {
-      router.replace('/(admin)/dashboard');
+      router.replace('/(admin)/projects');
     } else if (user.role === 'Supervisor') {
       router.replace('/(supervisor)/dashboard');
     } else if (user.role === 'Client') {

@@ -62,7 +62,7 @@ export default function SettingsPage() {
       try {
         const [settingsRes, permsRes] = await Promise.all([
           api.get("/api/settings"),
-          api.get("/api/settings/client-permissions"),
+          api.get("/api/client-permissions"),
         ]);
 
         if (settingsRes.data) {
@@ -91,7 +91,7 @@ export default function SettingsPage() {
       await Promise.all([
         api.put("/api/settings", payload),
         api.patch(
-          "/api/settings/client-permissions",
+          "/api/client-permissions",
           payload.client_permissions || {},
         ),
       ]);

@@ -14,6 +14,7 @@ import {
   CreateBudgetRequest,
   UpdateBudgetRequest,
   FinancialState,
+  DerivedFinancialState,
   Vendor,
   CreateVendorRequest,
   WorkOrder,
@@ -353,6 +354,8 @@ export const financialApi = {
     if (codeId) params.append('code_id', codeId);
     return request(`/api/financial-state?${params}`);
   },
+  getProjectFinancials: (projectId: string): Promise<DerivedFinancialState[]> =>
+    request(`/api/v2/projects/${projectId}/financials`),
 };
 
 // ============================================

@@ -146,6 +146,18 @@ export interface FinancialState {
   last_recalculated_at: string;
 }
 
+export interface DerivedFinancialState {
+  _id?: string;
+  project_id: string;
+  category_id: string;
+  original_budget: number;
+  committed_value: number;
+  certified_value: number;
+  balance_budget_remaining: number;
+  over_commit_flag: boolean;
+  last_updated?: string;
+}
+
 // ============================================
 // VENDORS
 // ============================================
@@ -535,26 +547,26 @@ export interface TimelineEvent {
   event_id: string;
   project_id: string;
   event_type:
-    | "WO_CREATED"
-    | "WO_ISSUED"
-    | "WO_REVISED"
-    | "PC_CREATED"
-    | "PC_CERTIFIED"
-    | "PAYMENT_MADE"
-    | "RETENTION_RELEASED"
-    | "PROGRESS_UPDATED"
-    | "ISSUE_CREATED"
-    | "ISSUE_RESOLVED"
-    | "DPR_GENERATED";
+  | "WO_CREATED"
+  | "WO_ISSUED"
+  | "WO_REVISED"
+  | "PC_CREATED"
+  | "PC_CERTIFIED"
+  | "PAYMENT_MADE"
+  | "RETENTION_RELEASED"
+  | "PROGRESS_UPDATED"
+  | "ISSUE_CREATED"
+  | "ISSUE_RESOLVED"
+  | "DPR_GENERATED";
   entity_id: string;
   entity_type:
-    | "WorkOrder"
-    | "PaymentCertificate"
-    | "Payment"
-    | "RetentionRelease"
-    | "Progress"
-    | "Issue"
-    | "DPR";
+  | "WorkOrder"
+  | "PaymentCertificate"
+  | "Payment"
+  | "RetentionRelease"
+  | "Progress"
+  | "Issue"
+  | "DPR";
   description: string;
   actor_id: string;
   actor_name: string;
@@ -599,13 +611,13 @@ export interface Alert {
   alert_id: string;
   project_id: string;
   alert_type:
-    | "OVER_COMMIT"
-    | "OVER_CERTIFICATION"
-    | "OVER_PAYMENT"
-    | "BUDGET_EXCEEDED"
-    | "DELAY_WARNING"
-    | "DPR_MISSING"
-    | "ATTENDANCE_MISSING";
+  | "OVER_COMMIT"
+  | "OVER_CERTIFICATION"
+  | "OVER_PAYMENT"
+  | "BUDGET_EXCEEDED"
+  | "DELAY_WARNING"
+  | "DPR_MISSING"
+  | "ATTENDANCE_MISSING";
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   title: string;
   message: string;

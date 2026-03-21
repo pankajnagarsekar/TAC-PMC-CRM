@@ -20,7 +20,7 @@ import {
   RefreshControl,
   SafeAreaView,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -118,6 +118,7 @@ const TransactionRow = React.memo(({ item }: { item: CashTransaction }) => {
 // --------------------------------------------------------
 
 export default function SiteFundsScreen() {
+  const router = useRouter();
   const { selectedProject } = useProject();
   const [activeFundType, setActiveFundType] = useState<FundType>('PETTY_CASH');
   const [categories, setCategories] = useState<CashCategory[]>([]);
@@ -138,7 +139,10 @@ export default function SiteFundsScreen() {
   }, [categories, activeFundType]);
 
   const syncFunds = useCallback(async (isSilent = false) => {
-    if (!selectedProject?.project_id) return;
+    if (!selectedProject?.project_id) {
+      setLoading(false);
+      return;
+    }
     if (!isSilent) setLoading(true);
 
     try {
@@ -177,8 +181,28 @@ export default function SiteFundsScreen() {
   );
 
   useEffect(() => {
-    syncFunds(true);
-  }, [activeFundType]);
+    if (selectedProject?.project_id) {
+      syncFunds(true);
+    }
+  }, [activeFundType, selectedProject?.project_id, syncFunds]);
+
+  if (!selectedProject) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScreenHeader title="Site Funds" />
+        <View style={styles.emptyState}>
+          <Ionicons name="business-outline" size={64} color={Colors.textMuted} />
+          <Text style={styles.emptyTitle}>No Project Selected</Text>
+          <Text style={styles.emptySubtitle}>Please select a project to view its funds.</Text>
+          <Button
+            title="Select Project"
+            onPress={() => router.push('/(admin)/select-project')}
+            style={{ marginTop: Spacing.lg }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const handleRecordExpense = async () => {
     if (!currentCategory || !selectedProject) return;

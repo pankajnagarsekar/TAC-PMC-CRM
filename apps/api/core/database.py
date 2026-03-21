@@ -74,7 +74,7 @@ async def get_db() -> AsyncIOMotorDatabase:
     """FastAPI dependency to get the current database instance."""
     if db_manager.db is None:
         # Fallback for manual scripts or uninitialized state
-        mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017/?replicaSet=rs0')
+        mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
         db_name = os.environ.get('DB_NAME', 'construction_management')
         db_manager.connect(mongo_url, db_name)
     return db_manager.db
