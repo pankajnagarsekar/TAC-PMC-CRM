@@ -169,22 +169,22 @@ export default function Sidebar({
   });
 
   return (
-    <aside className={`${isCollapsed ? "w-16" : "w-60"} zinc-sidebar h-screen flex flex-col transition-all duration-300 z-50`}>
+    <aside className={`${isCollapsed ? "w-16" : "w-60"} bg-sidebar border-r border-sidebar-border h-screen flex flex-col transition-all duration-300 z-50`}>
       {/* Brand & Project Switcher */}
-      <div className="flex flex-col border-b border-zinc-200 dark:border-zinc-800/50">
+      <div className="flex flex-col border-b border-sidebar-border/50">
         <div className={`h-14 flex items-center px-4 shrink-0 ${isCollapsed ? 'justify-center px-0' : ''}`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-              <BarChart3 size={18} className="text-white" />
+            <div className="w-8 h-8 rounded-lg bg-sidebar-active flex items-center justify-center shrink-0">
+              <BarChart3 size={18} className="text-sidebar-active-foreground" />
             </div>
             {!isCollapsed && (
-              <h1 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 uppercase">TAC CRM</h1>
+              <h1 className="text-sm font-bold tracking-tight text-sidebar-foreground uppercase">TAC CRM</h1>
             )}
           </div>
 
           <button
             onClick={onToggle}
-            className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all shadow-md ${isCollapsed ? 'rotate-180' : ''}`}
+            className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-sidebar border border-sidebar-border flex items-center justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground transition-all shadow-md ${isCollapsed ? 'rotate-180' : ''}`}
           >
             <ChevronLeft size={14} />
           </button>
@@ -195,7 +195,7 @@ export default function Sidebar({
           <div className="px-3 pb-4">
             <button
               onClick={onProjectSwitch}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/50 transition-all text-left group"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-sidebar-accent/50 border border-sidebar-border hover:bg-sidebar-accent transition-all text-left group"
             >
               <div className="w-5 h-5 rounded bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
                 <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
@@ -203,16 +203,16 @@ export default function Sidebar({
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-zinc-900 dark:text-zinc-300 truncate">
+                <p className="text-[11px] font-medium text-sidebar-foreground truncate">
                   {activeProject?.project_name || 'Select Project'}
                 </p>
                 {activeProject && (
-                  <p className="text-[9px] text-zinc-500 dark:text-zinc-500 font-mono tracking-tighter truncate">
+                  <p className="text-[9px] text-sidebar-foreground/60 font-mono tracking-tighter truncate">
                     {activeProject.project_code}
                   </p>
                 )}
               </div>
-              <ChevronsUpDown size={12} className="text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-600 dark:group-hover:text-zinc-400" />
+              <ChevronsUpDown size={12} className="text-sidebar-foreground/40 group-hover:text-sidebar-foreground/60" />
             </button>
           </div>
         )}
@@ -228,14 +228,14 @@ export default function Sidebar({
                 href={item.href}
                 title={isCollapsed ? item.label : undefined}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 group relative ${isActive
-                  ? 'bg-zinc-100 dark:bg-[#18181b] text-zinc-900 dark:text-white font-medium'
-                  : 'text-zinc-500 hover:bg-zinc-50 dark:hover:bg-[#18181b] hover:text-zinc-900 dark:hover:text-zinc-200'
+                  ? 'bg-sidebar-active text-sidebar-active-foreground font-medium'
+                  : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
               >
                 {isActive && (
-                  <div className="absolute left-0 w-[2px] h-4 bg-indigo-500 rounded-r-full" />
+                  <div className="absolute left-0 w-[2px] h-4 bg-sidebar-active-foreground rounded-r-full" />
                 )}
-                <span className={`shrink-0 transition-colors ${isActive ? 'text-indigo-400' : 'group-hover:text-zinc-200'}`}>
+                <span className={`shrink-0 transition-colors ${isActive ? 'text-sidebar-active-foreground' : 'group-hover:text-sidebar-foreground'}`}>
                   {item.icon && <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} />}
                 </span>
                 {!isCollapsed && (
@@ -244,7 +244,7 @@ export default function Sidebar({
               </Link>
 
               {item.children && isActive && !isCollapsed && (
-                <div className="ml-7 my-1 border-l border-zinc-200 dark:border-zinc-800/50 space-y-0.5">
+                <div className="ml-7 my-1 border-l border-sidebar-border space-y-0.5">
                   {item.children.map(child => {
                     const childPath = child.href.split('?')[0];
                     const childTab = new URLSearchParams(child.href.split('?')[1]).get('tab');
@@ -255,8 +255,8 @@ export default function Sidebar({
                         key={child.key}
                         href={child.href}
                         className={`block py-1.5 px-4 text-[12px] transition-all duration-200 ${isSideChildActive
-                          ? 'text-indigo-600 dark:text-indigo-400 font-bold border-l-2 border-indigo-500 -ml-[1px] pl-[15px] bg-indigo-500/5'
-                          : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'
+                          ? 'text-sidebar-active font-bold border-l-2 border-sidebar-active -ml-[1px] pl-[15px] bg-sidebar-active/5'
+                          : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30'
                           }`}
                       >
                         {child.label}
@@ -271,22 +271,22 @@ export default function Sidebar({
       </nav>
 
       {/* Footer Area - Refined Session */}
-      <div className="p-3 border-t border-zinc-200 dark:border-[#27272a]">
-        <div className={`p-2 rounded-lg bg-zinc-50 dark:bg-[#18181b]/50 border border-zinc-200 dark:border-[#27272a] ${isCollapsed ? 'flex justify-center' : ''}`}>
+      <div className="p-3 border-t border-sidebar-border">
+        <div className={`p-2 rounded-lg bg-sidebar-accent/30 border border-sidebar-border ${isCollapsed ? 'flex justify-center' : ''}`}>
           {!isCollapsed && (
             <div className="flex items-center gap-3 mb-2 px-1">
-              <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-[#27272a] flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+              <div className="w-7 h-7 rounded-full bg-sidebar-accent border border-sidebar-border flex items-center justify-center text-[10px] font-bold text-sidebar-active shrink-0">
                 {user?.name?.[0]?.toUpperCase() || 'A'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold text-zinc-900 dark:text-zinc-200 truncate">{user?.name || 'Admin'}</p>
-                <p className="text-[9px] text-zinc-500 truncate">{user?.email}</p>
+                <p className="text-[11px] font-bold text-sidebar-foreground truncate">{user?.name || 'Admin'}</p>
+                <p className="text-[9px] text-sidebar-foreground/60 truncate">{user?.email}</p>
               </div>
             </div>
           )}
           <button
             onClick={handleLogout}
-            className={`w-full py-1.5 rounded-md hover:bg-red-500/10 text-zinc-500 hover:text-red-400 text-[11px] font-medium transition-all flex items-center justify-center gap-2 ${isCollapsed ? 'w-8 h-8 p-0 rounded-full' : ''}`}
+            className={`w-full py-1.5 rounded-md hover:bg-red-500/10 text-sidebar-foreground/60 hover:text-red-400 text-[11px] font-medium transition-all flex items-center justify-center gap-2 ${isCollapsed ? 'w-8 h-8 p-0 rounded-full' : ''}`}
           >
             <LogOut size={13} />
             {!isCollapsed && <span>Sign Out</span>}

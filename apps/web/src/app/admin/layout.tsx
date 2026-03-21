@@ -77,8 +77,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!mounted) {
         return (
-            <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
-                <div className="text-zinc-500 animate-pulse font-medium text-xs tracking-widest uppercase">
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground animate-pulse font-medium text-xs tracking-widest uppercase">
                     Initializing...
                 </div>
             </div>
@@ -87,8 +87,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!_hasHydrated) {
         return (
-            <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
-                <div className="text-zinc-500 animate-pulse font-medium text-xs tracking-widest uppercase">
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground animate-pulse font-medium text-xs tracking-widest uppercase">
                     Authenticating...
                 </div>
             </div>
@@ -106,14 +106,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* Top Header - Glass & Minimalist */}
-                <header className="h-14 flex items-center justify-between px-6 bg-background/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 z-40 shrink-0">
+                <header className="h-14 flex items-center justify-between px-6 bg-background/80 backdrop-blur-md border-b border-border z-40 shrink-0">
                     <div className="flex items-center gap-4">
                         <Breadcrumbs items={breadcrumbItems} />
                     </div>
 
                     <div className="flex items-center gap-4">
                         <ModeToggle />
-                        <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800" />
+                        <div className="h-5 w-[1px] bg-border" />
 
                         {/* User Session */}
                         <div className="flex items-center gap-3">
@@ -121,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <span className="text-foreground text-[11px] font-bold leading-none">{user?.name}</span>
                                 <span className="text-muted-foreground text-[9px] uppercase tracking-wider mt-0.5">{user?.role}</span>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-secondary border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-[10px] font-black text-indigo-500">
+                            <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-[10px] font-black text-indigo-500">
                                 {user?.name?.[0]?.toUpperCase()}
                             </div>
                         </div>
@@ -129,7 +129,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </header>
 
                 {/* Main Workspace - High Density Grid Background */}
-                <main className="flex-1 overflow-y-auto high-density-grid p-6 relative custom-scrollbar bg-white dark:bg-zinc-950">
+                <main className="flex-1 overflow-y-auto high-density-grid p-6 relative custom-scrollbar bg-background">
                     <div className="max-w-[1700px] mx-auto space-y-8">
                         <ErrorBoundary>
                             {children}

@@ -25,15 +25,52 @@
     --input: 240 5.9% 90%;
     --ring: 240 10% 3.9%;
     --radius: 0.5rem;
+
+    /* Semantic Tokens - Light Mode */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --kpi-background: 0 0% 100%;
+    --kpi-border: 240 5.9% 90%;
+    --kpi-foreground: 240 10% 3.9%;
+
+    --kpi-positive-bg: rgba(16, 185, 129, 0.1);
+    --kpi-positive-text: 160 84% 39%;
+    --kpi-positive-shadow: rgba(16, 185, 129, 0.2);
+
+    --kpi-negative-bg: rgba(239, 68, 68, 0.1);
+    --kpi-negative-text: 0 84% 60%;
+    --kpi-negative-shadow: rgba(239, 68, 68, 0.2);
+
+    --kpi-warning-bg: rgba(245, 158, 11, 0.1);
+    --kpi-warning-text: 38 92% 50%;
+    --kpi-warning-shadow: rgba(245, 158, 11, 0.2);
+
+    --kpi-neutral-bg: rgba(139, 92, 246, 0.1);
+    --kpi-neutral-text: 258 90% 66%;
+    --kpi-neutral-shadow: rgba(139, 92, 246, 0.2);
+
+    --sidebar-active: 239 84% 67%;
+    --sidebar-active-foreground: 0 0% 100%;
+
+    --luxury-orange: 24 95% 53%;
+    --luxury-orange-hover: 24 95% 63%;
+    --luxury-orange-shadow: rgba(124, 45, 18, 0.2);
+
+    --glass-background: rgba(255, 255, 255, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.8);
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --background: 240 10% 2%;
+    --foreground: 210 40% 98%;
+    --card: 240 10% 4%;
+    --card-foreground: 210 40% 98%;
+    --popover: 240 10% 4%;
+    --popover-foreground: 210 40% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 240 5.9% 10%;
     --secondary: 240 3.7% 15.9%;
@@ -44,19 +81,56 @@
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
+    --border: 240 5% 15%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+
+    /* Semantic Tokens - Dark Mode (Luxury Industrial) */
+    --sidebar-background: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+
+    --kpi-background: 240 10% 4%;
+    --kpi-border: 240 3.7% 15.9%;
+    --kpi-foreground: 0 0% 98%;
+
+    --kpi-positive-bg: rgba(16, 185, 129, 0.15);
+    --kpi-positive-text: 160 84% 39%;
+    --kpi-positive-shadow: rgba(16, 185, 129, 0.3);
+
+    --kpi-negative-bg: rgba(239, 68, 68, 0.15);
+    --kpi-negative-text: 0 84% 60%;
+    --kpi-negative-shadow: rgba(239, 68, 68, 0.3);
+
+    --kpi-warning-bg: rgba(245, 158, 11, 0.15);
+    --kpi-warning-text: 38 92% 50%;
+    --kpi-warning-shadow: rgba(245, 158, 11, 0.3);
+
+    --kpi-neutral-bg: rgba(139, 92, 246, 0.15);
+    --kpi-neutral-text: 258 90% 66%;
+    --kpi-neutral-shadow: rgba(139, 92, 246, 0.3);
+
+    --sidebar-active: 240 5% 26%;
+    --sidebar-active-foreground: 0 0% 98%;
+
+    --luxury-orange: 24 95% 53%;
+    --luxury-orange-hover: 24 95% 63%;
+    --luxury-orange-shadow: rgba(124, 45, 18, 0.4);
+
+    --glass-background: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
   }
 
   * {
-    border-color: var(--color-border);
-    outline-color: color-mix(in srgb, var(--color-ring) 50%, transparent);
+    border-color: hsl(var(--border));
+    outline-color: color-mix(in srgb, hsl(var(--ring)) 50%, transparent);
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
@@ -70,13 +144,8 @@
 }
 
 .zinc-sidebar {
-  background-color: white;
-  border-right: 1px solid var(--color-zinc-200);
-}
-
-.dark .zinc-sidebar {
-  background-color: #09090b;
-  border-right: 1px solid hsl(var(--border) / 0.1);
+  background-color: hsl(var(--sidebar-background));
+  border-right: 1px solid hsl(var(--sidebar-border));
 }
 
 .kpi-spark {
@@ -84,12 +153,8 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 1rem;
-  border: 1px solid var(--color-zinc-200);
-  background-color: transparent;
-}
-
-.dark .kpi-spark {
-  border-color: var(--color-zinc-800);
+  border: 1px solid hsl(var(--kpi-border));
+  background-color: hsl(var(--kpi-background));
 }
 
 /* Strictly center all Radix Dialog Contents */
@@ -124,18 +189,18 @@ div[data-radix-focus-guard]+div {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: hsla(var(--foreground) / 0.1);
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: hsla(var(--foreground) / 0.2);
 }
 
 /* AG-GRID SCROLLBAR INJECTION */
 .ag-body-viewport {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: hsla(var(--foreground) / 0.1) transparent;
 }
 
 .ag-body-viewport::-webkit-scrollbar {
@@ -144,13 +209,13 @@ div[data-radix-focus-guard]+div {
 }
 
 .ag-body-viewport::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: hsla(var(--foreground) / 0.1);
   border-radius: 3px;
 }
 
 /* CTA BUTTON STANDARDIZATION */
 .btn-primary-luxury {
-  background-color: #ea580c;
+  background-color: hsl(var(--luxury-orange));
   color: #ffffff;
   font-weight: 700;
   text-transform: uppercase;
@@ -159,12 +224,12 @@ div[data-radix-focus-guard]+div {
   padding: 0.75rem 1.5rem;
   border-radius: 1rem;
   transition: all 0.2s;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 15px -3px rgba(124, 45, 18, 0.2);
+  border: 1px solid hsla(var(--foreground) / 0.1);
+  box-shadow: 0 10px 15px -3px var(--luxury-orange-shadow);
 }
 
 .btn-primary-luxury:hover {
-  background-color: #f97316;
+  background-color: hsl(var(--luxury-orange-hover));
 }
 
 .btn-primary-luxury:active {
@@ -181,9 +246,8 @@ div[data-radix-focus-guard]+div {
   border: 1px solid transparent;
 }
 
-/* Re-adding essential utilities for Login Page */
 .bg-mesh-ultra {
-  background-color: #09090b;
+  background-color: hsl(var(--background));
   background-image:
     radial-gradient(at 0% 0%, hsla(242, 100%, 70%, 0.08) 0, transparent 50%),
     radial-gradient(at 100% 0%, hsla(242, 100%, 70%, 0.05) 0, transparent 50%),
@@ -191,28 +255,29 @@ div[data-radix-focus-guard]+div {
     radial-gradient(at 0% 100%, hsla(242, 100%, 70%, 0.05) 0, transparent 50%);
 }
 
-.glass-panel {
-  background-color: rgba(255, 255, 255, 0.03);
+.glass-panel,
+.glass-panel-luxury {
+  background-color: var(--glass-background);
   backdrop-filter: blur(64px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .input-glass {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background-color: var(--glass-background);
+  border: 1px solid var(--glass-border);
+  color: hsl(var(--foreground));
   transition: all 0.3s;
   outline: none;
 }
 
 .input-glass::placeholder {
-  color: #52525b;
+  color: hsla(var(--foreground) / 0.4);
 }
 
 .input-glass:focus {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(99, 102, 241, 0.5);
+  background-color: hsla(var(--foreground) / 0.05);
+  border-color: hsla(242, 100%, 70%, 0.5);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -225,8 +290,8 @@ div[data-radix-focus-guard]+div {
   justify-content: center;
   padding: 3rem;
   text-align: center;
-  background-color: rgba(15, 23, 42, 0.2);
-  border: 1px dashed #1e293b;
+  background-color: hsla(var(--muted)/0.2);
+  border: 1px dashed hsl(var(--border));
   border-radius: 2.5rem;
   backdrop-filter: blur(64px);
 }
@@ -235,43 +300,31 @@ div[data-radix-focus-guard]+div {
   width: 4rem;
   height: 4rem;
   border-radius: 1.5rem;
-  background-color: rgba(249, 115, 22, 0.1);
+  background-color: hsla(var(--luxury-orange) / 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(249, 115, 22, 0.4);
+  color: hsla(var(--luxury-orange) / 0.4);
   margin-bottom: 1.5rem;
-  border: 1px solid rgba(249, 115, 22, 0.1);
+  border: 1px solid hsla(var(--luxury-orange) / 0.1);
 }
 
 .empty-state-luxury-title {
   font-size: 1.25rem;
   font-weight: 900;
-  color: #ffffff;
+  color: hsl(var(--foreground));
   letter-spacing: -0.025em;
   text-transform: uppercase;
   line-height: 1;
 }
 
 .empty-state-luxury-desc {
-  color: #94a3b8;
+  color: hsla(var(--foreground) / 0.6);
   font-size: 0.75rem;
   font-weight: 500;
   margin-top: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-}
-
-/* High Contrast Adjustments for Luxury Feel */
-.dark {
-  --background: 240 10% 2%;
-  /* Deeper Black */
-  --foreground: 210 40% 98%;
-  /* Sharper White */
-  --border: 240 5% 15%;
-  /* Subtle Borders */
-  --card: 240 10% 4%;
-  /* Darker Cards */
 }
 
 

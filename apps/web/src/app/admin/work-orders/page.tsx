@@ -41,7 +41,7 @@ export default function WorkOrdersPage() {
     const fetchLookups = async () => {
       try {
         const [catRes, venRes] = await Promise.all([
-          api.get(`/api/projects/${activeProject.project_id}/categories`),
+          api.get("/api/codes"),
           api.get("/api/vendors"),
         ]);
         setCategories(catRes.data || []);
