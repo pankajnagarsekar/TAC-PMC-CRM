@@ -282,7 +282,8 @@ class SiteOverheadUpdate(BaseModel):
 class DerivedFinancialState(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
-    code_id: str
+    category_id: str
+    code_id: Optional[str] = None  # Legacy support
     original_budget: Decimal = Decimal("0.0")
     committed_value: Decimal = Decimal("0.0")
     certified_value: Decimal = Decimal("0.0")

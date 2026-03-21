@@ -146,7 +146,7 @@ async def get_cash_summary(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_project_access(user, project_id, require_write=False)
     
-    project = await db.projects.find_one({"project_id": project_id})
+    project = await db.projects.find_one({"_id": ObjectId(project_id)})
     organisation_id = user.get("organisation_id")
     default_threshold = Decimal("1000.0")
     
