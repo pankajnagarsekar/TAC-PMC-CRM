@@ -32,9 +32,9 @@ export default function AdminSettings() {
         'Are you sure you want to logout?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Logout', 
-            style: 'destructive', 
+          {
+            text: 'Logout',
+            style: 'destructive',
             onPress: onConfirm
           },
         ]
@@ -66,6 +66,13 @@ export default function AdminSettings() {
             <SettingsItem icon="people" title="User Management" onPress={() => router.push('/(admin)/settings/users')} Colors={Colors} styles={styles} />
             <SettingsItem icon="business" title="Organization Settings" onPress={() => router.push('/(admin)/settings/organization')} Colors={Colors} styles={styles} />
             <SettingsItem icon="pricetag" title="Activity Codes" onPress={() => router.push('/(admin)/settings/codes')} Colors={Colors} styles={styles} />
+          </Card>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Finance</Text>
+          <Card padding="none">
+            <SettingsItem icon="cash-outline" title="Petty Cash" onPress={() => router.push('/(admin)/petty-cash')} Colors={Colors} styles={styles} />
           </Card>
         </View>
 

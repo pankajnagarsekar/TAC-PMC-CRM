@@ -110,7 +110,8 @@ export default function AdminLayout() {
       <Tabs.Screen
         name="petty-cash"
         options={{
-          href: null,
+          headerShown: true,
+          title: 'Petty Cash',
         }}
       />
       <Tabs.Screen
