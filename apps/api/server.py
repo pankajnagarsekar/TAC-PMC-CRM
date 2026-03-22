@@ -7,7 +7,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 load_dotenv(ROOT_DIR / '.env')
 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Response, Cookie, Query  # noqa: E402
+from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Response, Cookie, Query, Body  # noqa: E402
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
@@ -1663,10 +1663,10 @@ async def get_project_budgets(
         raise HTTPException(status_code=500, detail=f"Failed to fetch budgets: {str(e)}")
 
 
-@api_router.post("/projects/{project_id}/budgets", response_model=ProjectBudget)
+@api_router.post("/projects/{project_id}/budgets")
 async def create_or_update_project_budget(
     project_id: str,
-    budget_data: dict,  # Accept raw dict to support both code_id and category_id
+    budget_data: dict = Body(...),  # Accept raw dict to support both code_id and category_id
     current_user: dict = Depends(get_current_user)
 ):
     """Create or update a budget allocation for a project category."""
@@ -1684,54 +1684,92 @@ async def create_or_update_project_budget(
         # Support both code_id (from frontend) and category_id (from API spec)
         category_id = budget_data.get("category_id") or budget_data.get("code_id")
         if not category_id:
-            raise HTTPException(status_code=400, detail="category_id or code_id is required")
+            logger.warning(f"Budget save missing category_id or code_id: {budget_data}")
+            raise HTTPException(status_code=400, detail="Category ID is required")
 
         original_budget = budget_data.get("original_budget")
         if original_budget is None:
-            raise HTTPException(status_code=400, detail="original_budget is required")
+            logger.warning(f"Budget save missing original_budget for project {project_id}")
+            raise HTTPException(status_code=400, detail="Budget amount is required")
+
+        # Validate and convert budget amount to Decimal
+        try:
+            budget_decimal = Decimal(str(original_budget).strip())
+            if budget_decimal < 0:
+                raise HTTPException(status_code=400, detail="Budget amount must be a positive number")
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid budget amount '{original_budget}': {e}")
+            raise HTTPException(status_code=400, detail=f"Budget amount must be a valid number (received: {original_budget})")
 
         # Check if category exists
-        category = await db.code_master.find_one({"_id": ObjectId(category_id)})
-        if not category:
-            raise HTTPException(status_code=404, detail="Category not found")
+        try:
+            category = await db.code_master.find_one({"_id": ObjectId(category_id)})
+        except Exception as e:
+            logger.error(f"Error looking up category {category_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail="Invalid category ID format")
 
-        # Build budget dict
+        if not category:
+            logger.warning(f"Category not found: {category_id}")
+            raise HTTPException(status_code=404, detail=f"Category '{category_id}' not found")
+
+        # Build budget dict with validated decimal
+        budget_decimal_128 = Decimal128(str(budget_decimal))
         budget_dict = {
             "project_id": project_id,
             "category_id": category_id,
             "organisation_id": user["organisation_id"],
             "updated_at": datetime.now(timezone.utc),
-            "original_budget": Decimal128(str(original_budget)),
+            "original_budget": budget_decimal_128,
             "description": budget_data.get("description")
         }
 
         # Upsert logic
         query = {"project_id": project_id, "category_id": category_id}
-        existing = await db.project_category_budgets.find_one(query)
+        try:
+            existing = await db.project_category_budgets.find_one(query)
+        except Exception as e:
+            logger.error(f"Error querying existing budget: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Database error: Unable to check existing budget")
 
         if existing:
             # Update
-            await db.project_category_budgets.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {
-                    "original_budget": Decimal128(str(original_budget)),
-                    "description": budget_data.get("description"),
-                    "updated_at": datetime.now(timezone.utc)
-                }}
-            )
-            result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
+            try:
+                await db.project_category_budgets.update_one(
+                    {"_id": existing["_id"]},
+                    {"$set": {
+                        "original_budget": budget_decimal_128,
+                        "description": budget_data.get("description"),
+                        "updated_at": datetime.now(timezone.utc)
+                    }}
+                )
+                result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
+                logger.info(f"Updated budget for project {project_id}, category {category_id}")
+            except Exception as e:
+                logger.error(f"Error updating budget: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail="Database error: Unable to update budget")
         else:
             # Create
-            budget_dict["created_at"] = datetime.now(timezone.utc)
-            budget_dict["committed_amount"] = Decimal128("0.0")
-            budget_dict["remaining_budget"] = Decimal128(str(original_budget))
-            budget_dict["version"] = 1
+            try:
+                budget_dict["created_at"] = datetime.now(timezone.utc)
+                budget_dict["committed_amount"] = Decimal128("0.0")
+                budget_dict["remaining_budget"] = budget_decimal_128
+                budget_dict["version"] = 1
 
-            insert_res = await db.project_category_budgets.insert_one(budget_dict)
-            result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
+                insert_res = await db.project_category_budgets.insert_one(budget_dict)
+                result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
+                logger.info(f"Created new budget for project {project_id}, category {category_id}")
+            except Exception as e:
+                logger.error(f"Error creating budget: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail="Database error: Unable to create budget")
 
         # Recalculate project financials after budget change
-        await financial_service.recalculate_all_project_financials(project_id)
+        try:
+            await financial_service.recalculate_all_project_financials(project_id)
+            logger.info(f"Recalculated financials for project {project_id}")
+        except Exception as e:
+            logger.warning(f"Warning: Failed to recalculate financials for project {project_id}: {e}")
+            # Don't fail the entire request if recalculation fails, just log it
+            # The budget was still saved successfully
 
         return serialize_doc(result)
     except HTTPException:
@@ -1742,15 +1780,16 @@ async def create_or_update_project_budget(
         raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
         error_msg = str(e)
-        # Provide specific error messages
+        # Provide specific error messages based on error type
         if "category" in error_msg.lower() and "not found" in error_msg.lower():
             detail = "Category not found. Please select a valid category."
-        elif "cannot encode" in error_msg.lower():
-            detail = "Invalid budget amount. Please enter a valid number."
         elif "duplicate" in error_msg.lower():
             detail = "A budget for this category already exists."
+        elif "database" in error_msg.lower() or "connection" in error_msg.lower():
+            detail = "Database error: Unable to save budget. Please try again."
         else:
-            detail = f"Failed to save budget: {error_msg[:100]}"
+            # Include actual error for debugging, but keep it brief
+            detail = f"Failed to save budget: {error_msg[:150]}"
 
         logger.error(f"Error creating/updating budget for project {project_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=detail)
