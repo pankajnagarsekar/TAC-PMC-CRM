@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Loader2,
   Edit3,
-  Printer,
   XCircle,
   CheckCircle,
   FileText,
@@ -174,23 +173,8 @@ export default function WorkOrderDetailPage() {
     }
   };
 
-  const handlePrintPDF = async () => {
-    try {
-      const response = await api.get(`/api/work-orders/${woId}/export/pdf`, {
-        responseType: "blob",
-      });
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `WO_${wo?.wo_ref || woId}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to export PDF", err);
-      alert("Failed to generate PDF");
-    }
-  };
+  // PDF export not yet implemented in backend
+  // handlePrintPDF removed - endpoint /api/work-orders/{id}/export/pdf does not exist
 
   if (isLoading || !wo) {
     return (
@@ -289,12 +273,6 @@ export default function WorkOrderDetailPage() {
                 </>
               )}
 
-              <button
-                onClick={handlePrintPDF}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors"
-              >
-                <Printer size={14} /> Print PDF
-              </button>
             </>
           )}
         </div>

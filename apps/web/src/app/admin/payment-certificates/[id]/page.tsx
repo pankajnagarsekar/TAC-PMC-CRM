@@ -10,7 +10,6 @@ import {
   Lock,
   Building2,
   FileText,
-  Printer,
   AlertTriangle,
 } from "lucide-react";
 import {
@@ -113,26 +112,8 @@ export default function PaymentCertificateDetail({
     }
   };
 
-  const handlePrintPDF = async () => {
-    try {
-      const response = await api.get(
-        `/api/payment-certificates/${id}/export/pdf`,
-        {
-          responseType: "blob",
-        },
-      );
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `PC_${pc?.pc_ref || id}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to export PDF", err);
-      alert("Failed to generate PDF");
-    }
-  };
+  // PDF export not yet implemented in backend
+  // handlePrintPDF removed - endpoint /api/payment-certificates/{id}/export/pdf does not exist
 
   const columnDefs: ColDef[] = [
     { field: "sr_no", headerName: "Sr No", width: 80, filter: false },
@@ -215,13 +196,6 @@ export default function PaymentCertificateDetail({
         </div>
 
         <div className="flex gap-3">
-          <button
-            onClick={handlePrintPDF}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            <Printer size={16} /> Print PDF
-          </button>
-
           {pc.status !== "Closed" && pc.status !== "Cancelled" && (
             <button
               onClick={() => setShowCloseDialog(true)}
