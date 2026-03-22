@@ -97,6 +97,15 @@ export default function AdminProjectsScreen() {
     fetchOverview();
   };
 
+  const handleProjectSelect = (project: ProjectOverview) => {
+    setSelectedProject({
+      project_id: project.project_id,
+      project_name: project.project_name,
+      project_code: project.project_code,
+    } as any);
+    router.push('/(admin)/dashboard' as any);
+  };
+
   const handleProjectTap = (project: ProjectOverview) => {
     setSelectedProject({
       project_id: project.project_id,
@@ -137,7 +146,7 @@ export default function AdminProjectsScreen() {
         {/* Page Header */}
         <View style={styles.pageHeader}>
           <Text style={styles.pageTitle}>Projects Overview</Text>
-          <Text style={styles.pageSubtitle}>{projects.length} active project{projects.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.pageSubtitle}>Tap a project to set it as active</Text>
         </View>
 
         {/* Summary Strip */}
@@ -183,12 +192,19 @@ export default function AdminProjectsScreen() {
         ) : (
           projects.map((project) => {
             const isExpanded = expandedProject === project.project_id;
+            const isSelected = selectedProject?.project_id === project.project_id;
             const completionColor = getCompletionColor(project.completion_pct);
 
             return (
-              <Card key={project.project_id} style={styles.projectCard} padding="none">
+              <Card key={project.project_id} style={[styles.projectCard, isSelected && styles.projectCardSelected]} padding="none">
                 {/* Card Header */}
-                <Pressable style={styles.cardHeader} onPress={() => toggleExpand(project.project_id)}>
+                <Pressable
+                  style={styles.cardHeader}
+                  onPress={() => {
+                    handleProjectSelect(project);
+                    toggleExpand(project.project_id);
+                  }}
+                >
                   <View style={styles.cardHeaderLeft}>
                     <Text style={styles.projectName}>{project.project_name}</Text>
                     {project.project_code && (
@@ -196,6 +212,13 @@ export default function AdminProjectsScreen() {
                     )}
                   </View>
                   <View style={styles.cardHeaderRight}>
+                    {/* Selected badge */}
+                    {isSelected && (
+                      <View style={[styles.selectedBadge, { backgroundColor: Colors.primary }]}>
+                        <Ionicons name="checkmark-circle" size={16} color="white" />
+                        <Text style={styles.selectedBadgeText}>Active</Text>
+                      </View>
+                    )}
                     {/* Completion badge */}
                     <View style={[styles.completionBadge, { backgroundColor: completionColor + '15' }]}>
                       <Text style={[styles.completionText, { color: completionColor }]}>
@@ -387,12 +410,19 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   projectCard: {
     marginBottom: Spacing.lg,
   },
+  projectCardSelected: {
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
   cardHeaderLeft: { flex: 1 },
   cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   projectName: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
   projectCode: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 4, fontFamily: 'Inter_400Regular' },
 
+  // Selection badge
+  selectedBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full, gap: 4 },
+  selectedBadgeText: { fontSize: 10, fontWeight: '700', color: 'white', fontFamily: 'Inter_700Bold' },
   // Completion
   completionBadge: { paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.full },
   completionText: { fontSize: FontSizes.sm, fontWeight: '700', fontFamily: 'Inter_700Bold' },

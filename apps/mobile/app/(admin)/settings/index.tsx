@@ -69,14 +69,7 @@ export default function AdminSettings() {
           </Card>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Finance</Text>
-          <Card padding="none">
-            <SettingsItem icon="cash-outline" title="Petty Cash" onPress={() => router.push('/(admin)/petty-cash')} Colors={Colors} styles={styles} />
-          </Card>
-        </View>
-
-        {/* 
+        {/*
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           <Card padding="none">

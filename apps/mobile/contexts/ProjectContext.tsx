@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Project } from '../types/api';
+import api from '../services/apiClient';
 
 interface ProjectContextType {
   selectedProject: Project | null;
@@ -29,9 +30,29 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         setSelectedProjectState(JSON.parse(stored));
+      } else {
+        // Auto-select first project if none is persisted
+        await autoSelectFirstProject();
       }
     } catch (error) {
       console.error('Failed to load persisted project:', error);
+    }
+  };
+
+  const autoSelectFirstProject = async () => {
+    try {
+      const data = await api.get<any>('/api/v2/admin/projects-overview');
+      const projects = data.projects || [];
+      if (projects.length > 0) {
+        const firstProject = projects[0];
+        const project: Project = {
+          project_id: firstProject.project_id,
+          project_name: firstProject.project_name,
+        };
+        await setSelectedProject(project);
+      }
+    } catch (error) {
+      console.error('Failed to auto-select first project:', error);
     }
   };
 

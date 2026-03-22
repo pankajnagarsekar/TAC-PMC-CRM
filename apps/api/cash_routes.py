@@ -47,7 +47,7 @@ async def list_fund_allocations(
             {"$match": {"project_id": project_id}},
             {
                 "$lookup": {
-                    "from": "categories",
+                    "from": "code_master",
                     "let": {"cat_id": "$category_id"},
                     "pipeline": [
                         {"$match": {"$expr": {"$eq": [{"$toString": "$_id"}, "$$cat_id"]}}}
@@ -128,7 +128,7 @@ async def create_cash_transaction(
         project = await db.projects.find_one({"project_id": project_id}, session=session)
         
         # Get category to determine if Petty or OVH
-        category = await db.categories.find_one({"_id": ObjectId(payload.category_id)}, session=session)
+        category = await db.code_master.find_one({"_id": ObjectId(payload.category_id)}, session=session)
         
         # Determine threshold based on category
         default_threshold = Decimal("1000.0")

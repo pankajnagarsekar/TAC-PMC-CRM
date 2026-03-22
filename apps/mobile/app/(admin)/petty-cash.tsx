@@ -172,7 +172,7 @@ export default function SiteFundsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedProject?.project_id, activeFundType]);
+  }, [selectedProject?.project_id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -185,6 +185,12 @@ export default function SiteFundsScreen() {
       syncFunds(true);
     }
   }, [activeFundType, selectedProject?.project_id, syncFunds]);
+
+  // When user toggles fund type, re-fetch data
+  const handleFundTypeChange = useCallback((type: FundType) => {
+    setActiveFundType(type);
+    // Sync is triggered by useEffect above
+  }, []);
 
   if (!selectedProject) {
     return (
@@ -264,10 +270,16 @@ export default function SiteFundsScreen() {
             </View>
           )}
         </Card>
-      ) : (
+      ) : loading ? (
         <View style={styles.placeholderCard}>
           <ActivityIndicator color={Colors.primary} />
         </View>
+      ) : (
+        <Card variant="elevated" padding="lg" style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Fund Data</Text>
+          <Text style={[styles.summaryValue, styles.textError]}>No Data</Text>
+          <Text style={styles.emptySubtext}>No fund allocation found for this project type.</Text>
+        </Card>
       )}
 
       <Button
@@ -298,7 +310,7 @@ export default function SiteFundsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => syncFunds(true)} tintColor={Colors.primary} />
         }
         ListEmptyComponent={
-          !loading ? <Text style={styles.emptyText}>No recent entries found.</Text> : null
+          !loading && categories.length > 0 ? <Text style={styles.emptyText}>No recent entries found.</Text> : null
         }
       />
 
@@ -381,6 +393,7 @@ const styles = StyleSheet.create({
   badgeSuccess: { backgroundColor: Colors.success },
   placeholderCard: { height: 160, justifyContent: 'center', backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, marginBottom: Spacing.md },
   emptyText: { textAlign: 'center', color: Colors.textMuted, marginTop: 40 },
+  emptySubtext: { fontSize: FontSizes.sm, color: Colors.textMuted, marginTop: 8, textAlign: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: Colors.surface, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, padding: Spacing.lg, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

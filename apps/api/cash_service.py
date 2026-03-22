@@ -83,7 +83,7 @@ class CashService:
         project = await self.db.projects.find_one({"project_id": project_id})
 
         # ── Round-trip 2: fund_transfer categories for this organisation ──────
-        categories = await self.db.categories.find({
+        categories = await self.db.code_master.find({
             "organisation_id": organisation_id,
             "budget_type": "fund_transfer"
         }).to_list(length=100)
@@ -241,7 +241,24 @@ class CashService:
             if isinstance(ts, datetime):
                 next_cursor = ts.isoformat()
 
+        items = []
+        for d in docs:
+            item = self._serialize_doc(d)
+            # Enrich with creator name
+            if item.get("created_by"):
+                user = await self.db.users.find_one({"user_id": item["created_by"]})
+                if user:
+                    item["created_by_name"] = user.get("name") or user.get("full_name") or user.get("email", "").split("@")[0]
+            
+            # Enrich with category name
+            if item.get("category_id"):
+                category = await self.db.code_master.find_one({"_id": ObjectId(item["category_id"])})
+                if category:
+                    item["category_name"] = category.get("category_name")
+            
+            items.append(item)
+
         return {
-            "items": [self._serialize_doc(d) for d in docs],
+            "items": items,
             "next_cursor": next_cursor
         }
