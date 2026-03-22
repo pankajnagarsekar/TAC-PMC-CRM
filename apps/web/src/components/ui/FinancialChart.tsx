@@ -57,14 +57,14 @@ export default function FinancialChart({
 }: FinancialChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const gridColor = isDark ? '#334155' : '#e2e8f0';
-  const textColor = isDark ? '#94a3b8' : '#64748b';
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(80, 95, 122, 0.1)';
+  const textColor = isDark ? '#64748b' : '#505f7a';
   const yTickFormatter = formatCurrency ? formatINRShort : (v: number) => String(v);
 
   return (
-    <div className={`rounded-xl p-4 border bg-white dark:bg-slate-900 border-zinc-200 dark:border-slate-800 ${className}`}>
+    <div className={`w-full h-full ${className}`}>
       {title && (
-        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4">{title}</h3>
+        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">{title}</h3>
       )}
       <ResponsiveContainer width="100%" height={height}>
         {type === 'bar' ? (

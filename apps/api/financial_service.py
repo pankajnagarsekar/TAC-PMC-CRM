@@ -9,7 +9,22 @@ import logging
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from fastapi import HTTPException, status
-from bson import ObjectId
+from bson import ObjectId, Decimal128
+
+
+def _to_decimal(value) -> Decimal:
+    """
+    Safely convert any MongoDB numeric type (Decimal128, int, float, str) to Python Decimal.
+    Returns Decimal("0") for None or unconvertible values.
+    """
+    if value is None:
+        return Decimal("0")
+    if isinstance(value, Decimal128):
+        return Decimal(str(value.to_decimal()))
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return Decimal("0")
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +54,7 @@ class FinancialRecalculationService:
                 f"No budget found for project={project_id}, category={category_id}")
             return None
 
-        approved_budget = Decimal(str(budget.get("original_budget", "0")))
+        approved_budget = _to_decimal(budget.get("original_budget", "0"))
 
         # Aggregate Work Order committed (all non-Cancelled entries)
         committed_pipeline = [
@@ -52,7 +67,7 @@ class FinancialRecalculationService:
         ]
         committed_result = await self.db.work_orders.aggregate(
             committed_pipeline, session=session).to_list(length=1)
-        committed_value = Decimal(str(committed_result[0]["total"])) if committed_result else Decimal("0")
+        committed_value = _to_decimal(committed_result[0].get("total") if committed_result else None)
 
         # Aggregate Payment Certificates certified (only Closed entries)
         certified_pipeline = [
@@ -65,7 +80,7 @@ class FinancialRecalculationService:
         ]
         certified_result = await self.db.payment_certificates.aggregate(
             certified_pipeline, session=session).to_list(length=1)
-        certified_value = Decimal(str(certified_result[0]["total"])) if certified_result else Decimal("0")
+        certified_value = _to_decimal(certified_result[0].get("total") if certified_result else None)
 
         # Calculate derived values
         balance_remaining = approved_budget - committed_value
@@ -187,9 +202,9 @@ class FinancialRecalculationService:
             pipeline, session=session
         ).to_list(length=1)
 
-        if result:
-            master_original = Decimal(str(result[0]["total_original"]))
-            master_remaining = Decimal(str(result[0]["total_remaining"]))
+        if result and result[0]:
+            master_original = _to_decimal(result[0].get("total_original"))
+            master_remaining = _to_decimal(result[0].get("total_remaining"))
         else:
             master_original = Decimal("0")
             master_remaining = Decimal("0")

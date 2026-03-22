@@ -104,33 +104,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onToggle={handleToggleSidebar}
             />
 
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Top Header - Glass & Minimalist */}
-                <header className="h-14 flex items-center justify-between px-6 bg-background/80 backdrop-blur-md border-b border-border z-40 shrink-0">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden py-4 pr-4">
+                {/* Top Header - Floating Glass */}
+                <header className="h-16 flex items-center justify-between px-8 bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-[var(--radius)] shadow-[var(--glass-shadow)] z-40 shrink-0 mb-4 transition-all duration-300">
                     <div className="flex items-center gap-4">
                         <Breadcrumbs items={breadcrumbItems} />
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
                         <ModeToggle />
-                        <div className="h-5 w-[1px] bg-border" />
+                        <div className="h-6 w-[1px] bg-border/50" />
 
                         {/* User Session */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             <div className="flex flex-col items-end">
-                                <span className="text-foreground text-[11px] font-bold leading-none">{user?.name}</span>
-                                <span className="text-muted-foreground text-[9px] uppercase tracking-wider mt-0.5">{user?.role}</span>
+                                <span className="text-foreground text-[12px] font-bold leading-none">{user?.name}</span>
+                                <span className="text-muted-foreground text-[10px] uppercase tracking-wider mt-1">{user?.role}</span>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-[10px] font-black text-indigo-500">
+                            <div className="w-10 h-10 rounded-full bg-[var(--sidebar-active)] border border-[var(--glass-border)] flex items-center justify-center text-[12px] font-black text-white shadow-lg">
                                 {user?.name?.[0]?.toUpperCase()}
                             </div>
                         </div>
                     </div>
                 </header>
 
-                {/* Main Workspace - High Density Grid Background */}
-                <main className="flex-1 overflow-y-auto high-density-grid p-6 relative custom-scrollbar bg-background">
-                    <div className="max-w-[1700px] mx-auto space-y-8">
+                {/* Main Workspace - Floating Grid Area */}
+                <main className="flex-1 overflow-y-auto high-density-grid p-8 relative custom-scrollbar bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-[var(--radius)] shadow-[var(--glass-shadow)] transition-all duration-300">
+                    <div className="max-w-[1600px] mx-auto space-y-10">
                         <ErrorBoundary>
                             {children}
                         </ErrorBoundary>

@@ -509,7 +509,7 @@ class PaymentCertificate(BaseModel):
     subtotal: Decimal = Field(Decimal("0.0"), ge=0)
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     retention_amount: Decimal = Field(Decimal("0.0"), ge=0)
-    total_payable: Decimal = Field(Decimal("0.0"), ge=0)
+    total_after_retention: Decimal = Field(Decimal("0.0"), ge=0)  # Per Spec §4.3: subtotal - retention_amount
     cgst: Decimal = Field(Decimal("0.0"), ge=0)
     sgst: Decimal = Field(Decimal("0.0"), ge=0)
     grand_total: Decimal = Field(Decimal("0.0"), ge=0)

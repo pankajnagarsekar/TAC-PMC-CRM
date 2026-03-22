@@ -261,6 +261,10 @@ class PaymentCertificateService:
                 )
 
             # Per Spec §5.2: For Petty/OVH PCs, update liquidity model
+            # NOTE: Only PETTY_OVH PCs (fund_transfer categories) trigger liquidity updates on close.
+            # WO-linked PCs (commitment model, §4) update vendor payable ledger only.
+            # This is intentional per spec §5.2: "PC (Fund Request) Behavior" is defined under §5 "Petty Cash / OVH (Liquidity Model)".
+            # Fund allocations (cash_in_hand, allocation_received) track liquidity; vendors track payables.
             if pc_type == "PETTY_OVH":
                 # Get the fund allocation for this project
                 fund_alloc = await self.db.fund_allocations.find_one(

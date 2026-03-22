@@ -62,7 +62,7 @@ const formatCurrency = (amount: number): string => {
 
 export default function AdminProjectsScreen() {
   const router = useRouter();
-  const { setSelectedProject } = useProject();
+  const { selectedProject, setSelectedProject } = useProject();
   const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
   const styles = useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
@@ -150,7 +150,7 @@ export default function AdminProjectsScreen() {
         </View>
 
         {/* Summary Strip */}
-        <Card style={styles.summaryStrip} padding="none">
+        <Card variant="glass" style={styles.summaryStrip} padding="none">
           <View style={styles.summaryItem}>
             <Ionicons name="business" size={20} color={Colors.primary} />
             <Text style={styles.summaryValue}>{projects.length}</Text>
@@ -196,7 +196,12 @@ export default function AdminProjectsScreen() {
             const completionColor = getCompletionColor(project.completion_pct);
 
             return (
-              <Card key={project.project_id} style={[styles.projectCard, isSelected && styles.projectCardSelected]} padding="none">
+              <Card
+                key={project.project_id}
+                variant="glass"
+                style={[styles.projectCard, isSelected && styles.projectCardSelected]}
+                padding="none"
+              >
                 {/* Card Header */}
                 <Pressable
                   style={styles.cardHeader}
@@ -396,39 +401,39 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
     padding: Spacing.md,
     marginBottom: Spacing.xl,
   },
-  summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
-  summaryValue: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
-  summaryLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
-  summaryDivider: { width: 1, height: 32, backgroundColor: Colors.border },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
+  summaryValue: { fontSize: FontSizes.lg, fontWeight: '800', color: Colors.text, fontFamily: 'Inter_800ExtraBold' },
+  summaryLabel: { fontSize: 9, color: Colors.textSecondary, textTransform: 'uppercase', fontWeight: '800', fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 },
+  summaryDivider: { width: 1, height: 24, backgroundColor: Colors.border, opacity: 0.5 },
 
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 80 },
   emptyTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.md, fontFamily: 'Inter_600SemiBold' },
   emptySubtitle: { fontSize: FontSizes.md, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center', fontFamily: 'Inter_400Regular' },
 
-  // Project card
   projectCard: {
     marginBottom: Spacing.lg,
+    borderWidth: 0,
   },
   projectCardSelected: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: Colors.primary,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg },
   cardHeaderLeft: { flex: 1 },
   cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  projectName: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
-  projectCode: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 4, fontFamily: 'Inter_400Regular' },
+  projectName: { fontSize: FontSizes.lg, fontWeight: '800', color: Colors.text, fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.5 },
+  projectCode: { fontSize: 10, color: Colors.textSecondary, marginTop: 2, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 },
 
   // Selection badge
   selectedBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full, gap: 4 },
   selectedBadgeText: { fontSize: 10, fontWeight: '700', color: 'white', fontFamily: 'Inter_700Bold' },
   // Completion
   completionBadge: { paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.full },
-  completionText: { fontSize: FontSizes.sm, fontWeight: '700', fontFamily: 'Inter_700Bold' },
+  completionText: { fontSize: FontSizes.sm, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
   progressBarContainer: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
-  progressBarBg: { height: 6, backgroundColor: Colors.border, borderRadius: 3 },
-  progressBarFill: { height: 6, borderRadius: 3, minWidth: 4 },
+  progressBarBg: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
+  progressBarFill: { height: 8, borderRadius: 0, minWidth: 4 },
 
   // Quick stats
   quickStats: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.xs },

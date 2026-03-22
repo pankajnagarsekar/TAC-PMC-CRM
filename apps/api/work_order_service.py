@@ -95,8 +95,10 @@ class WorkOrderService:
             grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
             retention_percent = Decimal(str(wo_data.get("retention_percent", 0)))
             retention_amount = self.financial_service.round_half_up(grand_total * (retention_percent / Decimal("100")))
-            total_payable = self.financial_service.round_half_up(grand_total - retention_amount)
-            actual_payable = total_payable  # Can be modified later if needed
+            # Per Spec §3.3: total_payable = grand_total (full amount, no retention deducted)
+            total_payable = grand_total
+            # Per Spec §3.3: actual_payable = grand_total - retention_amount (net after retention)
+            actual_payable = self.financial_service.round_half_up(grand_total - retention_amount)
 
             # 5. Auto-generate WO Ref — atomic sequence to prevent duplicate IDs under concurrent load
             settings = await self.db.global_settings.find_one({"organisation_id": organisation_id}, session=session)
@@ -270,7 +272,10 @@ class WorkOrderService:
 
             retention_percent = Decimal(str(wo_data.get("retention_percent", 0)))
             retention_amount = self.financial_service.round_half_up(grand_total * (retention_percent / Decimal("100")))
-            total_payable = self.financial_service.round_half_up(grand_total - retention_amount)
+            # Per Spec §3.3: total_payable = grand_total (full amount, no retention deducted)
+            total_payable = grand_total
+            # Per Spec §3.3: actual_payable = grand_total - retention_amount (net after retention)
+            actual_payable = self.financial_service.round_half_up(grand_total - retention_amount)
 
             # 4. Apply new budget impact
             new_category_id = wo_data.get("category_id", old_category_id)
@@ -283,11 +288,28 @@ class WorkOrderService:
             if not budget:
                 raise HTTPException(status_code=400, detail="Target category budget not initialized.")
 
+            # Per Spec §3.4: On WO UPDATE, committed_amount = SUM(all WO grand_total for category)
+            # Recompute as authoritative SUM rather than delta to prevent drift under concurrent edits
+            pipeline = [
+                {"$match": {
+                    "project_id": project_id,
+                    "category_id": new_category_id,
+                    "status": {"$nin": ["Cancelled"]}
+                }},
+                {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
+            ]
+            result = await self.db.work_orders.aggregate(pipeline).to_list(length=1)
+            raw_total = result[0].get("total") if result else None
+            committed_amount = Decimal(str(raw_total.to_decimal())) if isinstance(raw_total, Decimal128) else Decimal(str(raw_total)) if raw_total is not None else Decimal("0")
+            raw_budget = budget.get("original_budget", Decimal128("0"))
+            original_budget = Decimal(str(raw_budget.to_decimal())) if isinstance(raw_budget, Decimal128) else Decimal(str(raw_budget))
+            remaining_budget = original_budget - committed_amount
+
             await self.db.project_category_budgets.update_one(
                 {"_id": budget["_id"]},
-                {"$inc": {
-                    "remaining_budget": Decimal128(str(-grand_total)),
-                    "committed_amount": Decimal128(str(grand_total))
+                {"$set": {
+                    "committed_amount": Decimal128(str(committed_amount)),
+                    "remaining_budget": Decimal128(str(remaining_budget))
                 }},
                 session=session
             )
@@ -307,6 +329,7 @@ class WorkOrderService:
                 "retention_percent": Decimal128(str(retention_percent)),
                 "retention_amount": Decimal128(str(retention_amount)),
                 "total_payable": Decimal128(str(total_payable)),
+                "actual_payable": Decimal128(str(actual_payable)),
                 "line_items": [db_manager.to_bson(item) for item in wo_data.get("line_items", [])],
                 "updated_at": datetime.now(timezone.utc)
             }

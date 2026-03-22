@@ -169,8 +169,8 @@ export default function Sidebar({
   });
 
   return (
-    <div className={`${isCollapsed ? "w-24" : "w-64"} h-screen p-4 flex flex-col transition-all duration-300 z-50`}>
-      <aside className="h-full flex flex-col bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-[2rem] overflow-hidden">
+    <div className={`${isCollapsed ? "w-24" : "w-64"} h-screen p-3 flex flex-col transition-all duration-300 z-50`}>
+      <aside className="h-full flex flex-col bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-[var(--radius)] overflow-hidden">
         {/* Brand & Project Switcher */}
         <div className="flex flex-col border-b border-sidebar-border/50">
           <div className={`h-14 flex items-center px-4 shrink-0 ${isCollapsed ? 'justify-center px-0' : ''}`}>
@@ -295,5 +295,6 @@ export default function Sidebar({
           </div>
         </div>
       </aside>
-      );
+    </div>
+  );
 }

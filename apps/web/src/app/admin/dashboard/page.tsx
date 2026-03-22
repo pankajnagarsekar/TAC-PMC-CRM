@@ -28,6 +28,17 @@ import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
 import { formatCurrencySafe, formatPercentSafe, normalizeFinancial } from "@/lib/formatters";
 import FinancialChart from "@/components/ui/FinancialChart";
 
+import { GlassCard } from "@/components/ui/GlassCard";
+import {
+  Camera,
+  Clock,
+  Calendar,
+  ListTodo,
+  History,
+  GanttChartSquare,
+  BarChart4
+} from "lucide-react";
+
 export default function AdminDashboard() {
   const { activeProject } = useProjectStore();
 
@@ -63,188 +74,250 @@ export default function AdminDashboard() {
 
   if (isLoading && !financials) {
     return (
-      <div className="space-y-8 animate-pulse p-6">
-        <div className="grid grid-cols-4 gap-0 border border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-zinc-50/50 dark:bg-zinc-900/50" />)}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-pulse p-2">
+        <div className="space-y-8">
+          <div className="h-64 bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
+          <div className="h-96 bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
         </div>
-        <div className="h-[400px] border border-zinc-200 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-900/20 rounded-[2rem]" />
+        <div className="space-y-8">
+          <div className="h-[500px] bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
+          <div className="h-64 bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
+        </div>
+        <div className="space-y-8">
+          <div className="h-[300px] bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
+          <div className="h-[400px] bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
+        </div>
       </div>
     );
   }
 
-  if (financialsError) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-        <NetworkErrorRetry
-          message="Intelligence Feed Interrupted"
-          onRetry={() => retryFinancials()}
-        />
-      </div>
-    );
-  }
-
-  // Aggregate metrics with safety
+  // Aggregate metrics
   const totalBudget = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.original_budget)), 0) ?? 0;
   const totalCommitted = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.committed_value)), 0) ?? 0;
   const totalCertified = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.certified_value)), 0) ?? 0;
   const totalRemaining = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.balance_budget_remaining)), 0) ?? 0;
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* minimalist KPI Sparks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border border-zinc-200 dark:border-zinc-800 divide-y md:divide-y-0 md:divide-x divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden text-zinc-900 dark:text-zinc-50">
-        <div className="kpi-spark">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Total Budget</span>
-          <span className="text-xl font-black">{formatCurrencySafe(totalBudget)}</span>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="pill-status bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">Baseline</span>
-          </div>
-        </div>
-        <div className="kpi-spark">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Committed Value</span>
-          <span className="text-xl font-black">{formatCurrencySafe(totalCommitted)}</span>
-          <div className="flex items-center gap-1.5 mt-1">
-            {(() => {
-              const commitPct = totalBudget > 0 ? (totalCommitted / totalBudget) * 100 : 0;
-              const displayPct = isNaN(commitPct) ? 0 : commitPct;
-              return (
-                <>
-                  <div className="h-1 flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${Math.min(100, displayPct)}%` }} />
-                  </div>
-                  <span className="text-[10px] font-mono text-zinc-400">{formatPercentSafe(displayPct)}</span>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-
-        <div className="kpi-spark">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Certified (Billed)</span>
-          <span className="text-xl font-black">{formatCurrencySafe(totalCertified)}</span>
-          <div className="flex items-center gap-1.5 mt-1">
-            <TrendingUp size={12} className="text-emerald-500" />
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">On Track</span>
-          </div>
-        </div>
-        <div className="kpi-spark">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Allocated Balance</span>
-          <span className={`text-xl font-black ${totalRemaining < 0 ? 'text-rose-600' : ''}`}>
-            {formatCurrencySafe(totalRemaining)}
-          </span>
-          <div className="flex items-center gap-1.5 mt-1">
-            {totalRemaining < 0 ? (
-              <span className="pill-status bg-rose-500/10 border-rose-500/20 text-rose-600">Over-Budget</span>
-            ) : (
-              <span className="pill-status bg-emerald-500/10 border-emerald-500/20 text-emerald-600">Healthy</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Financial Analytics Chart */}
-      <div className="grid grid-cols-1 gap-6">
-        <FinancialChart
-          title="Top Budget Allocation vs Commitment"
-          data={chartData}
-          dataKeys={[
-            { key: 'budget', color: '#6366f1', label: 'Budget' },
-            { key: 'committed', color: '#f97316', label: 'Committed' }
-          ]}
-          height={350}
-        />
-      </div>
-
-      {/* Unified Enterprise Data Ledger */}
-      <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-5 h-5 rounded bg-zinc-900 dark:bg-zinc-50 flex items-center justify-center">
-              <FileText size={12} className="text-white dark:text-zinc-900" />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-20">
+      {/* Column 1: Overview & Vision */}
+      <div className="space-y-6">
+        <GlassCard className="border-primary/20">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+              <LayoutGrid size={20} />
             </div>
-            <h3 className="text-[13px] font-bold uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
-              Budget Utilization Ledger
-            </h3>
+            <h2 className="text-lg font-bold tracking-tight uppercase">Project Overview</h2>
           </div>
-          <Link
-            href={`/admin/projects/${activeProject.project_id || activeProject._id || ""}`}
-            className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 transition-colors"
-          >
-            See Detailed Analysis <ExternalLink size={12} />
-          </Link>
-        </div>
 
-        <Table>
-          <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-            <TableRow>
-              <TableHead className="w-[30%]">Category</TableHead>
-              <TableHead>Original Budget</TableHead>
-              <TableHead>Committed</TableHead>
-              <TableHead>Utilization</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {financials?.map((f) => {
-              const utilPct = f.original_budget > 0 ? (f.committed_value / f.original_budget) * 100 : 0;
-              return (
-                <TableRow key={f.category_id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 border-zinc-200/50 dark:border-zinc-800/50">
-                  <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${f.over_commit_flag ? 'bg-rose-500 animate-pulse' : 'bg-zinc-300 dark:bg-zinc-700'}`} />
-                      {f.category_id}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-zinc-500">{formatCurrencySafe(f.original_budget)}</TableCell>
-                  <TableCell className="font-mono font-semibold text-zinc-900 dark:text-zinc-200">
-                    {formatCurrencySafe(f.committed_value)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3 min-w-[120px]">
-                      <div className="h-1.5 flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden border border-zinc-200 dark:border-zinc-800">
-                        <div
-                          className={`h-full transition-all duration-700 ${f.over_commit_flag ? 'bg-rose-500' : 'bg-zinc-900 dark:bg-zinc-100'}`}
-                          style={{ width: `${Math.min(100, utilPct)}%` }}
-                        />
-                      </div>
-                      <span className={`text-[10px] font-bold font-mono ${f.over_commit_flag ? 'text-rose-600' : 'text-zinc-500'}`}>
-                        {formatPercentSafe(utilPct, 1)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-bold">
-                    <span className={f.balance_budget_remaining < 0 ? 'text-rose-600' : 'text-zinc-900 dark:text-zinc-100'}>
-                      {formatCurrencySafe(f.balance_budget_remaining)}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+          <div className="space-y-6">
+            <div>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Portfolio Value</p>
+              <p className="text-3xl font-black">{formatCurrencySafe(totalBudget)}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-muted">
+              <div>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Total Phases</p>
+                <p className="text-xl font-bold">4</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Active</p>
+                <p className="text-xl font-bold text-primary">2</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} className="text-rose-500" />
+                <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">Overdue Milestones</span>
+              </div>
+              <span className="text-sm font-black text-rose-500">1</span>
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="group overflow-hidden p-0 h-[450px] border-none shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+          <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-rose-600/90 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+            LIVE SITE FEED
+          </div>
+          <img
+            src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000"
+            alt="Site Feed"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          <div className="absolute bottom-4 left-4 right-4 z-20">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Site Camera #04</h3>
+              <Camera size={14} className="text-white/60" />
+            </div>
+            <div className="h-0.5 w-full bg-white/20 rounded-full mb-2">
+              <div className="h-full bg-primary w-2/3 rounded-full" />
+            </div>
+            <div className="flex items-center justify-center gap-3 text-white/70">
+              <Clock size={12} />
+              <span className="text-[9px] font-mono">REC: 12:45:12</span>
+            </div>
+          </div>
+        </GlassCard>
       </div>
 
-      {/* Strategic Shortcuts */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Internal Reports", href: "/admin/reports", icon: TrendingUp },
-          { label: "Site Operations", href: "/admin/site-operations", icon: CheckCircle2 },
-          { label: "Financial Settings", href: "/admin/settings", icon: Wallet },
-          { label: "Payment Certificates", href: "/admin/payment-certificates", icon: FileText },
-        ].map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className="flex items-center gap-3 p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all group"
-          >
-            <div className="w-8 h-8 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 group-hover:text-indigo-600 transition-colors">
-              <item.icon size={16} />
+      {/* Column 2: Operations & Tasks */}
+      <div className="space-y-6">
+        <GlassCard className="border-indigo-500/5 shadow-xl">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/5 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
+                <Calendar size={16} />
+              </div>
+              <h2 className="text-xs font-bold tracking-tight uppercase">Construction Schedule</h2>
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
-              {item.label}
-            </span>
-          </Link>
-        ))}
+            <TrendingUp size={16} className="text-emerald-500/80" />
+          </div>
+
+          <div className="h-[240px] w-full">
+            <FinancialChart
+              title=""
+              data={chartData}
+              dataKeys={[{ key: 'budget', color: '#775a19', label: 'Planned' }, { key: 'committed', color: '#505f7a', label: 'Actual' }]}
+              height={240}
+            />
+          </div>
+          <div className="mt-4 pt-4 border-t border-muted flex gap-8">
+            <div>
+              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">S-Curve Variance</p>
+              <div className="flex items-center gap-1.5">
+                <TrendingDown size={12} className="text-rose-500" />
+                <span className="text-xs font-black">-4.2%</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Critical Path</p>
+              <span className="text-xs font-black text-indigo-500">DELAYED</span>
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/5 flex items-center justify-center text-orange-400 border border-orange-500/10">
+                <ListTodo size={16} />
+              </div>
+              <h2 className="text-xs font-bold tracking-tight uppercase">Task Manager</h2>
+            </div>
+            <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[8px] font-black uppercase text-zinc-500">12 Pending</span>
+          </div>
+
+          <div className="space-y-2">
+            {[
+              { id: 'RFI #104', label: 'Review Structural Changes', priority: 'High', color: 'text-rose-500' },
+              { id: 'PAY #02', label: 'Approve Payment App', priority: 'Financial', color: 'text-primary' },
+              { id: 'SITE', label: 'Weekly Safety Walkthrough', priority: 'Routine', color: 'text-zinc-500' }
+            ].map(task => (
+              <div key={task.id} className="p-2.5 rounded-xl bg-muted/30 border border-white/40 dark:border-white/5 hover:border-primary/20 transition-all flex items-center justify-between group">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] font-black text-zinc-400 tracking-tighter uppercase">{task.id}</span>
+                  <span className="text-xs font-bold group-hover:text-primary transition-colors">{task.label}</span>
+                </div>
+                <span className={`text-[9px] font-bold uppercase tracking-tight ${task.color}`}>{task.priority}</span>
+              </div>
+            ))}
+          </div>
+
+          <button className="w-full mt-4 py-2 rounded-lg border border-muted text-[10px] font-bold uppercase tracking-widest hover:bg-muted/50 transition-all">
+            View All Action Items
+          </button>
+        </GlassCard>
+      </div>
+
+      {/* Column 3: Logistics & Finance */}
+      <div className="space-y-6">
+        <GlassCard className="shadow-lg">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
+              <History size={20} />
+            </div>
+            <h2 className="text-sm font-bold tracking-tight uppercase">Project Wide Task Log</h2>
+          </div>
+
+          <div className="flex items-end gap-10 mb-6 pb-6 border-b border-muted">
+            <div>
+              <p className="text-4xl font-black leading-none tracking-tighter">28</p>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">Open Tasks</p>
+            </div>
+            <div className="pb-1">
+              <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">142</p>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Resolved</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+              <span className="text-zinc-500">Compliance Rate</span>
+              <span className="text-emerald-500">94.2%</span>
+            </div>
+            <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
+              <div className="h-full bg-emerald-500 w-[94%] shadow-[0_0_10px_rgba(16,185,129,0.2)]" />
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="border-indigo-500/5 shadow-xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/5 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
+              <GanttChartSquare size={20} />
+            </div>
+            <h2 className="text-sm font-bold tracking-tight uppercase">Project Schedule & Gantt</h2>
+          </div>
+
+          <div className="space-y-6">
+            {[
+              { label: 'Foundations & Piling', progress: 100 },
+              { label: 'Structural Steel', progress: 65 },
+              { label: 'MEP Rough-in', progress: 5 }
+            ].map(item => (
+              <div key={item.label} className="space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-500">{item.label}</span>
+                  <span className="text-primary">{item.progress}%</span>
+                </div>
+                <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
+                  <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${item.progress}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+
+        <GlassCard className="border-primary/5 shadow-xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10">
+              <BarChart4 size={20} />
+            </div>
+            <h2 className="text-sm font-bold tracking-tight uppercase">Project Budget & Utilization</h2>
+          </div>
+
+          <div className="space-y-6">
+            {[
+              { label: 'Structural Works', budget: 100, actual: 82 },
+              { label: 'Electrical & HV', budget: 100, actual: 14 },
+              { label: 'Plumbing & HVAC', budget: 100, actual: 6 }
+            ].map(item => (
+              <div key={item.label} className="space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-500">{item.label}</span>
+                  <span className="text-zinc-400 italic">{(item.actual)}% Spent</span>
+                </div>
+                <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30 flex">
+                  <div className="h-full bg-primary" style={{ width: `${item.actual}%` }} />
+                  <div className="h-full bg-muted/40" style={{ width: `${item.budget - item.actual}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
       </div>
     </div>
   );

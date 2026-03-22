@@ -10,10 +10,10 @@ export function GlassCard({ children, className, variant = 'glass', ...props }: 
     return (
         <div
             className={cn(
-                "rounded-[2rem] p-6 transition-all duration-300",
+                "rounded-[var(--radius)] p-5 transition-all duration-300",
                 variant === 'glass' && "bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] shadow-[var(--glass-shadow)]",
-                variant === 'dark' && "bg-card border border-border shadow-2xl",
-                variant === 'light' && "bg-white border border-border shadow-lg",
+                variant === 'dark' && "bg-card border border-border shadow-xl",
+                variant === 'light' && "bg-white border border-border shadow-sm",
                 className
             )}
             {...props}

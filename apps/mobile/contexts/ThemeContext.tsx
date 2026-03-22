@@ -39,6 +39,7 @@ interface ThemeContextType {
   borderRadius: typeof BorderRadius;
   shadows: typeof Shadows;
   isDark: boolean;
+  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -75,35 +76,49 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleTheme = () => {
+    const nextTheme = isDark ? 'light' : 'dark';
+    updateSettings({ theme: nextTheme });
+  };
+
   // Determine actual theme mode
   const isDark = settings.theme === 'system' ? deviceColorScheme === 'dark' : settings.theme === 'dark';
 
   // Construct dynamic Colors
   const colors = { ...BaseColors };
-  
-  if (isDark) {
-    colors.background = '#0F172A';
-    colors.surface = '#1E293B';
-    colors.text = '#F8FAFC';
-    colors.textSecondary = '#CBD5E1';
-    colors.textMuted = '#94A3B8';
-    colors.textInverse = '#0F172A';
-    colors.border = '#334155';
-    colors.divider = '#475569';
-    colors.headerBg = '#1E293B';
-    colors.tabBarBg = '#1E293B';
-    colors.cardBg = '#1E293B';
-    colors.inputBg = '#0F172A';
-    colors.inputBorder = '#334155';
-    colors.placeholder = '#64748B';
-  }
 
-  // Apply custom primary color scheme if specified
-  const customPalette = COLOR_SCHEME_PALETTES[settings.colorScheme];
-  if (customPalette) {
-    colors.primary = customPalette.primary;
-    colors.primaryDark = customPalette.primaryDark;
-    colors.primaryLight = customPalette.primaryLight;
+  if (isDark) {
+    colors.background = '#0f1113';
+    colors.surface = '#17191c';
+    colors.primary = '#e9c176';
+    colors.text = '#F8FAFC';
+    colors.textSecondary = '#94a3b8';
+    colors.textMuted = '#64748b';
+    colors.textInverse = '#0F172A';
+    colors.border = '#24272b';
+    colors.divider = '#24272b';
+    colors.headerBg = '#0f1113';
+    colors.tabBarBg = '#0f1113';
+    colors.cardBg = '#17191c';
+    colors.inputBg = '#0f1113';
+    colors.inputBorder = '#24272b';
+    colors.placeholder = '#4b5563';
+  } else {
+    colors.background = '#f8f9fb';
+    colors.surface = '#FFFFFF';
+    colors.primary = '#775a19';
+    colors.text = '#191c1e';
+    colors.textSecondary = '#52617c';
+    colors.textMuted = '#94a3b8';
+    colors.textInverse = '#FFFFFF';
+    colors.border = '#eceef0';
+    colors.divider = '#eceef0';
+    colors.headerBg = '#f8f9fb';
+    colors.tabBarBg = '#f8f9fb';
+    colors.cardBg = '#FFFFFF';
+    colors.inputBg = '#f8f9fb';
+    colors.inputBorder = '#eceef0';
+    colors.placeholder = '#94a3b8';
   }
 
   // Construct dynamic Spacing
@@ -137,7 +152,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     fontSizes,
     borderRadius: BorderRadius,
     shadows: Shadows,
-    isDark
+    isDark,
+    toggleTheme
   };
 
   if (!isLoaded) return null; // Wait for async storage

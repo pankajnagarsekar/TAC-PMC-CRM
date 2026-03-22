@@ -6,13 +6,12 @@ import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 
-const TAB_BAR_BG = '#1E3A5F';
-const ACTIVE_TAB = '#F97316';
-const INACTIVE_TAB = '#9CA3AF';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function AdminLayout() {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { colors: Colors, isDark } = useTheme();
 
   // Redirect to login if not authenticated or not admin
   useEffect(() => {
@@ -31,17 +30,21 @@ export default function AdminLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: TAB_BAR_BG,
-          borderTopWidth: 0,
-          height: 60,
-          paddingBottom: 8,
+          backgroundColor: Colors.background,
+          borderTopWidth: 1,
+          borderTopColor: Colors.border,
+          height: 65,
+          paddingBottom: 10,
           paddingTop: 8,
+          elevation: 0,
         },
-        tabBarActiveTintColor: ACTIVE_TAB,
-        tabBarInactiveTintColor: INACTIVE_TAB,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textMuted,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 10,
+          fontWeight: '800',
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
         },
       }}
     >
