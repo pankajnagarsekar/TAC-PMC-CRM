@@ -1540,111 +1540,175 @@ async def get_project(project_id: str, current_user: dict = Depends(get_current_
 
 @api_router.put("/projects/{project_id}", response_model=Project)
 async def update_project(
-    project_id: str, 
-    project_data: ProjectUpdate, 
+    project_id: str,
+    project_data: ProjectUpdate,
     current_user: dict = Depends(get_current_user)
 ):
     """Update project details."""
+    try:
+        user = await permission_checker.get_authenticated_user(current_user)
+
+        # Check web CRM access and admin role
+        await permission_checker.check_web_crm_access(user)
+        await permission_checker.check_admin_role(user)
+
+        # Check if project access (this also validates organisation isolation)
+        await permission_checker.check_project_access(user, project_id, require_write=True)
+
+        update_dict = {k: v for k, v in project_data.dict(exclude_unset=True).items() if v is not None}
+        update_dict["updated_at"] = datetime.now(timezone.utc)
+
+        # Find and update - support both ObjectId and project_id string
+        try:
+            query = {"_id": ObjectId(project_id)}
+        except ValueError:
+            query = {"project_id": project_id}
+
+        result = await db.projects.find_one_and_update(
+            query,
+            {"$set": update_dict},
+            return_document=True
+        )
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Audit log - wrapped in try/catch to not block the response
+        try:
+            await audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="PROJECT_MANAGEMENT",
+                entity_type="PROJECT",
+                entity_id=project_id,
+                action_type="UPDATE",
+                user_id=user["user_id"],
+                new_value=serialize_doc(update_dict)
+            )
+        except Exception as audit_err:
+            logger.warning(f"Failed to log audit for project update {project_id}: {audit_err}")
+            # Continue without blocking the response
+
+        result["project_id"] = str(result["_id"])
+        return serialize_doc(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
+
+
+@api_router.get("/projects/{project_id}/budgets")
+async def get_project_budgets(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all budgets for a project."""
     user = await permission_checker.get_authenticated_user(current_user)
-    
-    # Check web CRM access and admin role
+
+    # Check web CRM access
     await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_admin_role(user)
-    
-    # Check if project access (this also validates organisation isolation)
-    await permission_checker.check_project_access(user, project_id, require_write=True)
-    
-    update_dict = {k: v for k, v in project_data.dict(exclude_unset=True).items() if v is not None}
-    update_dict["updated_at"] = datetime.now(timezone.utc)
-    
-    # Find and update
+
+    # Check project access
+    await permission_checker.check_project_access(user, project_id)
+
+    # Fetch project budgets - support both ObjectId and project_id string
     try:
         query = {"_id": ObjectId(project_id)}
-    except:
+    except ValueError:
         query = {"project_id": project_id}
 
-    result = await db.projects.find_one_and_update(
-        query,
-        {"$set": update_dict},
-        return_document=True
-    )
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Audit log
-    await audit_service.log_action(
-        organisation_id=user["organisation_id"],
-        module_name="PROJECT_MANAGEMENT",
-        entity_type="PROJECT",
-        entity_id=project_id,
-        action_type="UPDATE",
-        user_id=user["user_id"],
-        new_value=update_dict
-    )
-    
-    result["project_id"] = str(result["_id"])
-    return serialize_doc(result)
+    try:
+        budgets = await db.project_category_budgets.find(query).to_list(length=100)
+        # Serialize and return - map category_id to code_id for frontend compatibility
+        result = []
+        for b in budgets:
+            serialized = serialize_doc(b)
+            # Map category_id to code_id for frontend compatibility
+            if "category_id" in serialized:
+                serialized["code_id"] = serialized["category_id"]
+            result.append(serialized)
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching budgets for project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch budgets: {str(e)}")
 
 
 @api_router.post("/projects/{project_id}/budgets", response_model=ProjectBudget)
 async def create_or_update_project_budget(
     project_id: str,
-    budget_data: ProjectBudgetCreate,
+    budget_data: dict,  # Accept raw dict to support both code_id and category_id
     current_user: dict = Depends(get_current_user)
 ):
     """Create or update a budget allocation for a project category."""
-    user = await permission_checker.get_authenticated_user(current_user)
-    
-    # 6.3 checks
-    await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_client_readonly(user)
-    await permission_checker.check_admin_role(user)
-    
-    # Check project access
-    await permission_checker.check_project_access(user, project_id, require_write=True)
-    
-    # Check if category exists
-    category_id = budget_data.category_id
-    category = await db.code_master.find_one({"_id": ObjectId(category_id)})
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-        
-    budget_dict = budget_data.dict()
-    budget_dict["project_id"] = project_id
-    budget_dict["organisation_id"] = user["organisation_id"]
-    budget_dict["updated_at"] = datetime.now(timezone.utc)
-    
-    # Upsert logic
-    query = {"project_id": project_id, "category_id": category_id}
-    existing = await db.project_category_budgets.find_one(query)
-    
-    if existing:
-        # Update
-        await db.project_category_budgets.update_one(
-            {"_id": existing["_id"]},
-            {"$set": {
-                "original_budget": Decimal128(str(budget_data.original_budget)),
-                "description": budget_data.description,
-                "updated_at": datetime.now(timezone.utc)
-            }}
-        )
-        result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
-    else:
-        # Create
-        budget_dict["created_at"] = datetime.now(timezone.utc)
-        budget_dict["original_budget"] = Decimal128(str(budget_data.original_budget))
-        budget_dict["committed_amount"] = Decimal128("0.0")
-        budget_dict["remaining_budget"] = Decimal128(str(budget_data.original_budget))
-        budget_dict["version"] = 1
-        
-        insert_res = await db.project_category_budgets.insert_one(budget_dict)
-        result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
-        
-    # Recalculate project financials after budget change
-    await financial_service.recalculate_all_project_financials(project_id)
-    
-    return serialize_doc(result)
+    try:
+        user = await permission_checker.get_authenticated_user(current_user)
+
+        # 6.3 checks
+        await permission_checker.check_web_crm_access(user)
+        await permission_checker.check_client_readonly(user)
+        await permission_checker.check_admin_role(user)
+
+        # Check project access
+        await permission_checker.check_project_access(user, project_id, require_write=True)
+
+        # Support both code_id (from frontend) and category_id (from API spec)
+        category_id = budget_data.get("category_id") or budget_data.get("code_id")
+        if not category_id:
+            raise HTTPException(status_code=400, detail="category_id or code_id is required")
+
+        original_budget = budget_data.get("original_budget")
+        if original_budget is None:
+            raise HTTPException(status_code=400, detail="original_budget is required")
+
+        # Check if category exists
+        category = await db.code_master.find_one({"_id": ObjectId(category_id)})
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        # Build budget dict
+        budget_dict = {
+            "project_id": project_id,
+            "category_id": category_id,
+            "organisation_id": user["organisation_id"],
+            "updated_at": datetime.now(timezone.utc),
+            "original_budget": Decimal128(str(original_budget)),
+            "description": budget_data.get("description")
+        }
+
+        # Upsert logic
+        query = {"project_id": project_id, "category_id": category_id}
+        existing = await db.project_category_budgets.find_one(query)
+
+        if existing:
+            # Update
+            await db.project_category_budgets.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {
+                    "original_budget": Decimal128(str(original_budget)),
+                    "description": budget_data.get("description"),
+                    "updated_at": datetime.now(timezone.utc)
+                }}
+            )
+            result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
+        else:
+            # Create
+            budget_dict["created_at"] = datetime.now(timezone.utc)
+            budget_dict["committed_amount"] = Decimal128("0.0")
+            budget_dict["remaining_budget"] = Decimal128(str(original_budget))
+            budget_dict["version"] = 1
+
+            insert_res = await db.project_category_budgets.insert_one(budget_dict)
+            result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
+
+        # Recalculate project financials after budget change
+        await financial_service.recalculate_all_project_financials(project_id)
+
+        return serialize_doc(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating/updating budget for project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save budget: {str(e)}")
 
 
 @api_router.get("/health")
