@@ -98,9 +98,21 @@ class FinancialRecalculationService:
             "last_recalculated": datetime.now(timezone.utc)
         }
 
+        # Convert Decimal values to Decimal128 for MongoDB storage
+        serializable_doc = {
+            "project_id": project_id,
+            "category_id": category_id,
+            "original_budget": Decimal128(str(financial_doc["original_budget"])),
+            "committed_value": Decimal128(str(financial_doc["committed_value"])),
+            "certified_value": Decimal128(str(financial_doc["certified_value"])),
+            "balance_budget_remaining": Decimal128(str(financial_doc["balance_budget_remaining"])),
+            "over_commit_flag": financial_doc["over_commit_flag"],
+            "last_recalculated": financial_doc["last_recalculated"]
+        }
+
         await self.db.financial_state.update_one(
             {"project_id": project_id, "category_id": category_id},
-            {"$set": financial_doc},
+            {"$set": serializable_doc},
             upsert=True,
             session=session
         )
@@ -194,7 +206,7 @@ class FinancialRecalculationService:
             {"$group": {
                 "_id": None,
                 "total_original": {"$sum": "$original_budget"},
-                "total_remaining": {"$sum": {"$ifNull": ["$remaining_budget", Decimal128("0.0")]}},
+                "total_remaining": {"$sum": {"$ifNull": ["$remaining_budget", 0.0]}},
             }},
         ]
 
@@ -202,27 +214,31 @@ class FinancialRecalculationService:
             pipeline, session=session
         ).to_list(length=1)
 
-        if result and result[0]:
-            master_original = _to_decimal(result[0].get("total_original"))
-            master_remaining = _to_decimal(result[0].get("total_remaining"))
+         # Handle empty aggregation results (no budgets initialized yet)
+        if not result:
+            master_original = Decimal("0.0")
+            master_remaining = Decimal("0.0")
         else:
-            master_original = Decimal("0")
-            master_remaining = Decimal("0")
+            row = result[0]
+            master_original = _to_decimal(row.get("total_original", 0))
+            master_remaining = _to_decimal(row.get("total_remaining", 0))
 
         # Build robust project query - try ObjectId first, then string lookup
-        project_query = None
-        if isinstance(project_id, str):
-            try:
-                # Try to treat as ObjectId
-                oid = ObjectId(project_id)
-                project_query = {"_id": oid}
-            except:
-                # Fall back to string lookup by project_id
-                project_query = {"project_id": project_id}
-        else:
-            project_query = {"_id": project_id}
+        project_query = {"_id": ObjectId(project_id)} if isinstance(project_id, str) and len(project_id) == 24 else {"_id": project_id}
+
+        # Also support finding by project_id string field if _id lookup fails (backwards compatibility)
+        project = await self.db.projects.find_one(project_query, session=session)
+        if not project and isinstance(project_id, str):
+            project_query = {"project_id": project_id}
+            project = await self.db.projects.find_one(project_query, session=session)
 
         # Update and verify the result
+        if not project:
+            raise Exception(
+                f"Failed to update master budget: project {project_id} not found. "
+                f"Possible data integrity issue."
+            )
+
         update_result = await self.db.projects.update_one(
             project_query,
             {"$set": {
@@ -232,15 +248,9 @@ class FinancialRecalculationService:
             session=session
         )
 
-        # CRITICAL: Verify update succeeded
         if update_result.matched_count == 0:
-            logger.error(
-                f"CRITICAL: recalculate_master_budget failed to find project: "
-                f"project_id={project_id}, query={project_query}. "
-                f"Master budget NOT updated! This will cause financial inconsistencies."
-            )
             raise Exception(
-                f"Failed to update master budget: project {project_id} not found. "
+                f"Failed to update master budget: project {project_id} not found after verification. "
                 f"Possible data integrity issue."
             )
 
@@ -310,7 +320,9 @@ class FinancialRecalculationService:
         cash_in_hand = await self.compute_cash_in_hand(project_id, category_id, session)
 
         # Get project thresholds
-        project = await self.db.projects.find_one({"_id": project_id}, session=session)
+        # Ensure project_id is handled correctly for _id lookup
+        pq = {"_id": ObjectId(project_id)} if isinstance(project_id, str) and len(project_id) == 24 else {"_id": project_id}
+        project = await self.db.projects.find_one(pq, session=session)
         if not project:
             # Try string-based lookup
             project = await self.db.projects.find_one({"project_id": project_id}, session=session)
@@ -318,7 +330,9 @@ class FinancialRecalculationService:
             return False
 
         # Determine category type (Petty Cash vs OVH) by checking budget_type
-        category = await self.db.code_master.find_one({"_id": category_id}, session=session)
+        # Support both ObjectId strings and code slugs
+        cat_query = {"_id": ObjectId(category_id)} if isinstance(category_id, str) and len(category_id) == 24 else {"_id": category_id}
+        category = await self.db.code_master.find_one(cat_query, session=session)
         if not category:
             category = await self.db.code_master.find_one({"code": category_id}, session=session)
 
