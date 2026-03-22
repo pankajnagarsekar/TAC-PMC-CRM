@@ -6,13 +6,13 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --foreground: 240 10% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 240 10% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 38 72% 55%; /* #e9c176 approx */
+    --primary-foreground: 240 5.9% 10%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
@@ -23,114 +23,81 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --radius: 0.5rem;
+    --ring: 38 72% 55%;
+    --radius: 1.5rem;
 
     /* Semantic Tokens - Light Mode */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 10% 10%;
     --sidebar-border: 240 5.9% 90%;
     --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent-foreground: 38 72% 35%;
 
     --kpi-background: 0 0% 100%;
-    --kpi-border: 240 5.9% 90%;
-    --kpi-foreground: 240 10% 3.9%;
+    --kpi-border: 240 5.9% 92%;
+    --kpi-foreground: 240 10% 10%;
 
-    --kpi-positive-bg: rgba(16, 185, 129, 0.1);
-    --kpi-positive-text: 160 84% 39%;
-    --kpi-positive-shadow: rgba(16, 185, 129, 0.2);
-
-    --kpi-negative-bg: rgba(239, 68, 68, 0.1);
-    --kpi-negative-text: 0 84% 60%;
-    --kpi-negative-shadow: rgba(239, 68, 68, 0.2);
-
-    --kpi-warning-bg: rgba(245, 158, 11, 0.1);
-    --kpi-warning-text: 38 92% 50%;
-    --kpi-warning-shadow: rgba(245, 158, 11, 0.2);
-
-    --kpi-neutral-bg: rgba(139, 92, 246, 0.1);
-    --kpi-neutral-text: 258 90% 66%;
-    --kpi-neutral-shadow: rgba(139, 92, 246, 0.2);
-
-    --sidebar-active: 239 84% 67%;
-    --sidebar-active-foreground: 0 0% 100%;
-
-    --luxury-orange: 24 95% 53%;
-    --luxury-orange-hover: 24 95% 63%;
-    --luxury-orange-shadow: rgba(124, 45, 18, 0.2);
-
-    --glass-background: rgba(255, 255, 255, 0.6);
+    /* Glassmorphism Tokens - Light */
+    --glass-background: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(255, 255, 255, 0.8);
+    --glass-blur: 24px;
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
+    --luxury-gold: 38 72% 69%;
+    --luxury-gold-dark: 38 72% 45%;
   }
 
   .dark {
-    --background: 240 10% 2%;
+    --background: 216 12% 8%; /* #111316 approx */
     --foreground: 210 40% 98%;
-    --card: 240 10% 4%;
+    --card: 216 12% 10%;
     --card-foreground: 210 40% 98%;
-    --popover: 240 10% 4%;
+    --popover: 216 12% 8%;
     --popover-foreground: 210 40% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
+    --primary: 38 72% 69%; /* #e9c176 */
+    --primary-foreground: 216 12% 8%;
+    --secondary: 216 12% 16%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
+    --muted: 216 12% 16%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
+    --accent: 216 12% 16%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5% 15%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 216 12% 15%;
+    --input: 216 12% 16%;
+    --ring: 38 72% 69%;
 
     /* Semantic Tokens - Dark Mode (Luxury Industrial) */
-    --sidebar-background: 240 10% 3.9%;
+    --sidebar-background: 216 12% 10%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 216 12% 15%;
+    --sidebar-accent: 216 12% 16%;
+    --sidebar-accent-foreground: 38 72% 69%;
 
-    --kpi-background: 240 10% 4%;
-    --kpi-border: 240 3.7% 15.9%;
+    --kpi-background: 216 12% 10%;
+    --kpi-border: 216 12% 15%;
     --kpi-foreground: 0 0% 98%;
 
-    --kpi-positive-bg: rgba(16, 185, 129, 0.15);
-    --kpi-positive-text: 160 84% 39%;
-    --kpi-positive-shadow: rgba(16, 185, 129, 0.3);
-
-    --kpi-negative-bg: rgba(239, 68, 68, 0.15);
-    --kpi-negative-text: 0 84% 60%;
-    --kpi-negative-shadow: rgba(239, 68, 68, 0.3);
-
-    --kpi-warning-bg: rgba(245, 158, 11, 0.15);
-    --kpi-warning-text: 38 92% 50%;
-    --kpi-warning-shadow: rgba(245, 158, 11, 0.3);
-
-    --kpi-neutral-bg: rgba(139, 92, 246, 0.15);
-    --kpi-neutral-text: 258 90% 66%;
-    --kpi-neutral-shadow: rgba(139, 92, 246, 0.3);
+    /* Glassmorphism Tokens - Dark */
+    --glass-background: rgba(18, 20, 23, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: 40px;
+    --glass-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 
     --sidebar-active: 240 5% 26%;
     --sidebar-active-foreground: 0 0% 98%;
-
-    --luxury-orange: 24 95% 53%;
-    --luxury-orange-hover: 24 95% 63%;
-    --luxury-orange-shadow: rgba(124, 45, 18, 0.4);
-
-    --glass-background: rgba(255, 255, 255, 0.03);
-    --glass-border: rgba(255, 255, 255, 0.08);
   }
 
   * {
-    border-color: hsl(var(--border));
+    border-color: hsl(var(--border) / 0.5);
     outline-color: color-mix(in srgb, hsl(var(--ring)) 50%, transparent);
   }
 
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: 'Manrope', sans-serif;
   }
 }
 

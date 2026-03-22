@@ -1,7 +1,7 @@
 import asyncio
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from dotenv import load_dotenv
 
@@ -30,8 +30,8 @@ async def seed_client():
         "client_address": "123 Sky Tower, Neo City",
         "gst_number": "27BBBBB1111B1Z1",
         "active_status": True,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
     }
     
     await db.clients.insert_one(test_client)

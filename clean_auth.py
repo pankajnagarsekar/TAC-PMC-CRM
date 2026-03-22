@@ -92,9 +92,9 @@ def create_access_token(
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc)() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc)() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     # Generate unique token identifier for revocation support
     jti = secrets.token_urlsafe(32)
@@ -113,7 +113,7 @@ def create_refresh_token(user_id: str) -> str:
     Create JWT refresh token.
     Expires in 7 days.
     """
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc)() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     # Generate unique token identifier
     jti = secrets.token_urlsafe(32)
     to_encode = {

@@ -14,7 +14,7 @@ RULES:
 """
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, List
 from bson import ObjectId
 from abc import ABC, abstractmethod
@@ -339,7 +339,7 @@ class AIService:
             "confidence": result.get("confidence", 0),
             "provider": result.get("provider", "UNKNOWN"),
             "extracted_by": user_id,
-            "extracted_at": datetime.utcnow(),
+            "extracted_at": datetime.now(timezone.utc),
             "manually_verified": False,
             "verified_data": None
         }
@@ -381,7 +381,7 @@ class AIService:
                     "manually_verified": True,
                     "verified_data": verified_data,
                     "verified_by": user_id,
-                    "verified_at": datetime.utcnow()
+                    "verified_at": datetime.now(timezone.utc)
                 }
             }
         )
@@ -444,7 +444,7 @@ class AIService:
             "keywords_detected": detected_keywords,
             "provider": result.get("provider", "UNKNOWN"),
             "transcribed_by": user_id,
-            "transcribed_at": datetime.utcnow(),
+            "transcribed_at": datetime.now(timezone.utc),
             "issue_created": False,
             "issue_id": None
         }
@@ -505,7 +505,7 @@ class AIService:
             "status": "OPEN",
             "priority": "MEDIUM" if "urgent" not in keywords else "HIGH",
             "created_by": user_id,
-            "created_at": datetime.utcnow()}
+            "created_at": datetime.now(timezone.utc)}
 
         result = await self.db.issues.insert_one(issue_doc)
         issue_id = str(result.inserted_id)
@@ -556,7 +556,7 @@ class AIService:
             "confidence": result.get("confidence", 0),
             "provider": result.get("provider", "UNKNOWN"),
             "tagged_by": user_id,
-            "tagged_at": datetime.utcnow(),
+            "tagged_at": datetime.now(timezone.utc),
             "manually_overridden": False,
             "override_code": None
         }
@@ -598,7 +598,7 @@ class AIService:
                     "manually_overridden": True,
                     "override_code": override_code,
                     "overridden_by": user_id,
-                    "overridden_at": datetime.utcnow()
+                    "overridden_at": datetime.now(timezone.utc)
                 }
             }
         )
@@ -641,7 +641,7 @@ class AIService:
             "old_value_json": old_value,
             "new_value_json": new_value,
             "user_id": user_id,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         }
         await self.db.audit_logs.insert_one(audit_doc)
 

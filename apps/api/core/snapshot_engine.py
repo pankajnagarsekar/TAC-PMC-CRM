@@ -14,7 +14,7 @@ RULES:
 """
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
 import hashlib
@@ -122,7 +122,7 @@ class SnapshotEngine:
             "filters_json": serialized_filters,
             "data_json": serialized_data,
             "generated_by": generated_by,
-            "generated_at": datetime.utcnow(),
+            "generated_at": datetime.now(timezone.utc),
             "checksum_hash": checksum,
             "immutable_flag": True,
             "pdf_generated": False,
@@ -212,7 +212,7 @@ class SnapshotEngine:
             "checksum": snapshot["checksum_hash"],
             "filters": snapshot["filters_json"],
             "data": snapshot["data_json"],
-            "rendered_at": datetime.utcnow().isoformat(),
+            "rendered_at": datetime.now(timezone.utc).isoformat(),
             "output_format": output_format
         }
 
@@ -254,7 +254,7 @@ class SnapshotEngine:
                 "$set": {
                     "pdf_generated": True,
                     "pdf_url": pdf_url,
-                    "pdf_bound_at": datetime.utcnow(),
+                    "pdf_bound_at": datetime.now(timezone.utc),
                     "pdf_bound_by": user_id
                 }
             },
@@ -355,7 +355,7 @@ class SnapshotEngine:
 
         data = {
             "project_id": project_id,
-            "snapshot_timestamp": datetime.utcnow().isoformat(),
+            "snapshot_timestamp": datetime.now(timezone.utc).isoformat(),
             "financial_states": self._serialize_data(states),
             "budgets": self._serialize_data(budgets),
             "work_order_summary": wo_summary[0] if wo_summary else {},
@@ -391,7 +391,7 @@ class SnapshotEngine:
             "old_value_json": old_value,
             "new_value_json": new_value,
             "user_id": user_id,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         }
         await self.db.audit_logs.insert_one(audit_doc, session=session)
 

@@ -16,7 +16,7 @@ RULES:
 """
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
 import asyncio
@@ -77,8 +77,8 @@ class BackgroundJobEngine:
             "organisation_id": organisation_id,
             "status": JobStatus.PENDING,
             "scheduled_by": scheduled_by or "SYSTEM",
-            "scheduled_at": datetime.utcnow(),
-            "run_at": run_at or datetime.utcnow(),
+            "scheduled_at": datetime.now(timezone.utc),
+            "run_at": run_at or datetime.now(timezone.utc),
             "started_at": None,
             "completed_at": None,
             "retry_count": 0,
@@ -110,7 +110,7 @@ class BackgroundJobEngine:
             # Update status to running
             await self.db.background_jobs.update_one(
                 {"_id": ObjectId(job_id)},
-                {"$set": {"status": JobStatus.RUNNING, "started_at": datetime.utcnow()}}
+                {"$set": {"status": JobStatus.RUNNING, "started_at": datetime.now(timezone.utc)}}
             )
 
             # Execute based on job type
@@ -140,7 +140,7 @@ class BackgroundJobEngine:
                 {
                     "$set": {
                         "status": JobStatus.COMPLETED,
-                        "completed_at": datetime.utcnow(),
+                        "completed_at": datetime.now(timezone.utc),
                         "result": result
                     }
                 }
@@ -167,7 +167,7 @@ class BackgroundJobEngine:
                         "$set": {
                             "status": JobStatus.RETRYING,
                             "error_message": error_msg,
-                            "run_at": datetime.utcnow() + timedelta(seconds=delay)
+                            "run_at": datetime.now(timezone.utc) + timedelta(seconds=delay)
                         },
                         "$inc": {"retry_count": 1}
                     }
@@ -184,7 +184,7 @@ class BackgroundJobEngine:
                     {
                         "$set": {
                             "status": JobStatus.FAILED,
-                            "completed_at": datetime.utcnow(),
+                            "completed_at": datetime.now(timezone.utc),
                             "error_message": error_msg
                         }
                     }
@@ -279,7 +279,7 @@ class BackgroundJobEngine:
                         "alert_type": "FINANCIAL_INTEGRITY_VIOLATION",
                         "severity": "HIGH",
                         "violations": violation_details,
-                        "detected_at": datetime.utcnow(),
+                        "detected_at": datetime.now(timezone.utc),
                         "resolved": False
                     }
                     await self.db.alerts.insert_one(alert_doc)
@@ -321,7 +321,7 @@ class BackgroundJobEngine:
         retention_days = params.get(
             "retention_days",
             self.DEFAULT_MEDIA_RETENTION)
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         # Get snapshot-linked image IDs (protected)
         snapshot_images = set()
@@ -372,7 +372,7 @@ class BackgroundJobEngine:
         retention_days = params.get(
             "retention_days",
             self.DEFAULT_AUDIO_RETENTION)
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         result = await self.db.voice_recordings.delete_many({
             "organisation_id": organisation_id,
@@ -400,7 +400,7 @@ class BackgroundJobEngine:
         """Delete generated PDFs older than retention period"""
         retention_days = params.get(
             "retention_days", self.DEFAULT_PDF_RETENTION)
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         # Don't delete PDFs linked to snapshots
         snapshot_pdfs = set()
@@ -463,7 +463,7 @@ class BackgroundJobEngine:
                 await self.db.upload_queue.update_one(
                     {"_id": upload["_id"]},
                     {
-                        "$set": {"status": "PENDING", "last_retry_at": datetime.utcnow()},
+                        "$set": {"status": "PENDING", "last_retry_at": datetime.now(timezone.utc)},
                         "$inc": {"retry_count": 1}
                     }
                 )
@@ -509,7 +509,7 @@ class BackgroundJobEngine:
                 await self.db.compression_queue.update_one(
                     {"_id": task["_id"]},
                     {
-                        "$set": {"status": "PENDING", "last_retry_at": datetime.utcnow()},
+                        "$set": {"status": "PENDING", "last_retry_at": datetime.now(timezone.utc)},
                         "$inc": {"retry_count": 1}
                     }
                 )
@@ -546,7 +546,7 @@ class BackgroundJobEngine:
             "event_type": event_type,
             "message": message,
             "data": data,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         }
         await self.db.timeline.insert_one(timeline_doc)
 
@@ -562,7 +562,7 @@ class BackgroundJobEngine:
         jobs = await self.db.background_jobs.find({
             "organisation_id": organisation_id,
             "status": {"$in": [JobStatus.PENDING, JobStatus.RETRYING]},
-            "run_at": {"$lte": datetime.utcnow()}
+            "run_at": {"$lte": datetime.now(timezone.utc)}
         }).to_list(length=100)
 
         for job in jobs:

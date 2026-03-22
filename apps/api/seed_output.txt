@@ -1,0 +1,79 @@
+﻿Connected to MongoDB: tac_pmc_crm
+
+============================================================
+  Cleanup ΓÇö removing seed data
+============================================================
+  Deleted    2 from users
+  Deleted    1 from clients
+  Deleted    1 from global_settings
+  [OK]   Cleanup complete
+
+Loading Excel: D:\_repos\TAC-PMC-CRM\apps\web\memory\majorda templates.xlsx
+  [OK]   Loaded 14 categories
+  [OK]   Loaded project summary for 14 codes
+  [OK]   Loaded 14 work order rows
+  [WARN] PC CIV: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC PLB: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC ELC: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC SWP: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC HVC: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC FIN: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC CRP: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC LAN: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC EQP: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC PRF: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC STC: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC OVH: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC CSA: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [WARN] PC CON: Excel Payment Value 200000 != PC Value - 5% retention (190000.00). The sheet stores gross value; spec formula applied.
+  [OK]   Loaded 14 payment certificate rows
+  [OK]   Loaded weekly progress for 14 codes
+
+============================================================
+  Financial Validation: PC vs WO
+============================================================
+  [OK]   Code CIV: SUM(PC+retention)=210000.00 <= WO=8000000 -- OK
+  [OK]   Code PLB: SUM(PC+retention)=210000.00 <= WO=3000000 -- OK
+  [OK]   Code ELC: SUM(PC+retention)=210000.00 <= WO=3000000 -- OK
+  [OK]   Code SWP: SUM(PC+retention)=210000.00 <= WO=1000000 -- OK
+  [OK]   Code HVC: SUM(PC+retention)=210000.00 <= WO=850000 -- OK
+  [OK]   Code FIN: SUM(PC+retention)=210000.00 <= WO=6000000 -- OK
+  [OK]   Code CRP: SUM(PC+retention)=210000.00 <= WO=1500000 -- OK
+  [OK]   Code LAN: SUM(PC+retention)=210000.00 <= WO=600000 -- OK
+  [OK]   Code EQP: SUM(PC+retention)=210000.00 <= WO=6000000 -- OK
+  [OK]   Code PRF: SUM(PC+retention)=210000.00 <= WO=6000000 -- OK
+  [OK]   Code STC: SUM(PC+retention)=210000.00 <= WO=8000000 -- OK
+  [OK]   Code OVH: SUM(PC+retention)=210000.00 <= WO=5000000 -- OK
+  [OK]   Code CSA: SUM(PC+retention)=210000.00 <= WO=8000000 -- OK
+  [OK]   Code CON: SUM(PC+retention)=210000.00 <= WO=2500000 -- OK
+
+============================================================
+  1. Organisation
+============================================================
+  [OK]   Organisation: Third Angle Concepts (PMC)  id=69c005525f2d8ed4f58439d0
+
+============================================================
+  2. Global Settings
+============================================================
+  [OK]   Global settings inserted
+
+============================================================
+  3. Users (Admin + Supervisor)
+============================================================
+  [OK]   Admin:      amit@thirdangleconcepts.com
+  [OK]   Supervisor: supervisor@thirdangleconcepts.com
+  [OK]   Password:   Admin@1234
+
+============================================================
+  4. Client
+============================================================
+  [OK]   Client: Mr. Sanjay Rao  id=69c005525f2d8ed4f58439d4
+
+============================================================
+  5. Sequences
+============================================================
+  [OK]   Sequences initialised: wo_seq=0, pc_seq=0
+
+============================================================
+  6. Code Master (categories)
+============================================================

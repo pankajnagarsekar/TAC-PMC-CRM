@@ -14,7 +14,7 @@ export function cn(...inputs: ClassValue[]) {
 // All numbers come from backend. Frontend only formats for display.
 // ──────────────────────────────────────────────────────────────────────────
 export function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "₹0.00";
+  if (value === null || value === undefined || isNaN(value)) return "₹0.00";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
@@ -24,7 +24,7 @@ export function formatCurrency(value: number | null | undefined): string {
 }
 
 export function formatNumber(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "0.00";
+  if (value === null || value === undefined || isNaN(value)) return "0.00";
   return new Intl.NumberFormat("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

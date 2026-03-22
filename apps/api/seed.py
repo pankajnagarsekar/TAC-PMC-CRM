@@ -3,7 +3,7 @@
 
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.hash import bcrypt
@@ -23,7 +23,7 @@ async def seed():
         print(f"Organisation '{org_name}' - skipped (already exists)")
         org_id = str(existing_org["_id"])
     else:
-        org_doc = {"name": org_name, "created_at": datetime.utcnow()}
+        org_doc = {"name": org_name, "created_at": datetime.now(timezone.utc)}
         result = await db.organisations.insert_one(org_doc)
         org_id = str(result.inserted_id)
         print(f"Organisation '{org_name}' - inserted")
@@ -41,7 +41,7 @@ async def seed():
             "terms_and_conditions": "Standard terms and conditions apply.",
             "currency": "INR",
             "currency_symbol": "₹",
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.now(timezone.utc)
         }
         # In a real app we'd convert these to Decimal128, but for simple seeding:
         from bson import Decimal128
@@ -66,8 +66,8 @@ async def seed():
             "active_status": True,
             "organisation_id": org_id,
             "dpr_generation_permission": False,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
         await db.users.insert_one(admin_doc)
         print(f"User '{admin_email}' - inserted")
@@ -86,8 +86,8 @@ async def seed():
             "active_status": True,
             "organisation_id": org_id,
             "dpr_generation_permission": False,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         }
         await db.users.insert_one(supervisor_doc)
         print(f"User '{supervisor_email}' - inserted")
@@ -118,7 +118,7 @@ async def seed():
             "organisation_id": org_id,
             "client_id": "DEFAULT_CLIENT",
             "status": "active",
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }
         result = await db.projects.insert_one(project_doc)
         # Also set project_id to the string version of _id for consistent

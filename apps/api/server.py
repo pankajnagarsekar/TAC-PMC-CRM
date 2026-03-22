@@ -8,6 +8,7 @@ load_dotenv(ROOT_DIR / '.env')
 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Response, Cookie, Query  # noqa: E402
+from fastapi.concurrency import run_in_threadpool  # noqa: E402
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
@@ -391,8 +392,8 @@ async def login(login_data: LoginRequest, response: Response):
             detail="Invalid email or password"
         )
 
-    # Verify password
-    if not verify_password(login_data.password, user["hashed_password"]):
+    # Verify password (Offload blocking work to threadpool)
+    if not await run_in_threadpool(verify_password, login_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"

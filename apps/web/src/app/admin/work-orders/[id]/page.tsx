@@ -321,7 +321,7 @@ export default function WorkOrderDetailPage() {
                   <option value="">Select Category</option>
                   {categories?.map((cat) => (
                     <option key={cat._id} value={cat._id}>
-                      {cat.code_description}
+                      {cat.description}
                     </option>
                   ))}
                 </select>

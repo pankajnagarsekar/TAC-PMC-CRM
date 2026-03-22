@@ -9,7 +9,7 @@ All budget mutations go through this engine to ensure:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from bson import ObjectId
@@ -40,29 +40,44 @@ async def get_project_financials(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_project_access(user, project_id, require_write=False)
     
-    # 1. Get all budgets for the project (contains the primary versioning)
+    # 1. Get all budgets for the project
     budgets = await db.project_category_budgets.find({"project_id": project_id}).to_list(length=500)
     
-    # 2. Get all financial state records for the project
-    states = await db.financial_state.find({"project_id": project_id}).to_list(length=500)
-    state_map = {s.get("category_id"): s for s in states}
+    # 2. Get all financial state entries for the project
+    financials = await db.financial_state.find({"project_id": project_id}).to_list(length=500)
+    financials_map = {str(f["category_id"]): f for f in financials}
+
+    # 3. Get Category Details from code_master
+    category_ids = [ObjectId(b["category_id"]) for b in budgets if ObjectId.is_valid(b.get("category_id"))]
+    categories = await db.code_master.find({"_id": {"$in": category_ids}}).to_list(length=500)
+    category_map = {str(c["_id"]): c for c in categories}
     
-    # 3. Join them
+    # 4. Join them
     results = []
     for b in budgets:
         cid = b.get("category_id")
-        fs = state_map.get(cid, {})
+        fs = financials_map.get(cid, {})
+        cat_info = category_map.get(cid, {})
         
+        # Casting Decimal128 to float safely
+        def to_f(val):
+            if val is None: return 0.0
+            if isinstance(val, Decimal128): return float(val.to_decimal())
+            try: return float(val)
+            except: return 0.0
+
         # Merge data into DerivedFinancialState structure
         result = {
             "project_id": project_id,
             "category_id": cid,
-            "original_budget": b.get("original_budget", 0),
-            "committed_value": fs.get("committed_value", 0),
-            "certified_value": fs.get("certified_value", 0),
-            "balance_budget_remaining": fs.get("balance_budget_remaining", b.get("original_budget", 0)),
+            "category_name": cat_info.get("category_name") or cat_info.get("code_description") or cid,
+            "category_code": cat_info.get("code") or cat_info.get("code_short") or "",
+            "original_budget": to_f(b.get("original_budget")),
+            "committed_value": to_f(fs.get("committed_value")),
+            "certified_value": to_f(fs.get("certified_value")),
+            "balance_budget_remaining": to_f(fs.get("balance_budget_remaining", b.get("original_budget", 0))),
             "over_commit_flag": fs.get("over_commit_flag", False),
-            "last_updated": fs.get("last_recalculated") or b.get("updated_at") or datetime.utcnow(),
+            "last_updated": fs.get("last_recalculated") or b.get("updated_at") or datetime.now(timezone.utc),
             "version": b.get("version", 1)
         }
         results.append(result)
@@ -183,7 +198,7 @@ async def get_cash_summary(
         last_pc_date = allocation.get("last_pc_closed_date")
         days_since_last_pc_close = None
         if last_pc_date:
-            days_since_last_pc_close = (datetime.utcnow() - last_pc_date).days
+            days_since_last_pc_close = (datetime.now(timezone.utc) - last_pc_date).days
             if latest_pc_close is None or last_pc_date > latest_pc_close:
                 latest_pc_close = last_pc_date
         
@@ -201,7 +216,7 @@ async def get_cash_summary(
     
     days_since_last_pc_close_overall = None
     if latest_pc_close:
-        days_since_last_pc_close_overall = (datetime.utcnow() - latest_pc_close).days
+        days_since_last_pc_close_overall = (datetime.now(timezone.utc) - latest_pc_close).days
     
     return {
         "categories": categories_data,
@@ -284,7 +299,7 @@ class _HardenedEngine:
             old_amount = budget.get("original_budget", 0)
             
             # 4. Update budget
-            update_fields = {"updated_at": datetime.utcnow()}
+            update_fields = {"updated_at": datetime.now(timezone.utc)}
             if new_amount is not None:
                 update_fields["original_budget"] = new_amount
                 # Also recalculate remaining budget locally
@@ -408,8 +423,8 @@ async def initialize_project_budgets(
                     "original_budget": Decimal128("0.0"),
                     "committed_amount": Decimal128("0.0"),
                     "remaining_budget": Decimal128("0.0"),
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
                     "version": 1
                 }
                 await db.project_category_budgets.insert_one(budget_doc, session=session)
@@ -424,6 +439,7 @@ async def initialize_project_budgets(
                     "category_id": category_id
                 }, session=session)
                 
+                original_budget = 0.0
                 if not existing_allocation:
                     # Get original_budget from project_category_budgets if it exists
                     category_budget = await db.project_category_budgets.find_one({
@@ -443,9 +459,13 @@ async def initialize_project_budgets(
                     "total_expenses": Decimal128("0.0"),  # Per Spec §5.1: SUM(all expense logs)
                     "last_pc_closed_date": None,  # Per Spec §5.2: Timer resets ONLY on PC CLOSE
                     "version": 1,
-                    "created_at": datetime.utcnow()
+                    "created_at": datetime.now(timezone.utc)
                 }
-                await db.fund_allocations.insert_one(allocation_doc, session=session)
+                if not existing_allocation:
+                    await db.fund_allocations.insert_one(allocation_doc, session=session)
+                else:
+                    # Optional: Update existing allocation if needed, or just skip
+                    pass
                 fund_transfer_count += 1
 
             # Recalculate everything for this project
@@ -534,7 +554,7 @@ async def delete_category(
     # Perform soft delete (set active_status to false)
     await db.code_master.update_one(
         {"_id": code_obj_id},
-        {"$set": {"active_status": False, "updated_at": datetime.utcnow()}}
+        {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}}
     )
     
     # Audit log

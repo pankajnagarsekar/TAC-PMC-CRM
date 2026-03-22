@@ -1,7 +1,7 @@
 import asyncio
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,8 +26,8 @@ async def seed_codes():
         existing = await db.code_masters.find_one({"code": code_data["code"]})
         if not existing:
             code_data["active_status"] = True
-            code_data["created_at"] = datetime.utcnow()
-            code_data["updated_at"] = datetime.utcnow()
+            code_data["created_at"] = datetime.now(timezone.utc)
+            code_data["updated_at"] = datetime.now(timezone.utc)
             await db.code_masters.insert_one(code_data)
             print(f"Seeded category: {code_data['category_name']}")
         else:

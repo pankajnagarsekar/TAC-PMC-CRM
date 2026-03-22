@@ -4,7 +4,7 @@ Generates authoritative report data per spec (no frontend aggregation)
 """
 
 from typing import Dict, Any, List, Optional, Literal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
@@ -92,7 +92,7 @@ class ReportingService:
                         "original_budget": {"$first": "$original_budget"},
                         "committed_amount": {"$sum": "$committed_amount"},
                         "remaining_budget": {"$first": "$remaining_budget"},
-                        "updated_at": {"$max": datetime.utcnow()} # Mock
+                        "updated_at": {"$max": datetime.now(timezone.utc)} # Mock
                     }
                 },
                 {
@@ -181,7 +181,7 @@ class ReportingService:
             },
             "metadata": {
                 "project_id": project_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "row_count": len(rows),
             }
         }
@@ -246,7 +246,7 @@ class ReportingService:
         for wo in wo_data:
             amount = self._to_decimal(wo.get("grand_total", 0))
             ret_amount = self._to_decimal(wo.get("retention_amount", 0))
-            created_at = wo.get("created_at", datetime.utcnow())
+            created_at = wo.get("created_at", datetime.now(timezone.utc))
             
             rows.append([
                 wo.get("category_code", ""),
@@ -265,7 +265,7 @@ class ReportingService:
             "totals": {"total_amount": float(total_amount)},
             "metadata": {
                 "project_id": project_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "row_count": len(rows),
             }
         }
@@ -328,7 +328,7 @@ class ReportingService:
 
         for pc in pc_data:
             amount = self._to_decimal(pc.get("grand_total", 0))
-            created_at = pc.get("created_at", datetime.utcnow())
+            created_at = pc.get("created_at", datetime.now(timezone.utc))
             
             rows.append([
                 pc.get("category_code", ""),
@@ -347,7 +347,7 @@ class ReportingService:
             "totals": {"total_certified": float(total_certified)},
             "metadata": {
                 "project_id": project_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "row_count": len(rows),
             }
         }
@@ -383,7 +383,7 @@ class ReportingService:
 
         for pc in pcs:
             amount = self._to_decimal(pc.get("grand_total", 0))
-            created_at = pc.get("created_at", datetime.utcnow())
+            created_at = pc.get("created_at", datetime.now(timezone.utc))
             
             rows.append([
                 created_at.strftime("%Y-%m-%d"),
@@ -399,7 +399,7 @@ class ReportingService:
             "totals": {"total_funds_received": float(total_value)},
             "metadata": {
                 "project_id": project_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "row_count": len(rows),
             }
         }
@@ -446,7 +446,7 @@ class ReportingService:
                 item.get("wo_ref", ""),
                 item.get("description") or "Asset Provision",
                 1, # Qty
-                item.get("created_at", datetime.utcnow()).strftime("%Y-%m-%d"),
+                item.get("created_at", datetime.now(timezone.utc)).strftime("%Y-%m-%d"),
             ])
 
         return {
@@ -455,7 +455,7 @@ class ReportingService:
             "totals": {"total_count": len(rows)},
             "metadata": {
                 "project_id": project_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "row_count": len(rows),
             }
         }
@@ -473,7 +473,7 @@ class ReportingService:
         """
         # Calculate date range
         if not end_date:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
         
         if not start_date:
             if window == "weekly":
@@ -533,7 +533,7 @@ class ReportingService:
             "rows": rows,
             "metadata": {
                 "project_id": project_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "period": f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
                 "row_count": len(rows),
             }

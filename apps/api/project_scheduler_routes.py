@@ -47,7 +47,7 @@ def log_error_to_directive(script_name: str, error: str):
     log_file = os.path.join(log_dir, f"{script_name}_error.log")
     
     with open(log_file, "a") as f:
-        f.write(f"[{datetime.now().isoformat()}] ERROR: {error}\n")
+        f.write(f"[{datetime.now(timezone.utc).isoformat()}] ERROR: {error}\n")
         f.write("PROPOSED FIX: Review date math in calculation engine. Specifically, update the Goa Work Week logic or holiday exceptions.\n")
         f.write("DIRECTIVE UPDATE: Update apps/web/memory/project_scheduler.md to include this new case (e.g., Leap Year or Public Holiday).\n")
 

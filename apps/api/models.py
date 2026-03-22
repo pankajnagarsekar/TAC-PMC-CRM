@@ -283,6 +283,8 @@ class DerivedFinancialState(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     project_id: str
     category_id: str
+    category_name: Optional[str] = None
+    category_code: Optional[str] = None
     code_id: Optional[str] = None  # Legacy support
     original_budget: Decimal = Decimal("0.0")
     committed_value: Decimal = Decimal("0.0")

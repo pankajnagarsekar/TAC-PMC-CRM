@@ -6,7 +6,7 @@ Aggregates committed and certified values from petty_cash and worker_logs,
 then updates the financial_state collection for dashboard consumption.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from fastapi import HTTPException, status
 from bson import ObjectId
@@ -80,7 +80,7 @@ class FinancialRecalculationService:
             "certified_value": certified_value,
             "balance_budget_remaining": balance_remaining,
             "over_commit_flag": over_commit,
-            "last_recalculated": datetime.utcnow()
+            "last_recalculated": datetime.now(timezone.utc)
         }
 
         await self.db.financial_state.update_one(
@@ -310,7 +310,7 @@ class FinancialRecalculationService:
         if isinstance(last_date, str):
             last_date = datetime.fromisoformat(last_date)
 
-        delta = datetime.utcnow() - last_date
+        delta = datetime.now(timezone.utc) - last_date
         return delta.days
 
     async def validate_financial_document(self, doc_type: str, data: dict, project_id: str, session=None):

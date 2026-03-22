@@ -14,10 +14,12 @@ export default function FundsTab() {
     const { activeProject } = useProjectStore();
     const [showAddModal, setShowAddModal] = useState(false);
 
-    const { data: overheads, error, isLoading, mutate } = useSWR(
-        activeProject ? `/api/site-overheads?project_id=${activeProject.project_id || activeProject._id}` : null,
+    const { data, error, isLoading, mutate } = useSWR(
+        activeProject ? `/api/projects/${activeProject.project_id || activeProject._id}/cash-transactions` : null,
         fetcher
     );
+
+    const transactions = data?.items || [];
 
     const columnDefs: ColDef[] = useMemo(() => [
         {
@@ -37,11 +39,17 @@ export default function FundsTab() {
             cellClass: "font-semibold text-zinc-900 dark:text-white"
         },
         {
+            headerName: "Category",
+            field: "category_name",
+            flex: 1,
+            cellClass: "text-[10px] uppercase font-black tracking-widest text-zinc-500 dark:text-slate-500"
+        },
+        {
             headerName: "Disbursement",
             field: "amount",
             flex: 1,
             cellRenderer: (params: any) => (
-                <span className="font-mono font-bold text-orange-400">
+                <span className="font-mono font-bold text-rose-500 dark:text-rose-400">
                     {formatCurrency(params.value || 0)}
                 </span>
             )
@@ -62,8 +70,8 @@ export default function FundsTab() {
     ], []);
 
     const totalOverheads = useMemo(() => {
-        return (overheads as any[])?.reduce((sum: number, o: any) => sum + (o.amount || 0), 0) || 0;
-    }, [overheads]);
+        return (transactions as any[])?.reduce((sum: number, o: any) => sum + (parseFloat(o.amount) || 0), 0) || 0;
+    }, [transactions]);
 
     if (!activeProject) {
         return (
@@ -116,7 +124,7 @@ export default function FundsTab() {
                         </div>
                     ) : (
                         <FinancialGrid
-                            rowData={overheads || []}
+                            rowData={transactions || []}
                             columnDefs={columnDefs}
                             loading={isLoading}
                             height="500px"

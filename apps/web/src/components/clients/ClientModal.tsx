@@ -24,31 +24,30 @@ interface ClientModalProps {
 
 export default function ClientModal({ isOpen, onClose, onSuccess, client }: ClientModalProps) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<ClientCreate>>({
-    client_name: '',
-    client_email: '',
-    client_phone: '',
-    client_address: '',
-    gst_number: '',
+  const [formData, setFormData] = useState<any>({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    gstin: '',
   });
 
   useEffect(() => {
     if (client) {
       setFormData({
-        client_name: client.client_name,
-        client_email: client.client_email || '',
-        client_phone: client.client_phone || '',
-        client_address: client.client_address || '',
-        gst_number: client.gst_number || '',
+        name: (client as any).name || (client as any).client_name || '',
+        email: (client as any).email || (client as any).client_email || '',
+        phone: (client as any).phone || (client as any).client_phone || '',
+        address: (client as any).address || (client as any).client_address || '',
+        gstin: (client as any).gstin || (client as any).gst_number || '',
       });
     } else {
       setFormData({
-        client_name: '',
-        client_email: '',
-        client_phone: '',
-        client_address: '',
-        gst_number: '',
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        gstin: '',
       });
     }
   }, [client, isOpen]);
@@ -103,8 +102,8 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
                 required
                 className={inputStyle}
                 placeholder="e.g. Acme Constructions Pvt Ltd"
-                value={formData.client_name}
-                onChange={e => setFormData({ ...formData, client_name: e.target.value })}
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
 
@@ -115,8 +114,8 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
                   type="email"
                   className={inputStyle}
                   placeholder="contact@client.com"
-                  value={formData.client_email}
-                  onChange={e => setFormData({ ...formData, client_email: e.target.value })}
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
               <div>
@@ -124,8 +123,8 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
                 <input
                   className={inputStyle}
                   placeholder="+91 XXXXX XXXXX"
-                  value={formData.client_phone}
-                  onChange={e => setFormData({ ...formData, client_phone: e.target.value })}
+                  value={formData.phone}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -135,8 +134,8 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
               <input
                 className={inputStyle}
                 placeholder="27AAAAA0000A1Z5"
-                value={formData.gst_number}
-                onChange={e => setFormData({ ...formData, gst_number: e.target.value })}
+                value={formData.gstin}
+                onChange={e => setFormData({ ...formData, gstin: e.target.value })}
               />
             </div>
 
@@ -145,8 +144,8 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
               <textarea
                 className={`${inputStyle} min-h-[100px] py-3 resize-none`}
                 placeholder="Full business address..."
-                value={formData.client_address}
-                onChange={e => setFormData({ ...formData, client_address: e.target.value })}
+                value={formData.address}
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
               />
             </div>
           </div>

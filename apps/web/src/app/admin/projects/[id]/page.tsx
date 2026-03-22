@@ -24,6 +24,7 @@ import { formatCurrency, formatDate } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
+import LinkedWorkOrders from "@/components/work-orders/LinkedWorkOrders";
 import KPICard from "@/components/ui/KPICard";
 
 export default function ProjectDetailPage() {
@@ -60,11 +61,16 @@ export default function ProjectDetailPage() {
     () => [
       {
         headerName: "Category/Code",
-        field: "category_id",
+        field: "category_name",
         flex: 1.5,
         cellRenderer: (params: any) => (
           <div className="flex flex-col justify-center py-1">
-            <span className="font-semibold text-zinc-900 dark:text-white">{params.value}</span>
+            <span className="font-semibold text-zinc-900 dark:text-white">
+              {params.value || params.data.category_id}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-mono">
+              {params.data.category_code}
+            </span>
             {params.data.over_commit_flag && (
               <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">
                 Budget Overrun
@@ -289,8 +295,9 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Linked Certificates section */}
-      <div className="pt-4">
+      {/* Financial Records */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <LinkedWorkOrders projectId={projectId} />
         <LinkedCertificates projectId={projectId} />
       </div>
 

@@ -3,10 +3,14 @@ from typing import List, Optional, Literal
 from datetime import datetime
 from bson import ObjectId
 from auth import get_current_user
-from models import DPR, WorkersDailyLog, VoiceLog
+from models import (
+    DPR, WorkersDailyLog, VoiceLog, 
+    SiteOverhead, SiteOverheadCreate, SiteOverheadUpdate
+)
 from core.database import db_manager
 from permissions import PermissionChecker
 from audit_service import AuditService
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/api/site-operations", tags=["Site Operations"])
 
@@ -14,6 +18,7 @@ router = APIRouter(prefix="/api/site-operations", tags=["Site Operations"])
 dpr_router = APIRouter(prefix="/api", tags=["DPR"])
 attendance_router = APIRouter(prefix="/api", tags=["Attendance"])
 voice_log_router = APIRouter(prefix="/api", tags=["Voice Logs"])
+site_overheads_router = APIRouter(prefix="/api", tags=["Site Overheads"])
 
 
 class _LazyDB:
@@ -168,7 +173,7 @@ async def approve_dpr(dpr_id: str, current_user: dict = Depends(get_current_user
         {"$set": {
             "status": DPR_STATUS_APPROVED,
             "approved_by": user["user_id"],
-            "approved_at": datetime.utcnow()
+            "approved_at": datetime.now(timezone.utc)
         }},
         return_document=True
     )
@@ -222,7 +227,7 @@ async def reject_dpr(
             "status": DPR_STATUS_REJECTED,
             "rejection_reason": reason,
             "rejected_by": user["user_id"],
-            "rejected_at": datetime.utcnow()
+            "rejected_at": datetime.now(timezone.utc)
         }},
         return_document=True
     )
@@ -296,7 +301,7 @@ async def verify_attendance(log_id: str, current_user: dict = Depends(get_curren
         {"_id": ObjectId(log_id)},
         {"$set": {
             "verified_by_admin": True,
-            "verified_at": datetime.utcnow(),
+            "verified_at": datetime.now(timezone.utc),
             "verified_user_id": user["user_id"]
         }},
         return_document=True
@@ -308,7 +313,7 @@ async def verify_attendance(log_id: str, current_user: dict = Depends(get_curren
             {"_id": ObjectId(log_id)},
             {"$set": {
                 "verified_by_admin": True,
-                "verified_at": datetime.utcnow(),
+                "verified_at": datetime.now(timezone.utc),
                 "verified_user_id": user["user_id"]
             }},
             return_document=True
@@ -442,7 +447,7 @@ async def approve_dpr_spec(dpr_id: str, current_user: dict = Depends(get_current
         {"$set": {
             "status": DPR_STATUS_APPROVED,
             "approved_by": user["user_id"],
-            "approved_at": datetime.utcnow()
+            "approved_at": datetime.now(timezone.utc)
         }},
         return_document=True
     )
@@ -491,7 +496,7 @@ async def reject_dpr_spec(
         {"$set": {
             "status": DPR_STATUS_REJECTED,
             "rejected_by": user["user_id"],
-            "rejected_at": datetime.utcnow(),
+            "rejected_at": datetime.now(timezone.utc),
             "rejection_reason": reason
         }},
         return_document=True
@@ -564,7 +569,7 @@ async def verify_attendance_spec(log_id: str, current_user: dict = Depends(get_c
         {"_id": ObjectId(log_id)},
         {"$set": {
             "verified_by_admin": True,
-            "verified_at": datetime.utcnow(),
+            "verified_at": datetime.now(timezone.utc),
             "verified_user_id": user["user_id"]
         }},
         return_document=True
@@ -575,7 +580,7 @@ async def verify_attendance_spec(log_id: str, current_user: dict = Depends(get_c
             {"_id": ObjectId(log_id)},
             {"$set": {
                 "verified_by_admin": True,
-                "verified_at": datetime.utcnow(),
+                "verified_at": datetime.now(timezone.utc),
                 "verified_user_id": user["user_id"]
             }},
             return_document=True
@@ -630,3 +635,86 @@ async def get_voice_log_detail_spec(log_id: str, current_user: dict = Depends(ge
     log = serialize_doc(log)
     log = await enrich_voice_log_with_supervisor(log)
     return log
+
+
+# ============================================
+# SITE OVERHEAD ENDPOINTS (Refactored)
+# ============================================
+
+@site_overheads_router.get("/site-overheads", response_model=List[SiteOverhead])
+async def list_site_overheads(project_id: str, current_user: dict = Depends(get_current_user)):
+    """List all site overhead entries for a project"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    # Check if project belongs to organisation
+    project = await db.projects.find_one({"_id": ObjectId(project_id), "organisation_id": user["organisation_id"]})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found in your organisation")
+
+    entries = await db.site_overheads.find({"project_id": project_id}).to_list(length=500)
+    return [serialize_doc(e) for e in entries]
+
+
+@site_overheads_router.post("/site-overheads", response_model=SiteOverhead, status_code=status.HTTP_201_CREATED)
+async def create_site_overhead(entry_data: SiteOverheadCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new site overhead entry"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+
+    # Check project
+    project = await db.projects.find_one({"_id": ObjectId(entry_data.project_id), "organisation_id": user["organisation_id"]})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    entry_dict = entry_data.model_dump()
+    entry_dict["created_by"] = user["user_id"]
+    entry_dict["organisation_id"] = user["organisation_id"]
+    entry_dict["created_at"] = datetime.now(timezone.utc)
+
+    result = await db.site_overheads.insert_one(entry_dict)
+    entry_dict["_id"] = result.inserted_id
+
+    # Audit log
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="SITE_OVERHEADS",
+        entity_type="SITE_OVERHEAD",
+        entity_id=str(result.inserted_id),
+        action_type="CREATE",
+        user_id=user["user_id"],
+        project_id=entry_data.project_id,
+        new_value={"amount": float(entry_data.amount), "purpose": entry_data.purpose}
+    )
+    return serialize_doc(entry_dict)
+
+
+@site_overheads_router.put("/site-overheads/{entry_id}", response_model=SiteOverhead)
+async def update_site_overhead(entry_id: str, entry_data: SiteOverheadUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a site overhead entry"""
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+
+    update_data = {k: v for k, v in entry_data.model_dump().items() if v is not None}
+    result = await db.site_overheads.find_one_and_update(
+        {"_id": ObjectId(entry_id)},
+        {"$set": update_data},
+        return_document=True
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Site overhead entry not found")
+
+    # Audit log
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="SITE_OVERHEADS",
+        entity_type="SITE_OVERHEAD",
+        entity_id=entry_id,
+        action_type="UPDATE",
+        user_id=user["user_id"],
+        project_id=result["project_id"],
+        new_value=serialize_doc(result)
+    )
+    return serialize_doc(result)

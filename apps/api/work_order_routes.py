@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from core.database import get_db, db_manager
 from auth import get_current_user
 from models import WorkOrderCreate, WorkOrder, WorkOrderUpdate
@@ -236,7 +236,7 @@ async def update_work_order_status(
 
     await db.work_orders.update_one(
         {"_id": ObjectId(wo_id)},
-        {"$set": {"status": status, "updated_at": datetime.utcnow()}, "$inc": {"version": 1}}
+        {"$set": {"status": status, "updated_at": datetime.now(timezone.utc)}, "$inc": {"version": 1}}
     )
 
     await audit_service.log_action(

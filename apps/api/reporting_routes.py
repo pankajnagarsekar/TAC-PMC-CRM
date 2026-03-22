@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 
 from core.database import get_db
@@ -155,7 +155,7 @@ async def export_report_excel(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     
-    filename = f"{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"{report_type}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
     
     return Response(
         content=excel_bytes,
@@ -218,7 +218,7 @@ async def export_report_pdf(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     
-    filename = f"{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"{report_type}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.pdf"
     
     return Response(
         content=pdf_bytes,
@@ -258,7 +258,7 @@ async def export_work_order_pdf(
                 f"{len(wo.get('line_items', []))} items",
                 float(wo.get("grand_total", 0)),
                 wo.get("status", "Draft"),
-                wo.get("created_at", datetime.utcnow()).strftime("%Y-%m-%d"),
+                wo.get("created_at", datetime.now(timezone.utc)).strftime("%Y-%m-%d"),
             ]
         ]
     }
@@ -276,7 +276,7 @@ async def export_work_order_pdf(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     
-    filename = f"WO_{wo.get('wo_ref', wo_id)}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    filename = f"WO_{wo.get('wo_ref', wo_id)}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
     
     return Response(
         content=pdf_bytes,
@@ -316,7 +316,7 @@ async def export_payment_certificate_pdf(
                 f"{len(pc.get('line_items', []))} items",
                 float(pc.get("grand_total", 0)),
                 pc.get("status", "Draft"),
-                pc.get("created_at", datetime.utcnow()).strftime("%Y-%m-%d"),
+                pc.get("created_at", datetime.now(timezone.utc)).strftime("%Y-%m-%d"),
             ]
         ]
     }
@@ -334,7 +334,7 @@ async def export_payment_certificate_pdf(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     
-    filename = f"PC_{pc.get('pc_ref', pc_id)}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    filename = f"PC_{pc.get('pc_ref', pc_id)}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
     
     return Response(
         content=pdf_bytes,

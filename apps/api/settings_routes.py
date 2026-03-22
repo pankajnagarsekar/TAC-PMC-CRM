@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, List
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import get_db
 from auth import get_current_user
@@ -68,7 +68,7 @@ async def update_global_settings(
     
     # Remove _id if present to avoid immutable field error
     settings_data.pop("_id", None)
-    settings_data["updated_at"] = datetime.utcnow()
+    settings_data["updated_at"] = datetime.now(timezone.utc)
     settings_data["organisation_id"] = user["organisation_id"]
     
     await db.global_settings.update_one(
@@ -107,8 +107,8 @@ async def create_category(
     
     doc = category_data.dict()
     doc["organisation_id"] = user["organisation_id"]
-    doc["created_at"] = datetime.utcnow()
-    doc["updated_at"] = datetime.utcnow()
+    doc["created_at"] = datetime.now(timezone.utc)
+    doc["updated_at"] = datetime.now(timezone.utc)
     doc["active_status"] = True
     
     result = await db.code_master.insert_one(doc)
@@ -127,7 +127,7 @@ async def update_category(
     await checker.check_admin_role(user)
     
     update_data = {k: v for k, v in category_data.dict(exclude_unset=True).items() if v is not None}
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
     
     result = await db.code_master.update_one(
         {"_id": ObjectId(code_id), "organisation_id": user["organisation_id"]},

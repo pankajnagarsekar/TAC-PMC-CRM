@@ -2,7 +2,7 @@ import asyncio
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.context import CryptContext
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,7 +25,7 @@ async def reseed_admin():
     org_name = "TAC-PMC Construction"
     org = await db.organisations.find_one({"name": org_name})
     if not org:
-        res = await db.organisations.insert_one({"name": org_name, "created_at": datetime.utcnow()})
+        res = await db.organisations.insert_one({"name": org_name, "created_at": datetime.now(timezone.utc)})
         org_id = str(res.inserted_id)
     else:
         org_id = str(org["_id"])
@@ -40,10 +40,10 @@ async def reseed_admin():
                 "role": "Admin",
                 "active_status": True,
                 "organisation_id": org_id,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             },
             "$setOnInsert": {
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
                 "dpr_generation_permission": False
             }
         },

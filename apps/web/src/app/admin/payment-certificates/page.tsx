@@ -36,7 +36,7 @@ export default function PaymentCertificatesPage() {
     else setIsMoreLoading(true);
 
     try {
-      const url = `/api/projects/${activeProject.project_id}/payment-certificates?limit=50${cursor ? `&cursor=${cursor}` : ''}`;
+      const url = `/api/payment-certificates?project_id=${activeProject.project_id || (activeProject as any)._id}&limit=50${cursor ? `&cursor=${cursor}` : ''}`;
       const res = await api.get<{ items: PaymentCertificate[], next_cursor: string | null }>(url);
 
       if (!cursor) {

@@ -4,10 +4,11 @@ Handles report generation with strict compliance to spec templates
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from io import BytesIO
 import json
+import os
 
 try:
     from openpyxl import Workbook
@@ -186,8 +187,7 @@ class ExportService:
         template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
         template_path = os.path.join(template_dir, template_filename) if template_filename else None
         
-        import os as os_lib
-        if template_path and os_lib.path.exists(template_path):
+        if template_path and os.path.exists(template_path):
             from openpyxl import load_workbook
             wb = load_workbook(template_path)
             ws = wb.active
@@ -237,7 +237,7 @@ class ExportService:
         if company_info:
             ws['C2'] = company_info.get("project_name", "")
             ws['C3'] = company_info.get("client_name", "")
-            ws['C4'] = datetime.now().strftime("%Y-%m-%d")
+            ws['C4'] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         # Add Terms & Conditions if requested
         if include_terms and terms_text:
@@ -372,7 +372,7 @@ class ExportService:
             html_parts.append(f"<p>{company_info.get('address', '')}</p>")
 
         html_parts.append(f"<h2>{template['description']}</h2>")
-        html_parts.append(f"<p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>")
+        html_parts.append(f"<p>Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}</p>")
         html_parts.append("</div>")
 
         # Add table

@@ -17,7 +17,7 @@ RULES:
 """
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict
 from bson import ObjectId
 import hashlib
@@ -139,7 +139,7 @@ class SecurityHardening:
         URL format: /media/{resource_path}?sig={signature}&exp={expiration}&org={org_id}
         """
         expiration = expiration_hours or self.DEFAULT_URL_EXPIRATION
-        expires_at = datetime.utcnow() + timedelta(hours=expiration)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=expiration)
         expires_ts = int(expires_at.timestamp())
 
         # Create signature
@@ -183,7 +183,7 @@ class SecurityHardening:
                 user_organisation_id, organisation_id)
 
         # Check expiration
-        if datetime.utcnow().timestamp() > expiration:
+        if datetime.now(timezone.utc).timestamp() > expiration:
             raise SignedURLExpiredError("Signed URL has expired")
 
         # Decode path
@@ -236,7 +236,7 @@ class SecurityHardening:
             "request_summary": self._sanitize_request(request_data) if request_data else None,
             "response_status": response_status,
             "ip_address": ip_address,
-            "timestamp": datetime.utcnow()}
+            "timestamp": datetime.now(timezone.utc)}
 
         await self.db.mutation_audit_log.insert_one(audit_doc)
 
@@ -312,13 +312,13 @@ class SecurityHardening:
 
         update_data = {k: v for k, v in settings.items() if k in allowed_keys}
         update_data["updated_by"] = user_id
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
 
         await self.db.organisation_settings.update_one(
             {"organisation_id": organisation_id},
             {
                 "$set": update_data,
-                "$setOnInsert": {"organisation_id": organisation_id, "created_at": datetime.utcnow()}
+                "$setOnInsert": {"organisation_id": organisation_id, "created_at": datetime.now(timezone.utc)}
             },
             upsert=True
         )
@@ -333,7 +333,7 @@ class SecurityHardening:
             "old_value_json": old_settings,
             "new_value_json": update_data,
             "user_id": user_id,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         })
 
         logger.info(f"[SETTINGS] Updated for org {organisation_id}")

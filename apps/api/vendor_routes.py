@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from core.database import get_db
@@ -66,8 +66,8 @@ async def create_vendor(
     vendor_dict = vendor_data.model_dump()
     vendor_dict["organisation_id"] = user["organisation_id"]
     vendor_dict["active_status"] = True
-    vendor_dict["created_at"] = datetime.utcnow()
-    vendor_dict["updated_at"] = datetime.utcnow()
+    vendor_dict["created_at"] = datetime.now(timezone.utc)
+    vendor_dict["updated_at"] = datetime.now(timezone.utc)
 
     result = await db.vendors.insert_one(vendor_dict)
     vendor_dict["_id"] = result.inserted_id
@@ -136,7 +136,7 @@ async def update_vendor(
         raise HTTPException(status_code=404, detail="Vendor not found")
 
     update_data = vendor_update.model_dump(exclude_unset=True)
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
 
     result = await db.vendors.find_one_and_update(
         {"_id": ObjectId(vendor_id), "organisation_id": user["organisation_id"]},
@@ -198,7 +198,7 @@ async def delete_vendor(
 
     result = await db.vendors.update_one(
         {"_id": ObjectId(vendor_id), "organisation_id": user["organisation_id"]},
-        {"$set": {"active_status": False, "updated_at": datetime.utcnow()}}
+        {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}}
     )
 
     if result.modified_count == 0:
@@ -214,7 +214,7 @@ async def delete_vendor(
         action_type="SOFT_DELETE",
         user_id=user["user_id"],
         old_value=serialize_doc(existing),  # FULL JSON snapshot per spec 6.1.2
-        new_value={"active_status": False, "deleted_at": datetime.utcnow().isoformat()}
+        new_value={"active_status": False, "deleted_at": datetime.now(timezone.utc).isoformat()}
     )
 
     return {"status": "success", "message": "Vendor deleted"}

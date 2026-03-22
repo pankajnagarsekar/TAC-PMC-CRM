@@ -1,7 +1,7 @@
 """
 Authentication module for JWT token management.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -60,13 +60,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode["jti"] = jti
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
         "type": "access"
     })
     
@@ -89,15 +89,15 @@ def create_refresh_token(user_id: str, expires_delta: Optional[timedelta] = None
     jti = generate_jti()
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     
     to_encode = {
         "user_id": user_id,
         "jti": jti,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
         "type": "refresh"
     }
     
@@ -193,7 +193,7 @@ async def revoke_token(jti: str, token_type: str, db) -> None:
     await db.token_blacklist.insert_one({
         "jti": jti,
         "token_type": token_type,
-        "revoked_at": datetime.utcnow()
+        "revoked_at": datetime.now(timezone.utc)
     })
 
 
@@ -222,7 +222,7 @@ async def revoke_all_user_tokens(user_id: str, db) -> None:
     # Mark all refresh tokens as revoked
     await db.refresh_tokens.update_many(
         {"user_id": user_id, "is_revoked": False},
-        {"$set": {"is_revoked": True, "revoked_at": datetime.utcnow()}}
+        {"$set": {"is_revoked": True, "revoked_at": datetime.now(timezone.utc)}}
     )
 
 

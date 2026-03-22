@@ -29,7 +29,7 @@ from auth import get_current_user, get_token_from_header_or_query
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Request
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from bson import ObjectId, Decimal128
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 import logging
@@ -705,8 +705,8 @@ async def create_dpr(
         "status": "Draft",
         "locked_flag": False,
         "version_number": 1,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
     }
 
     result = await db.dpr.insert_one(dpr_doc)
@@ -1005,7 +1005,7 @@ async def add_dpr_image(
         "aspect_ratio": "9:16",
         "size_kb": estimated_size_kb,
         "uploaded_by": user["user_id"],
-        "uploaded_at": datetime.utcnow().isoformat()
+        "uploaded_at": datetime.now(timezone.utc).isoformat()
     }
 
     # Add to DPR
@@ -1014,7 +1014,7 @@ async def add_dpr_image(
         {
             "$push": {"images": image_doc},
             "$inc": {"image_count": 1},
-            "$set": {"updated_at": datetime.utcnow()}
+            "$set": {"updated_at": datetime.now(timezone.utc)}
         }
     )
 
@@ -1062,7 +1062,7 @@ async def update_image_caption(
         {
             "$set": {
                 "images.$.caption": request.caption,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -1196,8 +1196,8 @@ async def generate_dpr_pdf(
                     "pdf_generated": True,
                     "file_name": file_name,
                     "file_size_kb": round(file_size_kb, 2),
-                    "pdf_generated_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
+                    "pdf_generated_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc)
                 }
             }
         )
@@ -1379,7 +1379,7 @@ async def submit_dpr(
                 "pdf_generated": pdf_base64 is not None,
                 "file_name": file_name,
                 "file_size_kb": round(file_size_kb, 2),
-                "pdf_generated_at": datetime.utcnow(),
+                "pdf_generated_at": datetime.now(timezone.utc),
                 "pdf_checksum": pdf_checksum,
             }
         }
@@ -1405,8 +1405,8 @@ async def submit_dpr(
                 "status": "submitted",
                 "locked_flag": True,
                 "locked_snapshot_version": snapshot.get("version", 1),
-                "submitted_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "submitted_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -1414,7 +1414,7 @@ async def submit_dpr(
     # Create notification for admin
     try:
         # Format DPR date and time for message
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         time_str = now.strftime("%I:%M %p")  # e.g., "02:30 PM"
 
         if isinstance(dpr_date_obj, datetime):
@@ -1613,7 +1613,7 @@ async def update_dpr(
     if request.status is not None:
         update_data["status"] = request.status
 
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
 
     await db.dpr.update_one(
         {"_id": dpr_object_id},
@@ -1648,7 +1648,7 @@ async def pm_health():
     return {
         "status": "healthy",
         "wave": "3",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "features": {
             "snapshot_engine": True,
             "background_jobs": True,
@@ -1776,7 +1776,7 @@ async def mark_attendance(
     project_id = body.get("project_id")
     location = body.get("location", {})
 
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Check if already marked today
     existing = await db.attendance.find_one({
@@ -1794,7 +1794,7 @@ async def mark_attendance(
         "role": user.get("role", "Supervisor"),
         "organisation_id": user["organisation_id"],
         "project_id": project_id,
-        "check_in_time": datetime.utcnow(),
+        "check_in_time": datetime.now(timezone.utc),
         "location": location,
         "status": "checked_in",
     }
@@ -1812,7 +1812,7 @@ async def check_attendance(
     """Check if current user has marked attendance today"""
     user = await permission_checker.get_authenticated_user(current_user)
 
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     query = {
         "user_id": user["user_id"],
@@ -2139,7 +2139,7 @@ async def get_admin_projects_overview(
             "status": {"$in": ["active", "Active"]}
         }).to_list(length=100)
 
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         result = []
 
         for project in projects:
@@ -2283,7 +2283,7 @@ async def get_admin_dashboard_stats(
             dpr_query["project_id"] = project_id
 
         # Count today's DPRs
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         today_query = {**dpr_query, "created_at": {"$gte": today}}
         dprs_today = await db.dpr.count_documents(today_query)
 

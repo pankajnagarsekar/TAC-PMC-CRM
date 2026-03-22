@@ -14,7 +14,7 @@ This module provides snapshot functionality WITHOUT modifying financial logic.
 """
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from decimal import Decimal
 from bson.decimal128 import Decimal128
@@ -148,7 +148,7 @@ class SnapshotService:
                 "sgst_percentage": 9.0,
                 "date_format": "DD/MM/YYYY",
                 "financial_year_start_month": 4,
-                "captured_at": datetime.utcnow().isoformat()
+                "captured_at": datetime.now(timezone.utc).isoformat()
             }
 
         # Create clean copy without MongoDB internals
@@ -163,7 +163,7 @@ class SnapshotService:
             "pan_number": settings.get("pan_number"),
             "organisation_name": settings.get("organisation_name"),
             "organisation_address": settings.get("organisation_address"),
-            "captured_at": datetime.utcnow().isoformat()
+            "captured_at": datetime.now(timezone.utc).isoformat()
         })
 
     async def get_next_version(
@@ -227,7 +227,7 @@ class SnapshotService:
             "settings_json": settings,
             "data_checksum": data_checksum,
             "pdf_checksum": pdf_checksum,
-            "generated_at": datetime.utcnow(),
+            "generated_at": datetime.now(timezone.utc),
             "generated_by": user_id,
             "is_latest": True
         }
@@ -364,7 +364,7 @@ class DocumentLockService:
             {
                 "$set": {
                     "locked_flag": True,
-                    "locked_at": datetime.utcnow(),
+                    "locked_at": datetime.now(timezone.utc),
                     "locked_by": user_id,
                     "locked_snapshot_version": snapshot_version
                 }
@@ -403,7 +403,7 @@ class DocumentLockService:
             "document_id": document_id,
             "user_id": user_id,
             "reason": reason,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.now(timezone.utc)
         })
 
         result = await self.db[collection].update_one(
@@ -411,7 +411,7 @@ class DocumentLockService:
             {
                 "$set": {
                     "locked_flag": False,
-                    "unlocked_at": datetime.utcnow(),
+                    "unlocked_at": datetime.now(timezone.utc),
                     "unlocked_by": user_id,
                     "unlock_reason": reason
                 }
