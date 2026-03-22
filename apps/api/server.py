@@ -1538,7 +1538,7 @@ async def get_project(project_id: str, current_user: dict = Depends(get_current_
     return serialize_doc(project)
 
 
-@api_router.put("/projects/{project_id}", response_model=Project)
+@api_router.put("/projects/{project_id}")
 async def update_project(
     project_id: str,
     project_data: ProjectUpdate,
@@ -1555,6 +1555,7 @@ async def update_project(
         # Check if project access (this also validates organisation isolation)
         await permission_checker.check_project_access(user, project_id, require_write=True)
 
+        # Build update dict - only include non-null values
         update_dict = {k: v for k, v in project_data.dict(exclude_unset=True).items() if v is not None}
         update_dict["updated_at"] = datetime.now(timezone.utc)
 
@@ -1588,12 +1589,17 @@ async def update_project(
             logger.warning(f"Failed to log audit for project update {project_id}: {audit_err}")
             # Continue without blocking the response
 
-        result["project_id"] = str(result["_id"])
-        return serialize_doc(result)
+        # Serialize and return the updated project
+        serialized = serialize_doc(result)
+        # Ensure project_id field is set for frontend
+        if serialized and "_id" in serialized:
+            serialized["project_id"] = serialized["_id"]
+        return serialized
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating project {project_id}: {e}")
+        logger.error(f"Error updating project {project_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
 
 
