@@ -15,7 +15,7 @@ from bson import ObjectId, Decimal128  # noqa: E402
 from decimal import Decimal  # noqa: E402
 import logging  # noqa: E402
 from typing import List, Optional, Dict, Any  # noqa: E402
-from datetime import datetime  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
 from project_management_routes import project_management_router  # noqa: E402
 from financial_routes import financial_router  # noqa: E402
 from hardened_routes import hardened_router  # noqa: E402
@@ -23,7 +23,7 @@ from vendor_routes import router as vendor_router  # noqa: E402
 from work_order_routes import router as work_order_router, project_scoped_router as work_order_project_router  # noqa: E402
 from payment_certificate_routes import pc_router  # noqa: E402
 from cash_routes import cash_router  # noqa: E402
-from site_operations_routes import router as site_operations_router, dpr_router, attendance_router, voice_log_router  # noqa: E402
+from site_operations_routes import router as site_operations_router, dpr_router, attendance_router, voice_log_router, site_overheads_router  # noqa: E402
 from core.database import db_manager  # noqa: E402
 from reporting_routes import reporting_router  # noqa: E402
 from settings_routes import settings_router  # noqa: E402
@@ -146,8 +146,8 @@ async def create_client(client_data: ClientCreate, current_user: dict = Depends(
 
     client_dict = client_data.dict()
     client_dict["organisation_id"] = user["organisation_id"]
-    client_dict["created_at"] = datetime.utcnow()
-    client_dict["updated_at"] = datetime.utcnow()
+    client_dict["created_at"] = datetime.now(timezone.utc)
+    client_dict["updated_at"] = datetime.now(timezone.utc)
     client_dict["active_status"] = True
 
     result = await db.clients.insert_one(client_dict)
@@ -186,7 +186,7 @@ async def update_client(client_id: str, client_data: ClientUpdate, current_user:
     await permission_checker.check_admin_role(user)
 
     update_data = {k: v for k, v in client_data.dict().items() if v is not None}
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
 
     result = await db.clients.find_one_and_update(
         {"_id": ObjectId(client_id), "organisation_id": user["organisation_id"]},
@@ -225,7 +225,7 @@ async def delete_client(client_id: str, current_user: dict = Depends(get_current
 
     result = await db.clients.find_one_and_update(
         {"_id": ObjectId(client_id), "organisation_id": user["organisation_id"]},
-        {"$set": {"active_status": False, "updated_at": datetime.utcnow()}},
+        {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}},
         return_document=True
     )
     if not result:
@@ -245,103 +245,48 @@ async def delete_client(client_id: str, current_user: dict = Depends(get_current
 
 
 # ============================================
-# SITE OVERHEAD ENDPOINTS
-# ============================================
-@api_router.get("/site-overheads", response_model=List[SiteOverhead])
-async def list_site_overheads(project_id: str, current_user: dict = Depends(get_current_user)):
-    """List all site overhead entries for a project"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    # Check if project belongs to organisation
-    project = await db.projects.find_one({"project_id": project_id, "organisation_id": user["organisation_id"]})
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found in your organisation")
 
-    entries = await db.site_overheads.find({"project_id": project_id}).to_list(length=500)
-    return [serialize_doc(e) for e in entries]
-
-
-@api_router.post("/site-overheads", response_model=SiteOverhead, status_code=status.HTTP_201_CREATED)
-async def create_site_overhead(entry_data: SiteOverheadCreate, current_user: dict = Depends(get_current_user)):
-    """Create a new site overhead entry"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
-    await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_client_readonly(user)
-    await permission_checker.check_admin_role(user)
-
-    # Check project
-    project = await db.projects.find_one({"project_id": entry_data.project_id, "organisation_id": user["organisation_id"]})
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    entry_dict = entry_data.dict()
-    entry_dict["created_by"] = user["user_id"]
-    entry_dict["organisation_id"] = user["organisation_id"]
-    entry_dict["created_at"] = datetime.utcnow()
-
-    result = await db.site_overheads.insert_one(entry_dict)
-    entry_dict["_id"] = result.inserted_id
-
-    # Audit log
-    await audit_service.log_action(
-        organisation_id=user["organisation_id"],
-        module_name="SITE_OVERHEADS",
-        entity_type="SITE_OVERHEAD",
-        entity_id=str(result.inserted_id),
-        action_type="CREATE",
-        user_id=user["user_id"],
-        project_id=entry_data.project_id,
-        new_value={"amount": entry_data.amount, "purpose": entry_data.purpose}
-    )
-    return serialize_doc(entry_dict)
-
-
-@api_router.put("/site-overheads/{entry_id}", response_model=SiteOverhead)
-async def update_site_overhead(entry_id: str, entry_data: SiteOverheadUpdate, current_user: dict = Depends(get_current_user)):
-    """Update a site overhead entry"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
-    await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_client_readonly(user)
-    await permission_checker.check_admin_role(user)
-
-    update_data = {k: v for k, v in entry_data.dict().items() if v is not None}
-    result = await db.site_overheads.find_one_and_update(
-        {"_id": ObjectId(entry_id)},
-        {"$set": update_data},
-        return_document=True
-    )
-    if not result:
-        raise HTTPException(status_code=404, detail="Site overhead entry not found")
-
-    # Audit log
-    await audit_service.log_action(
-        organisation_id=user["organisation_id"],
-        module_name="SITE_OVERHEADS",
-        entity_type="SITE_OVERHEAD",
-        entity_id=entry_id,
-        action_type="UPDATE",
-        user_id=user["user_id"],
-        project_id=result.get("project_id"),
-        new_value=update_data
-    )
-    return serialize_doc(result)
 
 
 # ============================================
 # PAYMENT CERTIFICATE ENDPOINTS
 # ============================================
-@api_router.get("/payment-certificates", response_model=List[PaymentCertificate])
-async def list_payment_certificates(project_id: str, current_user: dict = Depends(get_current_user)):
+@api_router.get("/payment-certificates")
+async def list_payment_certificates(
+    project_id: str = Query(..., description="Project ID"),
+    limit: int = Query(50, ge=1, le=500, description="Results limit"),
+    cursor: Optional[str] = Query(None, description="Pagination cursor"),
+    current_user: dict = Depends(get_current_user)
+):
     """List all payment certificates for a project"""
     user = await permission_checker.get_authenticated_user(current_user)
     # Check project
-    project = await db.projects.find_one({"project_id": project_id, "organisation_id": user["organisation_id"]})
+    project = await db.projects.find_one({"_id": ObjectId(project_id), "organisation_id": user["organisation_id"]})
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    certificates = await db.payment_certificates.find({"project_id": project_id}).to_list(length=500)
-    return [serialize_doc(c) for c in certificates]
+    query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
+    if cursor:
+        try:
+            parsed_cursor = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
+            query["created_at"] = {"$lt": parsed_cursor}
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid cursor format")
+
+    cursor_obj = db.payment_certificates.find(query).sort("created_at", -1).limit(limit)
+    docs = await cursor_obj.to_list(length=limit)
+
+    next_cursor = None
+    if len(docs) == limit:
+        last_doc = docs[-1]
+        ts = last_doc.get("created_at")
+        if isinstance(ts, datetime):
+            next_cursor = ts.isoformat()
+
+    return {
+        "items": [serialize_doc(c) for c in docs],
+        "next_cursor": next_cursor
+    }
 
 
 @api_router.post("/payment-certificates", response_model=PaymentCertificate, status_code=status.HTTP_201_CREATED)
@@ -350,7 +295,7 @@ async def create_payment_certificate(pc_data: PaymentCertificateCreate, current_
     user = await permission_checker.get_authenticated_user(current_user)
     pc_dict = pc_data.dict()
     pc_dict["organisation_id"] = user["organisation_id"]
-    pc_dict["created_at"] = datetime.utcnow()
+    pc_dict["created_at"] = datetime.now(timezone.utc)
     pc_dict["status"] = "draft"
 
     result = await db.payment_certificates.insert_one(pc_dict)
@@ -408,8 +353,8 @@ async def register_user(user_data: UserCreate):
         "role": role,
         "active_status": True,
         "dpr_generation_permission": user_data.dpr_generation_permission,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
     }
     result = await db.users.insert_one(user_dict)
     user_id = str(result.inserted_id)
@@ -478,9 +423,9 @@ async def login(login_data: LoginRequest, response: Response):
         "jti": refresh_payload["jti"],
         "user_id": user_id,
         "token_hash": hash_password(refresh_token),  # Store hashed
-        "expires_at": datetime.utcfromtimestamp(refresh_payload["exp"]),
+        "expires_at": datetime.fromtimestamp(refresh_payload["exp"], tz=timezone.utc),
         "is_revoked": False,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     await db.refresh_tokens.insert_one(refresh_token_doc)
 
@@ -580,9 +525,9 @@ async def refresh_access_token(
             "jti": new_payload["jti"],
             "user_id": user_id,
             "token_hash": hash_password(new_refresh_token),
-            "expires_at": datetime.utcfromtimestamp(new_payload["exp"]),
+            "expires_at": datetime.fromtimestamp(new_payload["exp"], tz=timezone.utc),
             "is_revoked": False,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         })
 
         # Set new refresh token in cookie
@@ -754,7 +699,7 @@ async def update_user(
 
     # Prepare update
     update_dict = update_data.dict(exclude_unset=True)
-    update_dict["updated_at"] = datetime.utcnow()
+    update_dict["updated_at"] = datetime.now(timezone.utc)
 
     # Update user
     await db.users.update_one(
@@ -813,7 +758,7 @@ async def delete_user(
     # Soft delete - deactivate
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
-        {"$set": {"active_status": False, "updated_at": datetime.utcnow()}}
+        {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}}
     )
     return {"message": "User deactivated successfully"}
 
@@ -885,7 +830,7 @@ async def create_mapping(
 
     mapping_dict = mapping_data.dict()
     mapping_dict["organisation_id"] = user["organisation_id"]
-    mapping_dict["created_at"] = datetime.utcnow()
+    mapping_dict["created_at"] = datetime.now(timezone.utc)
 
     result = await db.user_project_map.insert_one(mapping_dict)
     map_id = str(result.inserted_id)
@@ -1028,8 +973,8 @@ async def create_petty_cash(
         "receipt_url": data.get("receipt_url"),
         "status": "pending",
         "created_by": user["user_id"],
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
     }
     result = await db.petty_cash.insert_one(entry)
     entry["petty_cash_id"] = str(result.inserted_id)
@@ -1058,7 +1003,7 @@ async def update_petty_cash(
         "amount": float(data.get("amount", existing.get("amount"))),
         "type": data.get("type", existing.get("type")),
         "category": data.get("category", existing.get("category")),
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.now(timezone.utc)
     }
     await db.petty_cash.update_one({"_id": ObjectId(entry_id)}, {"$set": update_data})
     updated = await db.petty_cash.find_one({"_id": ObjectId(entry_id)})
@@ -1095,7 +1040,7 @@ async def approve_petty_cash(
 
     result = await db.petty_cash.update_one(
         {"_id": ObjectId(entry_id), "organisation_id": user["organisation_id"]},
-        {"$set": {"status": "approved", "approved_by": user["user_id"], "updated_at": datetime.utcnow()}}
+        {"$set": {"status": "approved", "approved_by": user["user_id"], "updated_at": datetime.now(timezone.utc)}}
     )
     if result.modified_count == 0:
         raise HTTPException(status_code=403, detail="Access denied or entry not found")
@@ -1151,7 +1096,7 @@ async def create_worker_log(
             "site_conditions": log_data.site_conditions,
             "remarks": log_data.remarks,
             "status": "submitted",
-            "updated_at": datetime.utcnow()
+            "updated_at": datetime.now(timezone.utc)
         }
         await db.worker_logs.update_one(
             {"_id": existing["_id"]},
@@ -1175,8 +1120,8 @@ async def create_worker_log(
         "site_conditions": log_data.site_conditions,
         "remarks": log_data.remarks,
         "status": "submitted",
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
     }
     result = await db.worker_logs.insert_one(log_dict)
     log_dict["log_id"] = str(result.inserted_id)
@@ -1278,7 +1223,7 @@ async def update_worker_log(
         update_dict["remarks"] = update_data.remarks
     if update_data.status is not None:
         update_dict["status"] = update_data.status
-    update_dict["updated_at"] = datetime.utcnow()
+    update_dict["updated_at"] = datetime.now(timezone.utc)
 
     await db.worker_logs.update_one(
         {"_id": ObjectId(log_id)},
@@ -1372,7 +1317,7 @@ async def check_can_logout(
         return {"can_logout": True, "reason": None}
 
     # For supervisors, check if worker log is submitted for today
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # Get user's assigned projects
     assigned_projects = user.get("assigned_projects", [])
@@ -1435,7 +1380,7 @@ async def create_notification(
         "sender_name": user.get("name", "System"),
         "is_read": False,
         "read_at": None,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     result = await db.notifications.insert_one(notification_doc)
     return {
@@ -1497,7 +1442,7 @@ async def mark_notification_read(
             "_id": ObjectId(notification_id),
             "organisation_id": user["organisation_id"]
         },
-        {"$set": {"is_read": True, "read_at": datetime.utcnow()}}
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc)}}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Notification not found")
@@ -1519,7 +1464,7 @@ async def mark_all_notifications_read(
             ],
             "is_read": False
         },
-        {"$set": {"is_read": True, "read_at": datetime.utcnow()}}
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc)}}
     )
     return {"status": "success", "marked_count": result.modified_count}
 
@@ -1605,7 +1550,7 @@ async def update_project(
     await permission_checker.check_project_access(user, project_id, require_write=True)
     
     update_dict = {k: v for k, v in project_data.dict(exclude_unset=True).items() if v is not None}
-    update_dict["updated_at"] = datetime.utcnow()
+    update_dict["updated_at"] = datetime.now(timezone.utc)
     
     # Find and update
     try:
@@ -1663,7 +1608,7 @@ async def create_or_update_project_budget(
     budget_dict = budget_data.dict()
     budget_dict["project_id"] = project_id
     budget_dict["organisation_id"] = user["organisation_id"]
-    budget_dict["updated_at"] = datetime.utcnow()
+    budget_dict["updated_at"] = datetime.now(timezone.utc)
     
     # Upsert logic
     query = {"project_id": project_id, "category_id": category_id}
@@ -1676,13 +1621,13 @@ async def create_or_update_project_budget(
             {"$set": {
                 "original_budget": Decimal128(str(budget_data.original_budget)),
                 "description": budget_data.description,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }}
         )
         result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
     else:
         # Create
-        budget_dict["created_at"] = datetime.utcnow()
+        budget_dict["created_at"] = datetime.now(timezone.utc)
         budget_dict["original_budget"] = Decimal128(str(budget_data.original_budget))
         budget_dict["committed_amount"] = Decimal128("0.0")
         budget_dict["remaining_budget"] = Decimal128(str(budget_data.original_budget))
@@ -1702,9 +1647,9 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow(),
+        "timestamp": datetime.now(timezone.utc),
         "version": "1.0.0",
-        "phase": "Phase 1 - Foundation"
+        "phase": "Phase 2 - Refactor"
     }
 
 
@@ -1714,6 +1659,7 @@ app.include_router(dpr_router)
 app.include_router(attendance_router)
 app.include_router(voice_log_router)
 app.include_router(reporting_router)
+app.include_router(site_overheads_router)
 app.include_router(api_router)
 
 # Include Phase 2 hardened routes
