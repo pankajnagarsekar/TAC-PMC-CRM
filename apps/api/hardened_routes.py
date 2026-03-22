@@ -390,23 +390,30 @@ async def initialize_project_budgets(
     Initialize a project with all categories with 0 budget.
     Ensures financial state is created for all codes.
     """
-    from server import db, permission_checker, financial_service
+    from server import db, permission_checker, financial_service, audit_service
     
     user = await permission_checker.get_authenticated_user(current_user)
     logger.info(f"Initializing budgets for project {project_id} by user {user['user_id']}")
     
-    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    # Phase 6.3 check
     await permission_checker.check_web_crm_access(user)
     await permission_checker.check_client_readonly(user)
     await permission_checker.check_admin_role(user)
     
-    # 1. Get all codes
-    codes = await db.code_master.find({"active_status": True}).to_list(length=None)
-    logger.info(f"Found {len(codes)} active codes to initialize")
+    await _initialize_budgets_internal(project_id, user, db, permission_checker, financial_service, audit_service)
     
-    # Step 1: Insert all budget and fund_allocation documents in a transaction
-    fund_transfer_count = 0
+    return {
+        "status": "success",
+        "message": f"Budgets initialized and financial state recalculated for project {project_id}"
+    }
+
+async def _initialize_budgets_internal(project_id, user, db, permission_checker, financial_service, audit_service):
+    # Step 1: Initialize budget entries for all active codes
+    # Uses safe transaction session (falls back if unsupported)
     async with db_manager.transaction_session() as session:
+        codes = await db.code_master.find({"active_status": True}).to_list(length=None)
+        logger.info(f"Found {len(codes)} active codes to initialize")
+        
         for code in codes:
             category_id = str(code["_id"])
 
@@ -419,65 +426,69 @@ async def initialize_project_budgets(
                 budget_doc = {
                     "project_id": project_id,
                     "category_id": category_id,
+                    "organisation_id": user["organisation_id"],
                     "original_budget": Decimal128("0.0"),
                     "committed_amount": Decimal128("0.0"),
                     "remaining_budget": Decimal128("0.0"),
+                    "version": 1,
                     "created_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
-                    "version": 1
+                    "updated_at": datetime.now(timezone.utc)
                 }
                 await db.project_category_budgets.insert_one(budget_doc, session=session)
-
-            budget_type = code.get("budget_type", "commitment")
-            if budget_type == "fund_transfer":
-                existing_allocation = await db.fund_allocations.find_one({
-                    "project_id": project_id,
-                    "category_id": category_id
-                }, session=session)
-
-                if not existing_allocation:
+                
+                # Check for Petty/OVH categories for fund allocation
+                if code.get("budget_type") == "fund_transfer":
                     category_budget = await db.project_category_budgets.find_one({
                         "project_id": project_id,
                         "category_id": category_id
                     }, session=session)
+                    
                     original_budget = float(category_budget.get("original_budget", Decimal128("0")).to_decimal()) if category_budget else 0.0
-                    allocation_doc = {
+                    
+                    alloc_doc = {
                         "project_id": project_id,
                         "category_id": category_id,
+                        "organisation_id": user["organisation_id"],
                         "allocation_original": Decimal128(str(original_budget)),
                         "allocation_received": Decimal128("0.0"),
                         "allocation_remaining": Decimal128(str(original_budget)),
                         "cash_in_hand": Decimal128("0.0"),
-                        "total_expenses": Decimal128("0.0"),
                         "last_pc_closed_date": None,
-                        "version": 1,
-                        "created_at": datetime.now(timezone.utc)
+                        "created_at": datetime.now(timezone.utc),
+                        "updated_at": datetime.now(timezone.utc)
                     }
-                    await db.fund_allocations.insert_one(allocation_doc, session=session)
-                fund_transfer_count += 1
-    # Transaction committed here — all budget/allocation docs are now visible
+                    await db.fund_allocations.update_one(
+                        {"project_id": project_id, "category_id": category_id},
+                        {"$set": alloc_doc},
+                        upsert=True,
+                        session=session
+                    )
 
-    # Step 2: Recalculate financials AFTER transaction commits so the new docs are readable
+                # 6.3.2 Audit Log
+                await audit_service.log_action(
+                    organisation_id=user["organisation_id"],
+                    module_name="BUDGET_HARDENED",
+                    entity_type="PROJECT_BUDGET",
+                    entity_id=category_id,
+                    action_type="INITIALIZE",
+                    user_id=user["user_id"],
+                    project_id=project_id,
+                    new_value={"status": "initialized", "original_budget": 0},
+                    session=session
+                )
+
+    # Step 2: Push financial recalculation into specific collection (financial_state)
     try:
         await financial_service.recalculate_all_project_financials(project_id)
-        logger.info(f"Financial state recalculated for project {project_id}")
     except Exception as e:
         logger.error(f"Failed to recalculate financial state for project {project_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Budgets initialized but financial recalculation failed: {str(e)}")
+        raise Exception(f"Budgets initialized but financial recalculation failed: {str(e)}")
 
-    # Step 3: Update master budget totals
+    # 6.4: Recalculate master project totals
     try:
         await financial_service.recalculate_master_budget(project_id)
-        logger.info(f"Master budget computed for project {project_id}")
     except Exception as e:
-        logger.error(f"Failed to compute master budget for project {project_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Budgets initialized but master budget failed: {str(e)}")
-
-    return {
-        "status": "success",
-        "message": f"Initialized budgets for {len(codes)} categories",
-        "fund_allocations_created": fund_transfer_count
-    }
+        logger.warning(f"Master budget summary update failed (non-critical): {e}")
 
 
 @hardened_router.delete("/codes/{code_id}")

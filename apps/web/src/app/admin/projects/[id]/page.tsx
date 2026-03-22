@@ -178,14 +178,14 @@ export default function ProjectDetailPage() {
 
   // Aggregate Totals
   const totalBudget =
-    financials?.reduce((sum, f) => sum + (f.original_budget || 0), 0) ?? 0;
+    financials?.reduce((sum, f) => sum + Number(f.original_budget || 0), 0) ?? 0;
   const totalCommitted =
-    financials?.reduce((sum, f) => sum + (f.committed_value || 0), 0) ?? 0;
+    financials?.reduce((sum, f) => sum + Number(f.committed_value || 0), 0) ?? 0;
   const totalCertified =
-    financials?.reduce((sum, f) => sum + (f.certified_value || 0), 0) ?? 0;
+    financials?.reduce((sum, f) => sum + Number(f.certified_value || 0), 0) ?? 0;
   const totalRemaining =
     financials?.reduce(
-      (sum, f) => sum + (f.balance_budget_remaining || 0),
+      (sum, f) => sum + Number(f.balance_budget_remaining || 0),
       0,
     ) ?? 0;
 

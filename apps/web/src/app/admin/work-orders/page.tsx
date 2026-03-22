@@ -80,7 +80,8 @@ export default function WorkOrdersPage() {
       else setIsMoreLoading(true);
 
       try {
-        const url = `/api/work-orders?project_id=${activeProject._id || activeProject.project_id}&limit=50${cursor ? `&cursor=${cursor}` : ""}`;
+        const projectId = activeProject.project_id || activeProject._id;
+        const url = `/api/work-orders?project_id=${projectId}&limit=50${cursor ? `&cursor=${cursor}` : ""}`;
         const res = await api.get<{
           items: WorkOrder[];
           next_cursor: string | null;

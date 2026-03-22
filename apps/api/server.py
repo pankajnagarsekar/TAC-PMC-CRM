@@ -265,8 +265,16 @@ async def list_payment_certificates(
 ):
     """List all payment certificates for a project"""
     user = await permission_checker.get_authenticated_user(current_user)
-    # Check project
-    project = await db.projects.find_one({"_id": ObjectId(project_id), "organisation_id": user["organisation_id"]})
+    # Check project — handle both ObjectId and string project_id formats
+    # First, try to find by project_id field (the standard string ID)
+    project = await db.projects.find_one({"project_id": project_id, "organisation_id": user["organisation_id"]})
+
+    # If not found and project_id is 24 chars, try as ObjectId (_id field)
+    if not project and len(project_id) == 24:
+        try:
+            project = await db.projects.find_one({"_id": ObjectId(project_id), "organisation_id": user["organisation_id"]})
+        except:
+            pass
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -1641,11 +1649,8 @@ async def get_project_budgets(
     # Check project access
     await permission_checker.check_project_access(user, project_id)
 
-    # Fetch project budgets - support both ObjectId and project_id string
-    try:
-        query = {"_id": ObjectId(project_id)}
-    except ValueError:
-        query = {"project_id": project_id}
+    # Fetch project budgets
+    query = {"project_id": project_id}
 
     try:
         budgets = await db.project_category_budgets.find(query).to_list(length=100)

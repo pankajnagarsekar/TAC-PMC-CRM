@@ -26,19 +26,30 @@ class DatabaseManager:
     async def transaction_session(self):
         """
         Async context manager for MongoDB multi-document transactions.
-        Usage:
-            async with db_manager.transaction_session() as session:
-                await db.collection.insert_one(doc, session=session)
+        Gracefully falls back to a regular session if transactions are not supported.
         """
-        async with await self.client.start_session() as session:
-            async with session.start_transaction():
-                try:
+        from pymongo.errors import OperationFailure
+        
+        session = await self.client.start_session()
+        try:
+            # We check if we can start a transaction
+            try:
+                async with session.start_transaction():
                     yield session
-                    # Transaction automatically commits if no exception occurs
-                except Exception as e:
-                    logger.error(f"Transaction failed, aborting: {str(e)}")
-                    await session.abort_transaction()
+                return # If successful, we are done
+            except OperationFailure as e:
+                # Code 20 is IllegalOperation (standalone or ephemeral storage engine)
+                if e.code == 20: 
+                    logger.warning(f"Note: MongoDB transactions not supported in this environment ({e.details.get('errmsg')}).")
+                else:
                     raise
+            
+            # If we are here, transactions are NOT supported. 
+            # We yield the session just as a normal session.
+            yield session
+            
+        finally:
+            await session.end_session()
 
     @staticmethod
     def to_bson(data: dict) -> dict:

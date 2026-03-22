@@ -22,6 +22,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
 
+    // Auto-show project selector if navigating to project-scoped pages without activeProject
+    useEffect(() => {
+        if (!mounted || !_hasHydrated) return;
+
+        const projectScopedRoutes = [
+            '/admin/work-orders',
+            '/admin/payment-certificates',
+            '/admin/petty-cash',
+            '/admin/site-operations',
+            '/admin/site-overheads',
+        ];
+
+        const isProjectScoped = projectScopedRoutes.some(route => pathname.startsWith(route));
+        const isDetailPage = /\/admin\/\w+\/[a-f0-9]{24}/.test(pathname); // MongoDB IDs
+
+        if (isProjectScoped && !isDetailPage && !activeProject) {
+            setShowProjectModal(true);
+        }
+    }, [pathname, activeProject, mounted, _hasHydrated]);
+
     useEffect(() => {
         setMounted(true);
         if (typeof window !== 'undefined') {
