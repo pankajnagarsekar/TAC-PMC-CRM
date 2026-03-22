@@ -1556,7 +1556,14 @@ async def update_project(
         await permission_checker.check_project_access(user, project_id, require_write=True)
 
         # Build update dict - only include non-null values
-        update_dict = {k: v for k, v in project_data.dict(exclude_unset=True).items() if v is not None}
+        # Convert Decimal to Decimal128 for MongoDB storage
+        update_dict = {}
+        for k, v in project_data.dict(exclude_unset=True).items():
+            if v is not None:
+                if isinstance(v, Decimal):
+                    update_dict[k] = Decimal128(str(v))
+                else:
+                    update_dict[k] = v
         update_dict["updated_at"] = datetime.now(timezone.utc)
 
         # Find and update - support both ObjectId and project_id string
@@ -1598,9 +1605,26 @@ async def update_project(
 
     except HTTPException:
         raise
+    except ValueError as ve:
+        error_msg = f"Invalid input value: {str(ve)}"
+        logger.error(f"Validation error updating project {project_id}: {ve}", exc_info=True)
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
+        error_msg = str(e)
+        # Provide more specific error messages based on exception type
+        if "cannot encode" in error_msg.lower():
+            detail = "Data type mismatch: One or more fields contain invalid data types. Please check all numeric and decimal fields."
+        elif "not found" in error_msg.lower():
+            detail = "Project not found. The project may have been deleted."
+        elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
+            detail = "You do not have permission to update this project."
+        elif "duplicate" in error_msg.lower():
+            detail = "A project with this code already exists."
+        else:
+            detail = f"Failed to update project: {error_msg[:100]}"
+
         logger.error(f"Error updating project {project_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @api_router.get("/projects/{project_id}/budgets")
@@ -1712,9 +1736,24 @@ async def create_or_update_project_budget(
         return serialize_doc(result)
     except HTTPException:
         raise
+    except ValueError as ve:
+        error_msg = f"Invalid input value: {str(ve)}"
+        logger.error(f"Validation error for budget {project_id}: {ve}", exc_info=True)
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        logger.error(f"Error creating/updating budget for project {project_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to save budget: {str(e)}")
+        error_msg = str(e)
+        # Provide specific error messages
+        if "category" in error_msg.lower() and "not found" in error_msg.lower():
+            detail = "Category not found. Please select a valid category."
+        elif "cannot encode" in error_msg.lower():
+            detail = "Invalid budget amount. Please enter a valid number."
+        elif "duplicate" in error_msg.lower():
+            detail = "A budget for this category already exists."
+        else:
+            detail = f"Failed to save budget: {error_msg[:100]}"
+
+        logger.error(f"Error creating/updating budget for project {project_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @api_router.get("/health")
