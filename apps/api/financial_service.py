@@ -194,8 +194,22 @@ class FinancialRecalculationService:
             master_original = Decimal("0")
             master_remaining = Decimal("0")
 
-        await self.db.projects.update_one(
-            {"_id": project_id} if not isinstance(project_id, str) else {"$or": [{"_id": ObjectId(project_id) if len(project_id) == 24 else project_id}, {"project_id": project_id}]},
+        # Build robust project query - try ObjectId first, then string lookup
+        project_query = None
+        if isinstance(project_id, str):
+            try:
+                # Try to treat as ObjectId
+                oid = ObjectId(project_id)
+                project_query = {"_id": oid}
+            except:
+                # Fall back to string lookup by project_id
+                project_query = {"project_id": project_id}
+        else:
+            project_query = {"_id": project_id}
+
+        # Update and verify the result
+        update_result = await self.db.projects.update_one(
+            project_query,
             {"$set": {
                 "master_original_budget": Decimal128(str(master_original)),
                 "master_remaining_budget": Decimal128(str(master_remaining)),
@@ -203,9 +217,28 @@ class FinancialRecalculationService:
             session=session
         )
 
+        # CRITICAL: Verify update succeeded
+        if update_result.matched_count == 0:
+            logger.error(
+                f"CRITICAL: recalculate_master_budget failed to find project: "
+                f"project_id={project_id}, query={project_query}. "
+                f"Master budget NOT updated! This will cause financial inconsistencies."
+            )
+            raise Exception(
+                f"Failed to update master budget: project {project_id} not found. "
+                f"Possible data integrity issue."
+            )
+
+        if update_result.modified_count == 0:
+            logger.warning(
+                f"recalculate_master_budget: project found but not modified "
+                f"(values unchanged?): project_id={project_id}"
+            )
+
         logger.info(
             f"Master budget recalculated for project={project_id}: "
-            f"original={master_original}, remaining={master_remaining}"
+            f"original={master_original}, remaining={master_remaining}, "
+            f"matched={update_result.matched_count}, modified={update_result.modified_count}"
         )
 
         return {

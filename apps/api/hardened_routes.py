@@ -469,11 +469,33 @@ async def initialize_project_budgets(
                 fund_transfer_count += 1
 
             # Recalculate everything for this project
-            # Note: financial_service.recalculate_all_project_financials does not yet accept session
-            await financial_service.recalculate_all_project_financials(project_id)
+            try:
+                # Note: financial_service.recalculate_all_project_financials does not yet accept session
+                await financial_service.recalculate_all_project_financials(project_id)
+                logger.info(f"Financial state recalculated for project {project_id}")
+            except Exception as e:
+                logger.error(
+                    f"CRITICAL: Failed to recalculate financial state for project {project_id}: {e}",
+                    exc_info=True
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to recalculate financial state: {str(e)}"
+                )
 
             # Compute master budgets after initialization
-            await financial_service.recalculate_master_budget(project_id, session=session)
+            try:
+                result = await financial_service.recalculate_master_budget(project_id, session=session)
+                logger.info(f"Master budget computed for project {project_id}: {result}")
+            except Exception as e:
+                logger.error(
+                    f"CRITICAL: Failed to compute master budget for project {project_id}: {e}",
+                    exc_info=True
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to compute master budget. Financial integrity at risk: {str(e)}"
+                )
 
     return {
         "status": "success",
