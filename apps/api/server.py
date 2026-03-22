@@ -73,32 +73,36 @@ app = FastAPI(
     description="Enterprise Construction Management with Hardened Financial Core"
 )
 
-init_rate_limiting(app)
+# Configure CORS — MUST be added before routes
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3010",
+    "http://localhost:19006",
+    "http://localhost:8081",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    "http://127.0.0.1:3010",
+    "http://127.0.0.1:19006",
+    "http://127.0.0.1:8081",
+]
 
-# Configure CORS
+# Allow environment variable override
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    allowed_origins = [origin.strip() for origin in env_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv(
-        "ALLOWED_ORIGINS",
-        ",".join([
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://localhost:3002",
-            "http://localhost:3010",
-            "http://localhost:19006",
-            "http://localhost:8081",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:3001",
-            "http://127.0.0.1:3002",
-            "http://127.0.0.1:3010",
-            "http://127.0.0.1:19006",
-            "http://127.0.0.1:8081",
-        ])
-    ).split(","),
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+init_rate_limiting(app)
 
 app.include_router(audit_router, prefix="/api")
 app.include_router(scheduler_router, prefix="/api/projects")
