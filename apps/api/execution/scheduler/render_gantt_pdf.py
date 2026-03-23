@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 
 # Layer 3: Execution Script
-# Generates professional MS Project-style Gantt chart PDF using ReportLab
+# Professional MS Project-style Gantt chart PDF
 
 def parse_date_str(date_str):
     """Parse DD-MM-YY format to date object"""
@@ -21,7 +21,7 @@ def parse_date_str(date_str):
 
 
 def get_quarter_label(date_obj):
-    """Get quarter label like 'Qtr 1, 2026'"""
+    """Get quarter label like 'Qtr 2, 2026'"""
     quarter = (date_obj.month - 1) // 3 + 1
     return f"Qtr {quarter}, {date_obj.year}"
 
@@ -29,27 +29,27 @@ def get_quarter_label(date_obj):
 def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp/gantt_export.pdf"):
     """
     Generates a professional MS Project-style Gantt chart PDF.
-    Features quarterly grouping and comprehensive data columns.
+    Features proper task bars, quarterly grouping, and comprehensive data.
     """
     try:
-        # Page setup: Landscape A4
+        # Page setup
         page_width, page_height = landscape(A4)
 
         # Margins
         margin_left = 0.3 * inch
         margin_right = 0.3 * inch
-        margin_top = 0.4 * inch
+        margin_top = 0.35 * inch
         margin_bottom = 0.5 * inch
 
         # Two-panel layout
-        data_col_width = 3.8 * inch  # Left: ID, Task Mode, Name, Duration, Start, Finish, Pred, Cost
+        data_col_width = 3.8 * inch
         gantt_col_width = page_width - margin_left - margin_right - data_col_width - 0.15 * inch
 
         # Create PDF
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         c = canvas.Canvas(output_path, pagesize=landscape(A4))
 
-        # Calculate timeline range
+        # Calculate timeline
         all_dates = []
         for task in tasks:
             start = parse_date_str(task.get("start", ""))
@@ -69,24 +69,24 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
         total_days = (max_date - min_date).days + 1
 
         # --- PROJECT TITLE ---
-        title_y = page_height - 0.3 * inch
+        title_y = page_height - 0.28 * inch
         c.setFillColor(colors.HexColor("#1F3A5F"))
-        c.rect(margin_left, title_y - 0.25 * inch, page_width - margin_left - margin_right,
-               0.25 * inch, fill=1, stroke=0)
+        c.rect(margin_left, title_y - 0.22 * inch, page_width - margin_left - margin_right,
+               0.22 * inch, fill=1, stroke=0)
         c.setFillColor(colors.whitesmoke)
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(margin_left + 0.1 * inch, title_y - 0.16 * inch, f"Project: {project_name}")
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margin_left + 0.1 * inch, title_y - 0.14 * inch, f"Project: {project_name}")
 
         # --- DATA GRID HEADER ---
-        header_y = page_height - 0.6 * inch
+        header_y = page_height - 0.55 * inch
 
         # Header background
         c.setFillColor(colors.HexColor("#2E5090"))
-        c.rect(margin_left, header_y - 0.28 * inch, data_col_width, 0.28 * inch, fill=1, stroke=0)
+        c.rect(margin_left, header_y - 0.24 * inch, data_col_width, 0.24 * inch, fill=1, stroke=0)
 
-        # Column headers
+        # Data column headers
         c.setFillColor(colors.whitesmoke)
-        c.setFont("Helvetica-Bold", 6.5)
+        c.setFont("Helvetica-Bold", 6)
 
         headers = [
             ("ID", 0.25 * inch),
@@ -99,80 +99,92 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
 
         h_x = margin_left
         for header, width in headers:
-            c.drawCentredString(h_x + width / 2, header_y - 0.15 * inch, header)
+            c.drawCentredString(h_x + width / 2, header_y - 0.13 * inch, header)
             h_x += width
 
-        # --- QUARTERLY TIMELINE HEADER ---
+        # --- GANTT HEADER: QUARTERS + MONTHS ---
         gantt_x = margin_left + data_col_width + 0.15 * inch
 
+        # Quarterly header
         c.setFillColor(colors.HexColor("#2E5090"))
-        c.rect(gantt_x, header_y - 0.28 * inch, gantt_col_width, 0.28 * inch, fill=1, stroke=0)
+        c.rect(gantt_x, header_y - 0.12 * inch, gantt_col_width, 0.12 * inch, fill=1, stroke=0)
 
-        # Quarterly sections
-        current_quarter_start = None
-        quarter_sections = []
+        # Month subheader
+        c.setFillColor(colors.HexColor("#3A5FA0"))
+        c.rect(gantt_x, header_y - 0.24 * inch, gantt_col_width, 0.12 * inch, fill=1, stroke=0)
+
+        # Draw quarterly labels
+        c.setFillColor(colors.whitesmoke)
+        c.setFont("Helvetica-Bold", 7)
 
         current_date = min_date
+        quarters_drawn = []
+
         while current_date <= max_date:
             quarter_label = get_quarter_label(current_date)
-            if not current_quarter_start or quarter_label != get_quarter_label(current_quarter_start):
-                if current_quarter_start:
-                    quarter_end = current_date - timedelta(days=1)
-                    quarter_sections.append((
-                        get_quarter_label(current_quarter_start),
-                        current_quarter_start,
-                        quarter_end
-                    ))
-                current_quarter_start = current_date
-                # Move to next quarter
+
+            if quarter_label not in quarters_drawn:
+                quarters_drawn.append(quarter_label)
+
+                # Find quarter boundaries
                 quarter_num = (current_date.month - 1) // 3 + 1
+                if quarter_num == 1:
+                    q_start = datetime(current_date.year, 1, 1).date()
+                    q_end = datetime(current_date.year, 3, 31).date()
+                elif quarter_num == 2:
+                    q_start = datetime(current_date.year, 4, 1).date()
+                    q_end = datetime(current_date.year, 6, 30).date()
+                elif quarter_num == 3:
+                    q_start = datetime(current_date.year, 7, 1).date()
+                    q_end = datetime(current_date.year, 9, 30).date()
+                else:
+                    q_start = datetime(current_date.year, 10, 1).date()
+                    q_end = datetime(current_date.year, 12, 31).date()
+
+                # Clamp to timeline
+                q_start = max(q_start, min_date)
+                q_end = min(q_end, max_date)
+
+                if q_start <= max_date and q_end >= min_date:
+                    q_start_x = gantt_x + ((q_start - min_date).days * gantt_col_width / total_days)
+                    q_end_x = gantt_x + ((q_end - min_date).days * gantt_col_width / total_days)
+                    q_width = q_end_x - q_start_x
+
+                    if q_width > 0.3 * inch:
+                        c.drawCentredString(q_start_x + q_width / 2, header_y - 0.065 * inch,
+                                          quarter_label)
+
+                        # Quarter divider
+                        c.setStrokeColor(colors.whitesmoke)
+                        c.setLineWidth(0.5)
+                        c.line(q_end_x, header_y, q_end_x, header_y - 0.24 * inch)
+
+                # Skip to next quarter
                 if quarter_num == 4:
                     current_date = datetime(current_date.year + 1, 1, 1).date()
                 else:
                     current_date = datetime(current_date.year, (quarter_num) * 3 + 1, 1).date()
             else:
-                current_date += timedelta(days=1)
+                current_date += timedelta(days=30)
 
-        if current_quarter_start:
-            quarter_sections.append((
-                get_quarter_label(current_quarter_start),
-                current_quarter_start,
-                max_date
-            ))
-
-        # Draw quarter labels
+        # Draw month labels in subheader
         c.setFillColor(colors.whitesmoke)
-        c.setFont("Helvetica-Bold", 7)
-
-        for quarter_label, q_start, q_end in quarter_sections:
-            q_start_x = gantt_x + ((q_start - min_date).days * gantt_col_width / total_days)
-            q_end_x = gantt_x + ((q_end - min_date).days * gantt_col_width / total_days)
-            q_width = q_end_x - q_start_x
-
-            if q_width > 0.3 * inch:  # Only draw if there's space
-                c.drawCentredString(q_start_x + q_width / 2, header_y - 0.15 * inch, quarter_label)
-
-        # --- MONTH SUBHEADER (below quarters) ---
-        subheader_y = header_y - 0.32 * inch
-        c.setFillColor(colors.HexColor("#f0f0f0"))
-        c.rect(gantt_x, subheader_y - 0.15 * inch, gantt_col_width, 0.15 * inch, fill=1, stroke=0)
-
-        c.setFillColor(colors.HexColor("#333333"))
-        c.setFont("Helvetica", 6)
+        c.setFont("Helvetica", 5.5)
 
         current_date = min_date
         last_month = None
         while current_date <= max_date:
-            month_label = current_date.strftime("%b")
             if current_date.month != last_month:
+                month_label = current_date.strftime("%b")
                 x_pos = gantt_x + ((current_date - min_date).days * gantt_col_width / total_days)
-                c.drawString(x_pos + 2, subheader_y - 0.08 * inch, month_label)
+                c.drawString(x_pos + 2, header_y - 0.20 * inch, month_label)
                 last_month = current_date.month
+
             current_date += timedelta(days=1)
 
-        # --- TASK ROWS ---
-        row_y = subheader_y - 0.25 * inch
-        row_height = 0.18 * inch
+        # --- TASK ROWS WITH GANTT BARS ---
+        row_y = header_y - 0.35 * inch
+        row_height = 0.16 * inch
 
         for idx, task in enumerate(tasks):
             # Alternate row colors
@@ -185,15 +197,15 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
             c.rect(margin_left, row_y - row_height,
                    page_width - margin_left - margin_right, row_height, fill=1, stroke=0)
 
-            # Row separator line
-            c.setStrokeColor(colors.HexColor("#e0e0e0"))
+            # Row border
+            c.setStrokeColor(colors.HexColor("#d0d5e0"))
             c.setLineWidth(0.5)
             c.line(margin_left, row_y - row_height,
                    margin_left + page_width - margin_left - margin_right, row_y - row_height)
 
             # --- LEFT PANEL: DATA ---
             c.setFillColor(colors.HexColor("#1a1a1a"))
-            c.setFont("Helvetica", 6.5)
+            c.setFont("Helvetica", 6)
 
             col_x = margin_left
 
@@ -202,8 +214,8 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
             c.drawCentredString(col_x + 0.125 * inch, row_y - row_height / 2 - 0.02 * inch, task_id)
             col_x += 0.25 * inch
 
-            # Task Mode (icon placeholder)
-            c.drawString(col_x + 0.05 * inch, row_y - row_height / 2 - 0.02 * inch, "■")
+            # Task Mode
+            c.drawString(col_x + 0.1 * inch, row_y - row_height / 2 - 0.02 * inch, "■")
             col_x += 0.35 * inch
 
             # Task Name
@@ -212,23 +224,23 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
                 task_name = task_name[:42] + "..."
 
             if task.get("isMilestone"):
-                c.setFont("Helvetica-Bold", 6.5)
+                c.setFont("Helvetica-Bold", 6)
             c.drawString(col_x + 0.05 * inch, row_y - row_height / 2 - 0.02 * inch, task_name)
-            c.setFont("Helvetica", 6.5)
+            c.setFont("Helvetica", 6)
             col_x += 1.45 * inch
 
             # Duration
             dur = task.get("duration", 0)
-            c.drawCentredString(col_x + 0.325 * inch, row_y - row_height / 2 - 0.02 * inch,
-                               f"{dur}d" if dur else "-")
+            dur_text = f"{dur}d" if dur else "-"
+            c.drawCentredString(col_x + 0.325 * inch, row_y - row_height / 2 - 0.02 * inch, dur_text)
             col_x += 0.65 * inch
 
-            # Start Date
+            # Start
             start_date = task.get("start", "-")
             c.drawCentredString(col_x + 0.25 * inch, row_y - row_height / 2 - 0.02 * inch, start_date)
             col_x += 0.5 * inch
 
-            # Finish Date
+            # Finish
             finish_date = task.get("finish", "-")
             c.drawCentredString(col_x + 0.25 * inch, row_y - row_height / 2 - 0.02 * inch, finish_date)
 
@@ -236,29 +248,34 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
             start_obj = parse_date_str(task.get("start", ""))
             finish_obj = parse_date_str(task.get("finish", ""))
 
-            if start_obj and finish_obj:
-                bar_start_x = gantt_x + ((start_obj - min_date).days * gantt_col_width / total_days)
-                bar_width = ((finish_obj - start_obj).days + 1) * gantt_col_width / total_days
-                bar_width = max(bar_width, 2)
+            if start_obj and finish_obj and start_obj <= max_date and finish_obj >= min_date:
+                # Calculate bar position and width
+                bar_start = max(start_obj, min_date)
+                bar_end = min(finish_obj, max_date)
 
-                # Color coding
+                bar_x = gantt_x + ((bar_start - min_date).days * gantt_col_width / total_days)
+                bar_width = ((bar_end - bar_start).days + 1) * gantt_col_width / total_days
+                bar_width = max(bar_width, 3)  # Minimum visible width
+
+                bar_height = 0.08 * inch
+                bar_y = row_y - row_height / 2
+
+                # Determine bar color and shape
                 if task.get("isMilestone"):
-                    # Milestone diamond
-                    bar_color = colors.HexColor("#F4A620")
-                    bar_y_pos = row_y - row_height / 2
-                    diamond_size = 0.06 * inch
-                    c.setFillColor(bar_color)
-                    # Draw diamond
-                    c.circle(bar_start_x + diamond_size / 2, bar_y_pos, diamond_size / 2, fill=1, stroke=0)
+                    # Milestone: diamond marker
+                    c.setFillColor(colors.HexColor("#F4A620"))  # Gold
+                    diamond_size = 0.1 * inch
+                    # Draw diamond (marker at end date)
+                    marker_x = gantt_x + ((finish_obj - min_date).days * gantt_col_width / total_days)
+                    # Simple diamond shape
+                    c.rect(marker_x - diamond_size / 2, bar_y - diamond_size / 2,
+                          diamond_size, diamond_size, fill=1, stroke=0)
                 else:
-                    # Regular bar
+                    # Regular task: bar
                     if task.get("is_critical"):
                         bar_color = colors.HexColor("#D63031")  # Red
                     else:
                         bar_color = colors.HexColor("#4472C4")  # Blue
-
-                    bar_height = 0.09 * inch
-                    bar_y_pos = row_y - row_height / 2
 
                     # Progress fill
                     pct = task.get("percentComplete", 0)
@@ -266,52 +283,51 @@ def generate_gantt_pdf(tasks, project_name="Project Schedule", output_path=".tmp
                         progress_color = colors.HexColor("#70AD47")
                         progress_width = bar_width * (pct / 100.0)
                         c.setFillColor(progress_color)
-                        c.rect(bar_start_x, bar_y_pos - bar_height / 2, progress_width, bar_height,
-                              fill=1, stroke=0)
+                        c.roundRect(bar_x, bar_y - bar_height / 2, progress_width, bar_height,
+                                   radius=1, fill=1, stroke=0)
 
-                    # Main bar
+                    # Main task bar
                     c.setFillColor(bar_color)
-                    c.roundRect(bar_start_x, bar_y_pos - bar_height / 2, bar_width, bar_height,
+                    c.roundRect(bar_x, bar_y - bar_height / 2, bar_width, bar_height,
                                radius=1.5, fill=1, stroke=0)
 
                     # Bar border
                     c.setStrokeColor(colors.HexColor("#333333"))
                     c.setLineWidth(0.5)
-                    c.roundRect(bar_start_x, bar_y_pos - bar_height / 2, bar_width, bar_height,
+                    c.roundRect(bar_x, bar_y - bar_height / 2, bar_width, bar_height,
                                radius=1.5, fill=0, stroke=1)
 
             row_y -= row_height
-
-            # Page break if needed
-            if row_y < 1.0 * inch:
-                break
 
         # --- FOOTER ---
         footer_y = 0.25 * inch
         c.setFont("Helvetica", 6)
         c.setFillColor(colors.HexColor("#666666"))
+
         c.drawString(margin_left, footer_y, f"Date: {datetime.now().strftime('%d-%m-%y')}")
 
         # Legend
-        legend_items = [
-            ("Task", colors.HexColor("#4472C4")),
-            ("Critical", colors.HexColor("#D63031")),
-            ("Milestone", colors.HexColor("#F4A620")),
-            ("Progress", colors.HexColor("#70AD47")),
-        ]
+        c.drawString(page_width / 2 - 1.2 * inch, footer_y, "Task")
+        c.setFillColor(colors.HexColor("#4472C4"))
+        c.rect(page_width / 2 - 1.4 * inch, footer_y - 0.06 * inch, 0.07 * inch, 0.07 * inch, fill=1)
 
-        leg_x = page_width / 2
-        for label, color in legend_items:
-            c.setFillColor(color)
-            c.rect(leg_x, footer_y - 0.06 * inch, 0.07 * inch, 0.07 * inch, fill=1, stroke=0)
-            leg_x += 0.1 * inch
+        c.setFillColor(colors.HexColor("#666666"))
+        c.drawString(page_width / 2 - 0.7 * inch, footer_y, "Critical")
+        c.setFillColor(colors.HexColor("#D63031"))
+        c.rect(page_width / 2 - 0.9 * inch, footer_y - 0.06 * inch, 0.07 * inch, 0.07 * inch, fill=1)
 
-            c.setFillColor(colors.HexColor("#666666"))
-            c.setFont("Helvetica", 5.5)
-            c.drawString(leg_x, footer_y, label)
-            leg_x += 0.75 * inch
+        c.setFillColor(colors.HexColor("#666666"))
+        c.drawString(page_width / 2 - 0.05 * inch, footer_y, "Milestone")
+        c.setFillColor(colors.HexColor("#F4A620"))
+        c.rect(page_width / 2 - 0.25 * inch, footer_y - 0.06 * inch, 0.07 * inch, 0.07 * inch, fill=1)
 
-        c.drawString(page_width - margin_right - 1.5 * inch, footer_y, "Page 1")
+        c.setFillColor(colors.HexColor("#666666"))
+        c.drawString(page_width / 2 + 0.55 * inch, footer_y, "Progress")
+        c.setFillColor(colors.HexColor("#70AD47"))
+        c.rect(page_width / 2 + 0.35 * inch, footer_y - 0.06 * inch, 0.07 * inch, 0.07 * inch, fill=1)
+
+        c.setFillColor(colors.HexColor("#666666"))
+        c.drawString(page_width - margin_right - 1.2 * inch, footer_y, "Page 1")
 
         c.save()
 
