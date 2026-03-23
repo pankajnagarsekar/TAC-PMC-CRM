@@ -212,8 +212,9 @@ class WorkOrderService:
                         detail={"error": "concurrency_conflict", "message": "Work Order was modified in another session. Please refresh."}
                     )
 
-            if old_wo["status"] != "Draft":
-                raise HTTPException(status_code=400, detail="Only Work Orders in 'Draft' status can be edited.")
+            # Allow editing in Draft and Pending states (workflow flexibility)
+            if old_wo["status"] not in ["Draft", "Pending"]:
+                raise HTTPException(status_code=400, detail="Only Work Orders in 'Draft' or 'Pending' status can be edited.")
 
             # 1.2 Check for linked PCs - Lock Rule: cannot reduce grand_total below sum of linked PCs
             linked_pcs = await self.db.payment_certificates.find({
