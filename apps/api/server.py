@@ -31,6 +31,7 @@ from settings_routes import settings_router  # noqa: E402
 from audit_routes import router as audit_router  # noqa: E402
 from project_scheduler_routes import scheduler_router  # noqa: E402
 from ai_summary_routes import ai_summary_router  # noqa: E402
+from dashboard_stats_routes import dashboard_stats_router  # noqa: E402
 from core.indexes import ensure_indexes  # noqa: E402
 from core.rate_limit import init_rate_limiting  # noqa: E402
 
@@ -82,12 +83,24 @@ allowed_origins = [
     "http://localhost:3010",
     "http://localhost:19006",
     "http://localhost:8081",
+    "https://localhost:3000",
+    "https://localhost:3001",
+    "https://localhost:3002",
+    "https://localhost:3010",
+    "https://localhost:19006",
+    "https://localhost:8081",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
     "http://127.0.0.1:3010",
     "http://127.0.0.1:19006",
     "http://127.0.0.1:8081",
+    "https://127.0.0.1:3000",
+    "https://127.0.0.1:3001",
+    "https://127.0.0.1:3002",
+    "https://127.0.0.1:3010",
+    "https://127.0.0.1:19006",
+    "https://127.0.0.1:8081",
 ]
 
 # Allow environment variable override
@@ -1911,6 +1924,9 @@ app.include_router(settings_router)
 
 # Register AI Project Summary router
 app.include_router(ai_summary_router)
+
+# Register Dashboard Statistics router
+app.include_router(dashboard_stats_router)
 
 # Serve frontend static files
 frontend_build = os.path.join(
