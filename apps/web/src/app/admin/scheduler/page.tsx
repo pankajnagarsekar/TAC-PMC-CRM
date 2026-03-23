@@ -22,8 +22,11 @@ export default function ProjectSchedulerPage() {
 
     // 1. Initial Load
     useEffect(() => {
+        console.log("Scheduler page - activeProject on mount:", activeProject);
         if (activeProject?.project_id) {
             loadSchedule();
+        } else {
+            console.log("Warning: No activeProject or missing project_id. activeProject properties:", Object.keys(activeProject || {}));
         }
     }, [activeProject?.project_id]);
 
@@ -116,6 +119,7 @@ export default function ProjectSchedulerPage() {
     // 6. Import Schedule (MPP/XML/PDF)
     const handleImportSchedule = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        console.log("Import triggered - activeProject:", activeProject, "project_id:", activeProject?.project_id);
         if (!file || !activeProject) return;
 
         setImporting(true);

@@ -11,6 +11,7 @@ import {
   Building2,
   FileText,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 import {
   Dialog,
@@ -112,8 +113,22 @@ export default function PaymentCertificateDetail({
     }
   };
 
-  // PDF export not yet implemented in backend
-  // handlePrintPDF removed - endpoint /api/payment-certificates/{id}/export/pdf does not exist
+  const handleExportPDF = async () => {
+    try {
+      const response = await api.get(`/api/payment-certificates/${id}/export`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `PC-${pc.pc_ref}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert("Failed to export PDF");
+    }
+  };
 
   const columnDefs: ColDef[] = [
     { field: "sr_no", headerName: "Sr No", width: 80, filter: false },
@@ -168,13 +183,12 @@ export default function PaymentCertificateDetail({
                 {pc.pc_ref}
               </h1>
               <span
-                className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${
-                  pc.status === "Closed"
+                className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${pc.status === "Closed"
                     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                     : pc.status === "Draft"
                       ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
                       : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                }`}
+                  }`}
               >
                 {pc.status}
               </span>
@@ -210,6 +224,12 @@ export default function PaymentCertificateDetail({
               Close PC & Commit Ledger
             </button>
           )}
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+          >
+            <Download size={14} /> Download PDF
+          </button>
         </div>
       </div>
 

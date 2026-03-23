@@ -65,3 +65,42 @@ def refresh_all_reports():
 
     return run_async(_task())
 
+
+@celery_app.task(name="tasks.generate_daily_ai_summaries")
+def generate_daily_ai_summaries():
+    """
+    Scheduled daily task: generate AI project summaries for all active projects.
+    Runs at midnight UTC via beat_schedule.
+    Uses upsert so re-running on the same day is safe (idempotent).
+    """
+    logger.info("Starting daily AI project summary generation")
+
+    async def _task():
+        db = await get_db()
+        from core.ai_summary_service import AISummaryService
+        import os
+        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        service = AISummaryService(db=db, api_key=api_key)
+
+        projects = await db.projects.find(
+            {"status": "active"}, {"_id": 1, "project_id": 1, "organisation_id": 1}
+        ).to_list(None)
+
+        success_count = 0
+        for proj in projects:
+            try:
+                pid = proj.get("project_id") or str(proj["_id"])
+                org_id = proj.get("organisation_id", "")
+                await service.generate_and_store(
+                    project_id=pid,
+                    organisation_id=org_id,
+                    triggered_by="scheduler"
+                )
+                success_count += 1
+            except Exception as e:
+                logger.error(f"[AI:SUMMARY] Failed for project {proj.get('project_id')}: {e}")
+
+        return f"AI summaries generated for {success_count}/{len(projects)} projects"
+
+    return run_async(_task())
+

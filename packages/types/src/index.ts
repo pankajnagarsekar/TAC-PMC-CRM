@@ -439,3 +439,70 @@ export interface PaginatedResponse<T> {
   page: number;
   per_page: number;
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// VENDOR PAYABLES (Phase 5 Dashboard)
+// ──────────────────────────────────────────────────────────────────────────
+export interface VendorPayable {
+  vendor_id: string | null;
+  vendor_name: string;
+  total_certified: number;
+  total_paid: number;
+  total_retention: number;
+  net_payable: number;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CASH SUMMARY (Phase 5 Dashboard)
+// ──────────────────────────────────────────────────────────────────────────
+export interface CashSummaryCategory {
+  category_id: string;
+  category_name: string;
+  cash_in_hand: number;
+  allocation_remaining: number;
+  allocation_total: number;
+  threshold: number;
+  days_since_last_pc_close: number | null;
+  is_negative: boolean;
+  threshold_breached: boolean;
+}
+
+export interface CashSummaryResponse {
+  categories: CashSummaryCategory[];
+  summary: {
+    total_cash_in_hand: number;
+    days_since_last_pc_close: number;
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// AI PROJECT SUMMARY (Phase 5 Feature)
+// ──────────────────────────────────────────────────────────────────────────
+export interface AISummaryReportData {
+  total_budget: number;
+  total_committed: number;
+  total_certified: number;
+  total_remaining: number;
+  over_budget_categories: string[];
+  total_vendor_payable: number;
+  total_cash_in_hand: number;
+  petty_cash_status: string;
+  ovh_status: string;
+  wo_total: number;
+  wo_open: number;
+  wo_closed: number;
+  pc_total: number;
+  pc_closed: number;
+  schedule_task_count: number;
+}
+
+export interface AISummary {
+  _id?: string;
+  project_id: string;
+  organisation_id: string;
+  summary_text: string;
+  report_data: AISummaryReportData;
+  generated_at: string;
+  model: string;
+  triggered_by: 'scheduler' | 'manual';
+}

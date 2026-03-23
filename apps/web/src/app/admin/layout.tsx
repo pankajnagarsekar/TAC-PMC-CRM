@@ -9,6 +9,7 @@ import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { cn } from '@/lib/utils';
 
 // Register AG Grid modules globally
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -16,7 +17,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, accessToken, clearAuth, _hasHydrated } = useAuthStore();
+    const { user, accessToken, clearAuth, _hasHydrated, isClient } = useAuthStore();
     const { activeProject } = useProjectStore();
     const [showProjectModal, setShowProjectModal] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -149,7 +150,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </header>
 
                 {/* Main Workspace - Floating Grid Area */}
-                <main className="flex-1 overflow-y-auto high-density-grid p-8 relative custom-scrollbar bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-[var(--radius)] shadow-[var(--glass-shadow)] transition-all duration-300">
+                <main className={cn(
+                  "flex-1 overflow-y-auto high-density-grid p-8 relative custom-scrollbar",
+                  "bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)]",
+                  "rounded-[var(--radius)] shadow-[var(--glass-shadow)] transition-all duration-300",
+                  isClient && 'client-readonly'
+                )}>
                     <div className="max-w-[1600px] mx-auto space-y-10">
                         <ErrorBoundary>
                             {children}

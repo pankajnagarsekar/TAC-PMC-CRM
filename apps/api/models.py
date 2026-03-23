@@ -63,6 +63,16 @@ class UserCreate(BaseModel):
     dpr_generation_permission: bool = False
 
 
+class UserCreateAdmin(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str = "Supervisor"
+    dpr_generation_permission: bool = False
+    assigned_projects: List[str] = Field(default_factory=list)
+    screen_permissions: List[str] = Field(default_factory=list)
+
+
 class UserResponse(BaseModel):
     user_id: str
     organisation_id: str
@@ -105,6 +115,7 @@ class UserProjectMapCreate(BaseModel):
 
 class Project(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: Optional[str] = None  # Derived from _id in API responses
     organisation_id: str
     project_name: str
     client_id: Optional[str] = None
@@ -752,5 +763,40 @@ class OperationLog(BaseModel):
     entity_type: str
     response_payload: Optional[dict] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# =============================================================================
+# AI PROJECT SUMMARY MODELS
+# =============================================================================
+class AISummaryReportData(BaseModel):
+    total_budget: float = 0.0
+    total_committed: float = 0.0
+    total_certified: float = 0.0
+    total_remaining: float = 0.0
+    over_budget_categories: List[str] = Field(default_factory=list)
+    total_vendor_payable: float = 0.0
+    total_cash_in_hand: float = 0.0
+    petty_cash_status: str = "Unknown"
+    ovh_status: str = "Unknown"
+    wo_total: int = 0
+    wo_open: int = 0
+    wo_closed: int = 0
+    pc_total: int = 0
+    pc_closed: int = 0
+    schedule_task_count: int = 0
+
+
+class AISummaryDocument(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    organisation_id: str
+    summary_text: str
+    report_data: AISummaryReportData
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    model: str = "mock"
+    triggered_by: Literal["scheduler", "manual"] = "scheduler"
+    date_key: str
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

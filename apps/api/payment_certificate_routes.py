@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
+from bson import ObjectId
 from pydantic import BaseModel
 from typing import List, Optional
-from bson import ObjectId
-from datetime import datetime
-from core.database import get_db
+from fastapi.responses import StreamingResponse
+from core.pdf_service import pdf_generator
+from core.database import get_db, db_manager
+from core.utils import serialize_doc
+import traceback
 from auth import get_current_user
 from payment_certificate_service import PaymentCertificateService
 from audit_service import AuditService
@@ -12,17 +15,6 @@ from core.rate_limit import limiter
 from permissions import PermissionChecker
 
 
-# --- Helper ---
-def serialize_doc(doc: dict) -> dict:
-    if not doc:
-        return doc
-    serialized = {}
-    for k, v in doc.items():
-        if k == '_id' and isinstance(v, ObjectId):
-            serialized[k] = str(v)
-        else:
-            serialized[k] = v
-    return serialized
 
 
 pc_router = APIRouter(prefix="/api", tags=["Payment Certificates"])
@@ -219,9 +211,9 @@ async def list_project_pcs(
             if isinstance(ts, datetime):
                 next_cursor = ts.isoformat()
 
-        from core.database import db_manager
+        from core.utils import serialize_doc
         return {
-            "items": [db_manager.from_bson(doc) for doc in docs],
+            "items": [serialize_doc(doc) for doc in docs],
             "next_cursor": next_cursor
         }
     except HTTPException:
@@ -236,6 +228,9 @@ async def get_single_pc(
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
+    if not ObjectId.is_valid(pc_id):
+        raise HTTPException(status_code=400, detail="Invalid PC ID format")
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
 
@@ -250,9 +245,57 @@ async def get_single_pc(
         # Check project access
         await checker.check_project_access(user, doc.get("project_id"))
 
-        from core.database import db_manager
-        return db_manager.from_bson(doc)
+        return serialize_doc(doc)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{str(e)}\n{traceback.format_exc()}")
+
+
+@pc_router.get("/payment-certificates/{pc_id}/export")
+async def export_payment_certificate_pdf(
+    pc_id: str,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(pc_id):
+        raise HTTPException(status_code=400, detail="Invalid PC ID format")
+
+    checker = PermissionChecker(db)
+    user = await checker.get_authenticated_user(current_user)
+
+    doc = await db.payment_certificates.find_one({
+        "_id": ObjectId(pc_id),
+        "organisation_id": user["organisation_id"]
+    })
+    if not doc:
+        raise HTTPException(status_code=404, detail="Payment Certificate not found")
+
+    await checker.check_project_access(user, doc.get("project_id"))
+
+    # Fetch settings for branding
+    settings = await db.global_settings.find_one({"organisation_id": user["organisation_id"]})
+    if not settings:
+        settings = {}
+
+    # Fetch vendor info
+    vendor_id = doc.get("vendor_id")
+    vendor = None
+    if vendor_id and ObjectId.is_valid(vendor_id):
+        vendor = await db.vendors.find_one({"_id": ObjectId(vendor_id)})
+
+    from core.utils import serialize_doc
+    pdf_bytes = pdf_generator.generate_payment_certificate_pdf(
+        serialize_doc(doc),
+        serialize_doc(settings),
+        serialize_doc(vendor) if vendor else None
+    )
+
+    filename = pdf_generator.get_pc_filename(doc.get("pc_ref", pc_id))
+
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
+    )

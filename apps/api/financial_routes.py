@@ -92,13 +92,15 @@ async def get_project_vendor_payables(
             if vendor:
                 vendor_name = vendor.get("name", "Unknown")
 
+        # Use serialize_doc to handle Decimal128 -> float conversion
+        sr = serialize_doc(r)
         payables.append({
             "vendor_id": vendor_id,
             "vendor_name": vendor_name,
-            "total_certified": float(r.get("total_certified", 0)),
-            "total_paid": float(r.get("total_paid", 0)),
-            "total_retention": float(r.get("total_retention", 0)),
-            "net_payable": float(r.get("net_payable", 0)),
+            "total_certified": sr.get("total_certified", 0.0),
+            "total_paid": sr.get("total_paid", 0.0),
+            "total_retention": sr.get("total_retention", 0.0),
+            "net_payable": sr.get("net_payable", 0.0),
         })
 
     return payables

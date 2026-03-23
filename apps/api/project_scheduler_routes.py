@@ -12,7 +12,6 @@ from core.database import db_manager
 from decimal import Decimal
 
 scheduler_router = APIRouter()
-db = db_manager.db
 
 # Layer 2: Orchestration
 
@@ -59,7 +58,7 @@ async def verify_financial_baseline(project_id: str, scheduled_total: float):
             {"$match": {"project_id": project_id}},
             {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
         ]
-        result = await db.work_orders.aggregate(pipeline).to_list(length=1)
+        result = await db_manager.db.work_orders.aggregate(pipeline).to_list(length=1)
         
         baseline_total = 0.0
         if result:
@@ -148,7 +147,7 @@ async def calculate_schedule(project_id: str, data: Dict[str, Any], current_user
 async def generate_cash_flow_forecast(project_id: str, current_user: dict = Depends(get_current_user)):
     """Orchestrates cash flow report generation from saved schedule"""
     organisation_id = current_user.get("organisation_id")
-    schedule = await db.project_schedules.find_one({
+    schedule = await db_manager.db.project_schedules.find_one({
         "project_id": project_id,
         "organisation_id": organisation_id
     })
@@ -173,7 +172,7 @@ async def trigger_pdf_export(project_id: str, current_user: dict = Depends(get_c
 
     try:
         # Load the saved schedule from MongoDB
-        schedule = await db.project_schedules.find_one({
+        schedule = await db_manager.db.project_schedules.find_one({
             "project_id": project_id,
             "organisation_id": organisation_id
         })
@@ -231,6 +230,7 @@ async def import_schedule(project_id: str, file: UploadFile = File(...), current
 
         # 2. Detect file type and route to appropriate parser
         file_ext = os.path.splitext(file.filename)[1].lower()
+        print(f"DEBUG: Import file: {file.filename}, detected extension: {file_ext}")
 
         if file_ext == ".pdf":
             script_name = "pdf_schedule_parser.py"
@@ -277,7 +277,7 @@ async def save_schedule(project_id: str, data: Dict[str, Any], current_user: dic
         "updated_at": datetime.now(timezone.utc)
     }
     
-    await db.project_schedules.update_one(
+    await db_manager.db.project_schedules.update_one(
         {"project_id": project_id},
         {"$set": schedule_doc},
         upsert=True
@@ -289,7 +289,7 @@ async def save_schedule(project_id: str, data: Dict[str, Any], current_user: dic
 async def load_schedule(project_id: str, current_user: dict = Depends(get_current_user)):
     """Load the project schedule state"""
     organisation_id = current_user.get("organisation_id")
-    schedule = await db.project_schedules.find_one({
+    schedule = await db_manager.db.project_schedules.find_one({
         "project_id": project_id,
         "organisation_id": organisation_id
     })

@@ -34,6 +34,8 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
 
 
   function selectProject(project: Project) {
+    console.log("Selecting project:", project);
+    console.log("Project has project_id?", project.project_id);
     setActiveProject(project);
     // Force a full page reload to ensure absolute financial data isolation and clear all state
     window.location.reload();

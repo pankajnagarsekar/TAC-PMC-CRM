@@ -112,73 +112,109 @@ class ReportingService:
     async def _project_summary_report(self, project_id: str) -> Dict[str, Any]:
         """
         Project-level financial summary: budget vs committed vs certified per category.
-        Aligned with template: CODE | Description | WO Value | % Progress | Payment Value | Difference
+        Aligned with template: CODE | Description | Budget | Committed | Certified | Remaining | Deadline
         """
+        # We pull from financial_state as it's the authoritative aggregate
         pipeline = [
             {"$match": {"project_id": project_id}},
+            # Add a flag if category_id looks like a 24-char hex ObjectId
             {
-                "$group": {
-                    "_id": "$category_id",
-                    "original_budget": {"$first": "$original_budget"},
-                    "committed_amount": {"$sum": "$committed_amount"},
-                    "remaining_budget": {"$first": "$remaining_budget"},
+                "$addFields": {
+                    "curr_cid": "$category_id",
+                    "is_oid_candidate": {
+                        "$regexMatch": {
+                            "input": {"$toString": "$category_id"},
+                            "regex": "^[0-9a-fA-F]{24}$"
+                        }
+                    }
                 }
             },
-            {"$sort": {"_id": 1}},
+            # Universal lookup across ID, code, and code_short
+            {
+                "$lookup": {
+                    "from": "code_master",
+                    "let": {"cid": "$curr_cid", "is_oid": "$is_oid_candidate"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$or": [
+                                        {"$eq": ["$_id", "$$cid"]},
+                                        {"$eq": ["$code", "$$cid"]},
+                                        {"$eq": ["$code_short", "$$cid"]},
+                                        {
+                                            "$and": [
+                                                {"$eq": ["$$is_oid", True]},
+                                                {"$eq": ["$_id", {"$toObjectId": "$$cid"}]}
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "matched_categories"
+                }
+            },
+            {
+                "$addFields": {
+                    "category": {"$arrayElemAt": ["$matched_categories", 0]}
+                }
+            },
+            {
+                "$project": {
+                    "original_budget": 1,
+                    "committed_value": 1,
+                    "certified_value": 1,
+                    "balance_budget_remaining": 1,
+                    "category_name": {"$ifNull": ["$category.category_name", {"$ifNull": ["$category.code_description", "$category_id"]}]},
+                    "category_code": {"$ifNull": ["$category.code", {"$ifNull": ["$category.code_short", "N/A"]}]}
+                }
+            },
+            {"$sort": {"category_code": 1}},
         ]
 
-        categories_data = await self.db.project_category_budgets.aggregate(pipeline).to_list(None)
-
-        # Fetch category maps
-        category_map = {}
-        category_code_map = {}
-        categories = await self.db.categories.find({}).to_list(None)
-        for cat in categories:
-            cat_id = str(cat.get("_id", ""))
-            category_map[cat_id] = cat.get("name", cat_id)
-            category_code_map[cat_id] = cat.get("code", cat_id[:3].upper())
+        financial_data = await self.db.financial_state.aggregate(pipeline).to_list(None)
 
         rows = []
-        totals = {
-            "original_budget": Decimal("0"),
-            "committed": Decimal("0"),
-            "remaining": Decimal("0"),
-        }
+        totals = {"budget": 0.0, "committed": 0.0, "certified": 0.0, "remaining": 0.0}
 
-        for cat_data in categories_data:
-            category_id = str(cat_data.get("_id", ""))
-            category_name = category_map.get(category_id, category_id[:8])
-            category_code = category_code_map.get(category_id, category_id[:3])
+        for item in financial_data:
+            # Aligned with FE: [CODE, Description, Budget, Committed, Certified, Remaining, Deadline]
             
-            original = self._to_decimal(cat_data.get("original_budget", 0))
-            committed = self._to_decimal(cat_data.get("committed_amount", 0))
-            remaining = self._to_decimal(cat_data.get("remaining_budget", 0))
+            category_name = item.get("category_name")
+            category_code = item.get("category_code")
 
-            # Progress % (committed / original)
-            progress = float(committed / original) if original > 0 else 0.0
+            # Defensive float conversion
+            try:
+                budget = float(item.get("original_budget") or 0)
+                committed = float(item.get("committed_value") or 0)
+                certified = float(item.get("certified_value") or 0)
+                remaining = float(item.get("balance_budget_remaining") or 0)
+            except (ValueError, TypeError):
+                budget = committed = certified = remaining = 0.0
 
             rows.append([
                 category_code,
                 category_name,
-                float(original),
-                progress,
-                float(committed), # Certified
-                "TBD", # Deadline
-                float(remaining),
+                budget,
+                committed,
+                certified,
+                remaining,
+                "TBD"  # Deadline placeholder
             ])
 
-            totals["original_budget"] += original
+            totals["budget"] += budget
             totals["committed"] += committed
+            totals["certified"] += certified
             totals["remaining"] += remaining
 
         return {
             "title": "Project Financial Summary",
+            "project_id": project_id,
+            "columns": ["CODE", "Description", "Budget", "Committed", "Certified", "Remaining", "Deadline"],
             "rows": rows,
-            "totals": {
-                "original_budget": float(totals["original_budget"]),
-                "committed": float(totals["committed"]),
-                "remaining": float(totals["remaining"]),
-            },
+            "totals": totals,
             "metadata": {
                 "project_id": project_id,
                 "generated_at": datetime.now(timezone.utc).isoformat(),

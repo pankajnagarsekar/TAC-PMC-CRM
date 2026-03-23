@@ -40,10 +40,10 @@ export default function LoginPage() {
       document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax`;
 
       // Role-based redirect
-      if (user.role === 'Admin') {
+      if (user.role === 'Admin' || user.role === 'Client') {
         router.replace('/admin/dashboard');
       } else {
-        setError('Access denied. The Web CRM is available for Admins only.');
+        setError('Access denied. This portal is for Admin and Client users only.');
         setAuth(user, '', '');
       }
     } catch (err: unknown) {

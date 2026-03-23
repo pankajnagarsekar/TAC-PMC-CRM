@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from core.config import settings
 
 celery_app = Celery(
@@ -19,6 +20,10 @@ celery_app.conf.update(
         "refresh-materialized-reports": {
             "task": "tasks.refresh_all_reports",
             "schedule": 3600.0, # Every hour
+        },
+        "generate-daily-ai-summaries": {
+            "task": "tasks.generate_daily_ai_summaries",
+            "schedule": crontab(hour=0, minute=0),  # Midnight UTC daily
         },
     }
 )

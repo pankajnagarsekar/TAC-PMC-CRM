@@ -134,10 +134,11 @@ async def export_report_excel(
 
         job_id = job_orchestrator.enqueue(
             ExportService.export_to_excel,
-            project_id,
-            report_type,
             celery_task=celery_export_task,
-            background_tasks=background_tasks
+            background_tasks=background_tasks,
+            report_type=report_type,
+            report_data=report_data,
+            company_info=company_info
         )
         
         if not job_id.startswith("local_"):
@@ -150,7 +151,7 @@ async def export_report_excel(
             report_data=report_data,
             company_info=company_info,
             include_terms=True,
-            terms_text=settings.get("default_terms", "") if settings else "",
+            terms_text=settings.get("terms_and_conditions", "") if settings else "",
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -174,8 +175,10 @@ async def export_report_pdf(
     report_type: str,
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    sync: bool = Query(False, description="Force synchronous export response"),
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     """
     Export report as PDF file
@@ -206,14 +209,26 @@ async def export_report_pdf(
         "address": settings.get("address", "") if settings else "",
     }
     
-    # Generate PDF
+    if not sync:
+        job_id = job_orchestrator.enqueue(
+            ExportService.export_to_pdf,
+            celery_task=None, # PDF async task not in tasks.py yet, use BackgroundTasks
+            background_tasks=background_tasks,
+            report_type=report_type,
+            report_data=report_data,
+            company_info=company_info
+        )
+        if not job_id.startswith("local_"):
+            return {"job_id": job_id, "status": "accepted"}
+
+    # Generate PDF inline
     try:
         pdf_bytes = ExportService.export_to_pdf(
             report_type=report_type,
             report_data=report_data,
             company_info=company_info,
             include_terms=True,
-            terms_text=settings.get("default_terms", "") if settings else "",
+            terms_text=settings.get("terms_and_conditions", "") if settings else "",
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))

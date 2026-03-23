@@ -27,6 +27,11 @@ class PermissionChecker:
         user_id = current_user.get("user_id")
 
         # Fetch user from database
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid user ID format"
+            )
         user = await self.db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(
@@ -67,21 +72,19 @@ class PermissionChecker:
         # Supervisors with assigned projects have full access
         # Handle both ObjectId and string project IDs
         try:
-            project_query_id = ObjectId(project_id) if isinstance(
-                project_id, str
-            ) and len(project_id) == 24 else project_id
-        except BaseException:
+            if isinstance(project_id, str) and ObjectId.is_valid(project_id):
+                project_query_id = ObjectId(project_id)
+            else:
+                project_query_id = project_id
+        except Exception:
             project_query_id = project_id
 
         try:
-            user_query_id = ObjectId(
-                user["user_id"]
-            ) if isinstance(
-                user["user_id"], str
-            ) and len(
-                user["user_id"]
-            ) == 24 else user["user_id"]
-        except BaseException:
+            if isinstance(user["user_id"], str) and ObjectId.is_valid(user["user_id"]):
+                user_query_id = ObjectId(user["user_id"])
+            else:
+                user_query_id = user["user_id"]
+        except Exception:
             user_query_id = user["user_id"]
 
         # Check user_project_map as fallback
@@ -124,7 +127,11 @@ class PermissionChecker:
         self, project_id: str, organisation_id: str
     ):
         """Verify that project belongs to the user's organisation"""
-        project = await self.db.projects.find_one({"_id": ObjectId(project_id) if isinstance(project_id, str) else project_id})
+        query_id = project_id
+        if isinstance(project_id, str) and ObjectId.is_valid(project_id):
+            query_id = ObjectId(project_id)
+        
+        project = await self.db.projects.find_one({"_id": query_id})
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -175,13 +182,13 @@ class PermissionChecker:
 
         # Handle ObjectId conversion
         try:
-            user_query_id = ObjectId(user["user_id"]) if isinstance(user["user_id"], str) and len(user["user_id"]) == 24 else user["user_id"]
-        except BaseException:
+            user_query_id = ObjectId(user["user_id"]) if isinstance(user["user_id"], str) and ObjectId.is_valid(user["user_id"]) else user["user_id"]
+        except Exception:
             user_query_id = user["user_id"]
 
         try:
-            project_query_id = ObjectId(project_id) if isinstance(project_id, str) and len(project_id) == 24 else project_id
-        except BaseException:
+            project_query_id = ObjectId(project_id) if isinstance(project_id, str) and ObjectId.is_valid(project_id) else project_id
+        except Exception:
             project_query_id = project_id
 
         # Check if client has mapping to this project

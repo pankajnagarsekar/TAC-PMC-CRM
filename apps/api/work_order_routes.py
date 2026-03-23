@@ -4,12 +4,16 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime, timezone
 from core.database import get_db, db_manager
+from core.utils import serialize_doc
+import traceback
 from auth import get_current_user
 from models import WorkOrderCreate, WorkOrder, WorkOrderUpdate
 from work_order_service import WorkOrderService
 from permissions import PermissionChecker
 from core.rate_limit import limiter
 from fastapi import Request
+from fastapi.responses import StreamingResponse
+from core.pdf_service import pdf_generator
 
 router = APIRouter(prefix="/api/work-orders", tags=["Work Orders"])
 project_scoped_router = APIRouter(prefix="/api/projects", tags=["Work Orders"])
@@ -48,8 +52,9 @@ async def list_work_orders(
         if isinstance(ts, datetime):
             next_cursor = ts.isoformat()
 
+    from core.utils import serialize_doc
     return {
-        "items": [db_manager.from_bson(wo) for wo in wos],
+        "items": [serialize_doc(wo) for wo in wos],
         "next_cursor": next_cursor
     }
 
@@ -153,7 +158,8 @@ async def get_work_order(
         raise HTTPException(status_code=404, detail="Work Order not found")
 
     await checker.check_project_access(user, wo["project_id"])
-    return db_manager.from_bson(wo)
+    from core.utils import serialize_doc
+    return serialize_doc(wo)
 
 
 @router.patch("/{wo_id}/status")
@@ -295,3 +301,56 @@ async def delete_work_order(
     wo_service = WorkOrderService(db, audit_service, financial_service)
     result = await wo_service.delete_work_order(wo_id, user)
     return result
+
+
+@router.get("/{wo_id}/export")
+async def export_work_order_pdf(
+    wo_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        if not ObjectId.is_valid(wo_id):
+            raise HTTPException(status_code=400, detail="Invalid WO ID format")
+
+        checker = PermissionChecker(db)
+        user = await checker.get_authenticated_user(current_user)
+
+        wo = await db.work_orders.find_one({
+            "_id": ObjectId(wo_id),
+            "organisation_id": user["organisation_id"]
+        })
+        if not wo:
+            raise HTTPException(status_code=404, detail="Work Order not found")
+
+        await checker.check_project_access(user, wo["project_id"])
+
+        # Fetch settings for logo and company info
+        settings = await db.global_settings.find_one({"organisation_id": user["organisation_id"]})
+        if not settings:
+            settings = {}
+
+        # Fetch vendor info
+        vendor_id = wo.get("vendor_id")
+        vendor = None
+        if vendor_id and ObjectId.is_valid(vendor_id):
+            vendor = await db.vendors.find_one({"_id": ObjectId(vendor_id)})
+
+        pdf_bytes = pdf_generator.generate_work_order_pdf(
+            serialize_doc(wo),
+            serialize_doc(settings),
+            serialize_doc(vendor) if vendor else None
+        )
+
+        filename = pdf_generator.get_wo_filename(wo.get("wo_ref", wo_id))
+
+        return StreamingResponse(
+            iter([pdf_bytes]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{str(e)}\n{traceback.format_exc()}")

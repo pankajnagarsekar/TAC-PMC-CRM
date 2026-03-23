@@ -14,14 +14,78 @@ def parse_tracking_pdf(file_path):
     try:
         import pdfplumber
 
+        def find_column_indices(header_row):
+            """Helper to map keywords to column indices based on header text"""
+            indices = {
+                "id": None,
+                "name": None,
+                "duration": None,
+                "start": None,
+                "finish": None,
+                "predecessors": None,
+                "cost": None,
+                "actual_start": None,
+                "actual_finish": None,
+                "percent_complete": None,
+                "remaining_duration": None,
+                "baseline_duration": None,
+                "baseline_start": None,
+                "baseline_finish": None
+            }
+            
+            if not header_row:
+                return indices
+                
+            for i, cell in enumerate(header_row):
+                if not cell:
+                    continue
+                cell_text = str(cell).lower().replace('\n', ' ')
+                
+                if "id" == cell_text.strip():
+                    indices["id"] = i
+                elif "task name" in cell_text or "name" == cell_text.strip():
+                    indices["name"] = i
+                elif "baseline" in cell_text and "duration" in cell_text:
+                    indices["baseline_duration"] = i
+                elif "baseline" in cell_text and "start" in cell_text:
+                    indices["baseline_start"] = i
+                elif "baseline" in cell_text and "finish" in cell_text:
+                    indices["baseline_finish"] = i
+                elif "actual" in cell_text and "start" in cell_text:
+                    indices["actual_start"] = i
+                elif "actual" in cell_text and "finish" in cell_text:
+                    indices["actual_finish"] = i
+                elif "duration" in cell_text and "baseline" not in cell_text:
+                    indices["duration"] = i
+                elif "start" in cell_text and "baseline" not in cell_text and "actual" not in cell_text:
+                    indices["start"] = i
+                elif "finish" in cell_text and "baseline" not in cell_text and "actual" not in cell_text:
+                    indices["finish"] = i
+                elif "predecessor" in cell_text:
+                    indices["predecessors"] = i
+                elif "cost" in cell_text:
+                    indices["cost"] = i
+                elif "% comp" in cell_text or "complete" in cell_text:
+                    indices["percent_complete"] = i
+                elif "rem" in cell_text and "dur" in cell_text:
+                    indices["remaining_duration"] = i
+                    
+            return indices
+
         with pdfplumber.open(file_path) as pdf:
             tasks_data = []
             project_name = None
             project_start = None
+            debug_info = {
+                "total_pages": len(pdf.pages),
+                "tables_per_page": [],
+                "headers_found": []
+            }
 
             for page_num, page in enumerate(pdf.pages):
                 # Extract tables from the page
                 tables = page.extract_tables()
+                debug_info["tables_per_page"].append(len(tables) if tables else 0)
 
                 if not tables:
                     continue
@@ -32,112 +96,161 @@ def parse_tracking_pdf(file_path):
 
                     # Find the header row (contains "ID", "Task Name", etc.)
                     header_row_idx = None
+                    col_map = None
                     for i, row in enumerate(table):
                         if row and len(row) > 0:
                             # Check if this looks like a header row
-                            first_cell = str(row[0]).lower() if row[0] else ""
-                            if "id" in first_cell or "task" in str(row).lower():
+                            row_str = str(row).lower()
+                            if "id" in row_str and ("task" in row_str or "name" in row_str):
                                 header_row_idx = i
+                                col_map = find_column_indices(row)
+                                debug_info["headers_found"].append({
+                                    "page": page_num,
+                                    "table": table_idx,
+                                    "row": i,
+                                    "columns": len(row),
+                                    "map": {k: v for k, v in col_map.items() if v is not None}
+                                })
                                 break
 
-                    if header_row_idx is None:
+                    if header_row_idx is None or col_map is None:
                         continue
 
-                    # Process data rows (skip header, title, and legend)
+                    # Process data rows
                     for row_idx in range(header_row_idx + 1, len(table)):
                         row = table[row_idx]
-                        if not row or len(row) < 10:
+                        if not row or len(row) < 5: # Relaxed column count
                             continue
 
-                        # Get ID column (first column)
-                        task_id = str(row[0]).strip() if row[0] else ""
+                        # Get ID column
+                        idx_id = col_map["id"]
+                        if idx_id is None: continue
+                        task_id = str(row[idx_id]).strip() if len(row) > idx_id and row[idx_id] else ""
 
-                        # Check if this is a valid data row (ID should be numeric or the project summary at 0)
+                        # Check if this is a valid data row
                         if not task_id or (not task_id.isdigit() and task_id != "0"):
                             continue
 
-                        # Skip legend and footer rows (they contain text like "Page" or "Legend")
+                        # Skip footer rows
                         if "page" in task_id.lower() or "legend" in task_id.lower():
                             continue
 
-                        # Extract columns: ID | Task Name | BaselineDuration | BaselineStart | BaselineFinish
-                        #                  | Duration | ActualStart | ActualFinish | %Comp | RemDur
                         try:
                             task_id_num = int(task_id)
 
-                            # Task Name (column 1)
-                            task_name = str(row[1]).strip() if len(row) > 1 and row[1] else "Task"
+                            # Extract data using the column map
+                            def get_cell(key, default=""):
+                                idx = col_map[key]
+                                if idx is not None and len(row) > idx and row[idx] is not None:
+                                    return str(row[idx]).strip()
+                                return default
 
-                            # Clean up task name from Gantt bleed (remove trailing Gantt bar text)
-                            # Gantt bars add text like "i1n t" — remove anything after the last word
-                            words = task_name.split()
-                            if words:
-                                # Remove trailing non-letter/digit/space content
-                                task_name = " ".join(
-                                    w for w in words if w and (w[0].isalpha() or w[0].isdigit())
-                                ).strip()
+                            task_name = get_cell("name", "Task")
+                            
+                            # Clean up task name
+                            # Preserve symbols but remove trailing Gantt bleed if any
+                            task_name = task_name.strip()
+                            # If there's high-ASCII or weird bleed characters at the end, 
+                            # we could try to trim them, but simple strip is safer for now.
 
-                            # Skip ghost rows that have no useful content
                             if not task_name or task_name == "Task":
                                 continue
 
-                            # Baseline Duration (column 3, skip column 2 which is often None/"ghost")
-                            baseline_duration_str = str(row[3]).strip() if len(row) > 3 and row[3] else "0"
-                            baseline_duration = int(baseline_duration_str.split()[0]) if baseline_duration_str else 0
+                            # Duration
+                            idx_dur = col_map["duration"]
+                            duration = 0
+                            if idx_dur is not None:
+                                duration_str = get_cell("duration", "0")
+                                try:
+                                    duration = int(duration_str.split()[0])
+                                except:
+                                    duration = 0
 
-                            # Baseline Start (column 4)
-                            baseline_start = str(row[4]).strip() if len(row) > 4 and row[4] else None
+                            # Baseline Duration
+                            idx_bdur = col_map["baseline_duration"]
+                            baseline_duration = 0
+                            if idx_bdur is not None:
+                                bduration_str = get_cell("baseline_duration", "0")
+                                try:
+                                    baseline_duration = int(bduration_str.split()[0])
+                                except:
+                                    baseline_duration = 0
 
-                            # Baseline Finish (column 5)
-                            baseline_finish = str(row[5]).strip() if len(row) > 5 and row[5] else None
+                            # Dates
+                            start = get_cell("start")
+                            finish = get_cell("finish")
+                            baseline_start = get_cell("baseline_start")
+                            baseline_finish = get_cell("baseline_finish")
+                            actual_start = get_cell("actual_start")
+                            actual_finish = get_cell("actual_finish")
 
-                            # Current Duration (column 6)
-                            duration_str = str(row[6]).strip() if len(row) > 6 and row[6] else "0"
-                            duration = int(duration_str.split()[0]) if duration_str else 0
+                            if actual_start and actual_start.upper() == "NA": actual_start = None
+                            if actual_finish and actual_finish.upper() == "NA": actual_finish = None
 
-                            # Actual Start (column 7)
-                            actual_start = str(row[7]).strip() if len(row) > 7 and row[7] else None
-                            if actual_start and actual_start.upper() == "NA":
-                                actual_start = None
+                            # Cost
+                            cost_str = get_cell("cost", "0")
+                            cost = 0
+                            if cost_str:
+                                # Clean up currency symbols and commas
+                                clean_cost = cost_str.replace('₹', '').replace(',', '').replace('$', '').strip()
+                                try:
+                                    cost = float(clean_cost)
+                                except:
+                                    cost = 0
 
-                            # Actual Finish (column 8)
-                            actual_finish = str(row[8]).strip() if len(row) > 8 and row[8] else None
-                            if actual_finish and actual_finish.upper() == "NA":
-                                actual_finish = None
+                            # Predecessors
+                            predecessors_str = get_cell("predecessors", "")
+                            predecessors = []
+                            if predecessors_str:
+                                # Simple split by comma or semi-colon
+                                parts = predecessors_str.replace(';', ',').split(',')
+                                for p in parts:
+                                    p_clean = p.strip()
+                                    if p_clean:
+                                        # Handle lead/lag like "5FS+2 days" - just take the ID
+                                        import re
+                                        match = re.match(r'^(\d+)', p_clean)
+                                        if match:
+                                            predecessors.append(f"T{match.group(1)}")
 
-                            # % Complete (column 9)
-                            pct_complete_str = str(row[9]).strip() if len(row) > 9 and row[9] else "0"
-                            pct_complete = int(pct_complete_str.replace("%", "")) if pct_complete_str else 0
+                            # % Complete
+                            pct_str = get_cell("percent_complete", "0")
+                            pct_complete = 0
+                            if pct_str:
+                                try:
+                                    pct_complete = int(pct_str.replace("%", ""))
+                                except:
+                                    if pct_str.isdigit():
+                                        pct_complete = int(pct_str)
 
-                            # Remaining Duration (column 10)
-                            remaining_duration_str = str(row[10]).strip() if len(row) > 10 and row[10] else "0"
+                            # Remaining Duration
+                            rem_dur_str = get_cell("remaining_duration", "0")
                             try:
-                                remaining_duration = float(remaining_duration_str.split()[0])
+                                remaining_duration = float(rem_dur_str.split()[0])
                             except:
                                 remaining_duration = 0
 
-                            # Detect if this is the project summary (usually ID 0)
-                            is_milestone = baseline_duration == 0
+                            is_milestone = duration == 0 or baseline_duration == 0
 
-                            # Use baseline dates if available, otherwise use current dates
-                            start = baseline_start if baseline_start else actual_start or ""
-                            finish = baseline_finish if baseline_finish else actual_finish or ""
+                            # Fallbacks for start/finish
+                            final_start = start or baseline_start or actual_start or ""
+                            final_finish = finish or baseline_finish or actual_finish or ""
 
-                            # Capture project start from the first row (project summary)
-                            if task_id_num == 0 and not project_start:
-                                if baseline_start:
-                                    project_start = baseline_start
-                                if not project_name:
+                            # Capture project start
+                            if (task_id_num == 0 or not project_start) and final_start:
+                                if not project_start or task_id_num == 0:
+                                    project_start = final_start
+                                if not project_name or task_id_num == 0:
                                     project_name = task_name
 
                             task_obj = {
                                 "id": f"T{task_id_num}",
                                 "name": task_name,
                                 "duration": duration,
-                                "start": start,
-                                "finish": finish,
-                                "predecessors": [],  # PDF doesn't have predecessor info
-                                "cost": 0,  # PDF doesn't have cost info (only baseline PDFs have costs)
+                                "start": final_start,
+                                "finish": final_finish,
+                                "predecessors": predecessors,
+                                "cost": cost,
                                 "percentComplete": pct_complete,
                                 "actualStart": actual_start,
                                 "actualFinish": actual_finish,
@@ -148,12 +261,14 @@ def parse_tracking_pdf(file_path):
                             }
                             tasks_data.append(task_obj)
 
-                        except (ValueError, IndexError, TypeError) as e:
-                            # Skip malformed rows
+                        except (ValueError, IndexError, TypeError):
                             continue
 
             if not tasks_data:
-                return {"error": "No task data extracted from PDF. Please ensure the PDF is a valid Microsoft Project Gantt chart export."}
+                return {
+                    "error": "No task data extracted from PDF. Please ensure the PDF is a valid Microsoft Project Gantt chart export.",
+                    "debug": debug_info
+                }
 
             return {
                 "tasks": tasks_data,
@@ -161,8 +276,7 @@ def parse_tracking_pdf(file_path):
                 "project_name": project_name,
                 "status": "success",
                 "imported_at": datetime.now().isoformat(),
-                "source": "PDF Gantt Chart",
-                "warning": "PDF import extracts progress data. Predecessors and costs are not available in tracking PDFs. Use MSPDI XML import for the complete baseline schedule."
+                "source": "PDF Gantt Chart"
             }
 
     except ImportError:

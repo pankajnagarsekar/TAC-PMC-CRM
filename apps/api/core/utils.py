@@ -27,6 +27,7 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
             result[key] = [
                 serialize_doc(item) if isinstance(item, dict)
                 else float(item.to_decimal()) if isinstance(item, Decimal128)
+                else float(item) if isinstance(item, Decimal)
                 else str(item) if isinstance(item, ObjectId)
                 else item
                 for item in value

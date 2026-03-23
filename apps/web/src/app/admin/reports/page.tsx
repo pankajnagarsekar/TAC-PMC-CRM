@@ -212,11 +212,27 @@ export default function ReportsPage() {
         title: "Registry Exported",
         description: `Downloaded ${format.toUpperCase()} successfully.`,
       });
-    } catch (error) {
-      console.error("Export failed:", error);
+    } catch (error: any) {
+      console.error("Export failure:", error);
+      let errorMsg = "The analytical engine encountered a stall during compilation.";
+
+      // Try to parse error message from arraybuffer/blob response
+      if (error.response?.data) {
+        try {
+          const data = error.response.data;
+          const text = data instanceof ArrayBuffer ? new TextDecoder().decode(data) : await data.text();
+          const parsed = JSON.parse(text);
+          errorMsg = parsed.detail || errorMsg;
+        } catch (e) {
+          if (error.response.status === 503) {
+            errorMsg = "Export engine is unavailable. Please check backend dependencies (GTK+ for PDF).";
+          }
+        }
+      }
+
       toast({
         title: "Export Fault",
-        description: `Failed to compile ${format.toUpperCase()} document.`,
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -232,44 +248,44 @@ export default function ReportsPage() {
 
   // Dynamic column definitions based on report type
   const getColumnDefs = (): ColDef[] => {
-    // Kept identical to previous for functional integrity
     switch (selectedReport) {
       case "project_summary":
         return [
           { headerName: "CODE", field: "0", flex: 0.5 },
           { headerName: "Description", field: "1", flex: 1.5 },
           {
-            headerName: "WO Value (₹)",
+            headerName: "Budget (₹)",
             field: "2",
             flex: 1,
             cellStyle: { textAlign: "right" },
             cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
           {
-            headerName: "% Progress",
+            headerName: "Committed (₹)",
             field: "3",
-            flex: 0.7,
+            flex: 1,
+            cellStyle: { textAlign: "right" },
             cellRenderer: (p: any) =>
-              typeof p.value === "number" ? (p.value * 100).toFixed(1) + "%" : p.value,
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
           {
-            headerName: "Payment Value (₹)",
+            headerName: "Certified (₹)",
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
             cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
-          { headerName: "Deadline", field: "5", flex: 0.8 },
           {
-            headerName: "Difference (₹)",
-            field: "6",
+            headerName: "Remaining (₹)",
+            field: "5",
             flex: 1,
             cellStyle: { textAlign: "right" },
             cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
+          { headerName: "Deadline", field: "6", flex: 0.8 },
         ];
       case "work_order_tracker":
         return [
@@ -355,14 +371,14 @@ export default function ReportsPage() {
           <div className="space-y-3">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Analytical Framework</label>
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-orange-500 transition-colors" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-orange-500 transition-colors pointer-events-none z-0" size={18} />
               <select
                 value={selectedReport}
                 onChange={(e) => {
                   setSelectedReport(e.target.value as ReportType);
                   setReportData(null);
                 }}
-                className="w-full bg-slate-950 border border-white/5 rounded-2xl pl-12 pr-10 py-4 text-sm text-white focus:outline-none focus:border-orange-500/40 appearance-none transition-all cursor-pointer shadow-inner"
+                className="w-full bg-slate-950 border border-white/5 rounded-2xl pl-12 pr-10 py-4 text-sm text-white focus:outline-none focus:border-orange-500/40 appearance-none transition-all cursor-pointer shadow-inner relative z-10"
               >
                 {REPORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value} className="bg-slate-900">
@@ -370,7 +386,7 @@ export default function ReportsPage() {
                   </option>
                 ))}
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 z-0">
                 <Filter size={14} />
               </div>
             </div>
@@ -380,19 +396,19 @@ export default function ReportsPage() {
           <div className="space-y-3">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Temporal Filter</label>
             <div className="flex items-center gap-3 bg-slate-950 border border-white/5 rounded-2xl px-4 py-2 shadow-inner">
-              <Calendar size={16} className="text-slate-600" />
+              <Calendar size={16} className="text-slate-600 pointer-events-none" />
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-xs text-white outline-none select-none py-2"
+                className="bg-transparent text-xs text-white outline-none py-2 relative z-10 cursor-pointer"
               />
               <div className="w-4 h-px bg-white/5" />
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-xs text-white outline-none select-none py-2"
+                className="bg-transparent text-xs text-white outline-none py-2 relative z-10 cursor-pointer"
               />
             </div>
           </div>

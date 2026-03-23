@@ -42,12 +42,12 @@ class ExportService:
             "header_row": 7,
             "columns": [
                 ("CODE", 10),
-                ("Description", 30),
-                ("WO Value", 15),
-                ("% Progress", 12),
-                ("Payment Value", 15),
+                ("Description", 40),
+                ("Budget", 15),
+                ("Committed", 15),
+                ("Certified", 15),
+                ("Remaining", 15),
                 ("Deadline", 15),
-                ("Difference", 15),
             ]
         },
         "work_order_tracker": {
@@ -120,7 +120,7 @@ class ExportService:
         },
         "15_days_progress": {
             "description": "15-day progress report",
-            "excel_sheet": "Weekly Progress", # Sharing template for now or use same structure
+            "excel_sheet": "Weekly Progress", # Sharing template
             "template_file": "weekly_progress.xlsx",
             "header_row": 6,
             "columns": [
@@ -149,17 +149,41 @@ class ExportService:
     @staticmethod
     def format_currency(value: Decimal | float | int) -> str:
         """Format value as Indian currency (₹ X,XX,XXX.XX)"""
+        if value is None:
+            return "₹ 0.00"
+            
         if isinstance(value, str):
             try:
-                value = Decimal(value)
+                clean_val = value.replace('₹', '').replace(',', '').strip()
+                value = Decimal(clean_val)
             except:
                 return value
         
-        if isinstance(value, Decimal):
-            value = float(value)
-        
-        # Format with thousands separator and 2 decimals
-        return f"₹{value:,.2f}"
+        if isinstance(value, (int, float, Decimal)):
+            val_float = float(value)
+            is_negative = val_float < 0
+            abs_val = abs(val_float)
+            
+            s = f"{abs_val:.2f}"
+            parts = s.split('.')
+            integer_part = parts[0]
+            decimal_part = parts[1]
+            
+            # Indian numbering system (3, 2, 2...)
+            if len(integer_part) > 3:
+                last_three = integer_part[-3:]
+                other_bits = integer_part[:-3]
+                res = ""
+                # Group by 2 from right to left
+                temp = other_bits[::-1]
+                grouped = [temp[i:i+2] for i in range(0, len(temp), 2)]
+                res = ",".join(grouped)[::-1]
+                integer_part = res + "," + last_three
+            
+            prefix = "-₹ " if is_negative else "₹ "
+            return f"{prefix}{integer_part}.{decimal_part}"
+            
+        return str(value)
 
     @staticmethod
     def export_to_excel(
@@ -228,15 +252,15 @@ class ExportService:
                     cell.alignment = Alignment(horizontal="right")
                     # Check if this column should be formatted as currency
                     col_header = template["columns"][col_idx - 2][0].lower()
-                    if any(term in col_header for term in ["amount", "budget", "value", "payable", "certified"]):
+                    if any(term in col_header for term in ["amount", "budget", "value", "payable", "certified", "committed", "remaining"]):
                         cell.number_format = currency_format
                 else:
                     cell.alignment = Alignment(horizontal="left")
 
         # Inject Project Info into Template Fields (B2, B3, B4 usually)
         if company_info:
-            ws['C2'] = company_info.get("project_name", "")
-            ws['C3'] = company_info.get("client_name", "")
+            ws['C2'] = company_info.get("name", "TAC-PMC CRM")
+            ws['C3'] = company_info.get("project_name", "Global Project")
             ws['C4'] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         # Add Terms & Conditions if requested
@@ -268,25 +292,13 @@ class ExportService:
         """
         Generate PDF export using WeasyPrint HTML->PDF conversion.
         Mirrors Excel layout exactly using CSS styling.
-        
-        Args:
-            report_type: Type of report
-            report_data: Dictionary containing rows and metadata
-            company_info: Company branding info
-            include_terms: Whether to append T&C
-            terms_text: Full T&C text
-            
-        Returns:
-            PDF file content as bytes
         """
         if not HAS_WEASYPRINT:
-            raise RuntimeError("weasyprint not installed. Install with: pip install weasyprint")
+            raise RuntimeError("PDF engine (WeasyPrint) is not available. On Windows, this requires GTK+ libraries to be installed. Please ensure GTK+ is in your PATH or contact the administrator.")
 
         if report_type not in ExportService.REPORT_TEMPLATES:
             raise ValueError(f"Unknown report type: {report_type}")
 
-        template = ExportService.REPORT_TEMPLATES[report_type]
-        
         # Build HTML from report data
         html_content = ExportService._build_html_report(
             report_type, report_data, company_info, include_terms, terms_text
@@ -296,12 +308,13 @@ class ExportService:
         css_string = """
         @page {
             size: A4;
-            margin: 20mm;
+            margin: 15mm;
         }
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
-            line-height: 1.5;
+            line-height: 1.4;
             color: #333;
+            font-size: 10pt;
         }
         .header {
             text-align: center;
@@ -309,10 +322,8 @@ class ExportService:
             border-bottom: 2px solid #1E3A5F;
             padding-bottom: 10px;
         }
-        .logo {
-            height: 60px;
-            margin-bottom: 10px;
-        }
+        h1 { color: #1E3A5F; margin: 0; font-size: 18pt; }
+        h2 { color: #555; margin: 5px 0; font-size: 14pt; }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -321,25 +332,29 @@ class ExportService:
         th {
             background-color: #1E3A5F;
             color: white;
-            padding: 10px;
+            padding: 8px;
             text-align: left;
-            border: 1px solid #ddd;
+            border: 1px solid #1E3A5F;
+            font-size: 9pt;
         }
         td {
-            padding: 8px;
+            padding: 6px;
             border: 1px solid #ddd;
+            font-size: 9pt;
         }
         tr:nth-child(even) {
-            background-color: #f9f9f9;
+            background-color: #f2f5f8;
         }
         .currency {
             text-align: right;
-            font-family: 'Courier New', monospace;
+            white-space: nowrap;
         }
         .terms {
-            page-break-before: always;
-            font-size: 9pt;
-            margin-top: 20px;
+            page-break-before: auto;
+            font-size: 8pt;
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
         }
         """
 
@@ -366,10 +381,11 @@ class ExportService:
             "<div class='header'>",
         ]
 
-        # Add company info if available
+        # Add company info
         if company_info:
-            html_parts.append(f"<h1>{company_info.get('name', 'Report')}</h1>")
-            html_parts.append(f"<p>{company_info.get('address', '')}</p>")
+            html_parts.append(f"<h1>{company_info.get('name', 'TAC-PMC Report')}</h1>")
+            if 'address' in company_info:
+                html_parts.append(f"<p>{company_info.get('address', '')}</p>")
 
         html_parts.append(f"<h2>{template['description']}</h2>")
         html_parts.append(f"<p>Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}</p>")
@@ -387,18 +403,25 @@ class ExportService:
         for row_data in rows:
             html_parts.append("<tr>")
             for col_idx, cell_value in enumerate(row_data):
-                is_currency = "Amount" in template["columns"][col_idx][0] or "Budget" in template["columns"][col_idx][0]
-                css_class = "currency" if is_currency and isinstance(cell_value, (int, float, Decimal)) else ""
-                html_parts.append(f"<td class='{css_class}'>{cell_value}</td>")
+                col_header = template["columns"][col_idx][0].lower()
+                is_financial = any(term in col_header for term in ["budget", "value", "amount", "certified", "committed", "remaining", "payable"])
+                
+                if is_financial and isinstance(cell_value, (int, float, Decimal)):
+                    display_value = ExportService.format_currency(cell_value)
+                    html_parts.append(f"<td class='currency'>{display_value}</td>")
+                elif isinstance(cell_value, (float, Decimal)) and "%" in col_header:
+                    html_parts.append(f"<td class='currency'>{float(cell_value)*100:.1f}%</td>")
+                else:
+                    html_parts.append(f"<td>{cell_value}</td>")
             html_parts.append("</tr>")
         html_parts.append("</tbody>")
         html_parts.append("</table>")
 
-        # Add terms if requested
+        # Add terms
         if include_terms and terms_text:
             html_parts.append("<div class='terms'>")
             html_parts.append("<h3>TERMS & CONDITIONS</h3>")
-            html_parts.append(f"<p>{terms_text}</p>")
+            html_parts.append(f"<p style='white-space: pre-wrap;'>{terms_text}</p>")
             html_parts.append("</div>")
 
         html_parts.append("</body></html>")

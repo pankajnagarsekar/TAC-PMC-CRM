@@ -14,8 +14,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { DerivedFinancialState } from "@/types/api";
+import { DerivedFinancialState, VendorPayable, CashSummaryResponse, WorkOrder } from "@/types/api";
 import { useProjectStore } from "@/store/projectStore";
+import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 import {
   Table,
   TableBody,
@@ -47,6 +48,21 @@ export default function AdminDashboard() {
       ? `/api/v2/projects/${activeProject.project_id}/financials`
       : null,
     fetcher,
+  );
+
+  const { data: vendorPayables } = useSWR<VendorPayable[]>(
+    activeProject ? `/api/projects/${activeProject.project_id}/vendor-payables` : null,
+    fetcher
+  );
+
+  const { data: cashSummary } = useSWR<CashSummaryResponse>(
+    activeProject ? `/api/projects/${activeProject.project_id}/cash-summary` : null,
+    fetcher
+  );
+
+  const { data: woResponse } = useSWR<{items: WorkOrder[]; next_cursor: string | null}>(
+    activeProject ? `/api/work-orders?project_id=${activeProject.project_id}&limit=500` : null,
+    fetcher
   );
 
   const chartData = React.useMemo(() => {
@@ -97,6 +113,17 @@ export default function AdminDashboard() {
   const totalCertified = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.certified_value)), 0) ?? 0;
   const totalRemaining = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.balance_budget_remaining)), 0) ?? 0;
 
+  // Additional metrics for dashboard
+  const totalVendorPayable = vendorPayables?.reduce((s, v) => s + v.net_payable, 0) ?? 0;
+  const overBudgetCategories = financials?.filter(f => f.over_commit_flag) ?? [];
+  const pettyCash = cashSummary?.categories.find(c => c.category_name.toLowerCase().includes('petty'));
+  const ovhCash = cashSummary?.categories.find(c =>
+    c.category_name.toLowerCase().includes('ovh') || c.category_name.toLowerCase().includes('overhead')
+  );
+  const workOrders = woResponse?.items ?? [];
+  const woOpen = workOrders.filter(w => ['Pending','Draft'].includes(w.status)).length;
+  const woClosed = workOrders.filter(w => ['Closed','Completed'].includes(w.status)).length;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-20">
       {/* Column 1: Overview & Vision */}
@@ -135,6 +162,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         </GlassCard>
+
+        {activeProject && <AISummaryCard projectId={activeProject.project_id} />}
 
         <GlassCard className="group overflow-hidden p-0 h-[450px] border-none shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />

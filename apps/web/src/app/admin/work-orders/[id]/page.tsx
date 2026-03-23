@@ -12,6 +12,7 @@ import {
   FileText,
   Save,
   X,
+  Download,
 } from "lucide-react";
 import { ColDef } from "ag-grid-community";
 import api, { fetcher } from "@/lib/api";
@@ -173,8 +174,23 @@ export default function WorkOrderDetailPage() {
     }
   };
 
-  // PDF export not yet implemented in backend
-  // handlePrintPDF removed - endpoint /api/work-orders/{id}/export/pdf does not exist
+  const handleExportPDF = async () => {
+    if (!wo) return;
+    try {
+      const response = await api.get(`/api/work-orders/${woId}/export`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `WorkOrder-${wo.wo_ref}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert("Failed to export PDF");
+    }
+  };
 
   if (isLoading || !wo) {
     return (
@@ -203,17 +219,16 @@ export default function WorkOrderDetailPage() {
                 {wo.wo_ref}
               </h1>
               <div
-                className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
-                  wo.status === "Draft"
-                    ? "bg-slate-500/10 text-slate-400 border border-slate-500/20"
-                    : wo.status === "Pending"
-                      ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                      : wo.status === "Completed"
-                        ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                        : wo.status === "Closed"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-red-500/10 text-red-400 border border-red-500/20"
-                }`}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${wo.status === "Draft"
+                  ? "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                  : wo.status === "Pending"
+                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : wo.status === "Completed"
+                      ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                      : wo.status === "Closed"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-red-500/10 text-red-400 border border-red-500/20"
+                  }`}
               >
                 {wo.status}
               </div>
@@ -273,6 +288,12 @@ export default function WorkOrderDetailPage() {
                 </>
               )}
 
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+              >
+                <Download size={14} /> Download PDF
+              </button>
             </>
           )}
         </div>
@@ -305,7 +326,7 @@ export default function WorkOrderDetailPage() {
                 </select>
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                  {categories?.find((c) => c._id === wo.category_id)?.code_description || wo.category_id}
+                  {categories?.find((c) => c._id === wo.category_id)?.category_name || wo.category_id}
                 </div>
               )}
             </div>
@@ -476,7 +497,6 @@ export default function WorkOrderDetailPage() {
           editable={isEditing}
           showSrNo={true}
           height="300px"
-          onRowDataChange={isEditing ? setEditLineItems : undefined}
         />
       </div>
 

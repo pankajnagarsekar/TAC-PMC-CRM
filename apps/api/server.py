@@ -30,12 +30,13 @@ from reporting_routes import reporting_router  # noqa: E402
 from settings_routes import settings_router  # noqa: E402
 from audit_routes import router as audit_router  # noqa: E402
 from project_scheduler_routes import scheduler_router  # noqa: E402
+from ai_summary_routes import ai_summary_router  # noqa: E402
 from core.indexes import ensure_indexes  # noqa: E402
 from core.rate_limit import init_rate_limiting  # noqa: E402
 
 # Import custom modules
 from models import (  # noqa: E402
-    UserCreate, UserResponse, UserUpdate, UserProjectMapCreate, ProjectCreate, ProjectUpdate,
+    UserCreate, UserCreateAdmin, UserResponse, UserUpdate, UserProjectMapCreate, ProjectCreate, ProjectUpdate,
     CodeMasterCreate, CodeMasterUpdate, ProjectBudgetCreate, ProjectBudgetUpdate,
     Token, LoginRequest, RefreshTokenRequest, WorkersDailyLogCreate, WorkersDailyLogUpdate,
     NotificationCreate, Client, ClientCreate, ClientUpdate, Project, CodeMaster, ProjectBudget,
@@ -125,6 +126,10 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_db_client():
     await ensure_indexes(db)
+    # Create AI summary service indexes
+    from core.ai_summary_service import AISummaryService
+    ai_svc = AISummaryService(db=db)
+    await ai_svc.create_indexes()
     logger.info("Database startup tasks completed.")
 
 
@@ -774,6 +779,65 @@ async def delete_user(
         {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}}
     )
     return {"message": "User deactivated successfully"}
+
+
+@api_router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user_admin(
+    user_data: UserCreateAdmin,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new CRM user (Admin only). Supports all roles including Client."""
+    user = await permission_checker.get_authenticated_user(current_user)
+    await permission_checker.check_admin_role(user)
+
+    # Check email unique within org
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    hashed_pw = hash_password(user_data.password)
+    user_dict = {
+        "organisation_id": user["organisation_id"],
+        "name": user_data.name,
+        "email": user_data.email,
+        "hashed_password": hashed_pw,
+        "role": user_data.role,
+        "active_status": True,
+        "dpr_generation_permission": user_data.dpr_generation_permission,
+        "assigned_projects": user_data.assigned_projects,
+        "screen_permissions": user_data.screen_permissions,
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }
+    result = await db.users.insert_one(user_dict)
+    new_user_id = str(result.inserted_id)
+
+    # If Client, insert user_project_map rows
+    if user_data.role == "Client":
+        for pid in user_data.assigned_projects:
+            await db.user_project_map.insert_one({
+                "user_id": new_user_id,
+                "project_id": pid,
+                "created_at": datetime.now(timezone.utc),
+            })
+
+    # Audit log
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="USER_MANAGEMENT",
+        entity_type="USER",
+        entity_id=new_user_id,
+        action_type="CREATE",
+        user_id=user["user_id"],
+        new_value={"email": user_data.email, "role": user_data.role}
+    )
+
+    user_dict["user_id"] = new_user_id
+    del user_dict["hashed_password"]
+    return UserResponse(**user_dict)
 
 
 # ============================================
@@ -1844,6 +1908,9 @@ app.include_router(cash_router)
 
 # Register Global Settings router
 app.include_router(settings_router)
+
+# Register AI Project Summary router
+app.include_router(ai_summary_router)
 
 # Serve frontend static files
 frontend_build = os.path.join(
