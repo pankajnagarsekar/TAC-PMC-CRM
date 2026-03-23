@@ -110,6 +110,12 @@ const NAV_ITEMS: NavItem[] = [
     key: "audit_log",
   },
   {
+    href: "/admin/users",
+    icon: Users,
+    label: "Team Management",
+    key: "users",
+  },
+  {
     href: "/admin/settings",
     icon: Settings,
     label: "Settings",

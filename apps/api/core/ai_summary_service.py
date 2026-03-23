@@ -6,7 +6,7 @@ Uses the same provider abstraction as AIService (MockSummaryProvider / EmergentS
 
 RULES:
 - Reads ONLY from existing collections (no data mutation)
-- Falls back to MockSummaryProvider if EMERGENT_LLM_KEY absent
+- Falls back to MockSummaryProvider if OPENAI_API_KEY absent
 - Stores result in ai_project_summaries collection
 - Idempotent: upserts by (project_id, date) to avoid duplicates
 """
@@ -28,7 +28,7 @@ class SummaryProvider:
 
 
 class MockSummaryProvider(SummaryProvider):
-    """Used when EMERGENT_LLM_KEY is absent"""
+    """Used when OPENAI_API_KEY is absent"""
 
     async def generate_summary(self, report_data: Dict[str, Any], project_name: str) -> str:
         logger.info("[AI:SUMMARY:MOCK] Generating mock project summary")
@@ -45,7 +45,7 @@ class MockSummaryProvider(SummaryProvider):
             f"{over_budget} categories are over-budget. "
             f"Work orders: {report_data.get('wo_total', 0)} total, "
             f"{report_data.get('wo_open', 0)} open. "
-            f"This is a mock summary — configure EMERGENT_LLM_KEY for AI-generated text."
+            f"This is a mock summary — configure OPENAI_API_KEY for AI-generated text."
         )
 
 
@@ -138,7 +138,7 @@ class AISummaryService:
         else:
             self.provider = MockSummaryProvider()
             self.model = "mock"
-            logger.info("[AI:SUMMARY] Using MockSummaryProvider (no EMERGENT_LLM_KEY)")
+            logger.info("[AI:SUMMARY] Using MockSummaryProvider (no OPENAI_API_KEY)")
 
     async def generate_and_store(
         self,

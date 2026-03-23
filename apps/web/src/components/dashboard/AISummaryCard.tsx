@@ -123,7 +123,7 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
             <div className="flex items-center gap-1.5 text-[9px] text-amber-500 bg-amber-500/5 border border-amber-500/10 rounded-lg px-2 py-1 mb-3">
               <AlertTriangle size={10} />
               <span className="font-bold uppercase tracking-wider">
-                Mock mode — configure EMERGENT_LLM_KEY for AI summaries
+                Mock mode — configure OPENAI_API_KEY for AI summaries
               </span>
             </div>
           )}

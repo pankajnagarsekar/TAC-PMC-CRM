@@ -24,6 +24,7 @@ interface ClientModalProps {
 
 export default function ClientModal({ isOpen, onClose, onSuccess, client }: ClientModalProps) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({
     name: '',
     email: '',

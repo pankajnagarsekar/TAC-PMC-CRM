@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { GlassCard } from "@/components/ui/GlassCard";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
-import { Project, UserResponse } from "@tac-pmc/types";
+import { Project, UserResponse, Client } from "@tac-pmc/types";
 
 interface CreateUserModalProps {
   open: boolean;
@@ -25,8 +25,18 @@ const SCREEN_PERMISSION_OPTIONS = [
 
 export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalProps) {
   const { toast } = useToast();
+
+  // Fetch projects only if modal open AND role is Client
+  const [tempRole, setTempRole] = useState("Supervisor");
+  const isClient = tempRole === "Client";
+
   const { data: projects = [] } = useSWR<Project[]>(
-    open ? "/api/v2/projects" : null,
+    open && isClient ? "/api/projects" : null,
+    fetcher
+  );
+
+  const { data: clients = [] } = useSWR<Client[]>(
+    open && isClient ? "/api/clients" : null,
     fetcher
   );
 
@@ -37,14 +47,16 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
     role: "Supervisor",
     dpr_generation_permission: false,
     assigned_projects: [] as string[],
-    screen_permissions: [] as string[]
+    screen_permissions: [] as string[],
+    useExistingClient: false,
+    selectedClientId: null as string | null
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isClient = formData.role === "Client";
   const projectsRequired = isClient && formData.assigned_projects.length === 0;
+  const hasNoClients = isClient && clients.length === 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +73,10 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
     }
     if (!formData.password || formData.password.length < 8) {
       setError("Password must be at least 8 characters");
+      return;
+    }
+    if (isClient && formData.useExistingClient && !formData.selectedClientId) {
+      setError("Please select a client from the list");
       return;
     }
     if (isClient && formData.assigned_projects.length === 0) {
@@ -94,8 +110,11 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
         role: "Supervisor",
         dpr_generation_permission: false,
         assigned_projects: [],
-        screen_permissions: []
+        screen_permissions: [],
+        useExistingClient: false,
+        selectedClientId: null
       });
+      setTempRole("Supervisor");
 
       onCreated();
       onClose();
@@ -130,6 +149,26 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
     }));
   };
 
+  const handleClientSelect = (clientId: string) => {
+    const selectedClient = clients.find(c => c._id === clientId || c.id === clientId);
+
+    if (selectedClient) {
+      setFormData({
+        ...formData,
+        selectedClientId: clientId,
+        name: selectedClient.name || "",
+        email: selectedClient.email || ""
+      });
+    } else {
+      setFormData({
+        ...formData,
+        selectedClientId: null,
+        name: "",
+        email: ""
+      });
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -155,31 +194,140 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
             </div>
           )}
 
+          {/* Role */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider">
+              Role
+            </label>
+            <select
+              value={formData.role}
+              onChange={(e) => {
+                const newRole = e.target.value;
+                setTempRole(newRole);
+                setFormData({
+                  ...formData,
+                  role: newRole,
+                  assigned_projects: newRole === "Client" ? formData.assigned_projects : [],
+                  useExistingClient: false,
+                  selectedClientId: null,
+                  name: "",
+                  email: ""
+                });
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+            >
+              <option value="Admin">Admin</option>
+              <option value="Supervisor">Supervisor</option>
+              <option value="Client">Client</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          {/* Client Selection Mode Toggle (only for Client role) */}
+          {isClient && (
+            <div className="space-y-4 p-4 rounded-lg bg-slate-950/50 border border-orange-500/10">
+              <label className="block text-xs font-bold text-slate-300 uppercase mb-3 tracking-wider">
+                User Creation Method
+              </label>
+
+              <div className="flex gap-4">
+                {/* Create New Option */}
+                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                  <input
+                    type="radio"
+                    name="clientMode"
+                    checked={!formData.useExistingClient}
+                    onChange={() => setFormData({
+                      ...formData,
+                      useExistingClient: false,
+                      selectedClientId: null,
+                      name: "",
+                      email: ""
+                    })}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-900"
+                  />
+                  <span className="text-sm text-slate-300">Create New User</span>
+                  <span className="text-[11px] text-slate-500">(Manual entry)</span>
+                </label>
+
+                {/* Select Existing Option */}
+                <label className={`flex items-center gap-3 cursor-pointer flex-1 ${hasNoClients ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <input
+                    type="radio"
+                    name="clientMode"
+                    checked={formData.useExistingClient}
+                    onChange={() => !hasNoClients && setFormData({
+                      ...formData,
+                      useExistingClient: true,
+                      name: "",
+                      email: "",
+                      password: ""
+                    })}
+                    disabled={hasNoClients}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-900 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-slate-300">
+                    Select Existing Client
+                    {hasNoClients && <span className="text-[11px] text-slate-600 ml-1">(no clients)</span>}
+                  </span>
+                  {!hasNoClients && <span className="text-[11px] text-slate-500">(Auto-populate)</span>}
+                </label>
+              </div>
+
+              {/* Existing Client Selector */}
+              {formData.useExistingClient && (
+                <div className="mt-4">
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider">
+                    Select Client <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    value={formData.selectedClientId || ""}
+                    onChange={(e) => handleClientSelect(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+                  >
+                    <option value="">-- Select a client --</option>
+                    {clients.map((client) => (
+                      <option key={client._id} value={client._id || client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Name */}
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider">
-              Full Name
+              Full Name {formData.useExistingClient && <span className="text-slate-500">(auto-populated)</span>}
             </label>
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, name: e.target.value })}
+              disabled={formData.useExistingClient}
               placeholder="John Smith"
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${
+                formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             />
           </div>
 
           {/* Email */}
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider">
-              Email Address
+              Email Address {formData.useExistingClient && <span className="text-slate-500">(auto-populated, read-only)</span>}
             </label>
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, email: e.target.value })}
+              disabled={formData.useExistingClient}
               placeholder="john@example.com"
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${
+                formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             />
           </div>
 
@@ -195,29 +343,6 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
               placeholder="••••••••"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
             />
-          </div>
-
-          {/* Role */}
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider">
-              Role
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  role: e.target.value,
-                  assigned_projects: e.target.value === "Client" ? formData.assigned_projects : []
-                })
-              }
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
-            >
-              <option value="Admin">Admin</option>
-              <option value="Supervisor">Supervisor</option>
-              <option value="Client">Client</option>
-              <option value="Other">Other</option>
-            </select>
           </div>
 
           {/* DPR Permission (only for non-Client) */}

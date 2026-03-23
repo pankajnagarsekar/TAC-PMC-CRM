@@ -79,7 +79,7 @@ def generate_daily_ai_summaries():
         db = await get_db()
         from core.ai_summary_service import AISummaryService
         import os
-        api_key = os.environ.get("EMERGENT_LLM_KEY")
+        api_key = os.environ.get("OPENAI_API_KEY")
         service = AISummaryService(db=db, api_key=api_key)
 
         projects = await db.projects.find(

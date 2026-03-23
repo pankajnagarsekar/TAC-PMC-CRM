@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { GlassCard } from "@/components/ui/GlassCard";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
-import { Project, UserResponse } from "@tac-pmc/types";
+import { Project, UserResponse, Client } from "@tac-pmc/types";
 
 interface EditUserModalProps {
   user: UserResponse | null;
@@ -25,8 +25,16 @@ const SCREEN_PERMISSION_OPTIONS = [
 
 export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) {
   const { toast } = useToast();
+
+  const isClient = user?.role === "Client";
+
   const { data: projects = [] } = useSWR<Project[]>(
-    user ? "/api/v2/projects" : null,
+    user && isClient ? "/api/projects" : null,
+    fetcher
+  );
+
+  const { data: clients = [] } = useSWR<Client[]>(
+    user && isClient ? "/api/clients" : null,
     fetcher
   );
 
@@ -57,8 +65,8 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
     }
   }, [user]);
 
-  const isClient = formData.role === "Client";
-  const projectsRequired = isClient && formData.assigned_projects.length === 0;
+  const isClientRole = formData.role === "Client";
+  const projectsRequired = isClientRole && formData.assigned_projects.length === 0;
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -76,7 +84,7 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
       return;
     }
 
-    if (isClient && formData.assigned_projects.length === 0) {
+    if (isClientRole && formData.assigned_projects.length === 0) {
       setError("Client users must be assigned to at least one project");
       return;
     }
@@ -228,7 +236,7 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
           </div>
 
           {/* DPR Permission (only for non-Client) */}
-          {!isClient && (
+          {!isClientRole && (
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -243,8 +251,17 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
             </div>
           )}
 
+          {/* Client Info (if applicable) */}
+          {isClientRole && user.assigned_projects.length > 0 && (
+            <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/20">
+              <p className="text-[12px] text-slate-400 mb-2">
+                <span className="text-orange-500 font-semibold">Assigned to {user.assigned_projects.length} project(s)</span>
+              </p>
+            </div>
+          )}
+
           {/* Assigned Projects (only for Client, required) */}
-          {isClient && (
+          {isClientRole && (
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider flex items-center gap-1">
                 Assigned Projects

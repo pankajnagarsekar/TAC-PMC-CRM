@@ -79,7 +79,7 @@ mongo_url = os.environ.get(
     'MONGO_URL',
     'mongodb://localhost:27017')
 db_name = os.environ.get('DB_NAME', 'tac_pmc_crm')
-ai_api_key = os.environ.get('EMERGENT_LLM_KEY')
+ai_api_key = os.environ.get('OPENAI_API_KEY')
 
 client = AsyncIOMotorClient(mongo_url)
 db = client[db_name]
@@ -731,9 +731,8 @@ async def generate_ai_caption(
     """
     await permission_checker.get_authenticated_user(current_user)
 
-    # Get API key - prefer Emergent LLM key
-    api_key = os.environ.get(
-        'EMERGENT_LLM_KEY') or os.environ.get('OPENAI_API_KEY')
+    # Get API key
+    api_key = os.environ.get('OPENAI_API_KEY')
 
     if not api_key:
         # Fallback to mock captions if no API key
@@ -898,14 +897,14 @@ async def speech_to_text(
         if len(audio_bytes) < 100:
             return {"transcript": "", "error": "Audio too short"}
 
-        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        api_key = os.environ.get('OPENAI_API_KEY')
 
         # Graceful fallback when no API key is configured
         if not api_key:
             logger.warning(
-                "[STT] EMERGENT_LLM_KEY not set - returning mock transcript text")
+                "[STT] OPENAI_API_KEY not set - returning mock transcript text")
             return {
-                "transcript": "Mock transcription: daily site progress updated. Please configure EMERGENT_LLM_KEY for real speech-to-text.",
+                "transcript": "Mock transcription: daily site progress updated. Please configure OPENAI_API_KEY for real speech-to-text.",
                 "original": "",
                 "note": "mock"
             }

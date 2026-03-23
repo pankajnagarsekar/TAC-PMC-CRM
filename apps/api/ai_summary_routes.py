@@ -21,7 +21,7 @@ ai_summary_router = APIRouter(prefix="/api/projects", tags=["AI Summary"])
 
 
 def _get_service(db: AsyncIOMotorDatabase) -> AISummaryService:
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     return AISummaryService(db=db, api_key=api_key)
 
 
