@@ -38,8 +38,8 @@ export default function ProjectSchedulerPage() {
             } else {
                 // Default mock if none exists
                 setTasks([
-                    { id: "T1", name: "Site Mobilization", duration: 5, start: "01-01-26", finish: "06-01-26", predecessors: [], cost: 50000 },
-                    { id: "T2", name: "Excavation", duration: 10, start: "", finish: "", predecessors: ["T1"], cost: 200000 }
+                    { id: "T1", name: "Site Mobilization", duration: 5, start: "01-01-26", finish: "06-01-26", predecessors: [], cost: 50000, percentComplete: 0, actualStart: null, actualFinish: null },
+                    { id: "T2", name: "Excavation", duration: 10, start: "", finish: "", predecessors: ["T1"], cost: 200000, percentComplete: 0, actualStart: null, actualFinish: null }
                 ]);
             }
         } catch (e) {
@@ -101,7 +101,13 @@ export default function ProjectSchedulerPage() {
             start: tasks.length > 0 ? "" : projectStart,
             finish: "",
             predecessors: [],
-            cost: 0
+            cost: 0,
+            percentComplete: 0,
+            actualStart: null,
+            actualFinish: null,
+            baselineStart: null,
+            baselineFinish: null,
+            isMilestone: false
         };
         setTasks([...tasks, newTask]);
         toast.info(`Added task ${newId}`);

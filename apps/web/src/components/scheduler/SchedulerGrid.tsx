@@ -51,6 +51,28 @@ export default function SchedulerGrid({ tasks, onTasksChange, readOnly = false }
             cellClass: "bg-slate-800/20 font-medium text-slate-300"
         },
         {
+            field: "actualStart",
+            headerName: "Actual Start",
+            width: 120,
+            editable: !readOnly,
+            tooltipValueGetter: () => "Format: DD-MM-YY or leave blank"
+        },
+        {
+            field: "actualFinish",
+            headerName: "Actual Finish",
+            width: 120,
+            editable: !readOnly,
+            tooltipValueGetter: () => "Format: DD-MM-YY or leave blank"
+        },
+        {
+            field: "percentComplete",
+            headerName: "% Complete",
+            width: 110,
+            type: "numericColumn",
+            editable: !readOnly,
+            valueFormatter: (params) => params.value ? `${params.value}%` : "0%"
+        },
+        {
             field: "predecessors",
             headerName: "Predecessors",
             width: 150,
@@ -112,14 +134,18 @@ export default function SchedulerGrid({ tasks, onTasksChange, readOnly = false }
                 editable={!readOnly}
                 showSrNo={true}
             />
-            <div className="flex gap-4 text-[10px] text-slate-500 uppercase tracking-widest font-medium px-2">
+            <div className="flex gap-4 text-[10px] text-slate-500 uppercase tracking-widest font-medium px-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-orange-500" />
-                    <span>Calculated by Layer 3</span>
+                    <span>Calculated by CPM</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-red-500" />
                     <span>Critical Path</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span>From Import (XML/PDF)</span>
                 </div>
             </div>
         </div>
