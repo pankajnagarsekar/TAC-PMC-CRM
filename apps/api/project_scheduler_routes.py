@@ -164,20 +164,58 @@ async def generate_cash_flow_forecast(project_id: str, current_user: dict = Depe
 
 @scheduler_router.post("/{project_id}/export/pdf")
 async def trigger_pdf_export(project_id: str, current_user: dict = Depends(get_current_user)):
-    """Triggers the high-fidelity PDF export using headless browser pattern"""
+    """Triggers the high-fidelity PDF export using ReportLab (MS Project-style Gantt)"""
+    organisation_id = current_user.get("organisation_id")
+
     # Continuity Registry: Track state
     from execution.scheduler.continuity_manager import update_milestone
     update_milestone(project_id, "ExportTriggered")
-    
-    # This would typically be an async background task (e.g. Celery)
-    # But for this implementation, weorchestrate the Layer 3 call
-    update_milestone(project_id, "RenderingStart")
-    
-    # In a real app, this URL would be a dedicated print-optimized view
-    export_result = run_scheduler_script("render_gantt_pdf.py", {"project_id": project_id})
-    
-    update_milestone(project_id, "ExportComplete", status="Success")
-    return export_result
+
+    try:
+        # Load the saved schedule from MongoDB
+        schedule = await db.project_schedules.find_one({
+            "project_id": project_id,
+            "organisation_id": organisation_id
+        })
+
+        if not schedule:
+            raise HTTPException(status_code=404, detail="No schedule found. Please calculate and save the schedule first.")
+
+        tasks = schedule.get("tasks", [])
+        project_name = schedule.get("project_name", f"Project {project_id}")
+
+        if not tasks:
+            raise HTTPException(status_code=400, detail="Schedule has no tasks. Please add tasks before exporting.")
+
+        # Prepare input for PDF generator
+        update_milestone(project_id, "RenderingStart")
+
+        output_path = f".tmp/gantt_export_{project_id}.pdf"
+        input_payload = {
+            "project_id": project_id,
+            "project_name": project_name,
+            "tasks": tasks,
+            "output_path": output_path
+        }
+
+        # Run the PDF export script (Layer 3)
+        export_result = run_scheduler_script("render_gantt_pdf.py", input_payload)
+
+        if "error" in export_result:
+            update_milestone(project_id, "ExportComplete", status="Failed")
+            raise HTTPException(status_code=500, detail=export_result["error"])
+
+        update_milestone(project_id, "ExportComplete", status="Success")
+        return {
+            **export_result,
+            "download_url": f"/api/projects/{project_id}/export/download"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        update_milestone(project_id, "ExportComplete", status="Failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @scheduler_router.post("/{project_id}/import")
 async def import_schedule(project_id: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
