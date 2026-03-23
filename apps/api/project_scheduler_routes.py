@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi.responses import FileResponse
 from typing import List, Dict, Any, Optional
 import subprocess
 import json
@@ -308,12 +309,34 @@ async def load_schedule(project_id: str, current_user: dict = Depends(get_curren
 async def check_export_status(project_id: str, current_user: dict = Depends(get_current_user)):
     """Agent Memory & Continuity: tracks the state of long-running schedule exports"""
     registry_path = ".tmp/continuity_registry.json"
-    
+
     if not os.path.exists(registry_path):
         return {"status": "Not Started"}
-        
+
     with open(registry_path, "r") as f:
         registry = json.load(f)
-        
+
     project_export = registry.get(project_id, {"status": "Idle"})
     return project_export
+
+@scheduler_router.get("/{project_id}/export/download")
+async def download_gantt_pdf(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Downloads the generated Gantt chart PDF file"""
+    pdf_path = f".tmp/gantt_export_{project_id}.pdf"
+
+    if not os.path.exists(pdf_path):
+        raise HTTPException(
+            status_code=404,
+            detail="PDF export not found. Please trigger export first via POST /export/pdf"
+        )
+
+    try:
+        # Serve the PDF with appropriate headers
+        return FileResponse(
+            path=pdf_path,
+            filename=f"gantt_{project_id}.pdf",
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=gantt_{project_id}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to serve PDF: {str(e)}")

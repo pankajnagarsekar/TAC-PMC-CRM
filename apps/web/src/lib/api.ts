@@ -128,6 +128,11 @@ export const schedulerApi = {
   exportPdf: (projectId: string) =>
     api.post(`/api/projects/${projectId}/export/pdf`).then(res => res.data),
 
+  downloadPdf: (projectId: string) =>
+    api.get(`/api/projects/${projectId}/export/download`, {
+      responseType: "blob"
+    }),
+
   getExportStatus: (projectId: string) =>
     api.get(`/api/projects/${projectId}/export/status`).then(res => res.data),
 

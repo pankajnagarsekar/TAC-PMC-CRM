@@ -145,16 +145,32 @@ export default function ProjectSchedulerPage() {
         }
     };
 
-    // 4. Export trigger
+    // 4. Export trigger with download
     const handleExport = async () => {
         if (!activeProject) return;
         setExporting(true);
         try {
-            await schedulerApi.exportPdf(activeProject.project_id);
-            toast.info("PDF Export triggered via Headless Browser Pattern");
-            // In a real app we'd poll status
-        } catch (e) {
-            toast.error("Export failed");
+            // Step 1: Trigger the PDF generation
+            const exportResult = await schedulerApi.exportPdf(activeProject.project_id);
+            toast.success("Gantt PDF generated, downloading...");
+
+            // Step 2: Download the generated PDF
+            const pdfBlob = await schedulerApi.downloadPdf(activeProject.project_id);
+
+            // Step 3: Create blob URL and trigger download
+            const blobUrl = window.URL.createObjectURL(pdfBlob.data as Blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `gantt_${activeProject.project_id}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+
+            toast.success("Gantt chart PDF downloaded successfully");
+        } catch (e: any) {
+            const errorMsg = e.response?.data?.detail || "Failed to export PDF";
+            toast.error(errorMsg);
         } finally {
             setExporting(false);
         }
