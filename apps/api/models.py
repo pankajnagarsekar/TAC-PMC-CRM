@@ -177,6 +177,7 @@ class Client(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
+    active_status: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
@@ -195,6 +196,7 @@ class ClientUpdate(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
+    active_status: Optional[bool] = None
 
 
 # =============================================================================

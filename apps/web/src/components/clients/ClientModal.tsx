@@ -31,6 +31,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
     phone: '',
     address: '',
     gstin: '',
+    active_status: true,
   });
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
         phone: (client as any).phone || (client as any).client_phone || '',
         address: (client as any).address || (client as any).client_address || '',
         gstin: (client as any).gstin || (client as any).gst_number || '',
+        active_status: (client as any).active_status ?? true,
       });
     } else {
       setFormData({
@@ -49,6 +51,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
         phone: '',
         address: '',
         gstin: '',
+        active_status: true,
       });
     }
   }, [client, isOpen]);
@@ -148,6 +151,19 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
                 value={formData.address}
                 onChange={e => setFormData({ ...formData, address: e.target.value })}
               />
+            </div>
+
+            <div className="flex items-center gap-3 px-1 pt-2">
+              <input
+                type="checkbox"
+                id="active_status"
+                checked={formData.active_status}
+                onChange={e => setFormData({ ...formData, active_status: e.target.checked })}
+                className="w-4 h-4 rounded border-zinc-300 dark:border-slate-700 bg-white dark:bg-slate-900 accent-orange-500 cursor-pointer"
+              />
+              <label htmlFor="active_status" className="text-sm text-zinc-600 dark:text-slate-400 cursor-pointer font-medium">
+                Client is Active
+              </label>
             </div>
           </div>
 

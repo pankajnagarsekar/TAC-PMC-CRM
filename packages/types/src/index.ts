@@ -154,6 +154,8 @@ export interface DerivedFinancialState {
   _id?: string;
   project_id: string;
   category_id: string;
+  category_name?: string;
+  category_code?: string;
   original_budget: number;
   committed_value: number;
   certified_value: number;

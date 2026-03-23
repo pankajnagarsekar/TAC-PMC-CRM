@@ -70,7 +70,15 @@ export default function FinancialChart({
         {type === 'bar' ? (
           <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-            <XAxis dataKey="name" tick={{ fill: textColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} />
+            <XAxis
+              dataKey="name"
+              tick={{ fill: textColor, fontSize: 9 }}
+              axisLine={{ stroke: gridColor }}
+              angle={-45}
+              textAnchor="end"
+              height={70}
+              interval={0}
+            />
             <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
             <Tooltip content={<CustomTooltip />} />
             <Legend
@@ -85,7 +93,15 @@ export default function FinancialChart({
         ) : (
           <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-            <XAxis dataKey="name" tick={{ fill: textColor, fontSize: 11 }} axisLine={{ stroke: gridColor }} />
+            <XAxis
+              dataKey="name"
+              tick={{ fill: textColor, fontSize: 9 }}
+              axisLine={{ stroke: gridColor }}
+              angle={-45}
+              textAnchor="end"
+              height={70}
+              interval={0}
+            />
             <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 11, color: textColor }} />

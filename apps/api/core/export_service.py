@@ -18,13 +18,14 @@ try:
 except ImportError:
     HAS_OPENPYXL = False
 
-try:
-    from weasyprint import HTML, CSS
-    HAS_WEASYPRINT = True
-except Exception:
-    # WeasyPrint may raise OSError when native GTK/Pango libs are missing.
-    # Keep API startup alive and fail only when PDF export is requested.
-    HAS_WEASYPRINT = False
+def _get_weasyprint():
+    """Lazy load WeasyPrint to avoid unnecessary startup overhead and warnings."""
+    try:
+        from weasyprint import HTML, CSS
+        return HTML, CSS
+    except Exception as e:
+        # Silently fail here, error will be raised when export_to_pdf is called
+        return None, None
 
 
 class ExportService:
@@ -293,8 +294,9 @@ class ExportService:
         Generate PDF export using WeasyPrint HTML->PDF conversion.
         Mirrors Excel layout exactly using CSS styling.
         """
-        if not HAS_WEASYPRINT:
-            raise RuntimeError("PDF engine (WeasyPrint) is not available. On Windows, this requires GTK+ libraries to be installed. Please ensure GTK+ is in your PATH or contact the administrator.")
+        HTML_cls, CSS_cls = _get_weasyprint()
+        if not HTML_cls:
+            raise RuntimeError("PDF engine (WeasyPrint) is not available. On Windows, this requires GTK+ libraries (Cairo, Pango) to be installed. Please follow installation instructions at: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows")
 
         if report_type not in ExportService.REPORT_TEMPLATES:
             raise ValueError(f"Unknown report type: {report_type}")
@@ -359,8 +361,8 @@ class ExportService:
         """
 
         # Convert HTML to PDF
-        html = HTML(string=html_content, base_url=".")
-        css = CSS(string=css_string)
+        html = HTML_cls(string=html_content, base_url=".")
+        css = CSS_cls(string=css_string)
         pdf_bytes = html.write_pdf(stylesheets=[css])
 
         return pdf_bytes

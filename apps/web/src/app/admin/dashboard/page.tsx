@@ -40,6 +40,32 @@ import {
   BarChart4
 } from "lucide-react";
 
+interface DashboardStats {
+  project_id: string;
+  overview: {
+    total_phases: number;
+    active_items: number;
+    overdue_milestones: number;
+    master_budget: number;
+    total_committed: number;
+  };
+  schedule_status: {
+    variance: number;
+    critical_path_status: string;
+  };
+  task_log: {
+    open_tasks: number;
+    resolved_tasks: number;
+    compliance_rate: number;
+  };
+  task_manager: Array<{
+    id: string;
+    label: string;
+    priority: string;
+    color: string;
+  }>;
+}
+
 export default function AdminDashboard() {
   const { activeProject } = useProjectStore();
 
@@ -60,19 +86,30 @@ export default function AdminDashboard() {
     fetcher
   );
 
-  const { data: woResponse } = useSWR<{items: WorkOrder[]; next_cursor: string | null}>(
+  const { data: woResponse } = useSWR<{ items: WorkOrder[]; next_cursor: string | null }>(
     activeProject ? `/api/work-orders?project_id=${activeProject.project_id}&limit=500` : null,
+    fetcher
+  );
+
+  const { data: stats } = useSWR<DashboardStats>(
+    activeProject ? `/api/v2/projects/${activeProject.project_id}/dashboard-stats` : null,
     fetcher
   );
 
   const chartData = React.useMemo(() => {
     if (!financials) return [];
     return financials.slice(0, 8).map(f => ({
-      name: f.category_id.substring(0, 10),
+      name: f.category_name || f.category_code || f.category_id.substring(0, 6),
       budget: normalizeFinancial(f.original_budget),
       committed: normalizeFinancial(f.committed_value)
     }));
   }, [financials]);
+
+  const totalBudget = React.useMemo(() => {
+    if (stats?.overview.master_budget) return stats.overview.master_budget;
+    if (activeProject?.master_original_budget) return activeProject.master_original_budget;
+    return (financials ?? []).reduce((sum, f) => sum + normalizeFinancial(f.original_budget), 0);
+  }, [financials, activeProject, stats]);
 
   if (!activeProject) {
     return (
@@ -107,8 +144,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // Aggregate metrics
-  const totalBudget = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.original_budget)), 0) ?? 0;
   const totalCommitted = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.committed_value)), 0) ?? 0;
   const totalCertified = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.certified_value)), 0) ?? 0;
   const totalRemaining = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.balance_budget_remaining)), 0) ?? 0;
@@ -121,8 +156,8 @@ export default function AdminDashboard() {
     c.category_name.toLowerCase().includes('ovh') || c.category_name.toLowerCase().includes('overhead')
   );
   const workOrders = woResponse?.items ?? [];
-  const woOpen = workOrders.filter(w => ['Pending','Draft'].includes(w.status)).length;
-  const woClosed = workOrders.filter(w => ['Closed','Completed'].includes(w.status)).length;
+  const woOpen = workOrders.filter(w => ['Pending', 'Draft'].includes(w.status)).length;
+  const woClosed = workOrders.filter(w => ['Closed', 'Completed'].includes(w.status)).length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-20">
@@ -145,11 +180,11 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 gap-4 pb-4 border-b border-muted">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Total Phases</p>
-                <p className="text-xl font-bold">4</p>
+                <p className="text-xl font-bold">{stats?.overview.total_phases ?? '-'}</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Active</p>
-                <p className="text-xl font-bold text-primary">2</p>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Active Items</p>
+                <p className="text-xl font-bold text-primary">{stats?.overview.active_items ?? '-'}</p>
               </div>
             </div>
 
@@ -158,7 +193,7 @@ export default function AdminDashboard() {
                 <AlertTriangle size={14} className="text-rose-500" />
                 <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">Overdue Milestones</span>
               </div>
-              <span className="text-sm font-black text-rose-500">1</span>
+              <span className="text-sm font-black text-rose-500">{stats?.overview.overdue_milestones ?? 0}</span>
             </div>
           </div>
         </GlassCard>
@@ -217,13 +252,19 @@ export default function AdminDashboard() {
             <div>
               <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">S-Curve Variance</p>
               <div className="flex items-center gap-1.5">
-                <TrendingDown size={12} className="text-rose-500" />
-                <span className="text-xs font-black">-4.2%</span>
+                {(stats?.schedule_status.variance ?? 0) >= 0 ? (
+                  <TrendingUp size={12} className="text-emerald-500" />
+                ) : (
+                  <TrendingDown size={12} className="text-rose-500" />
+                )}
+                <span className="text-xs font-black">{stats?.schedule_status.variance ?? 0}%</span>
               </div>
             </div>
             <div>
               <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Critical Path</p>
-              <span className="text-xs font-black text-indigo-500">DELAYED</span>
+              <span className={`text-xs font-black ${stats?.schedule_status.critical_path_status === 'DELAYED' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                {stats?.schedule_status.critical_path_status ?? 'ON TRACK'}
+              </span>
             </div>
           </div>
         </GlassCard>
@@ -236,15 +277,11 @@ export default function AdminDashboard() {
               </div>
               <h2 className="text-xs font-bold tracking-tight uppercase">Task Manager</h2>
             </div>
-            <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[8px] font-black uppercase text-zinc-500">12 Pending</span>
+            <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[8px] font-black uppercase text-zinc-500">{stats?.task_log.open_tasks ?? 0} Pending</span>
           </div>
 
           <div className="space-y-2">
-            {[
-              { id: 'RFI #104', label: 'Review Structural Changes', priority: 'High', color: 'text-rose-500' },
-              { id: 'PAY #02', label: 'Approve Payment App', priority: 'Financial', color: 'text-primary' },
-              { id: 'SITE', label: 'Weekly Safety Walkthrough', priority: 'Routine', color: 'text-zinc-500' }
-            ].map(task => (
+            {(stats?.task_manager ?? []).map(task => (
               <div key={task.id} className="p-2.5 rounded-xl bg-muted/30 border border-white/40 dark:border-white/5 hover:border-primary/20 transition-all flex items-center justify-between group">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[9px] font-black text-zinc-400 tracking-tighter uppercase">{task.id}</span>
@@ -273,11 +310,11 @@ export default function AdminDashboard() {
 
           <div className="flex items-end gap-10 mb-6 pb-6 border-b border-muted">
             <div>
-              <p className="text-4xl font-black leading-none tracking-tighter">28</p>
+              <p className="text-4xl font-black leading-none tracking-tighter">{stats?.task_log.open_tasks ?? 0}</p>
               <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">Open Tasks</p>
             </div>
             <div className="pb-1">
-              <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">142</p>
+              <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{stats?.task_log.resolved_tasks ?? 0}</p>
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Resolved</p>
             </div>
           </div>
@@ -285,10 +322,10 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
               <span className="text-zinc-500">Compliance Rate</span>
-              <span className="text-emerald-500">94.2%</span>
+              <span className="text-emerald-500">{stats?.task_log.compliance_rate ?? 0}%</span>
             </div>
             <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-              <div className="h-full bg-emerald-500 w-[94%] shadow-[0_0_10px_rgba(16,185,129,0.2)]" />
+              <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000" style={{ width: `${stats?.task_log.compliance_rate ?? 0}%` }} />
             </div>
           </div>
         </GlassCard>
@@ -302,21 +339,25 @@ export default function AdminDashboard() {
           </div>
 
           <div className="space-y-6">
-            {[
-              { label: 'Foundations & Piling', progress: 100 },
-              { label: 'Structural Steel', progress: 65 },
-              { label: 'MEP Rough-in', progress: 5 }
-            ].map(item => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                  <span className="text-zinc-500">{item.label}</span>
-                  <span className="text-primary">{item.progress}%</span>
+            {(financials ?? []).slice(0, 3).map(f => {
+              const progress = f.original_budget >
+                0 ? Math.min(100, Math.round((normalizeFinancial(f.certified_value) / normalizeFinancial(f.original_budget)) * 100))
+                : 0;
+              return (
+                <div key={f.category_id} className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                    <span className="text-zinc-500">{f.category_name || f.category_id.substring(0, 8)}</span>
+                    <span className="text-primary">{progress}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
+                    <div
+                      className="h-full bg-primary transition-all duration-500"
+                      style={{ width: `${Math.max(1, progress)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-                  <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${item.progress}%` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </GlassCard>
 
@@ -329,22 +370,25 @@ export default function AdminDashboard() {
           </div>
 
           <div className="space-y-6">
-            {[
-              { label: 'Structural Works', budget: 100, actual: 82 },
-              { label: 'Electrical & HV', budget: 100, actual: 14 },
-              { label: 'Plumbing & HVAC', budget: 100, actual: 6 }
-            ].map(item => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                  <span className="text-zinc-500">{item.label}</span>
-                  <span className="text-zinc-400 italic">{(item.actual)}% Spent</span>
+            {(financials ?? []).sort((a, b) => (normalizeFinancial(b.original_budget) - normalizeFinancial(a.original_budget))).slice(0, 3).map(f => {
+              const actual = normalizeFinancial(f.committed_value);
+              const budget = normalizeFinancial(f.original_budget);
+              const spentPercent = f.original_budget > 0
+                ? Math.round((normalizeFinancial(f.committed_value) / normalizeFinancial(f.original_budget)) * 100)
+                : 0;
+              return (
+                <div key={f.category_id} className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                    <span className="text-zinc-500">{f.category_name || f.category_id}</span>
+                    <span className="text-zinc-400 italic">{spentPercent}% Spent</span>
+                  </div>
+                  <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30 flex">
+                    <div className="h-full bg-primary" style={{ width: `${spentPercent}%` }} />
+                    <div className="h-full bg-muted/40" style={{ width: `${100 - spentPercent}%` }} />
+                  </div>
                 </div>
-                <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30 flex">
-                  <div className="h-full bg-primary" style={{ width: `${item.actual}%` }} />
-                  <div className="h-full bg-muted/40" style={{ width: `${item.budget - item.actual}%` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </GlassCard>
       </div>
