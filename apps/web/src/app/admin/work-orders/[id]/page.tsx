@@ -66,28 +66,52 @@ export default function WorkOrderDetailPage() {
 
   const columnDefs: ColDef<any>[] = useMemo(
     () => [
-      { field: "description", headerName: "Description", flex: 2 },
+      { field: "description", headerName: "Description", flex: 2, editable: isEditing },
       {
         field: "qty",
         headerName: "Qty",
         flex: 1,
+        editable: isEditing,
+        type: "numericColumn",
       },
       {
         field: "rate",
         headerName: "Rate (₹)",
         flex: 1,
+        editable: isEditing,
+        type: "numericColumn",
         valueFormatter: (p: any) => formatCurrency(p.value),
       },
       {
         field: "total",
         headerName: "Total (₹)",
         flex: 1,
+        editable: false,
         valueFormatter: (p: any) => formatCurrency(p.value),
         cellClass: "bg-slate-800/20 font-bold",
       },
     ],
-    [],
+    [isEditing],
   );
+
+  // Handle grid cell changes
+  const handleCellValueChanged = useCallback((event: any) => {
+    const { data, colDef } = event;
+
+    // When qty or rate changes, recalculate total
+    if (colDef.field === "qty" || colDef.field === "rate") {
+      const qty = parseFloat(data.qty) || 0;
+      const rate = parseFloat(data.rate) || 0;
+      data.total = qty * rate;
+    }
+
+    // Update the entire line items array with the modified row
+    setEditLineItems((prevItems) =>
+      prevItems.map((item) =>
+        item.sr_no === data.sr_no ? data : item
+      )
+    );
+  }, []);
 
   // Seed edit state when starting edit mode
   const handleStartEdit = useCallback(() => {
@@ -497,6 +521,7 @@ export default function WorkOrderDetailPage() {
           editable={isEditing}
           showSrNo={true}
           height="300px"
+          onCellValueChanged={isEditing ? handleCellValueChanged : undefined}
         />
       </div>
 
