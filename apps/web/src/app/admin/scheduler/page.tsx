@@ -59,7 +59,7 @@ export default function ProjectSchedulerPage() {
             setVerification(res.verification);
             toast.success("Schedule calculated using Layer 3 engine");
 
-            if (!res.verification.is_aligned) {
+            if (res.verification && !res.verification.is_aligned) {
                 toast.warning(`Budget Mismatch: Scheduled ₹${(res.total_scheduled_cost ?? 0).toLocaleString('en-IN')} exceeds Work Orders ₹${(res.verification.baseline ?? 0).toLocaleString('en-IN')}`);
             }
         } catch (e: any) {
@@ -88,7 +88,12 @@ export default function ProjectSchedulerPage() {
 
     // 5. Add Task
     const handleAddTask = () => {
-        const newId = `T${tasks.length + 1}`;
+        // Generate ID based on max existing ID, not array length (prevents duplicates after delete)
+        const maxId = tasks.length === 0 ? 0 : Math.max(...tasks.map(t => {
+            const match = t.id.match(/T(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }));
+        const newId = `T${maxId + 1}`;
         const newTask = {
             id: newId,
             name: "New Task",
@@ -102,8 +107,8 @@ export default function ProjectSchedulerPage() {
         toast.info(`Added task ${newId}`);
     };
 
-    // 6. Import MPP
-    const handleImportMPP = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 6. Import Schedule (MPP/XML/PDF)
+    const handleImportSchedule = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !activeProject) return;
 
@@ -118,9 +123,12 @@ export default function ProjectSchedulerPage() {
                 setTasks(res.tasks);
                 if (res.project_start) setProjectStart(res.project_start);
                 toast.success(`Imported ${res.tasks.length} tasks from ${file.name}`);
+                if (res.warning) {
+                    toast.info(res.warning);
+                }
             }
         } catch (e) {
-            toast.error("Failed to import MPP file. Ensure the file is valid and backend support is active.");
+            toast.error("Failed to import schedule file. Ensure the file is valid and backend support is active.");
         } finally {
             setImporting(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -179,8 +187,8 @@ export default function ProjectSchedulerPage() {
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        accept=".mpp"
-                        onChange={handleImportMPP}
+                        accept=".mpp,.xml,.pdf"
+                        onChange={handleImportSchedule}
                     />
 
                     <Button
@@ -196,9 +204,10 @@ export default function ProjectSchedulerPage() {
                         variant="outline"
                         disabled={importing}
                         className="rounded-2xl bg-white/5 border-white/10 text-white font-bold hover:bg-white/10"
+                        title="Import schedule from XML (MSPDI), MPP, or PDF file"
                     >
                         <Upload size={16} className={`${importing ? 'animate-bounce' : ''}`} />
-                        {importing ? 'Importing...' : 'Import MPP'}
+                        {importing ? 'Importing...' : 'Import Schedule'}
                     </Button>
 
                     <Button

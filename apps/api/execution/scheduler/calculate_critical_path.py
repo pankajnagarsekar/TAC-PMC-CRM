@@ -139,7 +139,7 @@ def calculate_critical_path(tasks: List[Dict[str, Any]], project_start_str: str)
         # Using late finish minus early finish in work days would be complex.
         # But we can check if ES == LS
         is_critical = (t["es"] == t["ls"])
-        
+
         results.append({
             "id": t["id"],
             "name": t["name"],
@@ -147,6 +147,7 @@ def calculate_critical_path(tasks: List[Dict[str, Any]], project_start_str: str)
             "predecessors": t["predecessors"],
             "start": date_to_str(t["es"]),
             "finish": date_to_str(t["ef"]),
+            "cost": t.get("cost", 0),
             "is_critical": is_critical
         })
         

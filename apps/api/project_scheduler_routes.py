@@ -181,25 +181,41 @@ async def trigger_pdf_export(project_id: str, current_user: dict = Depends(get_c
 
 @scheduler_router.post("/{project_id}/import")
 async def import_schedule(project_id: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    """Imports project schedule from an MPP or compatible file"""
+    """Imports project schedule from XML (MSPDI), MPP, or PDF file"""
     # 1. Save temp file
     temp_dir = ".tmp/imports"
     os.makedirs(temp_dir, exist_ok=True)
     temp_path = os.path.join(temp_dir, f"import_{project_id}_{file.filename}")
-    
+
     try:
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
-        # 2. Run Import Script (Layer 3)
+
+        # 2. Detect file type and route to appropriate parser
+        file_ext = os.path.splitext(file.filename)[1].lower()
+
+        if file_ext == ".pdf":
+            script_name = "pdf_schedule_parser.py"
+        elif file_ext == ".xml":
+            script_name = "mpp_parser.py"  # mpp_parser handles both XML and MPP
+        elif file_ext == ".mpp":
+            script_name = "mpp_parser.py"
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {file_ext}. Please use .xml (MSPDI format), .mpp, or .pdf"
+            )
+
+        # 3. Run Import Script (Layer 3)
         input_payload = {"file_path": temp_path}
-        # Note: We'll use a robust wrapper that handles Java/Python fallbacks
-        results = run_scheduler_script("mpp_parser.py", input_payload)
-        
+        results = run_scheduler_script(script_name, input_payload)
+
         if "error" in results:
             raise HTTPException(status_code=400, detail=results["error"])
-            
+
         return results
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
