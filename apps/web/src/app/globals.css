@@ -354,3 +354,98 @@ div[data-radix-focus-guard]+div {
 .client-readonly button[type="submit"] {
   display: none !important;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GANTT CHART DARK MODE COMPATIBILITY (gantt-task-react)
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1. Generic Container & Base Overrides */
+.dark .gantt-container,
+.dark .ganttTarget,
+.dark svg {
+  background-color: transparent !important;
+}
+
+/* 2. Task List (Left Side Table) */
+.dark ._3_ygE,
+/* TaskList container */
+.dark ._3ZbQT {
+  /* TaskTable container */
+  border-color: hsl(var(--border) / 0.5) !important;
+}
+
+.dark ._1nBOt,
+/* Row */
+.dark ._34SS0 {
+  /* Internal TaskList row */
+  background-color: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  border-bottom-color: hsl(var(--border) / 0.3) !important;
+}
+
+/* Alternating Row Color in Dark Mode */
+.dark ._34SS0:nth-of-type(even) {
+  background-color: hsl(var(--foreground) / 0.03) !important;
+}
+
+.dark ._3lLk3 {
+  /* TaskList table cell */
+  color: hsl(var(--foreground)) !important;
+  border-right-color: hsl(var(--border) / 0.3) !important;
+}
+
+/* 3. SVG Chart Area (Right Side) */
+.dark ._2dZTy {
+  /* Grid row background */
+  fill: hsl(var(--foreground) / 0.01) !important;
+}
+
+.dark ._2dZTy:nth-child(even) {
+  /* Grid row alternating */
+  fill: hsl(var(--foreground) / 0.03) !important;
+}
+
+.dark ._3rUKi,
+/* Grid lines */
+.dark ._RuwuK,
+/* Header bottom border */
+.dark ._1rLuZ {
+  /* Vertical grid lines */
+  stroke: hsl(var(--border) / 0.3) !important;
+}
+
+/* 4. Text and Labels in SVG */
+.dark ._9w8d5,
+/* Upper header text */
+.dark ._2q1Kt,
+/* Lower header text */
+.dark ._3KcaM {
+  /* Task name labels next to bars */
+  fill: hsl(var(--foreground) / 0.7) !important;
+}
+
+/* 5. Tooltip Styling */
+.dark ._3T42e {
+  /* Tooltip container */
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: var(--glass-shadow) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark ._29NTg {
+  /* Tooltip text */
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* 6. Fix for invisible text on white rows in screenshots */
+.dark ._3lLk3,
+.dark ._1nBOt div {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* 7. Milestone styling alignment */
+.dark ._35nLX {
+  fill: hsl(var(--card)) !important;
+  stroke: hsl(var(--accent)) !important;
+}

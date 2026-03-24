@@ -22,6 +22,9 @@ tmp/
 .aider*
 .agents/
 .emergent/
+.claude/
+.claude-flow/
+.swarm/
 
 # Dependencies
 node_modules/

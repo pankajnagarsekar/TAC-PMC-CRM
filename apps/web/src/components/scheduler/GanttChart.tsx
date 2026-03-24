@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import { parse, format } from "date-fns";
+import { useTheme } from "next-themes";
 import "gantt-task-react/dist/index.css";
 
 interface GanttChartProps {
@@ -10,6 +11,9 @@ interface GanttChartProps {
 }
 
 export default function GanttChart({ tasks }: GanttChartProps) {
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
+
     // Transform our task format to gantt-task-react format
     const ganttTasks: Task[] = useMemo(() => {
         if (!tasks || tasks.length === 0) {
@@ -39,12 +43,20 @@ export default function GanttChart({ tasks }: GanttChartProps) {
                         progress: t.percentComplete || 0,
                         type: type,
                         dependencies: t.predecessors || [],
-                        // Custom styling based on critical path
+                        // Custom styling based on critical path and theme
                         styles: {
-                            backgroundColor: t.is_critical ? "#CC0000" : "#4472C4",
-                            backgroundSelectedColor: t.is_critical ? "#A00000" : "#2E5BA3",
-                            progressColor: t.is_critical ? "#990000" : "#2E5BA3",
-                            progressSelectedColor: t.is_critical ? "#700000" : "#1A3A6B"
+                            backgroundColor: t.is_critical
+                                ? (isDark ? "#ef4444" : "#CC0000") // Red-500 vs Deep Red
+                                : (isDark ? "#3b82f6" : "#4472C4"), // Blue-500 vs Standard Blue
+                            backgroundSelectedColor: t.is_critical
+                                ? (isDark ? "#b91c1c" : "#A00000")
+                                : (isDark ? "#1d4ed8" : "#2E5BA3"),
+                            progressColor: t.is_critical
+                                ? (isDark ? "#991b1b" : "#990000")
+                                : (isDark ? "#1e40af" : "#2E5BA3"),
+                            progressSelectedColor: t.is_critical
+                                ? (isDark ? "#7f1d1d" : "#700000")
+                                : (isDark ? "#1e3a8a" : "#1A3A6B")
                         }
                     };
 
@@ -57,24 +69,19 @@ export default function GanttChart({ tasks }: GanttChartProps) {
             .filter((t): t is Task => t !== null);
     }, [tasks]);
 
-    const handleTaskChange = (task: Task) => {
-        // This would require syncing back to parent state if editing is enabled
-        // For now, the chart is read-only (editing via the SchedulerGrid)
-        console.log("Task changed:", task);
+    const onDateChange = (task: Task) => {
+        console.log("Date changed:", task);
     };
 
-    const handleTaskDelete = (task: Task) => {
-        // Delete functionality would be in the SchedulerGrid
+    const onDelete = (task: Task) => {
         console.log("Task deleted:", task);
     };
 
-    const handleProgressChange = (task: Task) => {
-        // Progress changes would sync back to parent
+    const onProgressChange = (task: Task) => {
         console.log("Progress changed:", task);
     };
 
-    const handleDblClick = (task: Task) => {
-        // Double-click handler
+    const onDoubleClick = (task: Task) => {
         console.log("Task double-clicked:", task);
     };
 
@@ -110,14 +117,14 @@ export default function GanttChart({ tasks }: GanttChartProps) {
                     <div style={{ width: "100%", minHeight: "400px" }}>
                         <Gantt
                             tasks={ganttTasks}
-                            onTaskChange={handleTaskChange}
-                            onTaskDelete={handleTaskDelete}
-                            onProgressChange={handleProgressChange}
-                            onDoubleClick={handleDblClick}
+                            onDateChange={onDateChange}
+                            onDelete={onDelete}
+                            onProgressChange={onProgressChange}
+                            onDoubleClick={onDoubleClick}
                             viewMode={ViewMode.Month}
                             listCellWidth="200px"
                             barCornerRadius={4}
-                            fontFamily='ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+                            fontFamily='Manrope, ui-sans-serif, system-ui, -apple-system, sans-serif'
                             fontSize="12px"
                             locale="en-US"
                         />
