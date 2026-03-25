@@ -74,6 +74,9 @@ export type ScheduleTask = {
   payment_value?: number;
   cost_variance?: number;
   cost_variance_flag?: CostVarianceFlag;
+  ai_suggested_duration?: number | null;
+  ai_confidence_score?: number | null;
+  ai_status_flag?: string | null;
   [key: string]: unknown;
 };
 
@@ -116,6 +119,9 @@ export type ScheduleChangeRequest = {
     assigned_resources?: string[] | null;
     task_mode?: "Auto" | "Manual" | null;
     task_status?: ScheduleTaskStatus | null;
+    ai_suggested_duration?: number | null;
+    ai_confidence_score?: number | null;
+    ai_status_flag?: string | null;
   };
   version: number;
   trigger_source: ChangeSource;

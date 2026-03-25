@@ -120,6 +120,7 @@ init_rate_limiting(app)
 
 app.include_router(audit_router, prefix="/api")
 app.include_router(scheduler_router, prefix="/api/projects")
+app.include_router(portfolio_router, prefix="/api/portfolio")
 
 # Create router with /api prefix
 api_router = APIRouter(prefix="/api")

@@ -21,6 +21,9 @@ from pymongo import UpdateOne
 from execution.scheduler.models.project_schedules import (
     ProjectScheduleTask, TaskChanges, ScheduleChangeRequest, TaskMode
 )
+from execution.scheduler.models.schedule_baselines import (
+    ScheduleBaseline, BaselineTaskSnapshot, BaselineFinancialSnapshot, BaselineLockRequest
+)
 from execution.scheduler.models.project_metadata import ProjectMetadata
 from execution.scheduler.models.project_calendars import ProjectCalendar
 from execution.scheduler.models.audit_logs import AuditLogEntry
@@ -336,65 +339,137 @@ async def calculate_schedule(
 @router.post("/{project_id}/baseline/lock")
 async def lock_baseline(
     project_id: str,
+    lock_request: BaselineLockRequest,
     db: AsyncIOMotorDatabase = Depends(get_db),
     session: AsyncIOMotorClientSession = Depends(get_transaction_session),
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    Snapshots current scheduled dates into baseline fields. 
+    Constitution §2.2 & Phase 4: Snapshots current schedule into an immutable baseline.
+    Enforces 11 baseline limit and captures financial state.
     """
-    # Fetch all active tasks
-    cursor = db.project_schedules.find({"project_id": project_id, "is_deleted": False}, session=session)
-    tasks = await cursor.to_list(length=10000)
-    
-    if not tasks:
+    # ─── 1. Idempotency Check ────────────────────────────────────────────────
+    cached = await check_duplicate(db, lock_request.idempotency_key)
+    if cached:
+        return cached
+
+    # ─── 2. Limit Check ──────────────────────────────────────────────────────
+    existing_count = await db.schedule_baselines.count_documents(
+        {"project_id": PyObjectId(project_id)}, session=session
+    )
+    if existing_count >= 11:
+        raise HTTPException(
+            status_code=400, 
+            detail="Maximum 11 baselines per project reached. Lock disabled."
+        )
+
+    # ─── 3. Gather Task Snapshots ────────────────────────────────────────────
+    cursor = db.project_schedules.find(
+        {"project_id": PyObjectId(project_id), "is_deleted": False}, 
+        session=session
+    )
+    tasks_raw = await cursor.to_list(length=10000)
+    if not tasks_raw:
         raise HTTPException(status_code=400, detail="No tasks found to baseline")
-        
-    bulk_ops = []
+
+    snapshots: List[Dict[str, Any]] = []
     total_baseline_cost = Decimal("0")
     
-    for t_doc in tasks:
-        updates = {
-            "baseline_start": t_doc.get("scheduled_start"),
-            "baseline_finish": t_doc.get("scheduled_finish"),
-            "baseline_duration": t_doc.get("scheduled_duration"),
-            "baseline_cost": t_doc.get("scheduled_cost", Decimal("0")),
-            "updated_at": datetime.now(timezone.utc)
-        }
-        bulk_ops.append(UpdateOne({"_id": t_doc["_id"]}, {"$set": updates}))
-        cost = t_doc.get("scheduled_cost", Decimal("0"))
-        if hasattr(cost, "to_decimal"): # Handle Decimal128
-            total_baseline_cost += cost.to_decimal()
-        else:
-            total_baseline_cost += Decimal(str(cost))
-        
-    await db.project_schedules.bulk_write(bulk_ops, session=session)
-    
-    # Update Metadata Cache
+    for t_doc in tasks_raw:
+        # Calculate cost for this task (if applicable)
+        cost = Decimal(str(t_doc.get("baseline_cost", "0")))
+        total_baseline_cost += cost
+
+        # Create individual task snapshot
+        ss = BaselineTaskSnapshot(
+            task_id=t_doc["_id"],
+            wbs_code=t_doc.get("wbs_code", ""),
+            task_name=t_doc.get("task_name", ""),
+            external_ref_id=t_doc.get("external_ref_id", ""),
+            is_milestone=t_doc.get("is_milestone", False),
+            baseline_start=str(t_doc.get("scheduled_start")) if t_doc.get("scheduled_start") else None,
+            baseline_finish=str(t_doc.get("scheduled_finish")) if t_doc.get("scheduled_finish") else None,
+            baseline_duration=t_doc.get("scheduled_duration"),
+            baseline_cost=cost,
+            scheduled_start=str(t_doc.get("scheduled_start")) if t_doc.get("scheduled_start") else None,
+            scheduled_finish=str(t_doc.get("scheduled_finish")) if t_doc.get("scheduled_finish") else None,
+            scheduled_duration=t_doc.get("scheduled_duration"),
+            percent_complete=t_doc.get("percent_complete", 0)
+        )
+        snapshots.append(ss.model_dump())
+
+    # ─── 4. Capture Financial Totals ──────────────────────────────────────────
+    # [Session 1.2 Pipeline calls]
+    wo_pipeline = build_wo_value_pipeline(project_id)
+    wo_summary = await db.project_schedules.aggregate(wo_pipeline, session=session).to_list(length=10000)
+    total_wo_value = sum([Decimal(str(r.get("wo_value", "0"))) for r in wo_summary])
+
+    pc_pipeline = build_payment_value_pipeline(project_id)
+    pc_summary = await db.project_schedules.aggregate(pc_pipeline, session=session).to_list(length=10000)
+    total_pc_value = sum([Decimal(str(r.get("payment_value", "0"))) for r in pc_summary])
+
+    fin_snapshot = BaselineFinancialSnapshot(
+        project_total_baseline_cost=total_baseline_cost,
+        total_wo_value=total_wo_value,
+        total_payment_value=total_pc_value
+    )
+
+    # ─── 5. Create & Save Baseline ───────────────────────────────────────────
+    new_baseline = ScheduleBaseline(
+        project_id=PyObjectId(project_id),
+        baseline_number=existing_count + 1,
+        label=lock_request.label or f"Baseline {existing_count + 1}",
+        snapshot_data=snapshots,
+        financial_snapshot=fin_snapshot,
+        locked_by=PyObjectId(current_user["sub"]),
+        locked_at=datetime.now(timezone.utc),
+        is_immutable=True
+    )
+
+    await db.schedule_baselines.insert_one(
+        new_baseline.model_dump(by_alias=True, exclude={"id"}),
+        session=session
+    )
+
+    # ─── 6. Update Project Metadata ──────────────────────────────────────────
     await db.project_metadata.update_one(
         {"project_id": PyObjectId(project_id)},
         {"$set": {
-            "total_baseline_cost_cache": str(total_baseline_cost),
-            "system_state": SystemState.ACTIVE, 
+            "total_baseline_cost_cache": Decimal128(str(total_baseline_cost)),
+            "system_state": SystemState.ACTIVE, # Moves from PLANNING to ACTIVE on first lock
             "updated_at": datetime.now(timezone.utc)
         }},
         session=session
     )
 
-    # Audit Log
+    # ─── 7. Audit Log ───────────────────────────────────────────────────────
     audit_entry = AuditLogEntry(
         project_id=project_id,
         user_id=current_user["sub"],
         action=AuditAction.BASELINE_LOCKED,
-        trigger_source=ChangeSource.API,  # Usually manual for lock
-        comment=f"Baseline locked. Total cost: {total_baseline_cost}"
+        trigger_source=ChangeSource.API,
+        comment=f"Baseline {new_baseline.baseline_number} locked. Total Cost: {total_baseline_cost}",
+        idempotency_key=lock_request.idempotency_key
     )
     await db.project_audit_logs.insert_one(
         audit_entry.model_dump(by_alias=True, exclude={"id"}),
         session=session
     )
-    
-    return {"status": "success", "total_baseline_cost_cache": float(total_baseline_cost)}
+
+    # ─── 8. Idempotency Save ────────────────────────────────────────────────
+    response_data = {
+        "status": "success",
+        "baseline_number": new_baseline.baseline_number,
+        "total_baseline_cost": float(total_baseline_cost)
+    }
+    await save_idempotent_response(
+        db=db, session=session,
+        idempotency_key=lock_request.idempotency_key,
+        entity_type="baseline_lock",
+        response=response_data
+    )
+
+    return response_data
 
 # =============================================================================
 # Financials Route
@@ -427,3 +502,20 @@ async def get_financials(
             financials[tid] = pc_r
             
     return list(financials.values())
+
+from execution.scheduler.services.baseline_comparison import BaselineComparisonService
+
+@router.get("/{project_id}/baseline/compare")
+async def compare_baselines(
+    project_id: str,
+    baseline_a: int = Query(..., ge=1, le=11),
+    baseline_b: Optional[int] = Query(None, ge=1, le=11),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Computes variances between two baselines (or baseline vs current).
+    """
+    service = BaselineComparisonService(db)
+    results = await service.compare_baselines(project_id, baseline_a, baseline_b)
+    return results

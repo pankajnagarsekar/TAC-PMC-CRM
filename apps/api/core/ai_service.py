@@ -51,6 +51,15 @@ class AIProvider(ABC):
         """Tag image with relevant labels"""
         pass
 
+    @abstractmethod
+    async def run_schedule_prediction(self, wbs_text: str) -> Dict:
+        """Predict duration and category from WBS text"""
+        pass
+
+    @abstractmethod
+    async def run_mom_extraction(self, meeting_notes: str) -> Dict:
+        """Extract action items from meeting notes"""
+        pass
 
 class MockAIProvider(AIProvider):
     """Mock AI provider for testing when API keys absent"""
@@ -92,6 +101,40 @@ class MockAIProvider(AIProvider):
             ],
             "suggested_code": "CONCRETE-WORK",
             "confidence": 0.85,
+            "provider": "MOCK"
+        }
+
+    async def run_schedule_prediction(self, wbs_text: str) -> Dict:
+        """Mock schedule prediction"""
+        logger.info(f"[AI:MOCK] Running schedule prediction for: {wbs_text[:30]}...")
+        return {
+            "suggested_duration": 5,
+            "suggested_category": "CIV",
+            "confidence": 0.78,
+            "reasoning": "Standard excavation task based on historical averages.",
+            "provider": "MOCK"
+        }
+
+    async def run_mom_extraction(self, meeting_notes: str) -> Dict:
+        """Mock MoM extraction"""
+        logger.info("[AI:MOCK] Running MoM extraction")
+        return {
+            "action_items": [
+                {
+                    "task": "Complete foundation pouring",
+                    "assignee": "Contractor Alpha",
+                    "deadline": "2024-04-15",
+                    "priority": "HIGH"
+                },
+                {
+                    "task": "Submit MEP drawings",
+                    "assignee": "MEP Consultant",
+                    "deadline": "2024-04-20",
+                    "priority": "MEDIUM"
+                }
+            ],
+            "summary": "Meeting discussed progress on foundation and next steps for MEP.",
+            "confidence": 0.82,
             "provider": "MOCK"
         }
 
@@ -261,7 +304,76 @@ Return JSON:
             return await MockAIProvider().run_vision_tag(image_content)
         except Exception as e:
             logger.error(f"[AI] Vision tagging failed: {e}")
-            raise AIServiceError(f"Vision tagging failed: {e}")
+    async def run_schedule_prediction(self, wbs_text: str) -> Dict:
+        """Predict duration and category from WBS text using GPT-4o"""
+        try:
+            from emergentintegrations.llm.openai import chat_completion, Message
+
+            prompt = f"""Predict construction duration and category for this WBS item:
+Task Name/Description: "{wbs_text}"
+
+Return JSON format:
+{{
+    "suggested_duration": <integer_days>,
+    "suggested_category": "<CIV|MEP|STR|FIN|EXT|INT>",
+    "reasoning": "brief explanation",
+    "confidence": 0.0-1.0
+}}"""
+
+            messages = [Message(role="user", content=prompt)]
+
+            response = await chat_completion(
+                api_key=self.api_key,
+                messages=messages,
+                model="gpt-4o"
+            )
+
+            result = json.loads(response.content)
+            result["provider"] = "EMERGENT_OPENAI"
+            return result
+
+        except Exception as e:
+            logger.error(f"[AI] Schedule prediction failed: {e}")
+            raise AIServiceError(f"Schedule prediction failed: {e}")
+
+    async def run_mom_extraction(self, meeting_notes: str) -> Dict:
+        """Extract action items from meeting notes using GPT-4o"""
+        try:
+            from emergentintegrations.llm.openai import chat_completion, Message
+
+            prompt = f"""Extract action items from these construction meeting notes:
+---
+{meeting_notes}
+---
+Return JSON format:
+{{
+    "action_items": [
+        {{
+            "task": "...",
+            "assignee": "...",
+            "deadline": "YYYY-MM-DD | null",
+            "priority": "LOW|MEDIUM|HIGH"
+        }}
+    ],
+    "summary": "one sentence meeting summary",
+    "confidence": 0.0-1.0
+}}"""
+
+            messages = [Message(role="user", content=prompt)]
+
+            response = await chat_completion(
+                api_key=self.api_key,
+                messages=messages,
+                model="gpt-4o"
+            )
+
+            result = json.loads(response.content)
+            result["provider"] = "EMERGENT_OPENAI"
+            return result
+
+        except Exception as e:
+            logger.error(f"[AI] MoM extraction failed: {e}")
+            raise AIServiceError(f"MoM extraction failed: {e}")
 
 
 # =============================================================================
@@ -616,6 +728,100 @@ class AIService:
 
         logger.info(
             f"[AI:VISION] Overridden: {tag_id} {old_code} -> {override_code}")
+
+    # =========================================================================
+    # SCHEDULE PREDICTION SERVICE
+    # =========================================================================
+
+    async def run_schedule_prediction(
+        self,
+        wbs_text: str,
+        organisation_id: str,
+        user_id: str,
+        project_id: str,
+        task_id: Optional[str] = None
+    ) -> Dict:
+        """
+        Predict duration and category for a WBS item.
+        Result is stored for audit and feedback loop.
+        """
+        try:
+            result = await self.provider.run_schedule_prediction(wbs_text)
+
+            prediction_doc = {
+                "organisation_id": organisation_id,
+                "project_id": project_id,
+                "task_id": task_id,
+                "input_text": wbs_text,
+                "suggested_duration": result.get("suggested_duration"),
+                "suggested_category": result.get("suggested_category"),
+                "confidence": result.get("confidence", 0),
+                "reasoning": result.get("reasoning", ""),
+                "provider": result.get("provider", "UNKNOWN"),
+                "created_by": user_id,
+                "created_at": datetime.now(timezone.utc),
+                "manually_confirmed": False
+            }
+
+            db_result = await self.db.schedule_predictions.insert_one(prediction_doc)
+            prediction_id = str(db_result.inserted_id)
+
+            logger.info(f"[AI:SCHEDULE] Prediction completed for task {task_id or 'new'}")
+
+            return {
+                "prediction_id": prediction_id,
+                **result
+            }
+        except Exception as e:
+            logger.warning(f"[AI:SCHEDULE] Prediction failed: {e}")
+            # Graceful degradation logic handled by caller (returns empty suggestion)
+            raise
+
+    # =========================================================================
+    # MoM EXTRACTION SERVICE
+    # =========================================================================
+
+    async def run_mom_extraction(
+        self,
+        meeting_notes: str,
+        organisation_id: str,
+        user_id: str,
+        project_id: str,
+        task_id: Optional[str] = None
+    ) -> Dict:
+        """
+        Extract action items from meeting notes.
+        Result is stored for audit.
+        """
+        try:
+            result = await self.provider.run_mom_extraction(meeting_notes)
+
+            mom_doc = {
+                "organisation_id": organisation_id,
+                "project_id": project_id,
+                "task_id": task_id,
+                "raw_notes": meeting_notes,
+                "extracted_actions": result.get("action_items", []),
+                "summary": result.get("summary", ""),
+                "confidence": result.get("confidence", 0),
+                "provider": result.get("provider", "UNKNOWN"),
+                "created_by": user_id,
+                "created_at": datetime.now(timezone.utc)
+            }
+
+            db_result = await self.db.mom_extractions.insert_one(mom_doc)
+            mom_id = str(db_result.inserted_id)
+
+            logger.info(f"[AI:MoM] Extraction completed for task {task_id or 'project'}")
+
+            return {
+                "mom_id": mom_id,
+                **result
+            }
+        except Exception as e:
+            logger.warning(f"[AI:MoM] Extraction failed: {e}")
+            raise
+
 
     # =========================================================================
     # HELPER

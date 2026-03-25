@@ -375,8 +375,9 @@ class TaskChanges(BaseModel):
     task_mode: Optional[TaskMode] = None
     task_name: Optional[str] = None
     task_status: Optional[TaskStatus] = None
-    constraint_type: Optional[ConstraintType] = None
-    constraint_date: Optional[date] = None
+    ai_suggested_duration: Optional[int] = Field(default=None, ge=0)
+    ai_confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    ai_status_flag: Optional[str] = None
 
     model_config = {"arbitrary_types_allowed": True}
 
