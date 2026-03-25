@@ -6,15 +6,15 @@ This document is the **Comprehensive Agent Master Guide** for implementing the E
 
 ## 1. Global Swarm & Memory Directives
 
-Any agent session working on this project MUST adhere to these global directives:
+Any agent session working on this project MUST adhere to these global directives (NON-NEGOTIABLE):
 
-1. **Topology:** `hierarchical-mesh` minimum 5 agents.
-2. **Context Loading:** Before *any* code is written, agents must run a semantic search on the RuFlo ReasoningBank:
+1. **Topology:** `hierarchical-mesh` minimum 5 agents. Literal execution of the `npx ruflo swarm` command is MANDATORY for every phase. Internal simulation of roles is STRICTLY FORBIDDEN.
+2. **Context Loading:** Before *any* code is written or proposed, agents must execute a semantic search on the RuFlo ReasoningBank. Failure to run this command will result in immediate architectural rejection:
    ```bash
    npx -y ruflo@latest memory search --query "PPM Scheduler [specific module context]"
    ```
 3. **Cross-View Consistency Check:** Frontend agents must NEVER implement independent state. All views must read from the single Zustand `useScheduleStore`.
-4. **No Legacy DB Mutations:** Backend agents must NEVER attempt to write to `work_orders` or `payment_certificates`. The `security-auditor` agent must block any PR that violates this.
+4. **No Legacy DB Mutations:** Backend agents must NEVER attempt to write to `work_orders` or `payment_certificates`. The `security-auditor` agent MUST be triggered via CLI to block any PR that violates this.
 5. **Idempotency & Versioning:** Every database write must increment `version` and check `idempotency_key`.
 
 ---

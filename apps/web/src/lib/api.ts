@@ -1,5 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { errorLogger } from "./errorLogger";
+import type {
+  ScheduleCalculationResponse,
+  ScheduleChangeRequest,
+} from "@/types/schedule.types";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -114,6 +118,20 @@ export const fetcher = (url: string) => api.get(url).then((r) => r.data);
 export const schedulerApi = {
   calculate: (projectId: string, tasks: any[], projectStart: string) =>
     api.post(`/api/projects/${projectId}/calculate`, { tasks, project_start: projectStart }).then(res => res.data),
+
+  calculateChange: (
+    projectId: string,
+    changeRequest: ScheduleChangeRequest,
+    idempotencyKey: string
+  ): Promise<ScheduleCalculationResponse> =>
+    api
+      .post(`/api/scheduler/${projectId}/calculate`, changeRequest, {
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+      })
+      .then((res) => res.data),
 
   save: (projectId: string, tasks: any[], projectStart: string, totalCost: number) =>
     api.post(`/api/projects/${projectId}/save`, {
