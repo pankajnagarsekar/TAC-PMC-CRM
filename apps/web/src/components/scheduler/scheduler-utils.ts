@@ -79,16 +79,24 @@ export function formatTaskDate(value?: string | null, fallback = "—"): string 
 }
 
 export function taskKey(task: ScheduleTask): string {
-  return task.wbs_code || task.task_id;
+  return String(task.wbs_code || task.task_id || "");
 }
 
 export function normalizeTaskOrder(taskMap: ScheduleTaskMap, taskOrder: string[]): ScheduleTask[] {
-  const ordered = taskOrder
-    .map((taskId) => taskMap[taskId])
-    .filter((task): task is ScheduleTask => Boolean(task));
+  if (!taskMap) return [];
 
-  const missing = Object.values(taskMap).filter((task) => !taskOrder.includes(task.task_id));
-  return [...ordered, ...missing].sort((a, b) => taskKey(a).localeCompare(taskKey(b), undefined, { numeric: true }));
+  const ordered = (taskOrder || [])
+    .map((taskId) => taskMap[taskId])
+    .filter((task): task is ScheduleTask => Boolean(task && (task.task_id || task.wbs_code)));
+
+  const taskOrderSet = new Set(taskOrder);
+  const missing = Object.values(taskMap).filter(
+    (task) => task && (task.task_id || task.wbs_code) && !taskOrderSet.has(task.task_id)
+  );
+
+  return [...ordered, ...missing].sort((a, b) =>
+    taskKey(a).localeCompare(taskKey(b), undefined, { numeric: true })
+  );
 }
 
 export function calculateTimelineRange(tasks: ScheduleTask[]) {

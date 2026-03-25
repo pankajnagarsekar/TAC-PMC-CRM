@@ -32,7 +32,7 @@ from audit_routes import router as audit_router  # noqa: E402
 from project_scheduler_routes import scheduler_router  # noqa: E402
 from ai_summary_routes import ai_summary_router  # noqa: E402
 from dashboard_stats_routes import dashboard_stats_router  # noqa: E402
-from execution.scheduler.api.routes.scheduler import router as enterprise_scheduler_router  # noqa: E402
+from execution.scheduler.api.routes import scheduler_router as enterprise_scheduler_router, portfolio_router  # noqa: E402
 from core.indexes import ensure_indexes  # noqa: E402
 from core.rate_limit import init_rate_limiting  # noqa: E402
 

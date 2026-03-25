@@ -1,0 +1,176 @@
+﻿python : Traceback (most recent 
+call last):
+At line:1 char:1
++ python -m uvicorn server:app 
+--host 0.0.0.0 --port 8000 2>&1 | 
+Out-Fi ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSp 
+   ecified: (Traceback (most recen  
+  t call last)::String) [], Remot   
+ eException
+    + FullyQualifiedErrorId : Nativ 
+   eCommandError
+ 
+  File "<frozen runpy>", line 198, 
+in _run_module_as_main
+  File "<frozen runpy>", line 88, 
+in _run_code
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\__main__.py", line 
+4, in <module>
+    uvicorn.main()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\click\core.py", line 1485, 
+in __call__
+    return self.main(*args, 
+**kwargs)
+           
+~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\click\core.py", line 1406, 
+in main
+    rv = self.invoke(ctx)
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\click\core.py", line 1269, 
+in invoke
+    return 
+ctx.invoke(self.callback, 
+**ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\click\core.py", line 824, 
+in invoke
+    return callback(*args, **kwargs)
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\main.py", line 
+416, in main
+    run(
+    ~~~^
+        app,
+        ^^^^
+    ...<45 lines>...
+        h11_max_incomplete_event_siz
+e=h11_max_incomplete_event_size,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\main.py", line 
+587, in run
+    server.run()
+    ~~~~~~~~~~^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\server.py", line 
+61, in run
+    return asyncio.run(self.serve(so
+ckets=sockets))
+           ~~~~~~~~~~~^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\async
+io\runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\async
+io\runners.py", line 127, in run
+    return 
+self._loop.run_until_complete(task)
+           
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\async
+io\base_events.py", line 719, in 
+run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\server.py", line 
+68, in serve
+    config.load()
+    ~~~~~~~~~~~^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\config.py", line 
+467, in load
+    self.loaded_app = 
+import_from_string(self.app)
+                      
+~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\uvicorn\importer.py", line 
+21, in import_from_string
+    module = 
+importlib.import_module(module_str)
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\impor
+tlib\__init__.py", line 88, in 
+import_module
+    return _bootstrap._gcd_import(na
+me[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen 
+importlib._bootstrap>", line 1398, 
+in _gcd_import
+  File "<frozen 
+importlib._bootstrap>", line 1371, 
+in _find_and_load
+  File "<frozen 
+importlib._bootstrap>", line 1342, 
+in _find_and_load_unlocked
+  File "<frozen 
+importlib._bootstrap>", line 938, 
+in _load_unlocked
+  File "<frozen 
+importlib._bootstrap_external>", 
+line 759, in exec_module
+  File "<frozen 
+importlib._bootstrap>", line 491, 
+in _call_with_frames_removed
+  File "D:\_repos\TAC-PMC-CRM\apps\a
+pi\server.py", line 20, in <module>
+    from project_management_routes 
+import project_management_router  # 
+noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\_repos\TAC-PMC-CRM\apps\a
+pi\project_management_routes.py", 
+line 91, in <module>
+    ai_service = AIService(client, 
+db, ai_api_key)
+  File "D:\_repos\TAC-PMC-CRM\apps\a
+pi\core\ai_service.py", line 409, 
+in __init__
+    self.client = client or 
+db_manager.client
+                  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\panka\AppData\Local
+\Python\pythoncore-3.14-64\Lib\site-
+packages\pymongo\database.py", line 
+1339, in __bool__
+    raise NotImplementedError(
+    ...<3 lines>...
+    )
+NotImplementedError: Database 
+objects do not implement truth 
+value testing or bool(). Please 
+compare with None instead: database 
+is not None

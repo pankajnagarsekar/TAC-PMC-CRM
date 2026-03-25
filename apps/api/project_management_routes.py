@@ -88,7 +88,7 @@ db = client[db_name]
 permission_checker = PermissionChecker(db)
 snapshot_engine = SnapshotEngine(client, db)
 job_engine = BackgroundJobEngine(client, db)
-ai_service = AIService(client, db, ai_api_key)
+ai_service = AIService(db, client, ai_api_key)
 security = SecurityHardening(client, db)
 
 # Phase 2 - Snapshot + Document Integrity services

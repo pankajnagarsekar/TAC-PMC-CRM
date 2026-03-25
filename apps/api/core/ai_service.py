@@ -406,7 +406,7 @@ class AIService:
             client: Optional[AsyncIOMotorClient] = None,
             api_key: Optional[str] = None):
         from core.database import db_manager
-        self.client = client or db_manager.client
+        self.client = client if client is not None else db_manager.client
         self.db = db
 
         # Select provider based on API key availability

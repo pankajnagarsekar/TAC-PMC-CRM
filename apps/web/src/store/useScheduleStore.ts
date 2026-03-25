@@ -16,13 +16,18 @@ let pendingRequest: ScheduleChangeRequest | null = null;
 let calculationTimer: ReturnType<typeof setTimeout> | null = null;
 
 const buildTaskMap = (tasks: ScheduleTask[]): ScheduleTaskMap => {
-  return tasks.reduce<ScheduleTaskMap>((acc, task) => {
-    acc[task.task_id] = { ...task };
+  return (tasks || []).reduce<ScheduleTaskMap>((acc, task) => {
+    if (task && task.task_id) {
+      acc[task.task_id] = { ...task };
+    }
     return acc;
   }, {});
 };
 
-const buildTaskOrder = (tasks: ScheduleTask[]) => tasks.map((task) => task.task_id);
+const buildTaskOrder = (tasks: ScheduleTask[]) =>
+  (tasks || [])
+    .filter(t => t && t.task_id)
+    .map((task) => task.task_id);
 
 const buildDependencyGraph = (tasks: ScheduleTask[]) => {
   const graph: Record<string, { predecessors: string[]; successors: string[] }> = {};
