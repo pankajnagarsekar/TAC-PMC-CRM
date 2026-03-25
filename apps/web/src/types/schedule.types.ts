@@ -140,6 +140,20 @@ export type ActiveFilters = {
   value?: string | number;
 };
 
+export type BaselineComparisonResult = {
+  task_id: string;
+  wbs_code: string;
+  task_name: string;
+  baseline_a_start: string | null;
+  baseline_a_finish: string | null;
+  baseline_b_start: string | null;
+  baseline_b_finish: string | null;
+  schedule_variance_days: number;
+  baseline_a_cost: number;
+  baseline_b_cost: number;
+  cost_variance_percent: number;
+};
+
 export interface ScheduleStoreState {
   taskMap: ScheduleTaskMap;
   taskOrder: string[];
@@ -153,6 +167,11 @@ export interface ScheduleStoreState {
   calculationError: string | null;
   collapsedParents: Set<string>;
 
+  // Baseline Comparison
+  comparisonData: BaselineComparisonResult[] | null;
+  selectedBaselineA: number | null;
+  selectedBaselineB: number | null;
+
   loadSchedule: (payload: ScheduleCalculationResponse) => void;
   reconcileWithEngine: (response: ScheduleCalculationResponse) => void;
   queueCalculation: (payload: ScheduleChangeRequest) => void;
@@ -164,4 +183,8 @@ export interface ScheduleStoreState {
   selectTask: (taskId: string) => void;
   deselectTask: (taskId: string) => void;
   toggleParentCollapse: (taskId: string) => void;
+
+  // Comparison Actions
+  fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;
+  clearComparison: () => void;
 }

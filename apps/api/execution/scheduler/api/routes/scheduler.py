@@ -519,3 +519,26 @@ async def compare_baselines(
     service = BaselineComparisonService(db)
     results = await service.compare_baselines(project_id, baseline_a, baseline_b)
     return results
+
+from core.ai_service import AIService
+
+@router.post("/{project_id}/tasks/{task_id}/mom-extract")
+async def extract_mom_for_task(
+    project_id: str,
+    task_id: str,
+    notes: Dict[str, str] = Body(...),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Extracts action items from meeting notes with project/task context.
+    """
+    ai_service = AIService(db)
+    result = await ai_service.run_mom_extraction(
+        meeting_notes=notes.get("raw_notes", ""),
+        organisation_id=current_user["organisation_id"],
+        user_id=current_user["sub"],
+        project_id=project_id,
+        task_id=task_id
+    )
+    return result

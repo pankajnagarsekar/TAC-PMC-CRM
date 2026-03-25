@@ -239,7 +239,7 @@ export default function ProjectSchedulerPage() {
 
       <div className="grid gap-8 xl:grid-cols-2">
         <CashFlowChart />
-        <ResourceHeatmap />
+        <ResourceHeatmap data={[]} />
       </div>
 
       <div className="flex items-center gap-6 rounded-3xl border border-white/5 bg-white/[0.03] p-6">

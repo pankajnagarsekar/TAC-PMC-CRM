@@ -147,6 +147,9 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     lastConfirmedVersion: null,
     calculationError: null,
     collapsedParents: new Set(),
+    comparisonData: null,
+    selectedBaselineA: null,
+    selectedBaselineB: null,
 
     loadSchedule: (response) => {
       clearPendingCalculation();
@@ -370,6 +373,30 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
           next.add(taskId);
         }
         return { collapsedParents: next };
+      });
+    },
+
+    fetchBaselineComparison: async (projectId: string, baselineA: number, baselineB?: number) => {
+      set({ pendingCalculation: true });
+      try {
+        const results = await schedulerApi.compareBaselines(projectId, baselineA, baselineB);
+        set({
+          comparisonData: results,
+          selectedBaselineA: baselineA,
+          selectedBaselineB: baselineB ?? null,
+          pendingCalculation: false
+        });
+      } catch (err: any) {
+        set({ pendingCalculation: false });
+        toast.error("Failed to fetch baseline comparison.");
+      }
+    },
+
+    clearComparison: () => {
+      set({
+        comparisonData: null,
+        selectedBaselineA: null,
+        selectedBaselineB: null
       });
     },
 

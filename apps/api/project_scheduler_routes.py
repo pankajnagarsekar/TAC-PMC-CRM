@@ -252,6 +252,33 @@ async def import_schedule(project_id: str, file: UploadFile = File(...), current
         if "error" in results:
             raise HTTPException(status_code=400, detail=results["error"])
 
+        # 4. Phase 4: AI WBS Category Prediction
+        # Constitution §5: AI assists but does not replace human logic.
+        from core.ai_service import AIService
+        from core.database import db_manager
+        
+        tasks = results.get("tasks", [])
+        if tasks:
+            ai_service = AIService(db_manager.db)
+            # Predict categories for first 50 tasks (performance limit)
+            for i, task in enumerate(tasks[:50]):
+                if task.get("name") and not task.get("wbs_category"):
+                    try:
+                        # Extract suggested category from AI
+                        # Category mapping: CIV|MEP|STR|FIN|EXT|INT
+                        prediction = await ai_service.run_schedule_prediction(
+                            wbs_text=task["name"],
+                            organisation_id=current_user.get("organisation_id", ""),
+                            user_id=current_user.get("user_id", ""),
+                            project_id=project_id,
+                            task_id=task.get("id")
+                        )
+                        task["wbs_category"] = prediction.get("suggested_category")
+                        task["ai_reasoning"] = prediction.get("reasoning")
+                    except Exception as ai_err:
+                        print(f"AI Prediction failed for task {i}: {ai_err}")
+                        continue
+
         return results
     except HTTPException:
         raise

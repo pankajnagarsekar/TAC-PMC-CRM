@@ -86,10 +86,28 @@ async def get_portfolio_summary(
             "is_critical": m.get("is_critical", False)
         })
 
+    # 5. Financial Aggregations (Portfolio Wide)
+    # [Session 2.4 Requirement]
+    from execution.scheduler.pipelines.financial_aggregations import build_wo_value_pipeline, build_payment_value_pipeline
+    
+    total_wo_value = Decimal("0")
+    total_payment_value = Decimal("0")
+    
+    for pid in project_ids:
+        wo_pipeline = build_wo_value_pipeline(pid)
+        wo_res = await db.project_schedules.aggregate(wo_pipeline).to_list(length=1000)
+        total_wo_value += sum([Decimal(str(r.get("wo_value", "0"))) for r in wo_res])
+        
+        pc_pipeline = build_payment_value_pipeline(pid)
+        pc_res = await db.project_schedules.aggregate(pc_pipeline).to_list(length=1000)
+        total_payment_value += sum([Decimal(str(r.get("payment_value", "0"))) for r in pc_res])
+
     return {
         "organisation_id": org_id,
         "total_projects": total_projects,
         "total_baseline_value": float(total_baseline_cost),
+        "total_work_order_value": float(total_wo_value),
+        "total_payment_value": float(total_payment_value),
         "status_distribution": {
             "active": active_count,
             "planning": planning_count,
@@ -99,35 +117,119 @@ async def get_portfolio_summary(
         "generated_at": datetime.now(timezone.utc)
     }
 
+from datetime import datetime, timezone, timedelta
+
 @router.get("/resource-heatmap")
 async def get_resource_heatmap(
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: Dict = Depends(get_current_user)
 ):
     """
-    [Phase 4, Session 2.3]
+    [Phase 4, Session 2.3 Gap Fix]
     Aggregates resource allocations across all active projects.
-    Returns:
-    - Resource ID
-    - Over-allocation flags per day
-    - Project-wise breakdown of utilization
+    Returns daily utilization percentage for the next 30 days.
     """
     org_id = current_user.get("organisation_id")
-    # This logic requires heavy aggregation on enterprise_resources + task assignments
-    # For MVP, we return a mock structure that standard UI expects.
+    if not org_id:
+         raise HTTPException(status_code=400, detail="Organisation context missing")
+
+    # 1. Fetch resources
+    resources = await db.enterprise_resources.find({"organisation_id": org_id}).to_list(length=200)
     
-    resources = await db.enterprise_resources.find({"organisation_id": org_id}).to_list(length=100)
+    # 2. Daily Range (Next 30 days)
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    days = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(30)]
     
-    heatmap_data = []
+    # 3. Fetch active tasks for the organisation
+    projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
+    project_ids = [str(p["_id"]) for p in projects]
+    
+    tasks = await db.project_schedules.find({
+        "project_id": {"$in": project_ids},
+        "assigned_resources": {"$exists": True, "$not": {"$size": 0}},
+        "is_deleted": False
+    }).to_list(length=10000)
+    
+    # 4. Aggregate load
+    # For now, each task assignment consumes 100% of a daily slot. 
+    # Future enhancement: lookup resource hours per task.
+    load_map = {str(r["_id"]): {d: 0 for d in days} for r in resources}
+    proj_map = {str(r["_id"]): {d: set() for d in days} for r in resources}
+    
+    for t in tasks:
+        start = t.get("scheduled_start")
+        finish = t.get("scheduled_finish")
+        assigned = t.get("assigned_resources") or []
+        
+        if not start or not finish:
+            continue
+            
+        for d in days:
+            if start <= d <= finish:
+                for rid in assigned:
+                    rid_str = str(rid)
+                    if rid_str in load_map:
+                        load_map[rid_str][d] += 100
+                        proj_map[rid_str][d].add(t["project_id"])
+
+    # 5. Format results
+    results = []
     for r in resources:
-        heatmap_data.append({
-            "resource_id": str(r["_id"]),
-            "resource_name": r.get("resource_name"),
-            "daily_utilization": [
-                {"date": "2024-04-01", "utilization_percent": 80, "project_ids": ["P1"]},
-                {"date": "2024-04-02", "utilization_percent": 110, "project_ids": ["P1", "P2"]}, # Over-allocated
-            ],
-            "total_availability_hours": r.get("standard_calendar", {}).get("hours_per_day", 8) * 22
+        rid = str(r["_id"])
+        daily_util = []
+        for d in days:
+            daily_util.append({
+                "date": d,
+                "utilization_percent": load_map[rid][d],
+                "project_ids": list(proj_map[rid][d])
+            })
+        
+        results.append({
+            "resource_id": rid,
+            "resource_name": r.get("name") or "Unnamed Resource",
+            "daily_utilization": daily_util,
+            "total_availability_hours": r.get("max_capacity_per_day", 8) * 22
         })
 
-    return heatmap_data
+    return results
+
+@router.get("/milestones")
+async def get_portfolio_milestones(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    [Phase 4, Session 2.2 Gap Fix]
+    Returns all milestones across all projects for the Cross-Project Portfolio Gantt.
+    """
+    org_id = current_user.get("organisation_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="Organisation context missing")
+
+    # 1. Fetch all projects to map IDs to Names
+    projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
+    project_map = {str(p["_id"]): p.get("project_name", "Unknown Project") for p in projects}
+    project_ids = list(project_map.keys())
+
+    # 2. Fetch all milestones
+    milestone_cursor = db.project_schedules.find({
+        "project_id": {"$in": project_ids},
+        "is_milestone": True,
+        "is_deleted": False,
+        "scheduled_finish": {"$ne": None}
+    }).sort([("project_id", 1), ("scheduled_finish", 1)])
+    
+    milestones_raw = await milestone_cursor.to_list(length=1000)
+    
+    results = []
+    for m in milestones_raw:
+        results.append({
+            "task_id": str(m["_id"]),
+            "project_id": m["project_id"],
+            "project_name": project_map.get(m["project_id"]),
+            "task_name": m["task_name"],
+            "finish_date": m["scheduled_finish"],
+            "is_critical": m.get("is_critical", False)
+        })
+
+    return results

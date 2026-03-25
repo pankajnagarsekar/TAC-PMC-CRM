@@ -11,6 +11,7 @@ import {
   buildCalendarColumns,
   calculateTimelineRange,
   getBaselineBarPosition,
+  getComparisonBarPosition,
   getTaskBarPosition,
   getTaskDurationDays,
   normalizeTaskOrder,
@@ -120,16 +121,51 @@ export default function GanttChart() {
   const openTask = useScheduleStore((state) => state.openTask);
   const systemState = useScheduleStore((state) => state.systemState);
 
+  // Baseline Comparison Store
+  const comparisonData = useScheduleStore((state) => state.comparisonData);
+  const selectedBaselineA = useScheduleStore((state) => state.selectedBaselineA);
+  const fetchBaselineComparison = useScheduleStore((state) => state.fetchBaselineComparison);
+  const clearComparison = useScheduleStore((state) => state.clearComparison);
+
   const tasks = useMemo(
     () => normalizeTaskOrder(taskMap, taskOrder).filter((task) => task.scheduled_start || task.scheduled_finish),
     [taskMap, taskOrder],
   );
+
+  const comparisonMap = useMemo(() => {
+    if (!comparisonData) return new Map<string, any>();
+    const map = new Map<string, any>();
+    comparisonData.forEach(item => map.set(item.task_id, item));
+    return map;
+  }, [comparisonData]);
+
   const readOnly = systemState === "locked";
   const { start: rangeStart, end: rangeEnd } = useMemo(() => calculateTimelineRange(tasks), [tasks]);
   const days = useMemo(() => buildCalendarColumns(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
 
   const [scrollTop, setScrollTop] = useState(0);
   const [showBaseline, setShowBaseline] = useState(false);
+  const [activeBaselineNum, setActiveBaselineNum] = useState<number>(1);
+
+  const handleBaselineToggle = () => {
+    if (showBaseline) {
+      clearComparison();
+      setShowBaseline(false);
+    } else {
+      if (tasks.length > 0) {
+        fetchBaselineComparison(tasks[0].project_id, activeBaselineNum);
+      }
+      setShowBaseline(true);
+    }
+  };
+
+  const handleBaselineChange = (num: number) => {
+    setActiveBaselineNum(num);
+    if (showBaseline && tasks.length > 0) {
+      fetchBaselineComparison(tasks[0].project_id, num);
+    }
+  };
+
   const [highlightCritical, setHighlightCritical] = useState(true);
   const [previewDeltaDays, setPreviewDeltaDays] = useState(0);
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
@@ -331,15 +367,30 @@ export default function GanttChart() {
               {selectedTasks.size} selected
             </span>
           )}
-          <button
-            type="button"
-            className={`rounded-full border px-2 py-1 transition-colors ${showBaseline ? "border-white/15 bg-white/[0.06] text-white" : "border-white/5 bg-white/[0.03] text-slate-400 hover:border-white/10 hover:bg-white/[0.05]"}`}
-            aria-pressed={showBaseline}
-            onClick={() => setShowBaseline((value) => !value)}
-            title="Toggle baseline overlay"
-          >
-            Baseline
-          </button>
+          <div className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.03] p-0.5">
+            <button
+              type="button"
+              className={`rounded-full px-2 py-0.5 transition-colors ${showBaseline ? "bg-white/[0.08] text-white" : "text-slate-400 hover:text-slate-200"}`}
+              aria-pressed={showBaseline}
+              onClick={handleBaselineToggle}
+              title="Toggle baseline overlay"
+            >
+              Baseline
+            </button>
+            {showBaseline && (
+              <select
+                className="bg-transparent text-xs font-bold text-sky-400 focus:outline-none"
+                value={activeBaselineNum}
+                onChange={(e) => handleBaselineChange(Number(e.target.value))}
+              >
+                {[...Array(11)].map((_, i) => (
+                  <option key={i + 1} value={i + 1} className="bg-slate-900 text-white">
+                    B{i + 1}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <button
             type="button"
             className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/25 bg-rose-500/10 text-rose-200" : "border-white/5 bg-white/[0.03] text-slate-400 hover:border-white/10 hover:bg-white/[0.05]"}`}
@@ -393,8 +444,13 @@ export default function GanttChart() {
             {visibleTasks.map((task) => {
               const previewTask = getPreviewTask(task);
               const { left, width } = getTaskBarPosition(previewTask, rangeStart);
-              const baseline = showBaseline ? getBaselineBarPosition(task, rangeStart) : null;
+
+              // Multi-Baseline Logic
+              const comparison = comparisonMap.get(task.task_id);
+              const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, true) : null;
+
               const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
+              const variance = comparison?.schedule_variance_days ?? 0;
 
               return (
                 <div
@@ -409,9 +465,16 @@ export default function GanttChart() {
                     />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-white">{task.task_name}</p>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                        {task.wbs_code || task.task_id}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                          {task.wbs_code || task.task_id}
+                        </p>
+                        {showBaseline && variance !== 0 && (
+                          <span className={`text-[9px] font-bold ${variance > 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                            {variance > 0 ? `+${variance}d` : `${variance}d`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -426,12 +489,12 @@ export default function GanttChart() {
                       ))}
                     </div>
 
-                    {baseline && (
+                    {baselinePos && (
                       <div
-                        className="absolute top-1/2 z-10 -translate-y-1/2"
-                        style={{ left: Math.max(0, baseline.left), width: baseline.width }}
+                        className="absolute top-1/2 z-10 -translate-y-1/2 opacity-40 shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                        style={{ left: Math.max(0, baselinePos.left), width: baselinePos.width }}
                       >
-                        <div className="h-2 rounded-full border border-white/15 bg-white/[0.05]" />
+                        <div className="h-2.5 rounded-full border border-white/20 bg-slate-400/20" />
                       </div>
                     )}
 

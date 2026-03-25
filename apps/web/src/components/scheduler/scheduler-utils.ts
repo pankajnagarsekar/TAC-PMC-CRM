@@ -3,6 +3,7 @@ import type {
   ScheduleTask,
   ScheduleTaskStatus,
   ScheduleTaskMap,
+  BaselineComparisonResult,
 } from "@/types/schedule.types";
 
 export const ROW_HEIGHT = 54;
@@ -141,6 +142,26 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date) {
   const finish = parseTaskDate(task.scheduled_finish);
   if (!start || !finish) {
     return { left: 0, width: 0 };
+  }
+
+  const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
+  const width = Math.max(
+    TIMELINE_DAY_WIDTH,
+    (differenceInCalendarDays(finish, start) + 1) * TIMELINE_DAY_WIDTH,
+  );
+
+  return { left, width };
+}
+
+export function getComparisonBarPosition(
+  comparison: BaselineComparisonResult,
+  rangeStart: Date,
+  isA: boolean = true
+) {
+  const start = parseTaskDate(isA ? comparison.baseline_a_start : comparison.baseline_b_start);
+  const finish = parseTaskDate(isA ? comparison.baseline_a_finish : comparison.baseline_b_finish);
+  if (!start || !finish) {
+    return null;
   }
 
   const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;

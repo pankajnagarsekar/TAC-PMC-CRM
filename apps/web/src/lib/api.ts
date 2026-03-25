@@ -161,4 +161,16 @@ export const schedulerApi = {
 
   getCashFlow: (projectId: string) =>
     api.post(`/api/projects/${projectId}/report/cash-flow`).then(res => res.data),
+
+  lockBaseline: (projectId: string, label: string, idempotencyKey: string) =>
+    api.post(`/api/projects/${projectId}/baseline/lock`, { project_id: projectId, label, idempotency_key: idempotencyKey }).then(res => res.data),
+
+  compareBaselines: (projectId: string, baselineA: number, baselineB?: number) =>
+    api.get(`/api/projects/${projectId}/baseline/compare`, { params: { baseline_a: baselineA, baseline_b: baselineB } }).then(res => res.data),
+};
+
+export const portfolioApi = {
+  getSummary: () => api.get("/api/portfolio/summary").then(res => res.data),
+  getResourceHeatmap: () => api.get("/api/portfolio/resource-heatmap").then(res => res.data),
+  getMilestones: () => api.get("/api/portfolio/milestones").then(res => res.data),
 };

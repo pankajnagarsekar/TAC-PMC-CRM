@@ -155,7 +155,9 @@ class BaselineComparisonResult(BaseModel):
     task_name: str
 
     # Schedule variance
+    baseline_a_start: Optional[str] = None
     baseline_a_finish: Optional[str] = None
+    baseline_b_start: Optional[str] = None
     baseline_b_finish: Optional[str] = None
     schedule_variance_days: Optional[int] = Field(
         default=None,

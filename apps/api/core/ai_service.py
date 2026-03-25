@@ -402,10 +402,11 @@ class AIService:
 
     def __init__(
             self,
-            client: AsyncIOMotorClient,
             db: AsyncIOMotorDatabase,
+            client: Optional[AsyncIOMotorClient] = None,
             api_key: Optional[str] = None):
-        self.client = client
+        from core.database import db_manager
+        self.client = client or db_manager.client
         self.db = db
 
         # Select provider based on API key availability

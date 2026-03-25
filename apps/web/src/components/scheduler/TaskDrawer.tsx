@@ -6,6 +6,7 @@ import { X, Link2, Wallet, Activity, UserRoundPen, MessageSquare, SendHorizontal
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import api from "@/lib/api";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { SchedulePredecessor, ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
 import { formatTaskDate, getTaskStatus, buildTaskStatusTransition } from "./scheduler-utils";
@@ -47,6 +48,29 @@ export default function TaskDrawer() {
   const [dependencyType, setDependencyType] = useState<SchedulePredecessor["type"]>("FS");
   const [dependencyLag, setDependencyLag] = useState(0);
   const readOnly = systemState === "locked";
+
+  // AI MoM State
+  const [momNotes, setMomNotes] = useState("");
+  const [isAnalyzingMom, setIsAnalyzingMom] = useState(false);
+  const [momResult, setMomResult] = useState<any>(null);
+
+  const handleAnalyzeMom = async () => {
+    if (!selectedTask || !momNotes.trim()) return;
+    setIsAnalyzingMom(true);
+    try {
+      const response = await api.post(
+        `/api/projects/${selectedTask.project_id}/tasks/${selectedTask.task_id}/mom-extract`,
+        { raw_notes: momNotes }
+      );
+      setMomResult(response.data);
+      toast.success("AI Analysis complete.");
+    } catch (err) {
+      toast.error("AI Analysis failed. Check provider status.");
+      console.error(err);
+    } finally {
+      setIsAnalyzingMom(false);
+    }
+  };
 
   useEffect(() => {
     setDependencyTaskId("");
@@ -333,17 +357,43 @@ export default function TaskDrawer() {
 
             <div className="mt-4 space-y-3">
               <textarea
+                value={momNotes}
+                onChange={(e) => setMomNotes(e.target.value)}
                 className="w-full min-h-[120px] rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs font-medium text-white outline-none focus:border-orange-400/40 resize-none transition-all placeholder:text-slate-600"
                 placeholder="Example: Discussed foundation work. Completed ahead of time. Start testing next Monday..."
               />
               <Button
                 type="button"
-                onClick={() => toast.info("AI Analysis started... (Stub)")}
+                disabled={!momNotes.trim() || isAnalyzingMom}
+                onClick={handleAnalyzeMom}
                 className="w-full rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20"
               >
-                <Activity size={14} className="mr-2" />
-                Process with AI
+                {isAnalyzingMom ? (
+                  <Activity size={14} className="mr-2 animate-spin" />
+                ) : (
+                  <Activity size={14} className="mr-2" />
+                )}
+                {isAnalyzingMom ? "Analyzing Matrix..." : "Process with AI"}
               </Button>
+
+              {momResult && (
+                <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Extracted Action Items</p>
+                  {(momResult.action_items || []).map((item: any, idx: number) => (
+                    <div key={idx} className="bg-white/[0.02] border border-white/5 p-2 rounded-lg text-[10px]">
+                      <p className="text-white font-medium">{item.task_name}</p>
+                      <div className="mt-1 flex justify-between text-slate-500">
+                        <span>@{item.assignee || 'Unassigned'}</span>
+                        <span>{item.deadline || 'No deadline'}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-4 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                    <p className="text-[10px] text-emerald-400 font-bold">AI Suggested Duration: {momResult.suggested_duration_days} days</p>
+                    <p className="text-[8px] text-emerald-500/60 mt-1">Confidence: {Math.round(momResult.confidence_score * 100)}%</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Tabs.Content>

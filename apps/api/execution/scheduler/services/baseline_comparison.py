@@ -62,10 +62,10 @@ class BaselineComparisonService:
             if not task_b:
                 continue
 
-            # Schedule Variance (Days) - simplified calculation using finish date string diff
-            # In a real system, we'd use calendar working days.
-            # For MVP, we mark if dates changed.
+            # Schedule Variance (Days)
+            start_a = task_a.get("scheduled_start")
             finish_a = task_a.get("scheduled_finish")
+            start_b = task_b.get("scheduled_start")
             finish_b = task_b.get("scheduled_finish")
             
             # Cost Variance
@@ -80,9 +80,11 @@ class BaselineComparisonService:
                 task_id=task_id,
                 wbs_code=task_a.get("wbs_code", ""),
                 task_name=task_a.get("task_name", ""),
+                baseline_a_start=start_a,
                 baseline_a_finish=finish_a,
+                baseline_b_start=start_b,
                 baseline_b_finish=finish_b,
-                schedule_variance_days=0, # Placeholder for working day diff
+                schedule_variance_days=0, 
                 baseline_a_cost=cost_a,
                 baseline_b_cost=cost_b,
                 cost_variance_percent=var_pct
