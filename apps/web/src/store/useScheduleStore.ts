@@ -57,6 +57,8 @@ const buildOptimisticPatch = (
   return patch;
 };
 
+import { toast } from "sonner";
+
 const executeCalculationRequest = async (
   request: ScheduleChangeRequest,
   set: any,
@@ -71,12 +73,21 @@ const executeCalculationRequest = async (
     );
     get().reconcileWithEngine(response);
   } catch (error: any) {
+    const isConflict = error?.response?.status === 409;
+    const responseData = error?.response?.data;
+
     set({
       pendingCalculation: false,
       calculationError:
         error?.response?.data?.detail?.message ?? error?.message ?? "Calculation failed",
     });
-    get().rollbackToUndo();
+
+    if (isConflict && responseData?.tasks) {
+      toast.warning("Schedule conflict resolved by server truth.");
+      get().reconcileWithEngine(responseData);
+    } else {
+      get().rollbackToUndo();
+    }
   }
 };
 
@@ -135,6 +146,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     pendingCalculation: false,
     lastConfirmedVersion: null,
     calculationError: null,
+    collapsedParents: new Set(),
 
     loadSchedule: (response) => {
       clearPendingCalculation();
@@ -346,6 +358,18 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       set((state) => {
         const selected = taskId ? new Set([taskId]) : new Set<string>();
         return { selectedTasks: selected };
+      });
+    },
+
+    toggleParentCollapse: (taskId) => {
+      set((state) => {
+        const next = new Set(state.collapsedParents);
+        if (next.has(taskId)) {
+          next.delete(taskId);
+        } else {
+          next.add(taskId);
+        }
+        return { collapsedParents: next };
       });
     },
 

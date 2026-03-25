@@ -145,6 +145,7 @@ export interface ScheduleStoreState {
   pendingCalculation: boolean;
   lastConfirmedVersion: string | null;
   calculationError: string | null;
+  collapsedParents: Set<string>;
 
   loadSchedule: (payload: ScheduleCalculationResponse) => void;
   reconcileWithEngine: (response: ScheduleCalculationResponse) => void;
@@ -156,4 +157,5 @@ export interface ScheduleStoreState {
   undo: () => void;
   selectTask: (taskId: string) => void;
   deselectTask: (taskId: string) => void;
+  toggleParentCollapse: (taskId: string) => void;
 }

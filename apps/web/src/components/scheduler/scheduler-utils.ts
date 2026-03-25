@@ -152,6 +152,22 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date) {
   return { left, width };
 }
 
+export function getBaselineBarPosition(task: ScheduleTask, rangeStart: Date) {
+  const start = parseTaskDate(task.baseline_start);
+  const finish = parseTaskDate(task.baseline_finish);
+  if (!start || !finish) {
+    return null;
+  }
+
+  const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
+  const width = Math.max(
+    TIMELINE_DAY_WIDTH,
+    (differenceInCalendarDays(finish, start) + 1) * TIMELINE_DAY_WIDTH,
+  );
+
+  return { left, width };
+}
+
 export function createTaskPatch(
   task: ScheduleTask,
   changes: Partial<ScheduleTask>,

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Link2, Wallet, Activity, UserRoundPen } from "lucide-react";
+import { X, Link2, Wallet, Activity, UserRoundPen, MessageSquare, SendHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -132,22 +132,23 @@ export default function TaskDrawer() {
       </div>
 
       <Tabs.Root defaultValue="details" className="space-y-4">
-        <Tabs.List className="grid grid-cols-4 gap-2 rounded-2xl border border-white/5 bg-white/[0.02] p-1">
+        <Tabs.List className="grid grid-cols-5 gap-1.5 rounded-2xl border border-white/5 bg-white/[0.02] p-1">
           {[
             { value: "details", label: "Details", icon: Activity },
-            { value: "deps", label: "Dependencies", icon: Link2 },
-            { value: "financials", label: "Financials", icon: Wallet },
-            { value: "logs", label: "Work Logs", icon: UserRoundPen },
+            { value: "deps", label: "Deps", icon: Link2 },
+            { value: "financials", label: "Finance", icon: Wallet },
+            { value: "mom", label: "AI", icon: MessageSquare },
+            { value: "logs", label: "Logs", icon: UserRoundPen },
           ].map((item) => {
             const Icon = item.icon;
             return (
               <Tabs.Trigger
                 key={item.value}
                 value={item.value}
-                className="flex items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 transition data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 transition data-[state=active]:bg-white/10 data-[state=active]:text-white sm:flex-row sm:text-[10px] sm:tracking-[0.16em]"
               >
                 <Icon size={12} />
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </Tabs.Trigger>
             );
           })}
@@ -318,6 +319,32 @@ export default function TaskDrawer() {
                 <span className="text-sm font-semibold text-white">{String(value)}</span>
               </div>
             ))}
+          </div>
+        </Tabs.Content>
+
+        <Tabs.Content value="mom" className="space-y-4">
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+              Minutes of Meeting (AI Agent)
+            </h4>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500 text-pretty">
+              Paste meeting notes here. Our AI will extract dates, progress, and blockers to suggest schedule updates.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <textarea
+                className="w-full min-h-[120px] rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs font-medium text-white outline-none focus:border-orange-400/40 resize-none transition-all placeholder:text-slate-600"
+                placeholder="Example: Discussed foundation work. Completed ahead of time. Start testing next Monday..."
+              />
+              <Button
+                type="button"
+                onClick={() => toast.info("AI Analysis started... (Stub)")}
+                className="w-full rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20"
+              >
+                <Activity size={14} className="mr-2" />
+                Process with AI
+              </Button>
+            </div>
           </div>
         </Tabs.Content>
 

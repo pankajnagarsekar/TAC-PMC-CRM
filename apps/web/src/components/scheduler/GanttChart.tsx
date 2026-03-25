@@ -10,6 +10,7 @@ import type { ScheduleTask } from "@/types/schedule.types";
 import {
   buildCalendarColumns,
   calculateTimelineRange,
+  getBaselineBarPosition,
   getTaskBarPosition,
   getTaskDurationDays,
   normalizeTaskOrder,
@@ -17,6 +18,7 @@ import {
   ROW_HEIGHT,
   TIMELINE_DAY_WIDTH,
 } from "./scheduler-utils";
+import { GanttDependencyOverlay, type GanttDependencyEdge, type GanttDependencyNode } from "./GanttDependencyOverlay";
 
 type DragMode = "move" | "start" | "finish" | null;
 
@@ -33,17 +35,20 @@ const Bar = memo(function Bar({
   task,
   left,
   width,
+  emphasizeCritical,
   onSelect,
   onStartDrag,
 }: {
   task: ScheduleTask;
   left: number;
   width: number;
+  emphasizeCritical: boolean;
   onSelect: (taskId: string) => void;
   onStartDrag: (task: ScheduleTask, mode: DragMode, startX: number) => void;
 }) {
   const isMilestone = Boolean(task.is_milestone || task.scheduled_duration === 0);
   const barLeft = Math.max(0, left);
+  const isCriticalHighlighted = Boolean(emphasizeCritical && task.is_critical);
 
   const beginDrag = (mode: DragMode) => (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -53,12 +58,12 @@ const Bar = memo(function Bar({
 
   return (
     <div
-      className="absolute top-1/2 -translate-y-1/2"
+      className="absolute top-1/2 z-20 -translate-y-1/2"
       style={{ left: barLeft, width }}
       onClick={() => onSelect(task.task_id)}
     >
       <div
-        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 ${task.is_critical ? "border-rose-400/40 bg-rose-500/25" : "border-sky-400/30 bg-sky-500/20"} ${isMilestone ? "rounded-full" : ""}`}
+        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 ${isCriticalHighlighted ? "border-rose-400/40 bg-rose-500/25" : "border-sky-400/30 bg-sky-500/20"} ${isMilestone ? "rounded-full" : ""}`}
       >
         <div className="flex h-full items-center justify-between gap-2">
           <div className="min-w-0">
@@ -124,6 +129,11 @@ export default function GanttChart() {
   const days = useMemo(() => buildCalendarColumns(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
 
   const [scrollTop, setScrollTop] = useState(0);
+  const [showBaseline, setShowBaseline] = useState(false);
+  const [highlightCritical, setHighlightCritical] = useState(true);
+  const [previewDeltaDays, setPreviewDeltaDays] = useState(0);
+  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
+
   const dragStateRef = useRef<DragState>(null);
   const viewportHeight = 420;
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 6;
@@ -133,21 +143,99 @@ export default function GanttChart() {
   const topSpacer = startIndex * ROW_HEIGHT;
   const bottomSpacer = Math.max(0, (tasks.length - endIndex) * ROW_HEIGHT);
   const timelineWidth = days.length * TIMELINE_DAY_WIDTH;
+  const visibleHeight = visibleTasks.length * ROW_HEIGHT;
+
+  const getPreviewTask = (task: ScheduleTask): ScheduleTask => {
+    if (activeDragTaskId !== task.task_id || !dragStateRef.current || previewDeltaDays === 0) {
+      return task;
+    }
+
+    const { mode } = dragStateRef.current;
+    const originalStart = parseTaskDate(task.scheduled_start);
+    const originalFinish = parseTaskDate(task.scheduled_finish);
+    if (!originalStart || !originalFinish) return task;
+
+    let nextStart = originalStart;
+    let nextFinish = originalFinish;
+
+    if (mode === "move") {
+      nextStart = addDays(originalStart, previewDeltaDays);
+      nextFinish = addDays(originalFinish, previewDeltaDays);
+    } else if (mode === "start") {
+      nextStart = addDays(originalStart, previewDeltaDays);
+      if (nextStart > nextFinish) nextStart = nextFinish;
+    } else if (mode === "finish") {
+      nextFinish = addDays(originalFinish, previewDeltaDays);
+      if (nextFinish < nextStart) nextFinish = nextStart;
+    }
+
+    return {
+      ...task,
+      scheduled_start: format(nextStart, "yyyy-MM-dd"),
+      scheduled_finish: format(nextFinish, "yyyy-MM-dd"),
+    };
+  };
+
+  const dependencyNodes = useMemo(() => {
+    const nodes = new Map<string, GanttDependencyNode>();
+    visibleTasks.forEach((task, index) => {
+      const previewTask = getPreviewTask(task);
+      const { left, width } = getTaskBarPosition(previewTask, rangeStart);
+      nodes.set(task.task_id, {
+        taskId: task.task_id,
+        rowIndex: index,
+        left,
+        width,
+      });
+    });
+    return nodes;
+  }, [rangeStart, visibleTasks, activeDragTaskId, previewDeltaDays]);
+
+  const dependencyEdges = useMemo(() => {
+    const edges: GanttDependencyEdge[] = [];
+
+    // Performance-first subset: draw only edges where both tasks are currently rendered.
+    for (const task of visibleTasks) {
+      if (!task.predecessors) continue;
+      for (const predecessor of task.predecessors) {
+        if (!dependencyNodes.has(predecessor.task_id)) continue;
+        edges.push({
+          fromTaskId: predecessor.task_id,
+          toTaskId: task.task_id,
+          type: predecessor.type,
+          lagDays: predecessor.lag_days,
+          isCritical: Boolean(highlightCritical && task.is_critical && taskMap[predecessor.task_id]?.is_critical),
+        });
+      }
+    }
+
+    return edges;
+  }, [dependencyNodes, highlightCritical, taskMap, visibleTasks]);
 
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       const current = dragStateRef.current;
       if (!current) return;
-      current.deltaDays = Math.round((event.clientX - current.startX) / TIMELINE_DAY_WIDTH);
+      const delta = Math.round((event.clientX - current.startX) / TIMELINE_DAY_WIDTH);
+      current.deltaDays = delta;
+      setPreviewDeltaDays(delta);
     };
 
     const handlePointerUp = () => {
       const current = dragStateRef.current as DragState & { deltaDays?: number } | null;
       dragStateRef.current = null;
-      if (!current) return;
-      const task = taskMap[current.taskId];
-      if (task && !readOnly) {
-        commitDrag(task, current.mode, current.deltaDays ?? 0);
+      const taskId = current?.taskId;
+      const deltaDays = current?.deltaDays ?? 0;
+      const mode = current?.mode;
+
+      setActiveDragTaskId(null);
+      setPreviewDeltaDays(0);
+
+      if (taskId && mode && !readOnly) {
+        const task = taskMap[taskId];
+        if (task) {
+          commitDrag(task, mode, deltaDays);
+        }
       }
     };
 
@@ -234,7 +322,7 @@ export default function GanttChart() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
           <span className="rounded-full border border-white/5 bg-white/[0.03] px-2 py-1">
             {tasks.length.toLocaleString("en-US")} visible tasks
           </span>
@@ -243,6 +331,24 @@ export default function GanttChart() {
               {selectedTasks.size} selected
             </span>
           )}
+          <button
+            type="button"
+            className={`rounded-full border px-2 py-1 transition-colors ${showBaseline ? "border-white/15 bg-white/[0.06] text-white" : "border-white/5 bg-white/[0.03] text-slate-400 hover:border-white/10 hover:bg-white/[0.05]"}`}
+            aria-pressed={showBaseline}
+            onClick={() => setShowBaseline((value) => !value)}
+            title="Toggle baseline overlay"
+          >
+            Baseline
+          </button>
+          <button
+            type="button"
+            className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/25 bg-rose-500/10 text-rose-200" : "border-white/5 bg-white/[0.03] text-slate-400 hover:border-white/10 hover:bg-white/[0.05]"}`}
+            aria-pressed={highlightCritical}
+            onClick={() => setHighlightCritical((value) => !value)}
+            title="Toggle critical path highlighting"
+          >
+            Critical Path
+          </button>
         </div>
       </div>
 
@@ -271,46 +377,77 @@ export default function GanttChart() {
           className="custom-scrollbar max-h-[72vh] overflow-y-auto"
         >
           <div style={{ height: topSpacer }} />
-          {visibleTasks.map((task) => {
-            const { left, width } = getTaskBarPosition(task, rangeStart);
-            return (
-              <div
-                key={task.task_id}
-                className="flex border-b border-white/5"
-                style={{ height: ROW_HEIGHT }}
-                onClick={() => handleSelect(task.task_id)}
-              >
-                <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-white/5 px-4">
-                  <div className={`h-2.5 w-2.5 rounded-full ${task.is_critical ? "bg-rose-400" : "bg-sky-400"}`} />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-white">{task.task_name}</p>
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                      {task.wbs_code || task.task_id}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="relative flex-1 overflow-hidden">
-                  <div className="absolute inset-0 flex" style={{ width: timelineWidth }}>
-                    {days.map((day) => (
-                      <div
-                        key={`${task.task_id}-${day.toISOString()}`}
-                        className="border-r border-white/[0.02]"
-                        style={{ width: TIMELINE_DAY_WIDTH }}
-                      />
-                    ))}
-                  </div>
-                  <Bar
-                    task={task}
-                    left={left}
-                    width={width}
-                    onSelect={handleSelect}
-                    onStartDrag={startDrag}
-                  />
-                </div>
+          <div className="relative" style={{ height: visibleHeight }}>
+            <div className="pointer-events-none absolute left-[280px] right-0 top-0 z-10 h-full overflow-hidden">
+              <div style={{ width: timelineWidth, height: visibleHeight }}>
+                <GanttDependencyOverlay
+                  nodes={dependencyNodes}
+                  edges={dependencyEdges}
+                  rowHeight={ROW_HEIGHT}
+                  width={timelineWidth}
+                  height={visibleHeight}
+                />
               </div>
-            );
-          })}
+            </div>
+
+            {visibleTasks.map((task) => {
+              const previewTask = getPreviewTask(task);
+              const { left, width } = getTaskBarPosition(previewTask, rangeStart);
+              const baseline = showBaseline ? getBaselineBarPosition(task, rangeStart) : null;
+              const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
+
+              return (
+                <div
+                  key={task.task_id}
+                  className="flex border-b border-white/5"
+                  style={{ height: ROW_HEIGHT }}
+                  onClick={() => handleSelect(task.task_id)}
+                >
+                  <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-white/5 px-4">
+                    <div
+                      className={`h-2.5 w-2.5 rounded-full ${emphasizeCritical ? "bg-rose-400" : "bg-sky-400"}`}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-white">{task.task_name}</p>
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                        {task.wbs_code || task.task_id}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex-1 overflow-hidden">
+                    <div className="absolute inset-0 flex" style={{ width: timelineWidth }}>
+                      {days.map((day) => (
+                        <div
+                          key={`${task.task_id}-${day.toISOString()}`}
+                          className="border-r border-white/[0.02]"
+                          style={{ width: TIMELINE_DAY_WIDTH }}
+                        />
+                      ))}
+                    </div>
+
+                    {baseline && (
+                      <div
+                        className="absolute top-1/2 z-10 -translate-y-1/2"
+                        style={{ left: Math.max(0, baseline.left), width: baseline.width }}
+                      >
+                        <div className="h-2 rounded-full border border-white/15 bg-white/[0.05]" />
+                      </div>
+                    )}
+
+                    <Bar
+                      task={previewTask}
+                      left={left}
+                      width={width}
+                      emphasizeCritical={highlightCritical}
+                      onSelect={handleSelect}
+                      onStartDrag={startDrag}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <div style={{ height: bottomSpacer }} />
         </div>
       </div>

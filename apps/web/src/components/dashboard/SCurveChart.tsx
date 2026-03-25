@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { format } from "date-fns";
+import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { normalizeTaskOrder, parseTaskDate } from "@/components/scheduler/scheduler-utils";
@@ -20,25 +20,47 @@ export default function SCurveChart() {
     const buckets = new Map<string, { key: string; name: string; PV: number; EV: number }>();
 
     tasks.forEach((task) => {
+      const start = parseTaskDate(task.baseline_start || task.scheduled_start);
       const finish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
+      if (!start || !finish) return;
+
       const baselineCost = Number(task.baseline_cost ?? 0);
-      const ev = (Number(task.percent_complete ?? 0) / 100) * baselineCost;
-      if (!finish) return;
+      const percent = Number(task.percent_complete ?? 0) / 100;
+      const duration = Math.max(1, differenceInCalendarDays(finish, start) + 1);
+      const dailyPV = baselineCost / duration;
+      const dailyEV = (baselineCost * percent) / duration;
 
-      const key = getMonthKey(finish);
-      const current = buckets.get(key) ?? {
-        key,
-        name: format(finish, "MMM yy"),
-        PV: 0,
-        EV: 0,
-      };
+      let current = startOfDay(start);
+      const end = startOfDay(finish);
 
-      current.PV += baselineCost;
-      current.EV += ev;
-      buckets.set(key, current);
+      while (current <= end) {
+        const key = getMonthKey(current);
+        const b = buckets.get(key) ?? {
+          key,
+          name: format(current, "MMM yy"),
+          PV: 0,
+          EV: 0,
+        };
+        b.PV += dailyPV;
+        b.EV += dailyEV;
+        buckets.set(key, b);
+        current = addDays(current, 1);
+      }
     });
 
-    return Array.from(buckets.values()).sort((a, b) => a.key.localeCompare(b.key));
+    const sortedBuckets = Array.from(buckets.values()).sort((a, b) => a.key.localeCompare(b.key));
+    let cumulativePV = 0;
+    let cumulativeEV = 0;
+
+    return sortedBuckets.map((bucket) => {
+      cumulativePV += bucket.PV;
+      cumulativeEV += bucket.EV;
+      return {
+        ...bucket,
+        PV: Math.round(cumulativePV),
+        EV: Math.round(cumulativeEV),
+      };
+    });
   }, [tasks]);
 
   return (
