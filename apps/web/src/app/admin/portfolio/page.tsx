@@ -106,13 +106,13 @@ export default function PortfolioPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <RiskCard
                             title="Critical Path Exposure"
-                            detail="3 projects have milestones with < 2 days slack"
-                            severity="HIGH"
+                            detail={`${data?.exposure_metrics?.critical_project_count || 0} projects have milestones on the critical path`}
+                            severity={data?.exposure_metrics?.critical_project_count > 0 ? "HIGH" : "MEDIUM"}
                         />
                         <RiskCard
-                            title="External Buffers"
-                            detail="Centralized procurement delays affecting 4 site mobilizations"
-                            severity="MEDIUM"
+                            title="At-Risk Milestones"
+                            detail={`${data?.exposure_metrics?.at_risk_milestones || 0} upcoming milestones flagged as critical/delayed`}
+                            severity={data?.exposure_metrics?.at_risk_milestones > 10 ? "HIGH" : "MEDIUM"}
                         />
                     </div>
                 </Tabs.Content>

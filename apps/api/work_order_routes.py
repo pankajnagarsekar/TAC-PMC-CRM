@@ -14,6 +14,7 @@ from core.rate_limit import limiter
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 from core.pdf_service import pdf_generator
+from execution.scheduler.services.cutover_service import get_cutover_service, CutoverService
 
 router = APIRouter(prefix="/api/work-orders", tags=["Work Orders"])
 project_scoped_router = APIRouter(prefix="/api/projects", tags=["Work Orders"])
@@ -84,8 +85,10 @@ async def create_work_order(
     project_id: str,
     wo_data: WorkOrderCreate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
+    await cutover.enforce_cutover(project_id)
     from server import audit_service, financial_service
 
     checker = PermissionChecker(db)
@@ -116,8 +119,10 @@ async def create_work_order_by_project(
     wo_data: WorkOrderCreate,
     idempotency_key: str = Header(None, alias="Idempotency-Key"),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
+    await cutover.enforce_cutover(project_id)
     from server import audit_service, financial_service
 
     checker = PermissionChecker(db)
@@ -170,7 +175,8 @@ async def update_work_order_status(
     status: str = Query(..., description="New status (Draft, Pending, Completed, Closed, Cancelled)"),
     expected_version: int = Query(..., description="The version of the document to update"),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
     from server import audit_service
 
@@ -216,6 +222,8 @@ async def update_work_order_status(
     # Rule 1: Cannot change status from Closed
     if old_status == "Closed":
         raise HTTPException(status_code=400, detail="Cannot change status of a Closed Work Order")
+
+    await cutover.enforce_cutover(wo["project_id"])
 
     # Rule 2: Define valid next status based on current
     valid_transitions = {
@@ -267,7 +275,8 @@ async def update_work_order(
     wo_id: str,
     wo_data: WorkOrderUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
     from server import audit_service, financial_service
 
@@ -277,6 +286,10 @@ async def update_work_order(
     # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
     await checker.check_web_crm_access(user)
     await checker.check_client_readonly(user)
+
+    wo_to_update = await db.work_orders.find_one({"_id": ObjectId(wo_id)})
+    if wo_to_update:
+        await cutover.enforce_cutover(wo_to_update["project_id"])
 
     wo_service = WorkOrderService(db, audit_service, financial_service)
     result = await wo_service.update_work_order(wo_id, wo_data.model_dump(exclude_none=True), user)
@@ -287,7 +300,8 @@ async def update_work_order(
 async def delete_work_order(
     wo_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
     from server import audit_service, financial_service
 
@@ -297,6 +311,10 @@ async def delete_work_order(
     # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
     await checker.check_web_crm_access(user)
     await checker.check_client_readonly(user)
+
+    wo_to_delete = await db.work_orders.find_one({"_id": ObjectId(wo_id)})
+    if wo_to_delete:
+        await cutover.enforce_cutover(wo_to_delete["project_id"])
 
     wo_service = WorkOrderService(db, audit_service, financial_service)
     result = await wo_service.delete_work_order(wo_id, user)

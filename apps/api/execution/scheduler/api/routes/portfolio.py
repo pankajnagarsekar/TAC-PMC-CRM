@@ -102,6 +102,19 @@ async def get_portfolio_summary(
         pc_res = await db.project_schedules.aggregate(pc_pipeline).to_list(length=1000)
         total_payment_value += sum([Decimal(str(r.get("payment_value", "0"))) for r in pc_res])
 
+    # 6. Risk Exposure (Critical Path)
+    # [Session 2.5 Requirement]
+    exposure_cursor = db.project_schedules.find({
+        "project_id": {"$in": project_ids},
+        "is_milestone": True,
+        "is_deleted": False,
+        "is_critical": True,
+        "scheduled_finish": {"$ne": None}
+    }).sort("scheduled_finish", 1)
+    
+    exposure_raw = await exposure_cursor.to_list(length=100)
+    exposure_projects = set([m["project_id"] for m in exposure_raw])
+
     return {
         "organisation_id": org_id,
         "total_projects": total_projects,
@@ -114,6 +127,10 @@ async def get_portfolio_summary(
             "other": total_projects - active_count - planning_count
         },
         "critical_milestones": critical_milestones,
+        "exposure_metrics": {
+            "critical_project_count": len(exposure_projects),
+            "at_risk_milestones": len(exposure_raw)
+        },
         "generated_at": datetime.now(timezone.utc)
     }
 
@@ -231,5 +248,48 @@ async def get_portfolio_milestones(
             "finish_date": m["scheduled_finish"],
             "is_critical": m.get("is_critical", False)
         })
+
+    return results
+
+@router.get("/dependencies")
+async def get_portfolio_dependencies(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    [Phase 4, Session 2.6 Requirement]
+    Aggregates inter-project links for cross-project dependency visualization.
+    """
+    org_id = current_user.get("organisation_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="Organisation context missing")
+
+    # 1. Fetch project map
+    projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
+    project_map = {str(p["_id"]): p.get("project_name", "Unknown Project") for p in projects}
+    project_ids = list(project_map.keys())
+
+    # 2. Fetch tasks with external predecessors
+    cursor = db.project_schedules.find({
+        "project_id": {"$in": project_ids},
+        "predecessors.is_external": True,
+        "is_deleted": False
+    })
+    tasks_with_ext = await cursor.to_list(length=500)
+
+    results = []
+    for t in tasks_with_ext:
+        for p in t.get("predecessors", []):
+            if p.get("is_external") and p.get("project_id"):
+                results.append({
+                    "source_project_id": str(p["project_id"]),
+                    "source_project_name": project_map.get(str(p["project_id"]), "Unknown"),
+                    "source_task_id": str(p["task_id"]),
+                    "target_project_id": str(t["project_id"]),
+                    "target_project_name": project_map.get(str(t["project_id"]), "Unknown"),
+                    "target_task_id": str(t["_id"]),
+                    "dependency_type": p.get("type", "FS"),
+                    "lag": p.get("lag_days", 0)
+                })
 
     return results

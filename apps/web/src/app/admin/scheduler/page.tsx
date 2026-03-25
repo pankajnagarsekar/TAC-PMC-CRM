@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, FileDown, Info, Plus, RefreshCw, Upload, CalendarDays } from "lucide-react";
+import { AlertTriangle, FileDown, Info, Plus, RefreshCw, Upload, CalendarDays, Database } from "lucide-react";
 import { toast } from "sonner";
 
 import { useProjectStore } from "@/store/projectStore";
@@ -28,6 +28,7 @@ export default function ProjectSchedulerPage() {
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,6 +124,35 @@ export default function ProjectSchedulerPage() {
     }
   };
 
+  const handleMigrate = async () => {
+    if (!activeProject?.project_id) return;
+
+    const confirmMigrate = window.confirm(
+      "This will import tasks from legacy 'payment_schedule'. Are you sure? (Dry Run first)"
+    );
+    if (!confirmMigrate) return;
+
+    setMigrating(true);
+    try {
+      const report = await schedulerApi.migrateLegacyData(activeProject.project_id, true);
+      console.log("Migration Dry Run Report:", report);
+
+      const proceed = window.confirm(
+        `Dry Run Result: Found ${report.total_legacy_tasks} tasks. Migrated: ${report.total_migrated}. Variance: ${report.cost_variance}. Proceed with LIVE migration?`
+      );
+
+      if (proceed) {
+        const finalReport = await schedulerApi.migrateLegacyData(activeProject.project_id, false);
+        toast.success(`Successfully migrated ${finalReport.total_migrated} tasks.`);
+        handleReload();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Migration failed");
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   if (!activeProject) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
@@ -210,6 +240,16 @@ export default function ProjectSchedulerPage() {
             >
               <FileDown size={16} />
               {exporting ? "Exporting..." : "Export PDF"}
+            </Button>
+
+            <Button
+              onClick={handleMigrate}
+              disabled={migrating || taskCount > 0}
+              variant="outline"
+              className="rounded-2xl border border-amber-500/20 bg-amber-500/10 font-bold text-amber-200 hover:bg-amber-500/20"
+            >
+              <Database size={16} className={migrating ? "animate-pulse" : ""} />
+              {migrating ? "Migrating..." : "Migrate Legacy"}
             </Button>
           </div>
         </div>

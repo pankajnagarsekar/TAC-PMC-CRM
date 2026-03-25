@@ -13,6 +13,7 @@ from audit_service import AuditService
 from financial_service import FinancialRecalculationService
 from core.rate_limit import limiter
 from permissions import PermissionChecker
+from execution.scheduler.services.cutover_service import get_cutover_service, CutoverService
 
 
 
@@ -64,8 +65,10 @@ async def create_pc(
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user),
-    pc_service: PaymentCertificateService = Depends(get_pc_service)
+    pc_service: PaymentCertificateService = Depends(get_pc_service),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
+    await cutover.enforce_cutover(project_id)
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
 
@@ -98,8 +101,13 @@ async def update_pc(
     payload: PaymentCertificateUpdate,
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user),
-    pc_service: PaymentCertificateService = Depends(get_pc_service)
+    pc_service: PaymentCertificateService = Depends(get_pc_service),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
+    pc_to_update = await db.payment_certificates.find_one({"_id": ObjectId(pc_id)})
+    if pc_to_update:
+        await cutover.enforce_cutover(pc_to_update["project_id"])
+        
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
 
@@ -127,8 +135,13 @@ async def close_pc(
     pc_id: str,
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user),
-    pc_service: PaymentCertificateService = Depends(get_pc_service)
+    pc_service: PaymentCertificateService = Depends(get_pc_service),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
+    pc_to_close = await db.payment_certificates.find_one({"_id": ObjectId(pc_id)})
+    if pc_to_close:
+        await cutover.enforce_cutover(pc_to_close["project_id"])
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
 
@@ -155,8 +168,13 @@ async def delete_pc(
     pc_id: str,
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user),
-    pc_service: PaymentCertificateService = Depends(get_pc_service)
+    pc_service: PaymentCertificateService = Depends(get_pc_service),
+    cutover: CutoverService = Depends(get_cutover_service)
 ):
+    pc_to_delete = await db.payment_certificates.find_one({"_id": ObjectId(pc_id)})
+    if pc_to_delete:
+        await cutover.enforce_cutover(pc_to_delete["project_id"])
+
     checker = PermissionChecker(db)
     user = await checker.get_authenticated_user(current_user)
 

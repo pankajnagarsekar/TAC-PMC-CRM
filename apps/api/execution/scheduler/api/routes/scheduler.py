@@ -13,7 +13,7 @@ from decimal import Decimal
 from dataclasses import asdict
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone, date
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClientSession
 from pydantic import ValidationError
 from pymongo import UpdateOne
@@ -47,6 +47,7 @@ from execution.scheduler.engine.resource_capacity import level_resources, Leveli
 from execution.scheduler.api.middleware.idempotency import check_duplicate, save_idempotent_response
 from execution.scheduler.api.middleware.transaction import get_transaction_session
 from execution.scheduler.pipelines.financial_aggregations import build_wo_value_pipeline, build_payment_value_pipeline
+from execution.scheduler.db.bridge_installer import migrate_project_schedule
 
 from core.database import get_db
 from auth import get_current_user
@@ -542,3 +543,26 @@ async def extract_mom_for_task(
         task_id=task_id
     )
     return result
+
+# =============================================================================
+# Migration Route
+# =============================================================================
+
+@router.post("/{project_id}/migrate")
+async def trigger_migration(
+    project_id: str,
+    dry_run: bool = Query(True),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Triggers the bridge installer to migrate legacy payment schedules to project_schedules.
+    """
+    # Authorization: Ensure user has write access to the project
+    from permissions import PermissionChecker
+    checker = PermissionChecker(db)
+    user = await checker.get_authenticated_user({"sub": current_user["sub"]})
+    await checker.check_project_access(user, project_id, require_write=True)
+
+    report = await migrate_project_schedule(db, project_id, dry_run=dry_run)
+    return report

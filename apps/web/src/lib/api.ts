@@ -167,6 +167,9 @@ export const schedulerApi = {
 
   compareBaselines: (projectId: string, baselineA: number, baselineB?: number) =>
     api.get(`/api/projects/${projectId}/baseline/compare`, { params: { baseline_a: baselineA, baseline_b: baselineB } }).then(res => res.data),
+
+  migrateLegacyData: (projectId: string, dryRun: boolean = true) =>
+    api.post(`/api/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),
 };
 
 export const portfolioApi = {

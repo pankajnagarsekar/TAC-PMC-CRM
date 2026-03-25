@@ -32,6 +32,7 @@ from audit_routes import router as audit_router  # noqa: E402
 from project_scheduler_routes import scheduler_router  # noqa: E402
 from ai_summary_routes import ai_summary_router  # noqa: E402
 from dashboard_stats_routes import dashboard_stats_router  # noqa: E402
+from execution.scheduler.api.routes.scheduler import router as enterprise_scheduler_router  # noqa: E402
 from core.indexes import ensure_indexes  # noqa: E402
 from core.rate_limit import init_rate_limiting  # noqa: E402
 
@@ -120,6 +121,7 @@ init_rate_limiting(app)
 
 app.include_router(audit_router, prefix="/api")
 app.include_router(scheduler_router, prefix="/api/projects")
+app.include_router(enterprise_scheduler_router, prefix="/api/scheduler")
 app.include_router(portfolio_router, prefix="/api/portfolio")
 
 # Create router with /api prefix
