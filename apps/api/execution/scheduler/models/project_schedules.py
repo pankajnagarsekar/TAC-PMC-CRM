@@ -357,6 +357,7 @@ class ScheduleChangeRequest(BaseModel):
         ...,
         description="UUID for request deduplication. API caches response for 5 minutes.",
     )
+    deleted_task_ids: Optional[List[PyObjectId]] = Field(default=None, description="Tasks to be marked as deleted")
 
     model_config = {"arbitrary_types_allowed": True}
 

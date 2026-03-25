@@ -35,5 +35,6 @@ node_modules/
 # Metro / React Native cache
 .metro-cache/
 
-
+# Test and command residue
+out*.txt
 

@@ -1906,6 +1906,10 @@ app.include_router(financial_router)
 # Include Phase 2 Wave 3 routes
 app.include_router(project_management_router)
 
+# Include the new PPM Scheduler (Hardened CPM Engine)
+from execution.scheduler.api.routes import scheduler_router as hardened_scheduler_router
+app.include_router(hardened_scheduler_router, prefix="/api/scheduler")
+
 # Register vendor router
 app.include_router(vendor_router)
 
