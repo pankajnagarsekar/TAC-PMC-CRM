@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import List
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_client_service
+from app.core.dependencies import get_authenticated_user, get_client_service
 from app.services.client_service import ClientService
 from app.schemas.client import Client, ClientCreate, ClientUpdate
 from app.schemas.shared import GenericResponse

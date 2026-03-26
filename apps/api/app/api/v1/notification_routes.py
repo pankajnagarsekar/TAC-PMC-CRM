@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from typing import Dict, Any
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_notification_service
+from app.core.dependencies import get_authenticated_user, get_notification_service
 from app.services.notification_service import NotificationService
 from app.schemas.audit_notification import NotificationCreate
 from app.schemas.shared import GenericResponse

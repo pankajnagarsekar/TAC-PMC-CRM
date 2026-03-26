@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from typing import Optional, Dict, Any
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_reporting_service
+from app.core.dependencies import get_authenticated_user, get_reporting_service
 from app.services.reporting_service import ReportingService
 from app.schemas.shared import GenericResponse
 

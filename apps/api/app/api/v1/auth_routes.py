@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
 from typing import Optional
 
-from app.core.dependencies import get_current_user
-from app.core.deps import get_auth_service
+from app.core.dependencies import get_auth_service, get_current_user
 from app.services.auth_service import AuthService
 from app.schemas.auth import Token, LoginRequest, RefreshTokenRequest
 from app.schemas.shared import GenericResponse

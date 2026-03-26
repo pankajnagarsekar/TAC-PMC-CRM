@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, List, Dict, Any
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_work_order_service
+from app.core.dependencies import get_authenticated_user, get_work_order_service
 from app.services.work_order_service import WorkOrderService
 from app.schemas.financial import WorkOrder, WorkOrderCreate
 from app.schemas.shared import GenericResponse

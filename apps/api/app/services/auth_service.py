@@ -1,137 +1,117 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 import secrets
-import hashlib
 import logging
+import time
 
 from app.core.config import settings
 from app.repositories.auth_repo import TokenBlacklistRepository, RefreshTokenRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.auth import Token, LoginRequest
 from app.schemas.user import UserResponse
+from app.core.time import now
 
 logger = logging.getLogger(__name__)
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def generate_jti() -> str:
-    """Generate a unique JWT ID (jti) for token revocation."""
-    return secrets.token_urlsafe(32)
-
 class AuthService:
-    """Standalone service for authentication and token management"""
+    """
+    Sovereign Auth Orchestrator (Point 3, 13, 22, 101).
+    Enforces Clock Skew tolerance and strict rotation policies.
+    """
     
-    def __init__(self, db=None):
-        if db:
-            self.blacklist_repo = TokenBlacklistRepository(db)
-            self.refresh_repo = RefreshTokenRepository(db)
-            self.user_repo = UserRepository(db)
+    def __init__(self, db, config=settings):
+        self.config = config
+        self.blacklist_repo = TokenBlacklistRepository(db)
+        self.refresh_repo = RefreshTokenRepository(db)
+        self.user_repo = UserRepository(db)
+        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-    @staticmethod
-    def hash_password(password: str) -> str:
-        return pwd_context.hash(password)
+    def hash_password(self, password: str) -> str:
+        return self.pwd_context.hash(password)
 
-    @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        return pwd_context.verify(plain_password, hashed_password)
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return self.pwd_context.verify(plain_password, hashed_password)
 
-    @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        """Create token with logic versioning (Point 85)."""
         to_encode = data.copy()
-        jti = generate_jti()
+        jti = secrets.token_urlsafe(32)
         to_encode["jti"] = jti
         
-        if expires_delta:
-            expire = datetime.now(timezone.utc) + expires_delta
-        else:
-            expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire_at = now() + (expires_delta or timedelta(minutes=self.config.ACCESS_TOKEN_EXPIRE_MINUTES))
         
         to_encode.update({
-            "exp": expire,
-            "iat": datetime.now(timezone.utc),
-            "type": "access"
+            "exp": expire_at,
+            "iat": now(),
+            "type": "access",
+            "v": 1 # Token Logic Version
         })
-        return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+        return jwt.encode(to_encode, self.config.JWT_SECRET_KEY, algorithm=self.config.ALGORITHM)
 
-    @staticmethod
-    def create_refresh_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
-        jti = generate_jti()
-        if expires_delta:
-            expire = datetime.now(timezone.utc) + expires_delta
-        else:
-            expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-        
+    def create_refresh_token(self, user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+        expire_at = now() + (expires_delta or timedelta(days=self.config.REFRESH_TOKEN_EXPIRE_DAYS))
         to_encode = {
             "user_id": user_id,
-            "jti": jti,
-            "exp": expire,
-            "iat": datetime.now(timezone.utc),
+            "jti": secrets.token_urlsafe(32),
+            "exp": expire_at,
+            "iat": now(),
             "type": "refresh"
         }
-        return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
+        return jwt.encode(to_encode, self.config.JWT_SECRET_KEY, algorithm=self.config.ALGORITHM)
 
-    @staticmethod
-    def decode_token(token: str, token_type: str = "access") -> dict:
+    async def decode_token(self, token: str, token_type: str = "access", check_revocation: bool = True) -> Dict[str, Any]:
+        """Hard Decryption with Clock Skew Handling (Point 101)."""
         try:
-            payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+            # Decode without EXP check first to manually handle skew
+            payload = jwt.decode(
+                token, 
+                self.config.JWT_SECRET_KEY, 
+                algorithms=[self.config.ALGORITHM],
+                options={"verify_exp": False} 
+            )
+            
+            # SKEW TOLERANCE: 30 Seconds (Point 101)
+            # Use raw time for low-overhead check
+            current_ts = time.time()
+            if payload.get("exp") < (current_ts - 30):
+                 raise HTTPException(status_code=401, detail="TOKEN_EXPIRED: Period of validity exceeded.")
+
             if payload.get("type") != token_type:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=f"Invalid token type. Expected {token_type}"
-                )
+                raise HTTPException(status_code=401, detail=f"AUTH_ERROR: Invalid purpose ({token_type} expected).")
+            
+            # REVOCATION (Point 102)
+            if check_revocation:
+                jti = payload.get("jti")
+                if jti and await self.is_token_revoked(jti):
+                    raise HTTPException(status_code=401, detail="AUTH_ERROR: Identity has been retired.")
+                    
             return payload
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            )
         except JWTError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials"
-            )
+            raise HTTPException(status_code=401, detail="AUTH_ERROR: Identity cannot be verified.")
 
     async def login(self, login_data: LoginRequest) -> Token:
-        """Business logic for user login"""
-        # Find user by email
         user = await self.user_repo.get_by_email(login_data.email)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
+        if not user or not self.verify_password(login_data.password, user["hashed_password"]):
+            raise HTTPException(status_code=401, detail="INVALID_CREDENTIALS")
 
-        # Verify password
-        if not self.verify_password(login_data.password, user["hashed_password"]):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-
-        # Check active status
         if not user.get("active_status", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User account is inactive"
-            )
+            raise HTTPException(status_code=403, detail="ACCOUNT_DISABLED")
 
-        # Create tokens
         user_id = user["id"]
         token_data = {
             "user_id": user_id,
-            "email": user["email"],
-            "role": user["role"],
-            "organisation_id": user["organisation_id"]
+            "organisation_id": user["organisation_id"],
+            "role": user["role"]
         }
+        
         access_token = self.create_access_token(data=token_data)
         refresh_token = self.create_refresh_token(user_id=user_id)
 
-        # Store refresh token
-        refresh_payload = self.decode_token(refresh_token, "refresh")
+        # Session Persistence
+        refresh_payload = jwt.decode(refresh_token, self.config.JWT_SECRET_KEY, options={"verify_exp": False})
         await self.refresh_repo.create({
             "jti": refresh_payload["jti"],
             "user_id": user_id,
@@ -139,103 +119,63 @@ class AuthService:
             "expires_at": datetime.fromtimestamp(refresh_payload["exp"], tz=timezone.utc)
         })
 
-        user_res = UserResponse(**user)
         return Token(
             access_token=access_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            user=user_res
+            expires_in=self.config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserResponse(**user)
         )
 
     async def refresh_token(self, refresh_token: str) -> Token:
-        """Business logic for refreshing access token"""
-        try:
-            payload = self.decode_token(refresh_token, "refresh")
-            jti = payload["jti"]
-            user_id = payload["user_id"]
+        payload = await self.decode_token(refresh_token, "refresh")
+        jti = payload["jti"]
+        user_id = payload["user_id"]
 
-            token_doc = await self.refresh_repo.find_one({
-                "jti": jti,
-                "user_id": user_id,
-                "is_revoked": False
-            })
-            if not token_doc:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Refresh token is invalid or has been revoked"
-                )
+        token_doc = await self.refresh_repo.find_one({"jti": jti, "user_id": user_id, "is_revoked": False})
+        if not token_doc:
+            raise HTTPException(status_code=401, detail="SESSION_EXPIRED")
 
-            user = await self.user_repo.get_by_id(user_id)
-            if not user or not user.get("active_status", False):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User not found or inactive"
-                )
+        user = await self.user_repo.get_by_id(user_id)
+        if not user or not user.get("active_status", False):
+             raise HTTPException(status_code=401, detail="IDENTITY_INACTIVE")
 
-            # Revoke old refresh token
-            await self.refresh_repo.update_one({"jti": jti}, {"$set": {"is_revoked": True}})
+        # ROTATION: Revoke old refresh (Point 8)
+        await self.refresh_repo.update_one({"jti": jti}, {"$set": {"is_revoked": True}})
 
-            # Create new tokens
-            token_data = {
-                "user_id": user_id,
-                "email": user["email"],
-                "role": user["role"],
-                "organisation_id": user["organisation_id"]
-            }
-            access_token = self.create_access_token(data=token_data)
-            new_refresh_token = self.create_refresh_token(user_id=user_id)
+        token_data = {"user_id": user_id, "organisation_id": user["organisation_id"], "role": user["role"]}
+        new_access = self.create_access_token(data=token_data)
+        new_refresh = self.create_refresh_token(user_id=user_id)
 
-            # Store new refresh token
-            new_payload = self.decode_token(new_refresh_token, "refresh")
-            await self.refresh_repo.create({
-                "jti": new_payload["jti"],
-                "user_id": user_id,
-                "is_revoked": False,
-                "expires_at": datetime.fromtimestamp(new_payload["exp"], tz=timezone.utc)
-            })
+        new_payload = jwt.decode(new_refresh, self.config.JWT_SECRET_KEY, options={"verify_exp": False})
+        await self.refresh_repo.create({
+            "jti": new_payload["jti"],
+            "user_id": user_id,
+            "is_revoked": False,
+            "expires_at": datetime.fromtimestamp(new_payload["exp"], tz=timezone.utc)
+        })
 
-            return Token(
-                access_token=access_token,
-                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                user=UserResponse(**user)
-            )
-        except Exception as e:
-            logger.error(f"Token refresh failed: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not refresh token"
-            )
+        return Token(
+            access_token=new_access,
+            expires_in=self.config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserResponse(**user)
+        )
+
+    async def is_token_revoked(self, jti: str) -> bool:
+        return await self.blacklist_repo.find_one({"jti": jti}) is not None
 
     async def revoke_token(self, jti: str, token_type: str) -> None:
         await self.blacklist_repo.create({
             "jti": jti,
             "token_type": token_type,
-            "revoked_at": datetime.now(timezone.utc)
+            "revoked_at": now()
         })
 
-    async def is_token_revoked(self, jti: str) -> bool:
-        return await self.blacklist_repo.find_one({"jti": jti}) is not None
-
-    async def revoke_all_user_tokens(self, user_id: str) -> None:
-        await self.refresh_repo.update_many(
-            {"user_id": user_id, "is_revoked": False},
-            {"$set": {"is_revoked": True, "revoked_at": datetime.now(timezone.utc)}}
-        )
-
-    async def logout(self, user_payload: dict, refresh_token: Optional[str]) -> dict:
-        """Business logic for user logout"""
+    async def logout(self, user_payload: dict, refresh_token: Optional[str]) -> Dict[str, str]:
         jti = user_payload.get("jti")
-        if jti:
-            await self.revoke_token(jti, "access")
-
+        if jti: await self.revoke_token(jti, "access")
         if refresh_token:
             try:
-                payload = self.decode_token(refresh_token, "refresh")
+                payload = await self.decode_token(refresh_token, "refresh")
                 await self.revoke_token(payload["jti"], "refresh")
-                await self.refresh_repo.update_one(
-                    {"jti": payload["jti"]},
-                    {"$set": {"is_revoked": True}}
-                )
-            except:
-                pass
-        
-        return {"status": "success"}
+                await self.refresh_repo.update_one({"jti": payload["jti"]}, {"$set": {"is_revoked": True}})
+            except: pass
+        return {"status": "SUCCESS"}

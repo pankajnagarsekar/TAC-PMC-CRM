@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_audit_service
+from app.core.dependencies import get_audit_service, get_authenticated_user
 from app.services.audit_service import AuditService
 from app.schemas.shared import GenericResponse
 

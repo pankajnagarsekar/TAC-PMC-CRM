@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from typing import List, Dict, Any
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_settings_service
+from app.core.dependencies import get_authenticated_user, get_settings_service
 from app.services.settings_service import SettingsService
 from app.schemas.settings_ai import GlobalSettings, CodeMaster, CodeMasterCreate
 from app.schemas.shared import GenericResponse

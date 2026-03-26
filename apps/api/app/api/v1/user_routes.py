@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_user_service
+from app.core.dependencies import get_authenticated_user, get_user_service
 from app.services.user_service import UserService
 from app.schemas.user import UserResponse, UserCreateAdmin
 from app.schemas.auth import Token, LoginRequest

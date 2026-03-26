@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, status, Query
 from typing import Dict, Any, List
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_site_service
+from app.core.dependencies import get_authenticated_user, get_site_service
 from app.services.site_service import SiteService
 from app.schemas.site import (
     WorkersDailyLog, WorkersDailyLogCreate, WorkersDailyLogUpdate, 

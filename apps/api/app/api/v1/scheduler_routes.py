@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, status, Query, Body
 from typing import List, Dict, Any, Optional
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_scheduler_service
+from app.core.dependencies import get_authenticated_user, get_scheduler_service
 from app.services.scheduler_service import SchedulerService
 from app.schemas.shared import GenericResponse
 

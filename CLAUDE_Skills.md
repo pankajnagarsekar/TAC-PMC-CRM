@@ -42,9 +42,15 @@ Example: Adding a new CRM field requires @react-best-practices (frontend) + @pyt
 
 ### UI/UX Adjustments & Components
 ```
-Primary: @frontend-design + @tailwind-design-system + @react-best-practices
+Primary: @antigravity-design-expert + @tailwind-design-system + @react-best-practices
 Secondary: @accessibility-compliance + @performance-optimizer
-Example: Any design change must maintain the Luxury Industrial aesthetic and pass a11y tests
+Example: Any design change must maintain the Luxury Industrial aesthetic using @antigravity-design-expert principles
+```
+
+### Complex Orchestration & Workflows
+```
+Primary: @antigravity-skill-orchestrator + @antigravity-workflows + @concise-planning
+Example: Use for major module migrations or when combining multiple domain experts
 ```
 
 ### Database Schema & Data Changes
@@ -178,6 +184,7 @@ When tasked with modifications, follow this sequence:
 ### Step 1: Skill Identification
 ```
 "I will use @[skill1] + @[skill2] + @[skill3] for this task because..."
+Note: Use @antigravity-skill-orchestrator for complex, multi-domain tasks to ensure best tool selection.
 ```
 
 ### Step 2: Specification Review
@@ -264,7 +271,7 @@ The project uses a "Luxury Industrial" aesthetic:
 
 - **Specification Updates:** Create an issue with `[SPEC-UPDATE]` tag
 - **Architecture Questions:** Use `@software-architect` skill
-- **Design Questions:** Use `@frontend-design` skill
+- **Design Questions:** Use `@antigravity-design-expert` skill
 - **Data Integrity Questions:** Use `@database-architect` skill
 
 ---

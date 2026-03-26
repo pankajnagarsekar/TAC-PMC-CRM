@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Body
 from typing import List, Any
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_project_service
+from app.core.dependencies import get_authenticated_user, get_project_service
 from app.services.project_service import ProjectService
 from app.schemas.project import Project, ProjectUpdate
 from app.schemas.shared import GenericResponse

@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends
 from typing import Dict, Any
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_ai_summary_service
+from app.core.dependencies import get_ai_summary_service, get_authenticated_user
 from app.services.ai_summary_service import AISummaryService
 from app.schemas.shared import GenericResponse
 

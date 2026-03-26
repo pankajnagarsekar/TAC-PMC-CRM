@@ -2,24 +2,46 @@ from fastapi import HTTPException, status, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from app.db.mongodb import get_db
+from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
-from app.core.deps import get_auth_service
+from app.services.user_service import UserService
+from app.services.project_service import ProjectService
+from app.services.client_service import ClientService
+from app.services.financial_service import FinancialService
+from app.services.payment_service import PaymentService
+from app.services.notification_service import NotificationService
+from app.services.site_service import SiteService
+from app.services.work_order_service import WorkOrderService
+from app.services.vendor_service import VendorService
+from app.services.settings_service import SettingsService
+from app.services.ai_summary_service import AISummaryService
+from app.services.reporting_service import ReportingService
+from app.services.scheduler_service import SchedulerService
+from app.services.cash_service import CashService
+from app.services.master_data_service import MasterDataService
+from app.services.snapshot_service import SnapshotService
+from app.services.dashboard_service import DashboardService
+
+from app.core.permissions import PermissionChecker
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
+
+# --- AUTHENTICATION DEPENDENCIES ---
+
+async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuthService:
+    """Inject instance-based AuthService (Point 3, 22)"""
+    return AuthService(db)
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     auth_service: AuthService = Depends(get_auth_service)
 ) -> dict:
-    """
-    Dependency to get current authenticated user from access token.
-    Uses token revocation check.
-    """
+    """Retrieve user from token with revocation and skew checks (Point 101, 102)"""
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -28,164 +50,122 @@ async def get_current_user(
         )
         
     token = credentials.credentials
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
     try:
-        payload = AuthService.decode_token(token, "access")
+        payload = await auth_service.decode_token(token, "access")
         user_id: str = payload.get("user_id")
-        email: str = payload.get("email")
-        jti: str = payload.get("jti")
-        
-        if user_id is None or email is None:
-            raise credentials_exception
-            
-        # Check revocation
-        if jti and await auth_service.is_token_revoked(jti):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has been revoked"
-            )
-            
+        if not user_id:
+             raise HTTPException(status_code=401, detail="Invalid token payload")
         return payload
-        
     except HTTPException as e:
         raise e
-    except Exception:
-        raise credentials_exception
+    except Exception as e:
+        logger.error(f"AUTH_FAILURE: {e}")
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 async def get_authenticated_user(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db)
 ) -> dict:
-    """Get fully hydrated user from DB and validate active status."""
+    """Validate user exists in DB and is active (Point 3, 63)"""
     user_id = current_user.get("user_id")
-
     if not ObjectId.is_valid(user_id):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID format"
-        )
+        raise HTTPException(status_code=401, detail="Invalid identity")
+        
     user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
+    if not user or not user.get("active_status", False):
+        raise HTTPException(status_code=403, detail="Account inactive or not found")
 
-    if not user.get("active_status", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
-        )
-
-    # Standardize _id
     user["user_id"] = str(user.pop("_id"))
     return user
 
-from app.repositories.user_repo import UserProjectMapRepository
+# --- PERMISSION DEPENDENCIES ---
 
-class PermissionChecker:
-    """
-    Logic for project and role-based access control.
-    """
-    def __init__(self, db: AsyncIOMotorDatabase):
-        self.map_repo = UserProjectMapRepository(db)
+async def get_permission_checker(db: AsyncIOMotorDatabase = Depends(get_db)) -> PermissionChecker:
+    return PermissionChecker(db)
 
-    async def check_project_access(
-        self,
-        user: dict, 
-        project_id: str, 
-        require_write: bool = False
-    ):
-        if user.get("role") == "Admin":
-            return True
+# --- SERVICE PROVIDERS (Point 2) ---
 
-        assigned_projects = user.get("assigned_projects", [])
-        if project_id in assigned_projects:
-            # Note: assigned_projects list doesn't track write_access in user doc,
-            # so we still might need the map check for write access.
-            if not require_write:
-                return True
+async def get_audit_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuditService:
+    return AuditService(db)
 
-        mapping = await self.map_repo.get_mapping(user["user_id"], project_id)
+async def get_snapshot_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> SnapshotService:
+    return SnapshotService(db)
 
-        if not mapping:
-            raise HTTPException(status_code=403, detail="User does not have access to this project")
+async def get_financial_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> FinancialService:
+    return FinancialService(db)
 
-        if require_write and not mapping.get("write_access", False):
-            raise HTTPException(status_code=403, detail="User does not have write access to this project")
+async def get_user_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker)
+) -> UserService:
+    return UserService(db, audit, perm)
 
-        return True
+async def get_project_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker),
+    fin: FinancialService = Depends(get_financial_service)
+) -> ProjectService:
+    return ProjectService(db, audit, perm, fin)
 
-    @staticmethod
-    async def check_admin_role(user: dict):
-        if user.get("role") != "Admin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
-                detail="Admin role required for this operation"
-            )
-        return True
+async def get_client_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service)
+) -> ClientService:
+    return ClientService(db, audit)
 
-    async def verify_project_organisation(self, project_id: str, organisation_id: str):
-        """Verify that project belongs to the user's organisation"""
-        project = await self.db.projects.find_one(
-            {"_id": ObjectId(project_id)} if len(project_id) == 24 else {"project_id": project_id}
-        )
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
-            )
-        if project.get("organisation_id") != organisation_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Project does not belong to your organisation"
-            )
-        return True
+async def get_payment_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    fin: FinancialService = Depends(get_financial_service),
+    perm: PermissionChecker = Depends(get_permission_checker)
+) -> PaymentService:
+    return PaymentService(db, audit, fin, perm)
 
-    async def check_client_project_access(self, user: dict, project_id: str):
-        """Client can only access THEIR assigned projects."""
-        if user.get("role") != "Client":
-            return True
+async def get_site_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker),
+    snap: SnapshotService = Depends(get_snapshot_service)
+) -> SiteService:
+    return SiteService(db, audit, perm, snap)
 
-        mapping = await self.map_repo.get_mapping(user["user_id"], project_id)
-        if not mapping:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Client not authorized for this project"
-            )
-        return True
+async def get_work_order_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    fin: FinancialService = Depends(get_financial_service),
+    perm: PermissionChecker = Depends(get_permission_checker)
+) -> WorkOrderService:
+    return WorkOrderService(db, audit, fin, perm)
 
-    async def check_write_access_with_role(self, user: dict, project_id: str = None):
-        """
-        Check write access with role enforcement:
-        - Admin: Full write access
-        - Client: BLOCKED from writes
-        - Supervisor: BLOCKED from Web CRM
-        """
-        if user.get("role") == "Supervisor":
-             raise HTTPException(status_code=403, detail="Supervisors cannot access Web CRM")
-        
-        if user.get("role") == "Client":
-            raise HTTPException(status_code=403, detail="Client role is read-only")
+async def get_vendor_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker)
+) -> VendorService:
+    return VendorService(db, audit, perm)
 
-        if project_id:
-            await self.check_project_access(user, project_id, require_write=True)
+async def get_settings_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    perm: PermissionChecker = Depends(get_permission_checker)
+) -> SettingsService:
+    return SettingsService(db, perm)
 
-        return True
+async def get_reporting_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    perm: PermissionChecker = Depends(get_permission_checker)
+) -> ReportingService:
+    return ReportingService(db, perm)
 
-    @staticmethod
-    async def check_web_crm_access(user: dict):
-        if user.get("role") == "Supervisor":
-            raise HTTPException(status_code=403, detail="Supervisors cannot access Web CRM")
-        return True
+async def get_cash_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service)
+) -> CashService:
+    return CashService(db, PermissionChecker(db), audit)
 
-    @staticmethod
-    async def check_client_readonly(user: dict):
-        if user.get("role") == "Client":
-            raise HTTPException(status_code=403, detail="Client role is read-only")
-        return True
+async def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> DashboardService:
+    return DashboardService(db)
+
+async def get_master_data_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> MasterDataService:
+    return MasterDataService(db)

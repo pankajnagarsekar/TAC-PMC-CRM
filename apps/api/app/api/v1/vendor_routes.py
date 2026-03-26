@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import List, Dict, Any
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_vendor_service
+from app.core.dependencies import get_authenticated_user, get_vendor_service
 from app.services.vendor_service import VendorService
 from app.schemas.vendor import Vendor, VendorCreate, VendorUpdate
 from app.schemas.shared import GenericResponse

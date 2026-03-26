@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
 
-from app.core.dependencies import get_authenticated_user, PermissionChecker
-from app.core.deps import get_dashboard_service, get_permission_checker
+from app.core.dependencies import PermissionChecker, get_authenticated_user, get_dashboard_service, get_permission_checker
 from app.services.dashboard_service import DashboardService
 from app.schemas.shared import GenericResponse
 

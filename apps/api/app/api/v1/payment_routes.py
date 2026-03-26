@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, Dict, Any, List
 
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_payment_service
+from app.core.dependencies import get_authenticated_user, get_payment_service
 from app.services.payment_service import PaymentService
 from app.schemas.financial import PaymentCertificate, PaymentCertificateCreate
 from app.schemas.shared import GenericResponse

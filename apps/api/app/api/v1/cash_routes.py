@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Body, Query
 from typing import List, Dict, Any, Optional
-from app.core.dependencies import get_authenticated_user
-from app.core.deps import get_cash_service
+from app.core.dependencies import get_authenticated_user, get_cash_service
 from app.services.cash_service import CashService
 from app.schemas.shared import GenericResponse
 
