@@ -1,84 +1,99 @@
-# RuFlo V3 Orchestration Rules: PPM Scheduler Module
+# RuFlo V3 Agent Orchestration Framework
 
-This document is the **Comprehensive Agent Master Guide** for implementing the Enterprise PPM Scheduler using Claude, Antigravity, and RuFlo V3. It strictly enforces the architecture across all 6 documentation pillars (Schema, Tech Arch, Frontend, PRD, Flow, Implementation).
-
----
-
-## 1. Global Swarm & Memory Directives
-
-Any agent session working on this project MUST adhere to these global directives (NON-NEGOTIABLE):
-
-1. **Topology:** `hierarchical-mesh` minimum 5 agents. Literal execution of the `npx ruflo swarm` command is MANDATORY for every phase. Internal simulation of roles is STRICTLY FORBIDDEN.
-2. **Context Loading:** Before *any* code is written or proposed, agents must execute a semantic search on the RuFlo ReasoningBank. Failure to run this command will result in immediate architectural rejection:
-   ```bash
-   npx -y ruflo@latest memory search --query "PPM Scheduler [specific module context]"
-   ```
-3. **Cross-View Consistency Check:** Frontend agents must NEVER implement independent state. All views must read from the single Zustand `useScheduleStore`.
-4. **No Legacy DB Mutations:** Backend agents must NEVER attempt to write to `work_orders` or `payment_certificates`. The `security-auditor` agent MUST be triggered via CLI to block any PR that violates this.
-5. **Idempotency & Versioning:** Every database write must increment `version` and check `idempotency_key`.
+This document defines the **System Architecture & Orchestration Guidelines** for the project. RuFlo V3 is a hierarchical-mesh swarm framework that enforces architectural integrity across all logic layers.
 
 ---
 
-## 2. Phase-by-Phase Agent Orchestration
+## 1. Universal Orchestration Protocol
 
-### Phase 1: Foundation & Database Isolation
-**Goal:** Schema creation, Idempotency, and Financial `$lookup` Read-Only Pipelines.
-- **Swarm Command:** `npx -y ruflo@latest swarm "Phase 1: DB Foundation" --strategy specialized`
-- **Agents:** `system-architect` (Lead), `backend-dev` (Worker), `security-auditor` (Reviewer).
-- **Hard Rules:**
-  - `external_ref_id` MUST be implemented as immutable.
-  - `schedule_baselines` MUST have database-level middleware rejecting updates if `is_immutable == true`.
-  - Financial aggregations (PV, EV, AC) must be done in-memory via `export_service.py` to prevent DB bloat.
+Any agent session or swarm MUST adhere to these global directives:
 
-### Phase 2: The Core Execution Engine (CPM)
-**Goal:** Mathematical determinism and Python engine implementation.
-- **Swarm Command:** `npx -y ruflo@latest swarm "Phase 2: CPM Engine" --topology hierarchical`
-- **Agents:** `system-architect` (Lead), `perf-analyzer` (Validator), `tester` (QA).
-- **Hard Rules:**
-  - The CPM engine `calculate_critical_path.py` MUST NOT have DB access. It takes JSON in and returns JSON out.
-  - A pre-calculation DAG (Directed Acyclic Graph) validation must run to reject circular dependencies.
-  - All output dates must respect `constraint_type` (e.g., SNET, MFO).
-  - Validation: API recalculation must complete in **< 5 seconds** for 5,000 rows. Tested by `perf-analyzer`.
+### A. Context First (ReasoningBank)
+Before proposing any code or architectural changes, agents MUST load relevant context from the **ReasoningBank**.
+```bash
+npx -y ruflo@latest memory search --query "[Module Name/Task Context]"
+```
 
-### Phase 3: The Frontend Grid & Canvas
-**Goal:** Next.js UI, Kanban, and Gantt with optimistic Zustand updates.
-- **Swarm Command:** `npx -y ruflo@latest swarm "Phase 3: Interactive UI" --strategy adaptive`
-- **Agents:** `coder` (Lead for UI), `reviewer` (UX Audit), `performance-engineer` (FPS Audit).
-- **Hard Rules:**
-  - **Optimistic Updates:** Gantt bar drags must instantly update the UI and send a debounced API call (300ms).
-  - **Undo Stack:** Zustand store must implement a 50-action local `undoStack`.
-  - **Version Conflict:** HTTP 409 responses must overwrite local state from the server. No merge resolution.
-  - Performance constraint: The Grid and Gantt must render 5,000 tasks in **< 2 seconds**. Virtualization is mandatory.
+### B. Swarm Topology
+- **MANDATORY Swarm Init**: Every major task or phase starts with a literal swarm command.
+- **Topology**: Defaults to `hierarchical-mesh`. Use `--topology hierarchical` for lead-driven work or `--strategy adaptive` for exploratory tasks.
+- **No Internal Simulation**: Local agent-in-agent simulations are forbidden. Real agents must be spawned via the CLI.
 
-### Phase 4: AI Integration & Enterprise PPM
-**Goal:** AI auto-duration, MoM extraction, and cross-project portfolio integration.
-- **Swarm Command:** `npx -y ruflo@latest swarm "Phase 4: AI & PPM" --strategy specialized`
-- **Agents:** `ml-developer` (Lead), `researcher` (Data patterns), `coder` (API integration).
-- **Hard Rules:**
-  - Every AI suggestion MUST include an `ai_confidence_score` (0.0 - 1.0).
-  - Human-in-the-loop: AI must NEVER auto-commit a task. It stages tasks in `draft` status for admin approval.
-  - Graceful Degradation: If the AI API times out (> 5s), the UI must seamlessly default to manual entry without breaking the page.
-
-### Phase 5: Native BI & Cutover
-**Goal:** Recharts S-Curves, KPI cards, and caching strategies.
-- **Swarm Command:** `npx -y ruflo@latest swarm "Phase 5: BI Analytics" --strategy balanced`
-- **Agents:** `coder`, `perf-analyzer`.
-- **Hard Rules:**
-  - Dashboards must rely directly on the `useScheduleStore` to instantly re-render (target: **< 100ms**) when dates shift.
-  - Financial data failures must show localized "data unavailable" errors, leaving the timeline fully functional.
-
----
-
-## 3. Strict Development Enforcements & Audit Triggers
-
-Agents reviewing code on this project must automatically reject Pull Requests if they contain:
-1. Direct `$set` or update queries to `payment_certificates` or `work_orders`.
-2. A `POST /calculate` endpoint without MongoDB `bulkWrite` transaction blocks.
-3. Lack of an `is_immutable` property check before rewriting baselines.
-4. A frontend UI state that operates independently from the main `useScheduleStore`.
-5. Missing UI debouncing for dragged tasks in the Gantt.
-
-*To activate these enforcements, run the RuFlo auditor before committing any code:*
+### C. Safety & Audit Hooks
+Every task MUST verify its output against the System Constitution before commit.
 ```bash
 npx -y ruflo@latest hooks worker dispatch --trigger audit
 ```
+
+---
+
+## 2. Generic Task Instruction Template
+
+Use this structure to define a new task or phase for RuFlo.
+
+### [Task: Feature Name]
+- **Objective:** [Clear description of the goal]
+- **Primary Swarm Command:**
+  ```bash
+  npx -y ruflo@latest swarm "[Unique Phase Title]" --strategy [specialized|hierarchical|adaptive|balanced]
+  ```
+- **Assigned Agents:**
+  - `system-architect` (Lead/Architecture)
+  - `coder` (Implementation)
+  - `tester` (QA/Verification)
+  - `security-auditor` (Audit/Review)
+- **Hard Rules & Invariants:**
+  - [Constraint 1: e.g., No direct legacy DB mutations]
+  - [Constraint 2: e.g., All state must reside in Zustand store]
+  - [Constraint 3: e.g., All API calls must include idempotency keys]
+- **Verification Criteria:**
+  - [Metric 1: e.g., Recalculation completes in < 5s]
+  - [Metric 2: e.g., 100% test coverage on new endpoints]
+
+---
+
+## 3. Strict Audit Triggers
+
+The `security-auditor` and `perf-analyzer` agents automatically reject work if:
+1. **Unprotected State**: Frontend UI state operates independently from the source-of-truth store.
+2. **Missing Transactions**: Database updates lack atomic blocks in the API.
+3. **Property Violations**: Modification of properties explicitly marked as `is_immutable`.
+4. **Context Failure**: Work started without a `memory search` command.
+
+---
+
+## 4. Reference Implementation: PPM Scheduler Module
+
+*Example of the orchestration pattern applied to the PPM module.*
+
+### Phase 3: Interactive UI (Ref. Implementation)
+- **Objective:** Next.js UI, Kanban, and Gantt with optimistic Zustand updates.
+- **Swarm Command:** `npx -y ruflo@latest swarm "Phase 3: Interactive UI" --strategy adaptive`
+- **Agents:** `coder`, `reviewer`, `performance-engineer`.
+- **Hard Rules:**
+  - **Optimistic Updates:** Gantt drags update UI instantly; debounced API call (300ms).
+  - **Undo Stack:** Zustand store must implement a 50-action local `undoStack`.
+  - **Version Conflict:** HTTP 409 resets local state from server.
+- **Performance:** Render 5,000 tasks in **< 2 seconds** with virtualization.
+
+### Phase 4: AI Integration & Enterprise PPM
+- **Objective:** AI auto-duration and MoM extraction.
+- **Rules:** Every AI suggestion MUST include an `ai_confidence_score`.
+- **Human-in-the-loop:** AI must NEVER auto-commit a task; stages as `draft`.
+
+---
+## 5. RuFlo CLI Command Reference
+
+Quick reference for orchestrating the swarm:
+
+| Command | Purpose | Example |
+| :--- | :--- | :--- |
+| `swarm` | Initialize or update a swarm | `npx -y ruflo@latest swarm "Task Title" --strategy balanced` |
+| `agent spawn` | Spawn a specific worker role | `npx -y ruflo@latest agent spawn coder` |
+| `memory search` | Search the ReasoningBank | `npx -y ruflo@latest memory search --query "Zustand patterns"` |
+| `hooks worker dispatch` | Trigger a manual audit/hook | `npx -y ruflo@latest hooks worker dispatch --trigger audit` |
+| `status` | Check swarm and agent health | `npx -y ruflo@latest status` |
+| `swarm init` | Start a new project objective | `npx -y ruflo@latest swarm init --objective "New Project"` |
+
+---
+*End of Framework Guide.*
