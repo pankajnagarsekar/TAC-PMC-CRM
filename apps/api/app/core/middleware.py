@@ -1,71 +1,91 @@
 import time
 import logging
 import uuid
-from fastapi import Request, status
+from fastapi import Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Any, Dict, Optional
+
+from app.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
 class StandardResponseMiddleware(BaseHTTPMiddleware):
     """
-    Enforces a unified API response structure across all endpoints. (Point 4)
-    Structure: { "success": bool, "data": Any, "meta": dict, "error": dict }
+    Sovereign Response Wrapper (Point 4, 10).
+    Injects tracing metadata, enforces rate limits, and normalizes system faults.
     """
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        # Request ID for tracing (Point 100)
         request_id = str(uuid.uuid4())
         
+        # 1. RATE LIMIT ENFORCEMENT (Point 5, 116)
+        identity = request.headers.get("Authorization", request.client.host)
+        if request.url.path not in ["/docs", "/redoc", "/openapi.json"]:
+            try:
+                # Custom tiering could be added based on route
+                tier = "Heavy" if "export" in request.url.path or "report" in request.url.path else "Standard"
+                await limiter.check(identity, tier=tier)
+            except HTTPException as he:
+                return self._standard_error(he.status_code, he.detail, request_id, start_time)
+
         try:
             response = await call_next(request)
             process_time = time.time() - start_time
             
-            # Skip wrapping for non-JSON or standard docs
             if request.url.path in ["/docs", "/redoc", "/openapi.json"]:
                 return response
 
-            # We would typically parse JSON and rewrap, but to keep it lightweight
-            # and avoid double serialization, we'll let existing routers handle
-            # the structure where possible, and use this to inject metadata.
             response.headers["X-Request-ID"] = request_id
-            response.headers["X-Process-Time"] = str(process_time)
+            response.headers["X-Process-Time"] = f"{process_time:.4f}"
             
             return response
 
-        except Exception as exc:
-            process_time = time.time() - start_time
-            logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
+        except HTTPException as he:
+            return self._standard_error(he.status_code, he.detail, request_id, start_time)
             
-            return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "success": False,
-                    "error": {
-                        "code": "INTERNAL_SERVER_ERROR",
-                        "message": "A critical system fault occurred.",
-                        "request_id": request_id
-                    },
-                    "meta": {
-                        "process_time": process_time
-                    }
-                }
+        except Exception as exc:
+            logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
+            return self._standard_error(
+                status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                "A critical system fault occurred.", 
+                request_id, 
+                start_time
             )
+
+    def _standard_error(self, code: int, message: Any, request_id: str, start_time: float):
+        process_time = time.time() - start_time
+        return JSONResponse(
+            status_code=code,
+            content={
+                "success": False,
+                "error": {
+                    "code": code,
+                    "message": message,
+                    "request_id": request_id
+                },
+                "meta": {
+                    "process_time": process_time
+                }
+            }
+        )
 
 class BackpressureMiddleware(BaseHTTPMiddleware):
     """
-    Blocks requests if system resources are saturated. (Point 105)
-    Simple implementation based on active request counting.
+    Saturation Guard (Point 105).
+    Immediate rejection when system concurrency limit is reached.
     """
     active_requests = 0
-    MAX_CONCURRENT = 100 # Adjust based on instance size
+    MAX_CONCURRENT = 100
 
     async def dispatch(self, request: Request, call_next):
         if BackpressureMiddleware.active_requests >= BackpressureMiddleware.MAX_CONCURRENT:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                content={"detail": "System saturated. Please retry later."}
+                content={
+                    "success": False, 
+                    "error": {"code": "BACKPRESSURE_REJECTION", "message": "System saturated. Try again later."}
+                }
             )
         
         BackpressureMiddleware.active_requests += 1

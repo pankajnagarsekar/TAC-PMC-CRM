@@ -7,8 +7,10 @@ import logging
 from app.schemas.project import Project, ProjectUpdate
 from app.repositories.project_repo import ProjectRepository
 from app.repositories.financial_repo import BudgetRepository
+from app.repositories.read_models import ProjectStatsRepository
 from app.core.time import now
 from app.domain.state_machine import StateMachine
+from app.core.financial_utils import to_decimal
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,7 @@ class ProjectService:
         self.financial_service = financial_service
         self.project_repo = ProjectRepository(db)
         self.budget_repo = BudgetRepository(db)
+        self.stats_repo = ProjectStatsRepository(db)
 
     async def list_projects(self, user: dict) -> List[Dict[str, Any]]:
         query = {"organisation_id": user["organisation_id"]}
@@ -41,7 +44,6 @@ class ProjectService:
         project = await self.project_repo.get_by_id(project_id, organisation_id=user["organisation_id"])
         
         if not project:
-            # Domain logic: Secondary lookup by string project_id
             project = await self.project_repo.find_one({
                 "project_id": project_id, 
                 "organisation_id": user["organisation_id"]
@@ -53,10 +55,6 @@ class ProjectService:
         return project
 
     async def update_project(self, user: dict, project_id: str, project_data: ProjectUpdate) -> Dict[str, Any]:
-        """
-        Hard-transition enforcement for Project state (Point 31, 87).
-        Calculates impact on financial master when critical fields change.
-        """
         await self.permission_checker.check_web_crm_access(user)
         await self.permission_checker.check_admin_role(user)
         await self.permission_checker.check_project_access(user, project_id, require_write=True)
@@ -66,14 +64,11 @@ class ProjectService:
         
         update_dict = project_data.model_dump(exclude_unset=True)
 
-        # STATE MACHINE ENFORCEMENT (Point 31)
         if "status" in update_dict:
             StateMachine.validate_transition("PROJECT", current_status, update_dict["status"])
         
-        # DOMAIN FREEZE (Point 87)
         StateMachine.check_modification_allowed("PROJECT", current_status)
 
-        # Normalization (Move to Repo in Phase 3, but safeguard here)
         for k, v in update_dict.items():
             if isinstance(v, Decimal):
                 update_dict[k] = Decimal128(str(v))
@@ -82,9 +77,8 @@ class ProjectService:
         result = await self.project_repo.update(project_id, update_dict, organisation_id=user["organisation_id"])
         
         if not result:
-             raise HTTPException(status_code=404, detail="DATA_CONSISTENCY_ERROR: Project lost during update.")
+             raise HTTPException(status_code=404, detail="DATA_CONSISTENCY_ERROR")
 
-        # Sovereign Audit Trail (Point 62)
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],
             module_name="PROJECT_MANAGEMENT",
@@ -100,14 +94,12 @@ class ProjectService:
         return result
 
     async def create_or_update_project_budget(self, user: dict, project_id: str, budget_data: dict) -> Dict[str, Any]:
-        """Budget logic with immediate reconciliation (Point 61)."""
+        """Budget logic with immediate reconciliation and read-model sync (Point 46, 61)."""
         await self.permission_checker.check_project_access(user, project_id, require_write=True)
         
-        # Verification
         category_id = budget_data.get("category_id") or budget_data.get("code_id")
         if not category_id: raise HTTPException(status_code=400, detail="CATEGORY_ID_REQUIRED")
 
-        # Freeze check
         project = await self.get_project(user, project_id)
         StateMachine.check_modification_allowed("PROJECT", project.get("status"))
 
@@ -117,7 +109,6 @@ class ProjectService:
         if existing:
             update = {
                 "original_budget": Decimal128(str(original_budget)),
-                "description": budget_data.get("description"),
                 "updated_at": now()
             }
             result = await self.budget_repo.update(existing["id"], update)
@@ -127,7 +118,6 @@ class ProjectService:
                 "category_id": category_id,
                 "organisation_id": user["organisation_id"],
                 "original_budget": Decimal128(str(original_budget)),
-                "description": budget_data.get("description"),
                 "committed_amount": Decimal128("0.0"),
                 "remaining_budget": Decimal128(str(original_budget)),
                 "version": 1,
@@ -136,6 +126,13 @@ class ProjectService:
             result = await self.budget_repo.create(doc)
 
         # RELIABILITY: Recalculate Master Budget (Point 61)
-        await self.financial_service.recalculate_master_budget(project_id)
+        master = await self.financial_service.recalculate_master_budget(project_id)
+        
+        # PUSH TO READ MODEL (Point 46)
+        await self.stats_repo.refresh_stats(project_id, {
+            "master_budget": float(to_decimal(master["total_budget"])),
+            "total_committed": float(to_decimal(master["total_committed"])),
+            "total_phases": await self.budget_repo.count_documents({"project_id": project_id})
+        })
 
         return result

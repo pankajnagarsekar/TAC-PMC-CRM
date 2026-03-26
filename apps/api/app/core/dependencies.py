@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status, Depends, Query
+from fastapi import HTTPException, status, Depends, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
@@ -27,6 +27,7 @@ from app.services.snapshot_service import SnapshotService
 from app.services.dashboard_service import DashboardService
 
 from app.core.permissions import PermissionChecker
+from app.core.resilience import NonceGuard
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
@@ -77,6 +78,19 @@ async def get_authenticated_user(
 
     user["user_id"] = str(user.pop("_id"))
     return user
+
+# --- RESILIENCE DEPENDENCIES (Point 102) ---
+
+async def verify_nonce(
+    request: Request,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_authenticated_user)
+):
+    """Authoritative Nonce Verification for Write Operations."""
+    nonce = request.headers.get("X-Request-Nonce")
+    guard = NonceGuard(db)
+    await guard.verify(nonce, user["user_id"])
+    return nonce
 
 # --- PERMISSION DEPENDENCIES ---
 
