@@ -194,7 +194,11 @@ async function request<T>(
         const error = await retryResponse.json().catch(() => ({ detail: 'Request failed' }));
         throw new ApiError(error.detail, retryResponse.status, error);
       }
-      return retryResponse.json();
+      const retryData = await retryResponse.json();
+      if (retryData && retryData.data !== undefined && 'status' in retryData) {
+        return retryData.data as T;
+      }
+      return retryData;
     } else {
       await clearTokens();
       throw new ApiError('Session expired', 401);
@@ -210,7 +214,12 @@ async function request<T>(
     return {} as T;
   }
 
-  return response.json();
+  const data = await response.json();
+  // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
+  if (data && data.data !== undefined && 'status' in data) {
+    return data.data as T;
+  }
+  return data;
 }
 
 // ============================================
@@ -241,7 +250,7 @@ async function attemptTokenRefresh(): Promise<boolean> {
       const refreshToken = await storage.get(TOKEN_KEYS.REFRESH);
       if (!refreshToken) return false;
 
-      const response = await fetch(`${BASE_URL}/api/auth/refresh`, {
+      const response = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -275,7 +284,7 @@ async function clearTokens(): Promise<void> {
 // ============================================
 export const authApi = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const data = await request<LoginResponse>('/api/auth/login', {
+    const data = await request<LoginResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     }, false);
@@ -287,7 +296,7 @@ export const authApi = {
   async logout(): Promise<void> {
     try {
       // Revoke refresh tokens server-side
-      await request('/api/auth/logout', { method: 'POST' });
+      await request('/api/v1/auth/logout', { method: 'POST' });
     } catch (error) {
       // Still clear local tokens even if server call fails
       console.error('Server logout failed:', error);
@@ -307,7 +316,7 @@ export const authApi = {
   },
   async checkCanLogout(): Promise<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }> {
     try {
-      return await request<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }>('/api/auth/can-logout');
+      return await request<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }>('/api/v1/auth/can-logout');
     } catch (error) {
       // Fail-safe behavior to avoid locking users in app due transient API errors
       console.error('Failed to check logout status:', error);
@@ -320,29 +329,29 @@ export const authApi = {
 // PROJECTS API
 // ============================================
 export const projectsApi = {
-  getAll: (): Promise<Project[]> => request('/api/projects'),
-  getById: (id: string): Promise<Project> => request(`/api/projects/${id}`),
-  create: (data: CreateProjectRequest): Promise<Project> => request('/api/projects', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<CreateProjectRequest>): Promise<Project> => request(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getAll: (): Promise<Project[]> => request('/api/v1/projects'),
+  getById: (id: string): Promise<Project> => request(`/api/v1/projects/${id}`),
+  create: (data: CreateProjectRequest): Promise<Project> => request('/api/v1/projects', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<CreateProjectRequest>): Promise<Project> => request(`/api/v1/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // CODES API
 // ============================================
 export const codesApi = {
-  getAll: (activeOnly = true): Promise<Code[]> => request(`/api/codes?active_only=${activeOnly}`),
-  getById: (id: string): Promise<Code> => request(`/api/codes/${id}`),
-  create: (data: CreateCodeRequest): Promise<Code> => request('/api/codes', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (activeOnly = true): Promise<Code[]> => request(`/api/v1/codes?active_only=${activeOnly}`),
+  getById: (id: string): Promise<Code> => request(`/api/v1/codes/${id}`),
+  create: (data: CreateCodeRequest): Promise<Code> => request('/api/v1/codes', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // BUDGETS API
 // ============================================
 export const budgetsApi = {
-  getAll: (projectId?: string): Promise<BudgetPerCode[]> => request(`/api/budgets${projectId ? `?project_id=${projectId}` : ''}`),
-  getById: (id: string): Promise<BudgetPerCode> => request(`/api/budgets/${id}`),
-  create: (data: CreateBudgetRequest): Promise<BudgetPerCode> => request('/api/budgets', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: UpdateBudgetRequest): Promise<BudgetPerCode> => request(`/api/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getAll: (projectId?: string): Promise<BudgetPerCode[]> => request(`/api/v1/budgets${projectId ? `?project_id=${projectId}` : ''}`),
+  getById: (id: string): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`),
+  create: (data: CreateBudgetRequest): Promise<BudgetPerCode> => request('/api/v1/budgets', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: UpdateBudgetRequest): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -352,7 +361,7 @@ export const financialApi = {
   getState: (projectId: string, codeId?: string): Promise<FinancialState[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/financial-state?${params}`);
+    return request(`/api/v1/financial-state?${params}`);
   },
   getProjectFinancials: (projectId: string): Promise<DerivedFinancialState[]> =>
     request(`/api/v2/projects/${projectId}/financials`),
@@ -428,10 +437,10 @@ export const progressApi = {
   getAll: (projectId: string, codeId?: string): Promise<ProgressEntry[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/progress?${params}`);
+    return request(`/api/v1/progress?${params}`);
   },
-  create: (data: CreateProgressRequest): Promise<ProgressEntry> => request('/api/progress', { method: 'POST', body: JSON.stringify(data) }),
-  getLatest: (projectId: string, codeId: string): Promise<ProgressEntry> => request(`/api/progress/latest?project_id=${projectId}&code_id=${codeId}`),
+  create: (data: CreateProgressRequest): Promise<ProgressEntry> => request('/api/v1/progress', { method: 'POST', body: JSON.stringify(data) }),
+  getLatest: (projectId: string, codeId: string): Promise<ProgressEntry> => request(`/api/v1/progress/latest?project_id=${projectId}&code_id=${codeId}`),
 };
 
 // ============================================
@@ -441,9 +450,9 @@ export const plannedProgressApi = {
   getAll: (projectId: string, codeId?: string): Promise<PlannedProgress[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/planned-progress?${params}`);
+    return request(`/api/v1/planned-progress?${params}`);
   },
-  create: (data: CreatePlannedProgressRequest): Promise<PlannedProgress> => request('/api/planned-progress', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data: CreatePlannedProgressRequest): Promise<PlannedProgress> => request('/api/v1/planned-progress', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -453,7 +462,7 @@ export const delayApi = {
   analyze: (projectId: string, codeId?: string): Promise<DelayAnalysis[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/delay-analysis?${params}`);
+    return request(`/api/v1/delay-analysis?${params}`);
   },
 };
 
@@ -464,10 +473,10 @@ export const attendanceApi = {
   getAll: (projectId: string, supervisorId?: string): Promise<Attendance[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (supervisorId) params.append('supervisor_id', supervisorId);
-    return request(`/api/attendance?${params}`);
+    return request(`/api/v1/attendance?${params}`);
   },
-  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/attendance', { method: 'POST', body: JSON.stringify(data) }),
-  getToday: (projectId: string, supervisorId: string): Promise<Attendance | null> => request(`/api/attendance/today?project_id=${projectId}&supervisor_id=${supervisorId}`),
+  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/v1/attendance', { method: 'POST', body: JSON.stringify(data) }),
+  getToday: (projectId: string, supervisorId: string): Promise<Attendance | null> => request(`/api/v1/attendance/today?project_id=${projectId}&supervisor_id=${supervisorId}`),
 };
 
 // ============================================
@@ -477,19 +486,19 @@ export const issuesApi = {
   getAll: (projectId: string, status?: string): Promise<Issue[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (status) params.append('status', status);
-    return request(`/api/issues?${params}`);
+    return request(`/api/v1/issues?${params}`);
   },
-  getById: (id: string): Promise<Issue> => request(`/api/issues/${id}`),
-  create: (data: CreateIssueRequest): Promise<Issue> => request('/api/issues', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: UpdateIssueRequest): Promise<Issue> => request(`/api/issues/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getById: (id: string): Promise<Issue> => request(`/api/v1/issues/${id}`),
+  create: (data: CreateIssueRequest): Promise<Issue> => request('/api/v1/issues', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: UpdateIssueRequest): Promise<Issue> => request(`/api/v1/issues/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // VOICE LOGS API
 // ============================================
 export const voiceLogsApi = {
-  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/voice-logs?project_id=${projectId}`),
-  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/voice-logs?project_id=${projectId}`),
+  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -499,11 +508,11 @@ export const pettyCashApi = {
   getAll: (projectId: string, status?: string): Promise<PettyCash[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (status) params.append('status', status);
-    return request(`/api/petty-cash?${params}`);
+    return request(`/api/v1/petty-cash?${params}`);
   },
-  create: (data: CreatePettyCashRequest): Promise<PettyCash> => request('/api/petty-cash', { method: 'POST', body: JSON.stringify(data) }),
-  approve: (id: string): Promise<PettyCash> => request(`/api/petty-cash/${id}/approve`, { method: 'POST' }),
-  reject: (id: string, reason?: string): Promise<PettyCash> => request(`/api/petty-cash/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  create: (data: CreatePettyCashRequest): Promise<PettyCash> => request('/api/v1/petty-cash', { method: 'POST', body: JSON.stringify(data) }),
+  approve: (id: string): Promise<PettyCash> => request(`/api/v1/petty-cash/${id}/approve`, { method: 'POST' }),
+  reject: (id: string, reason?: string): Promise<PettyCash> => request(`/api/v1/petty-cash/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
 };
 
 // ============================================
@@ -545,7 +554,7 @@ export const cashApi = {
    * @returns A `CashSummaryResponse` with a `categories` array and aggregate `summary`.
    */
   getSummary: (projectId: string): Promise<CashSummaryResponse> =>
-    request(`/api/projects/${projectId}/cash-summary`),
+    request(`/api/v1/cash/summary/${projectId}`),
 
   listTransactions: (projectId: string, params?: { category_id?: string; cursor?: string; limit?: number }): Promise<{
     items: any[];
@@ -555,7 +564,7 @@ export const cashApi = {
     if (params?.category_id) query.append('category_id', params.category_id);
     if (params?.cursor) query.append('cursor', params.cursor);
     if (params?.limit) query.append('limit', String(params.limit));
-    return request(`/api/projects/${projectId}/cash-transactions?${query}`);
+    return request(`/api/v1/cash/transactions?${query}`);
   },
 
   /**
@@ -568,7 +577,7 @@ export const cashApi = {
    * @security warning: "Client-side math is strictly forbidden. This method must only be used to POST raw entry data; balances are calculated server-side."
    */
   createTransaction: (projectId: string, data: any, idempotencyKey: string): Promise<any> => {
-    return request(`/api/projects/${projectId}/cash-transactions`, {
+    return request(`/api/v1/cash/transactions`, {
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify(data),
@@ -643,7 +652,7 @@ export const alertsApi = {
 export const dashboardApi = {
   getAdminDashboard: (projectId?: string): Promise<AdminDashboardData> => {
     const params = projectId ? `?project_id=${projectId}` : '';
-    return request(`/api/dashboard/admin${params}`);
+    return request(`/api/v1/projects/${projectId}/dashboard-stats`);
   },
   getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/dashboard/supervisor?project_id=${projectId}`),
 };

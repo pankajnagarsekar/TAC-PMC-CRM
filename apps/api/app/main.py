@@ -18,6 +18,7 @@ from app.api.v1.scheduler_routes import router as scheduler_router
 from app.api.v1.cash_routes import router as cash_router
 from app.api.v1.audit_routes import router as audit_router
 from app.api.v1.auth_routes import router as auth_router
+from app.api.v1.dashboard_routes import router as dashboard_router
 from execution.scheduler.api.routes import scheduler_router as enterprise_scheduler_router, portfolio_router
 from app.db.mongodb import db_manager
 
@@ -42,12 +43,11 @@ def create_app() -> FastAPI:
         user_router, project_router, client_router, payment_router,
         site_router, notification_router, work_order_router, vendor_router,
         settings_router, ai_summary_router, reporting_router, scheduler_router,
-        cash_router, audit_router, auth_router
+        cash_router, audit_router, auth_router, dashboard_router
     ]
     
     for router in v1_routers:
         app.include_router(router, prefix="/api/v1")
-        app.include_router(router, prefix="/api")
     
     # Enterprise Scheduler V2
     app.include_router(enterprise_scheduler_router, prefix="/api/v2")

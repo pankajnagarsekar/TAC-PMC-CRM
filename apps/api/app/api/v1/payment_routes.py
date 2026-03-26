@@ -30,3 +30,13 @@ async def create_payment_certificate(
     """Create a new payment certificate."""
     new_pc = await payment_service.create_payment_certificate(user, pc_data)
     return GenericResponse(data=new_pc, message="Payment certificate created successfully")
+
+@router.post("/{pc_id}/close", response_model=GenericResponse[Dict[str, Any]])
+async def close_payment_certificate(
+    pc_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service)
+):
+    """Close a payment certificate and update financial models."""
+    result = await payment_service.close_payment_certificate(user, pc_id)
+    return GenericResponse(data=result, message="Payment certificate closed effectively")

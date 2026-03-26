@@ -49,10 +49,16 @@ api.interceptors.request.use(
 );
 
 // ──────────────────────────────────────────────────────────────────────────
-// Response interceptor — handle token refresh on 401
+// Response interceptor — handle token refresh on 401 & unwrap GenericResponse
 // ──────────────────────────────────────────────────────────────────────────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
+    if (response.data && response.data.data !== undefined && 'status' in response.data) {
+      return { ...response, data: response.data.data };
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
@@ -69,7 +75,7 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        const res = await axios.post(`${BACKEND_URL}/api/auth/refresh`, {
+        const res = await axios.post(`${BACKEND_URL}/api/v1/auth/refresh`, {
           refresh_token: refreshToken,
         });
 
@@ -117,7 +123,7 @@ export const fetcher = (url: string) => api.get(url).then((r) => r.data);
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
   calculate: (projectId: string, tasks: any[], projectStart: string) =>
-    api.post(`/api/projects/${projectId}/calculate`, { tasks, project_start: projectStart }).then(res => res.data),
+    api.post(`/api/v1/projects/${projectId}/calculate`, { tasks, project_start: projectStart }).then(res => res.data),
 
   calculateChange: (
     projectId: string,
@@ -125,7 +131,7 @@ export const schedulerApi = {
     idempotencyKey: string
   ): Promise<ScheduleCalculationResponse> =>
     api
-      .post(`/api/scheduler/${projectId}/calculate`, changeRequest, {
+      .post(`/api/v2/scheduler/${projectId}/calculate`, changeRequest, {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
@@ -134,17 +140,17 @@ export const schedulerApi = {
       .then((res) => res.data),
 
   save: (projectId: string, tasks: any[], projectStart: string, totalCost: number) =>
-    api.post(`/api/projects/${projectId}/save`, {
+    api.post(`/api/v1/projects/${projectId}/save`, {
       tasks,
       project_start: projectStart,
       total_cost: totalCost
     }).then(res => res.data),
 
   load: (projectId: string) =>
-    api.get(`/api/projects/${projectId}/load`).then(res => res.data),
+    api.get(`/api/v1/projects/${projectId}/load`).then(res => res.data),
 
   exportPdf: (projectId: string) =>
-    api.post(`/api/projects/${projectId}/export/pdf`).then(res => res.data),
+    api.post(`/api/v1/projects/${projectId}/export/pdf`).then(res => res.data),
 
   downloadPdf: (projectId: string) =>
     api.get(`/api/projects/${projectId}/export/download`, {
@@ -160,20 +166,20 @@ export const schedulerApi = {
     }).then(res => res.data),
 
   getCashFlow: (projectId: string) =>
-    api.post(`/api/projects/${projectId}/report/cash-flow`).then(res => res.data),
+    api.post(`/api/v1/projects/${projectId}/report/cash-flow`).then(res => res.data),
 
   lockBaseline: (projectId: string, label: string, idempotencyKey: string) =>
-    api.post(`/api/projects/${projectId}/baseline/lock`, { project_id: projectId, label, idempotency_key: idempotencyKey }).then(res => res.data),
+    api.post(`/api/v1/projects/${projectId}/baseline/lock`, { project_id: projectId, label, idempotency_key: idempotencyKey }).then(res => res.data),
 
   compareBaselines: (projectId: string, baselineA: number, baselineB?: number) =>
-    api.get(`/api/projects/${projectId}/baseline/compare`, { params: { baseline_a: baselineA, baseline_b: baselineB } }).then(res => res.data),
+    api.get(`/api/v1/projects/${projectId}/baseline/compare`, { params: { baseline_a: baselineA, baseline_b: baselineB } }).then(res => res.data),
 
   migrateLegacyData: (projectId: string, dryRun: boolean = true) =>
-    api.post(`/api/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),
+    api.post(`/api/v2/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),
 };
 
 export const portfolioApi = {
-  getSummary: () => api.get("/api/portfolio/summary").then(res => res.data),
-  getResourceHeatmap: () => api.get("/api/portfolio/resource-heatmap").then(res => res.data),
-  getMilestones: () => api.get("/api/portfolio/milestones").then(res => res.data),
+  getSummary: () => api.get("/api/v2/portfolio/summary").then(res => res.data),
+  getResourceHeatmap: () => api.get("/api/v2/portfolio/resource-heatmap").then(res => res.data),
+  getMilestones: () => api.get("/api/v2/portfolio/milestones").then(res => res.data),
 };

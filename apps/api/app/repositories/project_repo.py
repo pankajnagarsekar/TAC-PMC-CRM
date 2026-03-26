@@ -4,3 +4,7 @@ from app.schemas.project import Project
 class ProjectRepository(BaseRepository[Project]):
     def __init__(self, db):
         super().__init__(db, "projects", Project)
+
+class ScheduleRepository(BaseRepository):
+    def __init__(self, db):
+        super().__init__(db, "project_schedules")

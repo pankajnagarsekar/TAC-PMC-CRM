@@ -58,3 +58,13 @@ async def get_project_cash_balance(
     """Get current petty cash balance for a project."""
     balance = await cash_service.get_project_balance(user, project_id)
     return GenericResponse(data={"balance": balance})
+
+@router.get("/summary/{project_id}", response_model=GenericResponse[Dict[str, Any]])
+async def get_project_cash_summary(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    cash_service: CashService = Depends(get_cash_service)
+):
+    """Get comprehensive cash summary per category for a project."""
+    summary = await cash_service.get_cash_summary(user, project_id)
+    return GenericResponse(data=summary)

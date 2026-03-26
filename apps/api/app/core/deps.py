@@ -19,6 +19,8 @@ from app.services.reporting_service import ReportingService
 from app.services.scheduler_service import SchedulerService
 from app.services.cash_service import CashService
 from app.services.master_data_service import MasterDataService
+from app.services.snapshot_service import SnapshotService
+from app.services.dashboard_service import DashboardService
 from app.core.dependencies import PermissionChecker
 
 async def get_audit_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuditService:
@@ -29,6 +31,9 @@ async def get_permission_checker(db: AsyncIOMotorDatabase = Depends(get_db)) -> 
 
 async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuthService:
     return AuthService(db)
+
+async def get_snapshot_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> SnapshotService:
+    return SnapshotService(db)
 
 async def get_financial_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> FinancialService:
     return FinancialService(db)
@@ -56,25 +61,30 @@ async def get_client_service(
 
 async def get_payment_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    financial_service: FinancialService = Depends(get_financial_service),
+    permission_checker: PermissionChecker = Depends(get_permission_checker)
 ) -> PaymentService:
-    return PaymentService(db, audit_service)
+    return PaymentService(db, audit_service, financial_service, permission_checker)
 
 async def get_notification_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> NotificationService:
     return NotificationService(db)
 
 async def get_site_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    audit_service: AuditService = Depends(get_audit_service)
+    audit_service: AuditService = Depends(get_audit_service),
+    permission_checker: PermissionChecker = Depends(get_permission_checker),
+    snapshot_service: SnapshotService = Depends(get_snapshot_service)
 ) -> SiteService:
-    return SiteService(db, audit_service)
+    return SiteService(db, audit_service, permission_checker, snapshot_service)
 
 async def get_work_order_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
     audit_service: AuditService = Depends(get_audit_service),
-    financial_service: FinancialService = Depends(get_financial_service)
+    financial_service: FinancialService = Depends(get_financial_service),
+    permission_checker: PermissionChecker = Depends(get_permission_checker)
 ) -> WorkOrderService:
-    return WorkOrderService(db, audit_service, financial_service)
+    return WorkOrderService(db, audit_service, financial_service, permission_checker)
 
 async def get_vendor_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
@@ -111,6 +121,9 @@ async def get_cash_service(
 ):
     from app.core.dependencies import PermissionChecker
     return CashService(db, PermissionChecker(db), audit_service)
+
+async def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> DashboardService:
+    return DashboardService(db)
 
 async def get_master_data_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> MasterDataService:
     return MasterDataService(db)

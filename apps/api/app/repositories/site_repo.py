@@ -17,3 +17,7 @@ class DPRRepository(BaseRepository):
 class AttendanceRepository(BaseRepository):
     def __init__(self, db):
         super().__init__(db, "worker_attendance")
+
+class VoiceLogRepository(BaseRepository):
+    def __init__(self, db):
+        super().__init__(db, "voice_logs")

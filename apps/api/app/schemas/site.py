@@ -89,19 +89,38 @@ class VoiceLog(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+class DPRImageDetail(BaseModel):
+    image_id: str
+    image_data: str
+    caption: Optional[str] = None
+    activity_code: Optional[str] = None
+    aspect_ratio: str = "9:16"
+    size_kb: float
+    uploaded_by: str
+    uploaded_at: datetime
+
+class DPRImage(BaseModel):
+    image_data: str  # Base64 encoded
+    caption: Optional[str] = None
+    activity_code: Optional[str] = None
+
+class UpdateImageCaptionRequest(BaseModel):
+    caption: str
+
 class DPR(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
     project_id: str
-    created_by: str
-    date: datetime
-    notes: str
-    photos: List[str] = Field(default_factory=list)
-    status: Literal['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'] = "DRAFT"
-    approved_by: Optional[str] = None
-    approved_at: Optional[datetime] = None
-    rejected_by: Optional[str] = None
-    rejected_at: Optional[datetime] = None
-    rejection_reason: Optional[str] = None
+    supervisor_id: str
+    dpr_date: datetime
+    progress_notes: Optional[str] = None
+    voice_summary: Optional[str] = None
+    weather_conditions: str = "Normal"
+    images: List[DPRImageDetail] = Field(default_factory=list)
+    image_count: int = 0
+    status: str = "Draft"
+    locked_flag: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

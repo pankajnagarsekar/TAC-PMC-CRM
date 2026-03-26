@@ -9,6 +9,7 @@ from app.repositories.project_repo import ProjectRepository
 from app.repositories.settings_repo import CodeMasterRepository
 from app.repositories.user_repo import UserRepository
 from app.services.audit_service import AuditService
+from app.core.financial_utils import to_d128, to_decimal
 
 class CashService:
     def __init__(self, db, permission_checker, audit_service: AuditService):
@@ -95,9 +96,9 @@ class CashService:
             if not cat: continue
 
             threshold = self._get_threshold_for_category(cat, project)
-            allocation_received = _dec(allocation.get("allocation_received"))
-            total_expenses = _dec(allocation.get("total_expenses"))
-            allocation_original = _dec(allocation.get("allocation_original"))
+            allocation_received = to_decimal(allocation.get("allocation_received"))
+            total_expenses = to_decimal(allocation.get("total_expenses"))
+            allocation_original = to_decimal(allocation.get("allocation_original"))
 
             cash_in_hand = allocation_received - total_expenses
             allocation_remaining = allocation_original - allocation_received
@@ -251,12 +252,12 @@ class CashService:
 
                 if txn_type == "DEBIT":
                     inc_ops = {
-                        "cash_in_hand": Decimal128(str(-amount)),
-                        "total_expenses": Decimal128(str(amount)),
+                        "cash_in_hand": to_d128(-amount),
+                        "total_expenses": to_d128(amount),
                     }
                 else:
                     inc_ops = {
-                        "cash_in_hand": Decimal128(str(amount)),
+                        "cash_in_hand": to_d128(amount),
                     }
 
                 updated_alloc = await self.db.fund_allocations.find_one_and_update(
@@ -266,13 +267,13 @@ class CashService:
                     session=session
                 )
 
-                new_cash_in_hand = _dec(updated_alloc.get("cash_in_hand"))
+                new_cash_in_hand = to_decimal(updated_alloc.get("cash_in_hand"))
                 
                 doc = {
                     "project_id": project_id,
                     "organisation_id": user["organisation_id"],
                     "category_id": category_id,
-                    "amount": Decimal128(str(amount)),
+                    "amount": to_d128(amount),
                     "type": txn_type,
                     "description": data.get("description"),
                     "transaction_date": data.get("transaction_date"),
@@ -308,6 +309,3 @@ class CashService:
             result["created_at"] = result["created_at"].isoformat()
         return result
 
-def _dec(val):
-    if isinstance(val, Decimal128): return val.to_decimal()
-    return Decimal(str(val)) if val is not None else Decimal("0")

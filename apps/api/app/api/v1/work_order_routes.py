@@ -31,3 +31,15 @@ async def create_work_order(
     """Create a new work order for a project."""
     new_wo = await wo_service.create_work_order(user, project_id, wo_data)
     return GenericResponse(data=new_wo, message="Work order created successfully")
+
+@router.patch("/{wo_id}", response_model=GenericResponse[WorkOrder])
+async def update_work_order(
+    wo_id: str,
+    wo_data: dict, # Using dict for partial updates
+    user: dict = Depends(get_authenticated_user),
+    wo_service: WorkOrderService = Depends(get_work_order_service)
+):
+    """Update an existing work order."""
+    # Note: Logic parity fix - ensure update_work_order is implemented in service
+    result = await wo_service.update_work_order(wo_id, wo_data, user)
+    return GenericResponse(data=result)

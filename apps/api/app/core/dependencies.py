@@ -124,7 +124,58 @@ class PermissionChecker:
     @staticmethod
     async def check_admin_role(user: dict):
         if user.get("role") != "Admin":
-            raise HTTPException(status_code=403, detail="Admin role required")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Admin role required for this operation"
+            )
+        return True
+
+    async def verify_project_organisation(self, project_id: str, organisation_id: str):
+        """Verify that project belongs to the user's organisation"""
+        project = await self.db.projects.find_one(
+            {"_id": ObjectId(project_id)} if len(project_id) == 24 else {"project_id": project_id}
+        )
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        if project.get("organisation_id") != organisation_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Project does not belong to your organisation"
+            )
+        return True
+
+    async def check_client_project_access(self, user: dict, project_id: str):
+        """Client can only access THEIR assigned projects."""
+        if user.get("role") != "Client":
+            return True
+
+        mapping = await self.map_repo.get_mapping(user["user_id"], project_id)
+        if not mapping:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Client not authorized for this project"
+            )
+        return True
+
+    async def check_write_access_with_role(self, user: dict, project_id: str = None):
+        """
+        Check write access with role enforcement:
+        - Admin: Full write access
+        - Client: BLOCKED from writes
+        - Supervisor: BLOCKED from Web CRM
+        """
+        if user.get("role") == "Supervisor":
+             raise HTTPException(status_code=403, detail="Supervisors cannot access Web CRM")
+        
+        if user.get("role") == "Client":
+            raise HTTPException(status_code=403, detail="Client role is read-only")
+
+        if project_id:
+            await self.check_project_access(user, project_id, require_write=True)
+
         return True
 
     @staticmethod
