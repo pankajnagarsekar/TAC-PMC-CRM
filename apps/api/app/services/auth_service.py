@@ -5,7 +5,15 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status
 import secrets
 import hashlib
+import logging
+
 from app.core.config import settings
+from app.repositories.auth_repo import TokenBlacklistRepository, RefreshTokenRepository
+from app.repositories.user_repo import UserRepository
+from app.schemas.auth import Token, LoginRequest
+from app.schemas.user import UserResponse
+
+logger = logging.getLogger(__name__)
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -17,6 +25,12 @@ def generate_jti() -> str:
 class AuthService:
     """Standalone service for authentication and token management"""
     
+    def __init__(self, db=None):
+        if db:
+            self.blacklist_repo = TokenBlacklistRepository(db)
+            self.refresh_repo = RefreshTokenRepository(db)
+            self.user_repo = UserRepository(db)
+
     @staticmethod
     def hash_password(password: str) -> str:
         return pwd_context.hash(password)
@@ -81,21 +95,147 @@ class AuthService:
                 detail="Could not validate credentials"
             )
 
-    @staticmethod
-    async def revoke_token(jti: str, token_type: str, db) -> None:
-        await db.token_blacklist.insert_one({
+    async def login(self, login_data: LoginRequest) -> Token:
+        """Business logic for user login"""
+        # Find user by email
+        user = await self.user_repo.get_by_email(login_data.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        # Verify password
+        if not self.verify_password(login_data.password, user["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        # Check active status
+        if not user.get("active_status", False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive"
+            )
+
+        # Create tokens
+        user_id = user["id"]
+        token_data = {
+            "user_id": user_id,
+            "email": user["email"],
+            "role": user["role"],
+            "organisation_id": user["organisation_id"]
+        }
+        access_token = self.create_access_token(data=token_data)
+        refresh_token = self.create_refresh_token(user_id=user_id)
+
+        # Store refresh token
+        refresh_payload = self.decode_token(refresh_token, "refresh")
+        await self.refresh_repo.create({
+            "jti": refresh_payload["jti"],
+            "user_id": user_id,
+            "is_revoked": False,
+            "expires_at": datetime.fromtimestamp(refresh_payload["exp"], tz=timezone.utc)
+        })
+
+        user_res = UserResponse(**user)
+        return Token(
+            access_token=access_token,
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=user_res
+        )
+
+    async def refresh_token(self, refresh_token: str) -> Token:
+        """Business logic for refreshing access token"""
+        try:
+            payload = self.decode_token(refresh_token, "refresh")
+            jti = payload["jti"]
+            user_id = payload["user_id"]
+
+            token_doc = await self.refresh_repo.find_one({
+                "jti": jti,
+                "user_id": user_id,
+                "is_revoked": False
+            })
+            if not token_doc:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token is invalid or has been revoked"
+                )
+
+            user = await self.user_repo.get_by_id(user_id)
+            if not user or not user.get("active_status", False):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found or inactive"
+                )
+
+            # Revoke old refresh token
+            await self.refresh_repo.update_one({"jti": jti}, {"$set": {"is_revoked": True}})
+
+            # Create new tokens
+            token_data = {
+                "user_id": user_id,
+                "email": user["email"],
+                "role": user["role"],
+                "organisation_id": user["organisation_id"]
+            }
+            access_token = self.create_access_token(data=token_data)
+            new_refresh_token = self.create_refresh_token(user_id=user_id)
+
+            # Store new refresh token
+            new_payload = self.decode_token(new_refresh_token, "refresh")
+            await self.refresh_repo.create({
+                "jti": new_payload["jti"],
+                "user_id": user_id,
+                "is_revoked": False,
+                "expires_at": datetime.fromtimestamp(new_payload["exp"], tz=timezone.utc)
+            })
+
+            return Token(
+                access_token=access_token,
+                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                user=UserResponse(**user)
+            )
+        except Exception as e:
+            logger.error(f"Token refresh failed: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not refresh token"
+            )
+
+    async def revoke_token(self, jti: str, token_type: str) -> None:
+        await self.blacklist_repo.create({
             "jti": jti,
             "token_type": token_type,
             "revoked_at": datetime.now(timezone.utc)
         })
 
-    @staticmethod
-    async def is_token_revoked(jti: str, db) -> bool:
-        return await db.token_blacklist.find_one({"jti": jti}) is not None
+    async def is_token_revoked(self, jti: str) -> bool:
+        return await self.blacklist_repo.find_one({"jti": jti}) is not None
 
-    @staticmethod
-    async def revoke_all_user_tokens(user_id: str, db) -> None:
-        await db.refresh_tokens.update_many(
+    async def revoke_all_user_tokens(self, user_id: str) -> None:
+        await self.refresh_repo.update_many(
             {"user_id": user_id, "is_revoked": False},
             {"$set": {"is_revoked": True, "revoked_at": datetime.now(timezone.utc)}}
         )
+
+    async def logout(self, user_payload: dict, refresh_token: Optional[str]) -> dict:
+        """Business logic for user logout"""
+        jti = user_payload.get("jti")
+        if jti:
+            await self.revoke_token(jti, "access")
+
+        if refresh_token:
+            try:
+                payload = self.decode_token(refresh_token, "refresh")
+                await self.revoke_token(payload["jti"], "refresh")
+                await self.refresh_repo.update_one(
+                    {"jti": payload["jti"]},
+                    {"$set": {"is_revoked": True}}
+                )
+            except:
+                pass
+        
+        return {"status": "success"}

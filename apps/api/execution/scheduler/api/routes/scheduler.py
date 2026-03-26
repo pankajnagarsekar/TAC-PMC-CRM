@@ -49,8 +49,8 @@ from execution.scheduler.api.middleware.transaction import get_transaction_sessi
 from execution.scheduler.pipelines.financial_aggregations import build_wo_value_pipeline, build_payment_value_pipeline
 from execution.scheduler.db.bridge_installer import migrate_project_schedule
 
-from core.database import get_db
-from auth import get_current_user
+from app.db.mongodb import get_db
+from app.core.dependencies import get_authenticated_user, PermissionChecker
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +196,7 @@ async def calculate_schedule(
     request: ScheduleChangeRequest,
     db: AsyncIOMotorDatabase = Depends(get_db),
     session: AsyncIOMotorClientSession = Depends(get_transaction_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Orchestrates the full CPM calculation pipeline (Constitution §4).
@@ -375,7 +375,7 @@ async def lock_baseline(
     lock_request: BaselineLockRequest,
     db: AsyncIOMotorDatabase = Depends(get_db),
     session: AsyncIOMotorClientSession = Depends(get_transaction_session),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Constitution §2.2 & Phase 4: Snapshots current schedule into an immutable baseline.
@@ -512,7 +512,7 @@ async def lock_baseline(
 async def get_financials(
     project_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Returns read-only financial data.
@@ -544,7 +544,7 @@ async def compare_baselines(
     baseline_a: int = Query(..., ge=1, le=11),
     baseline_b: Optional[int] = Query(None, ge=1, le=11),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Computes variances between two baselines (or baseline vs current).
@@ -561,7 +561,7 @@ async def extract_mom_for_task(
     task_id: str,
     notes: Dict[str, str] = Body(...),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Extracts action items from meeting notes with project/task context.
@@ -585,16 +585,14 @@ async def trigger_migration(
     project_id: str,
     dry_run: bool = Query(True),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Triggers the bridge installer to migrate legacy payment schedules to project_schedules.
     """
     # Authorization: Ensure user has write access to the project
-    from permissions import PermissionChecker
     checker = PermissionChecker(db)
-    user = await checker.get_authenticated_user({"sub": current_user["sub"]})
-    await checker.check_project_access(user, project_id, require_write=True)
+    await checker.check_project_access(current_user, project_id, require_write=True)
 
     report = await migrate_project_schedule(db, project_id, dry_run=dry_run)
     return report

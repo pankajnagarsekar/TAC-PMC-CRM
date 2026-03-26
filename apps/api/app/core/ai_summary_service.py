@@ -5,6 +5,9 @@ from bson import ObjectId, Decimal128
 import logging
 import os
 
+from app.repositories.ai_summary_repo import AISummaryRepository
+from app.repositories.project_repo import ProjectRepository
+
 logger = logging.getLogger(__name__)
 
 class SummaryProvider:
@@ -58,10 +61,16 @@ class AISummaryService:
         self.db = db
         self.provider = EmergentSummaryProvider(api_key) if api_key else MockSummaryProvider()
         self.model = "gpt-4o" if api_key else "mock"
+        self.ai_repo = AISummaryRepository(db)
+        self.project_repo = ProjectRepository(db)
 
     async def generate_and_store(self, project_id: str, organisation_id: str, triggered_by: str = "scheduler") -> Dict[str, Any]:
         report_data = await self._aggregate_report_data(project_id, organisation_id)
-        project = await self.db.projects.find_one({"_id": ObjectId(project_id)} if ObjectId.is_valid(project_id) else {"project_id": project_id})
+        
+        project = await self.project_repo.get_by_id(project_id)
+        if not project:
+            project = await self.project_repo.find_one({"project_id": project_id})
+            
         project_name = project.get("project_name", project_id) if project else project_id
         summary_text = await self.provider.generate_summary(report_data, project_name)
         
@@ -70,15 +79,13 @@ class AISummaryService:
             "organisation_id": organisation_id,
             "summary_text": summary_text,
             "report_data": report_data,
-            "generated_at": datetime.now(timezone.utc),
             "model": self.model,
             "triggered_by": triggered_by
         }
-        await self.db.ai_project_summaries.insert_one(doc)
-        return doc
+        return await self.ai_repo.create(doc)
 
     async def get_latest(self, project_id: str) -> Optional[Dict[str, Any]]:
-        return await self.db.ai_project_summaries.find_one({"project_id": project_id}, sort=[("generated_at", -1)])
+        return await self.ai_repo.find_one({"project_id": project_id}, sort=[("generated_at", -1)])
 
     async def _aggregate_report_data(self, project_id: str, organisation_id: str) -> Dict[str, Any]:
         # Minimalist aggregation for MVP, full version in legacy

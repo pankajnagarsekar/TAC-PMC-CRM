@@ -5,9 +5,8 @@ This document provides the specific architectural context and mandates for the T
 ## 1. Active Objective
 Restructure `apps/api` from a script-based monolith into a Domain-Driven Design (DDD) layered architecture.
 
-- **Primary Source of Truth**: [Implementation Plan](file:///C:/Users/panka/.gemini/antigravity/brain/724a9e00-33a2-4aa7-a4c1-5f2d907790b8/implementation_plan.md)
-- **Status Tracker**: [Task File](file:///C:/Users/panka/.gemini/antigravity/brain/724a9e00-33a2-4aa7-a4c1-5f2d907790b8/task.md)
-
+- **Primary Source of Truth**: [Implementation Plan]
+- **Status Tracker**: [Task File]
 ## 2. Production-Ready Mandates
 1.  **DDD Domain Grouping**: Services, repos, and schemas must be grouped by domain (`user`, `project`, `verification`, `ocr`).
 2.  **Naming Conventions**: Strict suffixes: `_service.py`, `_repo.py`, `_routes.py`, `_schema.py`.

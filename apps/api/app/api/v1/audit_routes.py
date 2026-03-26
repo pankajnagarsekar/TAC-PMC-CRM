@@ -5,10 +5,11 @@ from datetime import datetime
 from app.core.dependencies import get_authenticated_user
 from app.core.deps import get_audit_service
 from app.services.audit_service import AuditService
+from app.schemas.shared import GenericResponse
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
 
-@router.get("/")
+@router.get("/", response_model=GenericResponse[List[Dict[str, Any]]])
 async def get_audit_logs(
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
@@ -19,7 +20,7 @@ async def get_audit_logs(
     user: dict = Depends(get_authenticated_user),
     audit_service: AuditService = Depends(get_audit_service)
 ):
-    return await audit_service.get_audit_logs(
+    logs = await audit_service.get_audit_logs(
         organisation_id=user["organisation_id"],
         entity_type=entity_type,
         entity_id=entity_id,
@@ -28,3 +29,4 @@ async def get_audit_logs(
         user_id=user_id,
         limit=limit
     )
+    return GenericResponse(data=logs)

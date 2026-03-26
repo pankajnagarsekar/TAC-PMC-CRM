@@ -14,8 +14,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from decimal import Decimal
 
 from execution.scheduler.models.shared_types import PyObjectId, ProjectStatus, SystemState
-from core.database import get_db
-from auth import get_current_user
+from app.db.mongodb import get_db
+from app.core.dependencies import get_authenticated_user
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ router = APIRouter(tags=["Portfolio"])
 @router.get("/summary")
 async def get_portfolio_summary(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     Enterprise Portfolio Aggregation.
@@ -139,7 +139,7 @@ from datetime import datetime, timezone, timedelta
 @router.get("/resource-heatmap")
 async def get_resource_heatmap(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     [Phase 4, Session 2.3 Gap Fix]
@@ -213,7 +213,7 @@ async def get_resource_heatmap(
 @router.get("/milestones")
 async def get_portfolio_milestones(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     [Phase 4, Session 2.2 Gap Fix]
@@ -254,7 +254,7 @@ async def get_portfolio_milestones(
 @router.get("/dependencies")
 async def get_portfolio_dependencies(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: Dict = Depends(get_current_user)
+    current_user: dict = Depends(get_authenticated_user)
 ):
     """
     [Phase 4, Session 2.6 Requirement]

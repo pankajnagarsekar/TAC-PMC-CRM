@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.db.mongodb import get_db
 from app.services.audit_service import AuditService
+from app.services.auth_service import AuthService
 from app.services.user_service import UserService
 from app.services.project_service import ProjectService
 from app.services.client_service import ClientService
@@ -15,13 +16,19 @@ from app.services.vendor_service import VendorService
 from app.services.settings_service import SettingsService
 from app.services.ai_summary_service import AISummaryService
 from app.services.reporting_service import ReportingService
+from app.services.scheduler_service import SchedulerService
+from app.services.cash_service import CashService
+from app.services.master_data_service import MasterDataService
 from app.core.dependencies import PermissionChecker
 
 async def get_audit_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuditService:
     return AuditService(db)
 
-async def get_permission_checker() -> PermissionChecker:
-    return PermissionChecker()
+async def get_permission_checker(db: AsyncIOMotorDatabase = Depends(get_db)) -> PermissionChecker:
+    return PermissionChecker(db)
+
+async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuthService:
+    return AuthService(db)
 
 async def get_financial_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> FinancialService:
     return FinancialService(db)
@@ -93,3 +100,17 @@ async def get_reporting_service(
     permission_checker: PermissionChecker = Depends(get_permission_checker)
 ) -> ReportingService:
     return ReportingService(db, permission_checker)
+
+async def get_scheduler_service(db: AsyncIOMotorDatabase = Depends(get_db)):
+    from app.core.dependencies import PermissionChecker
+    return SchedulerService(db, PermissionChecker(db))
+
+async def get_cash_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service)
+):
+    from app.core.dependencies import PermissionChecker
+    return CashService(db, PermissionChecker(db), audit_service)
+
+async def get_master_data_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> MasterDataService:
+    return MasterDataService(db)

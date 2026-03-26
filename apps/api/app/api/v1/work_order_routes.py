@@ -5,10 +5,11 @@ from app.core.dependencies import get_authenticated_user
 from app.core.deps import get_work_order_service
 from app.services.work_order_service import WorkOrderService
 from app.schemas.financial import WorkOrder, WorkOrderCreate
+from app.schemas.shared import GenericResponse
 
 router = APIRouter(prefix="/work-orders", tags=["Work Orders"])
 
-@router.get("/")
+@router.get("/", response_model=GenericResponse[Dict[str, Any]])
 async def list_work_orders(
     project_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
@@ -17,9 +18,10 @@ async def list_work_orders(
     wo_service: WorkOrderService = Depends(get_work_order_service)
 ):
     """List work orders with optional project filter."""
-    return await wo_service.list_work_orders(user, project_id, limit, cursor)
+    result = await wo_service.list_work_orders(user, project_id, limit, cursor)
+    return GenericResponse(data=result)
 
-@router.post("/{project_id}", response_model=WorkOrder, status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}", response_model=GenericResponse[WorkOrder], status_code=status.HTTP_201_CREATED)
 async def create_work_order(
     project_id: str,
     wo_data: WorkOrderCreate,
@@ -27,4 +29,5 @@ async def create_work_order(
     wo_service: WorkOrderService = Depends(get_work_order_service)
 ):
     """Create a new work order for a project."""
-    return await wo_service.create_work_order(user, project_id, wo_data)
+    new_wo = await wo_service.create_work_order(user, project_id, wo_data)
+    return GenericResponse(data=new_wo, message="Work order created successfully")

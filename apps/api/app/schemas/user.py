@@ -57,3 +57,13 @@ class UserUpdate(BaseModel):
     dpr_generation_permission: Optional[bool] = None
     assigned_projects: Optional[List[str]] = None
     screen_permissions: Optional[List[str]] = None
+
+class UserProjectMap(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    user_id: str
+    project_id: str
+    organisation_id: str
+    write_access: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

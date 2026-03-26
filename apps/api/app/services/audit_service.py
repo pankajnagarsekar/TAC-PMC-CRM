@@ -1,8 +1,10 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import HTTPException, status
 import logging
+
+from app.repositories.audit_repo import AuditRepository
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class AuditService:
 
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
-        self.collection = db.audit_logs
+        self.audit_repo = AuditRepository(db)
 
     def enforce_financial_delete_guard(self, entity_type: str, action_type: str):
         """ARCHITECTURAL GUARD: Prevent DELETE operations on financial entities."""
@@ -59,7 +61,7 @@ class AuditService:
                 "timestamp": datetime.now(timezone.utc)
             }
 
-            await self.collection.insert_one(audit_entry, session=session)
+            await self.audit_repo.create(audit_entry, session=session)
             logger.info(f"Audit log created: {action_type} on {entity_type}:{entity_id} by user:{user_id}")
         except Exception as e:
             logger.error(f"Failed to create audit log: {str(e)}")
@@ -76,7 +78,7 @@ class AuditService:
         end_date: Optional[datetime] = None,
         limit: int = 100,
         cursor: Optional[datetime] = None
-    ):
+    ) -> List[Dict[str, Any]]:
         """Retrieve audit logs (READ ONLY)"""
         query = {"organisation_id": organisation_id}
 
@@ -96,8 +98,4 @@ class AuditService:
             if "timestamp" not in query: query["timestamp"] = {}
             query["timestamp"]["$lt"] = cursor
 
-        cursor_obj = self.collection.find(query).sort("timestamp", -1).limit(limit)
-        logs = await cursor_obj.to_list(length=limit)
-
-        from app.core.utils import serialize_list
-        return serialize_list(logs)
+        return await self.audit_repo.list(query, sort=[("timestamp", -1)], limit=limit)

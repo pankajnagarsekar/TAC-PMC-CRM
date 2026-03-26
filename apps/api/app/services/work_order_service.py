@@ -7,6 +7,9 @@ from fastapi import HTTPException
 
 from app.db.mongodb import db_manager
 from app.schemas.financial import WorkOrder, WorkOrderCreate, WorkOrderUpdate
+from app.repositories.financial_repo import WorkOrderRepository, BudgetRepository, SequenceRepository
+from app.repositories.vendor_repo import VendorRepository
+from app.repositories.project_repo import ProjectRepository
 from app.core.utils import serialize_doc
 
 logger = logging.getLogger(__name__)
@@ -16,21 +19,23 @@ class WorkOrderService:
         self.db = db
         self.audit_service = audit_service
         self.financial_service = financial_service
+        self.wo_repo = WorkOrderRepository(db)
+        self.budget_repo = BudgetRepository(db)
+        self.vendor_repo = VendorRepository(db)
+        self.project_repo = ProjectRepository(db)
+        self.seq_repo = SequenceRepository(db)
 
     async def create_work_order(self, user: dict, project_id: str, wo_data: WorkOrderCreate) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
         
         async with db_manager.transaction_session() as session:
             # 1. Validate Budget
-            budget = await self.db.project_category_budgets.find_one({
-                "project_id": project_id,
-                "category_id": wo_data.category_id
-            }, session=session)
+            budget = await self.budget_repo.get_by_project_and_category(project_id, wo_data.category_id, session=session)
             if not budget:
                 raise HTTPException(status_code=400, detail="Category budget not initialized.")
 
             # 2. Strict ID verification (Vendor)
-            vendor = await self.db.vendors.find_one({"_id": ObjectId(wo_data.vendor_id), "organisation_id": organisation_id}, session=session)
+            vendor = await self.vendor_repo.get_by_id(wo_data.vendor_id, organisation_id=organisation_id, session=session)
             if not vendor:
                 raise HTTPException(status_code=400, detail="Vendor not found.")
 
@@ -48,7 +53,7 @@ class WorkOrderService:
             total_before_tax = subtotal - discount
 
             # Project tax rates
-            project = await self.db.projects.find_one({"_id": ObjectId(project_id)}, session=session)
+            project = await self.project_repo.get_by_id(project_id, organisation_id=organisation_id, session=session)
             cgst_rate = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
             sgst_rate = Decimal(str(project.get("project_sgst_percentage", "9.0"))) if project else Decimal("9.0")
 
@@ -57,14 +62,8 @@ class WorkOrderService:
             grand_total = self.financial_service.round_half_up(total_before_tax + cgst + sgst)
 
             # 4. Generate WO Ref
-            seq_doc = await self.db.sequences.find_one_and_update(
-                {"_id": f"wo_seq_{organisation_id}"},
-                {"$inc": {"seq": 1}},
-                upsert=True,
-                return_document=True,
-                session=session
-            )
-            wo_ref = f"WO-{seq_doc['seq']:04d}"
+            seq_val = await self.seq_repo.get_next_sequence(f"wo_seq_{organisation_id}", session=session)
+            wo_ref = f"WO-{seq_val:04d}"
 
             # 5. Save WO
             wo_dict = wo_data.dict()
@@ -79,17 +78,14 @@ class WorkOrderService:
                 "sgst": Decimal128(str(sgst)),
                 "grand_total": Decimal128(str(grand_total)),
                 "status": "Draft",
-                "version": 1,
-                "created_at": datetime.now(timezone.utc),
-                "updated_at": datetime.now(timezone.utc)
+                "version": 1
             })
 
-            result = await self.db.work_orders.insert_one(wo_dict, session=session)
-            wo_id = str(result.inserted_id)
+            new_wo = await self.wo_repo.create(wo_dict, session=session)
 
             # 6. Update Budget
-            await self.db.project_category_budgets.update_one(
-                {"_id": budget["_id"]},
+            await self.budget_repo.update_one(
+                {"_id": ObjectId(budget["id"])},
                 {
                     "$inc": {
                         "remaining_budget": Decimal128(str(-grand_total)),
@@ -104,15 +100,15 @@ class WorkOrderService:
                 organisation_id=organisation_id,
                 module_name="WORK_ORDERS",
                 entity_type="WORK_ORDER",
-                entity_id=wo_id,
+                entity_id=new_wo["id"],
                 action_type="CREATE",
                 user_id=user["user_id"],
                 project_id=project_id,
-                new_value=serialize_doc(wo_dict),
+                new_value=new_wo,
                 session=session
             )
 
-            return serialize_doc(wo_dict)
+            return new_wo
 
     async def list_work_orders(self, user: dict, project_id: Optional[str], limit: int, cursor: Optional[str]) -> Dict[str, Any]:
         query = {"organisation_id": user["organisation_id"]}
@@ -122,13 +118,13 @@ class WorkOrderService:
         if cursor:
             query["created_at"] = {"$lt": datetime.fromisoformat(cursor)}
 
-        docs = await self.db.work_orders.find(query).sort("created_at", -1).limit(limit).to_list(length=limit)
+        docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
         
         next_cursor = None
         if len(docs) == limit:
             next_cursor = docs[-1]["created_at"].isoformat()
 
         return {
-            "items": [serialize_doc(d) for d in docs],
+            "items": docs,
             "next_cursor": next_cursor
         }

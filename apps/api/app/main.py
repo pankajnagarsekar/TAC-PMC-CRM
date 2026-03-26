@@ -14,7 +14,11 @@ from app.api.v1.vendor_routes import router as vendor_router
 from app.api.v1.settings_routes import router as settings_router
 from app.api.v1.ai_summary_routes import router as ai_summary_router
 from app.api.v1.reporting_routes import router as reporting_router
+from app.api.v1.scheduler_routes import router as scheduler_router
+from app.api.v1.cash_routes import router as cash_router
 from app.api.v1.audit_routes import router as audit_router
+from app.api.v1.auth_routes import router as auth_router
+from execution.scheduler.api.routes import scheduler_router as enterprise_scheduler_router, portfolio_router
 from app.db.mongodb import db_manager
 
 def create_app() -> FastAPI:
@@ -34,18 +38,20 @@ def create_app() -> FastAPI:
     )
 
     # Routers
-    app.include_router(user_router, prefix="/api/v1")
-    app.include_router(project_router, prefix="/api/v1")
-    app.include_router(client_router, prefix="/api/v1")
-    app.include_router(payment_router, prefix="/api/v1")
-    app.include_router(site_router, prefix="/api/v1")
-    app.include_router(notification_router, prefix="/api/v1")
-    app.include_router(work_order_router, prefix="/api/v1")
-    app.include_router(vendor_router, prefix="/api/v1")
-    app.include_router(settings_router, prefix="/api/v1")
-    app.include_router(ai_summary_router, prefix="/api/v1")
-    app.include_router(reporting_router, prefix="/api/v1")
-    app.include_router(audit_router, prefix="/api/v1")
+    v1_routers = [
+        user_router, project_router, client_router, payment_router,
+        site_router, notification_router, work_order_router, vendor_router,
+        settings_router, ai_summary_router, reporting_router, scheduler_router,
+        cash_router, audit_router, auth_router
+    ]
+    
+    for router in v1_routers:
+        app.include_router(router, prefix="/api/v1")
+        app.include_router(router, prefix="/api")
+    
+    # Enterprise Scheduler V2
+    app.include_router(enterprise_scheduler_router, prefix="/api/v2")
+    app.include_router(portfolio_router, prefix="/api/v2/portfolio")
 
     @app.on_event("startup")
     async def startup_db_client():

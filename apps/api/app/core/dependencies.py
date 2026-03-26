@@ -7,13 +7,14 @@ import logging
 
 from app.db.mongodb import get_db
 from app.services.auth_service import AuthService
+from app.core.deps import get_auth_service
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncIOMotorDatabase = Depends(get_db)
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> dict:
     """
     Dependency to get current authenticated user from access token.
@@ -43,7 +44,7 @@ async def get_current_user(
             raise credentials_exception
             
         # Check revocation
-        if jti and await AuthService.is_token_revoked(jti, db):
+        if jti and await auth_service.is_token_revoked(jti):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has been revoked"
@@ -85,15 +86,19 @@ async def get_authenticated_user(
     user["user_id"] = str(user.pop("_id"))
     return user
 
+from app.repositories.user_repo import UserProjectMapRepository
+
 class PermissionChecker:
     """
     Logic for project and role-based access control.
     """
-    @staticmethod
+    def __init__(self, db: AsyncIOMotorDatabase):
+        self.map_repo = UserProjectMapRepository(db)
+
     async def check_project_access(
+        self,
         user: dict, 
         project_id: str, 
-        db: AsyncIOMotorDatabase,
         require_write: bool = False
     ):
         if user.get("role") == "Admin":
@@ -101,18 +106,12 @@ class PermissionChecker:
 
         assigned_projects = user.get("assigned_projects", [])
         if project_id in assigned_projects:
-            return True
+            # Note: assigned_projects list doesn't track write_access in user doc,
+            # so we still might need the map check for write access.
+            if not require_write:
+                return True
 
-        try:
-            p_oid = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
-            u_oid = ObjectId(user["user_id"]) if ObjectId.is_valid(user["user_id"]) else user["user_id"]
-        except:
-            p_oid, u_oid = project_id, user["user_id"]
-
-        mapping = await db.user_project_map.find_one({
-            "user_id": u_oid,
-            "project_id": p_oid
-        })
+        mapping = await self.map_repo.get_mapping(user["user_id"], project_id)
 
         if not mapping:
             raise HTTPException(status_code=403, detail="User does not have access to this project")

@@ -5,6 +5,8 @@ from typing import Dict, Any, List, Optional
 from bson import ObjectId, Decimal128
 from fastapi import HTTPException, status
 
+from app.repositories.financial_repo import BudgetRepository, WorkOrderRepository, PCRepository, FinancialStateRepository
+
 def _to_decimal(value) -> Decimal:
     if value is None:
         return Decimal("0")
@@ -20,12 +22,13 @@ logger = logging.getLogger(__name__)
 class FinancialService:
     def __init__(self, db):
         self.db = db
+        self.budget_repo = BudgetRepository(db)
+        self.wo_repo = WorkOrderRepository(db)
+        self.pc_repo = PCRepository(db)
+        self.financial_state_repo = FinancialStateRepository(db)
 
     async def recalculate_project_code_financials(self, project_id: str, category_id: str, session=None):
-        budget = await self.db.project_category_budgets.find_one({
-            "project_id": project_id,
-            "category_id": category_id
-        }, session=session)
+        budget = await self.budget_repo.get_by_project_and_category(project_id, category_id, session=session)
 
         if not budget:
             return None
@@ -40,7 +43,7 @@ class FinancialService:
             }},
             {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
         ]
-        committed_result = await self.db.work_orders.aggregate(committed_pipeline, session=session).to_list(length=1)
+        committed_result = await self.wo_repo.aggregate(committed_pipeline, session=session)
         committed_value = _to_decimal(committed_result[0].get("total") if committed_result else None)
 
         certified_pipeline = [
@@ -51,7 +54,7 @@ class FinancialService:
             }},
             {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
         ]
-        certified_result = await self.db.payment_certificates.aggregate(certified_pipeline, session=session).to_list(length=1)
+        certified_result = await self.pc_repo.aggregate(certified_pipeline, session=session)
         certified_value = _to_decimal(certified_result[0].get("total") if certified_result else None)
 
         balance_remaining = approved_budget - committed_value
@@ -68,17 +71,16 @@ class FinancialService:
             "last_recalculated": datetime.now(timezone.utc)
         }
 
-        await self.db.financial_state.update_one(
+        await self.financial_state_repo.update_one(
             {"project_id": project_id, "category_id": category_id},
             {"$set": serializable_doc},
-            upsert=True,
             session=session
         )
 
         return serializable_doc
 
     async def recalculate_all_project_financials(self, project_id: str, session=None):
-        budgets = await self.db.project_category_budgets.find({"project_id": project_id}).to_list(length=1000)
+        budgets = await self.budget_repo.list({"project_id": project_id}, limit=1000)
         
         totals = {
             "total_budget": Decimal("0"),

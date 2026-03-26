@@ -1,284 +1,358 @@
-# CLAUDE.md — Project Operating Manual
+# CLAUDE.md
 
-**Last Updated:** 2026-03-21
-**Project:** TAC-PMC-CRM
-**Tech Stack:** React.js (Frontend) | Node.js (Backend) | Python (API Server) | MongoDB (Database)
-**Design Language:** Luxury Industrial
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
 
-## 1. The Skill-First Rule ⚙️
+## Monorepo Structure
 
-**MANDATORY:** For **EVERY** task (analysis, bug fixing, feature creation, UI adjustment, database changes, or refactoring), you MUST:
+TAC-PMC-CRM is a full-stack CRM built with a **pnpm monorepo** using **Turbo** for task orchestration. The three main applications are:
 
-1. **Identify the most relevant skills** by searching the `.claude/skills` directory for applicable skill files
-2. **Document which skills are being used** in your response before beginning work
-3. **Stack skills strategically** (see section 2 below) for complex tasks
-4. **Verify alignment** with project specifications before writing any code
+| App | Path | Tech Stack | Purpose |
+|-----|------|-----------|---------|
+| **Web (Desktop)** | `apps/web/` | Next.js 16 + React 19 + Tailwind CSS | Main SPA for desktop/browser |
+| **Mobile** | `apps/mobile/` | React Native + Expo | Native mobile app (iOS/Android) |
+| **API** | `apps/api/` | FastAPI (Python) | REST API backend with DDD architecture |
 
-### Why This Matters
-- Ensures consistency across all changes
-- Prevents architectural drift
-- Makes decisions auditable and repeatable
-- Reduces rework and miscommunication
+**Shared Packages:**
+- `packages/types/` — Shared TypeScript type definitions
+- `packages/ui/` — Shared UI component library
 
 ---
 
-## 2. Mandatory Skill Stacking 🔧
+## Quick Start Commands
 
-Stack skills based on task type. Always include the base skill(s) plus context-specific skills:
+All commands run from the **root directory**:
 
-### Error Detection & Debugging
-```
-Primary: @error-detective + @debugging-toolkit + @software-architecture
-Example: When fixing a database query failure, also check data integrity patterns
-```
-
-### New Feature Implementation
-```
-Primary: @software-architecture + @concise-planning + @[language]-pro
-Example: Adding a new CRM field requires @react-best-practices (frontend) + @python-pro (backend) + @database-design (schema)
+### Development (All Apps)
+```bash
+pnpm install           # Install dependencies
+pnpm dev               # Start all apps (web + mobile + API)
 ```
 
-### UI/UX Adjustments & Components
-```
-Primary: @frontend-design + @tailwind-design-system + @react-best-practices
-Secondary: @accessibility-compliance + @performance-optimizer
-Example: Any design change must maintain the Luxury Industrial aesthetic and pass a11y tests
-```
-
-### Database Schema & Data Changes
-```
-Primary: @database-design + @data-integrity-patterns + @sql-pro
-Secondary: @backend-architect + @testing-patterns
-Example: Schema modifications must preserve financial integrity and include migration tests
+### Individual App Development
+```bash
+pnpm -C apps/web dev              # Start Next.js frontend only (port 3000)
+pnpm -C apps/mobile start         # Start Expo mobile (web mode, port 3001)
+pnpm -C apps/api exec python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### API Development & Integration
-```
-Primary: @api-design-principles + @[language]-pro + @security-best-practices
-Secondary: @testing-patterns + @error-handling-patterns
+### Build & Lint
+```bash
+pnpm build             # Build all apps (Turbo-orchestrated)
+pnpm lint              # Lint all apps (TypeScript, Python)
+pnpm format            # Format all code (Prettier)
 ```
 
-### Performance Optimization
-```
-Primary: @performance-profiling + @performance-optimizer + @[language]-patterns
-Secondary: @monitoring + @observability-engineer
+### Tests
+```bash
+# Coming soon — add test configuration to each app's package.json
 ```
 
 ---
 
-## 3. Strict Context Alignment 📋
+## Backend Architecture (apps/api)
 
-All code modifications **MUST** align with the following specifications. These are not optional:
+The **FastAPI backend** follows **Domain-Driven Design (DDD)** organized by bounded contexts:
 
-### Frontend (React, UI/UX, Components)
-**Authority:** `Enterprise Frontend Engineering Specification.md`
-- Component structure and naming conventions
-- State management patterns (Context API, Redux patterns)
-- Styling system (Tailwind CSS with Luxury Industrial design tokens)
-- Accessibility requirements (WCAG 2.1 AA compliance)
-- Performance targets (Core Web Vitals)
-- Testing standards (unit tests, integration tests, e2e tests)
-
-**Mandatory Checks Before Any UI Code:**
-- [ ] Does this component follow the established naming convention?
-- [ ] Are all new UI elements styled according to the Luxury Industrial design language?
-- [ ] Have accessibility attributes been added (aria-*, alt-text, semantic HTML)?
-- [ ] Is the component performance-tested?
-- [ ] Does it work on both web and mobile viewports?
-
-### Backend, Database & Financial Integrity
-**Authority:** `Backend Database Schema & Financial Integrity Specification.md`
-- Database schema and relationships
-- Data validation rules
-- Financial calculation methods (cash flow, budgeting, forecasting)
-- Audit trail requirements
-- Transaction integrity constraints
-- API response format and error handling
-- Security and authentication patterns
-
-**Mandatory Checks Before Any Data/Backend Code:**
-- [ ] Does this change preserve referential integrity?
-- [ ] Are financial calculations verified against the specification?
-- [ ] Is an audit trail entry created for changes?
-- [ ] Are all inputs validated?
-- [ ] Does the change require database migration? (If yes, include migration file)
-- [ ] Have edge cases been tested (negative values, zero, null, overflow)?
-
----
-
-## 4. Verification Protocol ✅
-
-**MANDATORY:** After any code modification, output a **Verification Step** using `@testing-patterns`:
-
-### Format:
-```markdown
-## Verification Step
-
-**Skill Used:** @testing-patterns
-
-**Tests Created/Run:**
-- [ ] Unit test: [test name]
-- [ ] Integration test: [test name]
-- [ ] E2E test (if applicable): [test name]
-
-**Verification Checklist:**
-- [ ] Code runs without errors
-- [ ] All new functions have test coverage
-- [ ] Edge cases tested (null, undefined, empty, boundary values)
-- [ ] Performance baseline met
-- [ ] No console warnings or errors
-- [ ] Accessibility checks passed (if UI change)
-- [ ] Specification alignment verified
+```
+apps/api/
+├── app/
+│   ├── main.py                 # FastAPI app setup, middleware, router registration
+│   ├── core/
+│   │   ├── config.py           # Settings & environment variables
+│   │   ├── dependencies.py     # FastAPI dependency injection
+│   │   ├── utils.py            # Shared utilities
+│   │   ├── storage.py          # File/S3 storage logic
+│   │   └── ...service.py       # Cross-cutting services (AI, PDF, etc.)
+│   │
+│   ├── api/v1/                 # API routes (thin controllers)
+│   │   ├── user_routes.py      # User endpoints
+│   │   ├── project_routes.py   # Project endpoints
+│   │   ├── auth_routes.py      # Authentication endpoints
+│   │   └── ...                 # Other domain routes
+│   │
+│   ├── services/               # Business logic (DDD service layer)
+│   │   ├── user_service.py     # User business logic
+│   │   ├── auth_service.py     # Auth logic (JWT, password hashing)
+│   │   ├── project_service.py  # Project logic
+│   │   └── ...                 # Other domain services
+│   │
+│   ├── repositories/           # Data access layer
+│   │   ├── base_repo.py        # Base repository (shared CRUD)
+│   │   ├── user_repo.py        # User queries/mutations
+│   │   ├── project_repo.py     # Project queries/mutations
+│   │   └── ...                 # Other domain repositories
+│   │
+│   ├── schemas/                # Pydantic validation/serialization
+│   │   ├── user.py             # User DTOs
+│   │   ├── project.py          # Project DTOs
+│   │   └── ...                 # Other domain schemas
+│   │
+│   └── db/
+│       └── mongodb.py          # MongoDB connection manager
+│
+├── execution/                  # Enterprise scheduler (separate subsystem)
+│   └── scheduler/
+│
+└── pyproject.toml              # Python dependencies
 ```
 
-### When to Skip Verification
-Only skip if:
-- The change is documentation-only (comments, CLAUDE.md updates)
-- The change is configuration-only (env vars, non-code files)
-- Explicitly instructed by the user
+### Key Architectural Principles
+
+1. **Dependency Injection**: All services and repositories are injected via `FastAPI.Depends()` in route handlers. Never instantiate directly.
+2. **Service Layer**: Services own transaction boundaries and business logic. Routes are thin.
+3. **Repository Pattern**: All DB access goes through repositories. Queries in repositories, business logic in services.
+4. **Async/Await**: 100% async—no blocking I/O.
+5. **Standard Responses**:
+   - Error: `{ "success": false, "message": "...", "error_code": "..." }`
+   - Success: `{ "success": true, "data": {...}, "message": "..." }`
 
 ---
 
-## 5. Project Tech Stack & Architecture 🏗️
+## Frontend Architecture (apps/web)
 
-### Frontend
-- **Framework:** React 18+
-- **Styling:** Tailwind CSS
-- **Design System:** Luxury Industrial aesthetic
-- **State Management:** React Context API / Redux (as needed)
-- **Testing:** Jest, React Testing Library, Playwright
-- **Build Tool:** Turbo (monorepo), Vite/Next.js
+**Next.js 16 + React 19 + Tailwind CSS**
 
-### Backend
-- **Runtime:** Node.js (Express/Fastify patterns)
-- **API Server:** Python (FastAPI) for heavy computation
-- **Language:** TypeScript (frontend), JavaScript (backend), Python (API/ML)
-- **Testing:** Jest, pytest, Vitest
-
-### Database
-- **Primary:** MongoDB
-- **ORM/ODM:** Mongoose / Prisma
-- **Querying:** Aggregation pipelines for complex financial queries
-- **Backups:** Regular automated backups required
-
-### Financial Logic
-- All monetary calculations use **fixed-point arithmetic** (no floating-point)
-- All transactions logged to audit trail
-- No direct database mutations—always use validated business logic layers
-- Reconciliation and variance tracking required
-
----
-
-## 6. Code Modification Workflow 📝
-
-When tasked with modifications, follow this sequence:
-
-### Step 1: Skill Identification
 ```
-"I will use @[skill1] + @[skill2] + @[skill3] for this task because..."
+apps/web/
+├── pages/              # Next.js page routes
+├── components/         # Reusable React components
+├── lib/                # Utilities, API client, hooks
+├── styles/             # Global styles, Tailwind config
+└── public/             # Static assets
 ```
 
-### Step 2: Specification Review
-- Read the relevant specification file (Frontend or Backend)
-- Identify constraints, patterns, and requirements
-- Ask clarifying questions if specifications conflict with the task
-
-### Step 3: Planning (for non-trivial changes)
-- Use `@concise-planning` to outline the approach
-- Confirm approach aligns with specifications
-- Identify test cases before writing code
-
-### Step 4: Implementation
-- Write code following established patterns
-- Include inline comments for complex logic
-- Commit incrementally with clear messages
-
-### Step 5: Verification
-- Run all relevant tests
-- Output Verification Step checklist
-- Confirm specification alignment
-
-### Step 6: Documentation
-- Update CLAUDE.md if patterns change
-- Document any architectural decisions in PR/commit message
-- Update relevant specification files
+### Key Details
+- **Styling**: Tailwind CSS + custom design tokens (Luxury Industrial aesthetic)
+- **UI Components**: From `packages/ui/` for consistency
+- **API Client**: Axios or native `fetch` (TBD)
+- **State Management**: Zustand for app state (see `zustand` in package.json)
 
 ---
 
-## 7. Emergency / Technical Debt Protocol 🚨
+## Mobile Architecture (apps/mobile)
 
-**When you encounter a deviation from specifications:**
+**React Native + Expo + Expo Router**
 
-1. **Document it:** Add to the issue/PR description with `[SPEC-DEVIATION]` tag
-2. **Root cause:** Determine if it's a spec gap or intentional bypass
-3. **Decision:**
-   - If gap: Update specification immediately
-   - If intentional: Require explicit user approval + document in commit
-4. **Track:** Add to technical debt backlog for future refactoring
+```
+apps/mobile/
+├── app/                # Expo Router file-based routing
+├── components/         # React Native components
+├── hooks/              # Custom hooks
+├── lib/                # Utilities, API client
+└── scripts/            # Setup scripts
+```
+
+### Targets
+- **Web**: `pnpm -C apps/mobile start --web` (port 3001)
+- **iOS/Android**: `pnpm -C apps/mobile ios` / `pnpm -C apps/mobile android`
 
 ---
 
-## 8. Git Workflow & Commits 💻
+## Shared Packages
+
+### `packages/types/`
+- Centralized TypeScript types used by web and mobile
+- Single source of truth for type definitions
+- Auto-imported via `@tac-pmc/types` in `tsconfig.json`
+
+### `packages/ui/`
+- Shared component library (React components, Tailwind utilities)
+- Used by both web and mobile
+- Import as `@tac-pmc/ui`
+
+---
+
+## Database: MongoDB
+
+- **Connection**: via `app/db/mongodb.py`
+- **URL**: `MONGO_URL` environment variable (default: `mongodb://localhost:27017`)
+- **Database Name**: `tac_pmc_crm` (configurable)
+- **Collections**: One per domain (users, projects, clients, etc.)
+- **Financial Integrity**: All monetary fields use fixed-point arithmetic (no floats); audit trail required for mutations
+
+---
+
+## Environment Configuration
+
+Create `.env` files in each app as needed:
+
+```bash
+# apps/api/.env
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=tac_pmc_crm
+JWT_SECRET_KEY=your-super-secret-key-change-in-prod
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# apps/web/.env.local
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# apps/mobile/.env
+API_URL=http://localhost:8000
+```
+
+**Never commit `.env` files with secrets.** Use `.env.example` for documentation.
+
+---
+
+## Git Workflow & Commits
 
 ### Commit Message Format
 ```
 [type]: Brief description
 
-Detailed explanation of changes and reasoning.
+Detailed explanation of changes.
 
+Apps Changed: [web|mobile|api|packages|multiple]
 Skills Used: @skill1, @skill2
-Specification(s) Aligned: [specification name]
-Tests Added/Modified: [test names]
 ```
 
-**Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+**Types**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
-### PR Requirements
-- Reference relevant issue(s)
-- Include Verification Step checklist
-- Link to specification sections affected
-- Require approval before merge if:
-  - Database schema changes
-  - Financial logic changes
-  - API contract changes
+### Common Scenarios
 
----
+**Frontend Feature**:
+```bash
+git commit -m "feat: add user settings page
 
-## 9. Design System: Luxury Industrial 🎨
+- Created new page component with form validation
+- Integrated with user service API
+- Added responsive Tailwind styling
 
-The project uses a "Luxury Industrial" aesthetic:
+Apps Changed: web
+```
 
-- **Color Palette:** Deep metallics, muted golds, charcoal grays, soft whites
-- **Typography:** Modern geometric sans-serif for headers, readable serif for body text
-- **Spacing:** Balanced whitespace, grid-based 4px/8px/16px increments
-- **Components:** Minimalist, high-contrast, sophisticated simplicity
-- **Interactions:** Smooth animations, meaningful micro-interactions
+**Backend Bug Fix**:
+```bash
+git commit -m "fix: prevent duplicate project creation
 
-**Mandatory:** All new UI components must be reviewed against design tokens in the specification.
+- Added uniqueness check in project_service
+- Added database index on project_slug
+- Added test case for race condition
 
----
-
-## 10. Contact & Escalation 📞
-
-- **Specification Updates:** Create an issue with `[SPEC-UPDATE]` tag
-- **Architecture Questions:** Use `@software-architect` skill
-- **Design Questions:** Use `@frontend-design` skill
-- **Data Integrity Questions:** Use `@database-architect` skill
+Apps Changed: api
+```
 
 ---
 
-## Summary: The Three Mandatory Rules
+## Turbo Task Orchestration
 
-1. **Skill-First:** Always identify and stack relevant skills before starting work
-2. **Specification-Aligned:** All code must conform to the Frontend or Backend specification
-3. **Verification-Required:** Output a Verification Step after every code modification
+The monorepo uses **Turbo** to run tasks across all apps:
 
-**These rules are non-negotiable.** Deviation requires explicit user approval and documentation.
+- `pnpm dev` — runs `dev` script in each app (web, mobile, API)
+- `pnpm build` — runs `build` script (respects dependency graph)
+- `pnpm lint` — runs `lint` script across all apps
+
+**Config**: See `turbo.json` for task definitions (inputs, outputs, caching rules).
 
 ---
 
-**Document Owners:** TAC-PMC-CRM Development Team
-**Review Frequency:** Quarterly or as needed
-**Last Review:** 2026-03-21
+## Testing Strategy
+
+- **Web**: Jest + React Testing Library (TBD)
+- **Mobile**: Jest + React Native Testing Library (TBD)
+- **API**: pytest (Python) — create tests alongside services/repos
+
+### Test Location Convention
+- Services: `tests/services/test_<domain>_service.py`
+- Repositories: `tests/repositories/test_<domain>_repo.py`
+- Routes: `tests/routes/test_<domain>_routes.py`
+
+---
+
+## Common Development Tasks
+
+### Adding a New API Endpoint
+
+1. **Schema** — Define request/response in `apps/api/app/schemas/<domain>.py`
+2. **Repository** — Add query/mutation in `apps/api/app/repositories/<domain>_repo.py`
+3. **Service** — Add business logic in `apps/api/app/services/<domain>_service.py`
+4. **Route** — Add endpoint in `apps/api/app/api/v1/<domain>_routes.py`
+5. **Test** — Add pytest in `apps/api/tests/routes/test_<domain>_routes.py`
+
+### Adding a New Type to Frontend
+1. Add TypeScript interface to `packages/types/src/index.ts`
+2. Update `packages/ui/` if new component needed
+3. Use `import type { MyType } from '@tac-pmc/types'` in web/mobile
+
+### Running Single Test
+```bash
+# Backend (Python)
+pnpm -C apps/api exec pytest tests/routes/test_user_routes.py::test_create_user -v
+
+# Frontend (Jest)
+pnpm -C apps/web test UserForm --watch
+```
+
+---
+
+## Debugging
+
+### Backend (Python/FastAPI)
+```bash
+# Run with logging enabled
+LOGLEVEL=DEBUG pnpm -C apps/api exec python -m uvicorn app.main:app --reload
+
+# Access API docs
+http://localhost:8000/docs
+```
+
+### Frontend (Next.js)
+- Open DevTools (F12) for React + JavaScript debugging
+- Use `next/image` for optimized images
+- Check `_app.tsx` for global context/theme setup
+
+### Mobile (Expo)
+```bash
+pnpm -C apps/mobile start
+# Press 'i' for iOS simulator, 'a' for Android emulator
+```
+
+---
+
+## Performance Considerations
+
+1. **API**: Use MongoDB aggregation pipelines for complex queries (avoid N+1)
+2. **Frontend**: Lazy-load routes with `next/dynamic`, memoize expensive components
+3. **Mobile**: Use Expo's `expo-image` for optimized images, avoid re-renders with hooks
+4. **Caching**: Use SWR (web) for API caching; React Query patterns if needed
+
+---
+
+## Known Limitations & TODOs
+
+- [ ] Tests not yet configured (setup jest/pytest)
+- [ ] API pagination not yet implemented (add limit/offset)
+- [ ] Mobile push notifications (Firebase setup needed)
+- [ ] Database migrations (Alembic or manual scripts)
+- [ ] Secrets management (move JWT secret to vault)
+
+---
+
+## Links & Resources
+
+- **Turbo Docs**: https://turbo.build
+- **pnpm Workspaces**: https://pnpm.io/workspaces
+- **FastAPI**: https://fastapi.tiangolo.com
+- **Next.js**: https://nextjs.org
+- **Expo**: https://expo.io
+- **MongoDB**: https://docs.mongodb.com
+
+---
+
+## For Future Claude Instances
+
+When working in this repo:
+
+1. **Identify the app** first — is this web, mobile, or API?
+2. **Follow DDD in backend** — service → repository pattern, never query in routes
+3. **Use shared packages** — `@tac-pmc/types` and `@tac-pmc/ui` for consistency
+4. **Test before commit** — run `pnpm build && pnpm lint` at root
+5. **Document non-obvious changes** — architectural decisions in commit messages
+
+---
+
+**Document Owner**: TAC-PMC-CRM Development Team
+**Last Updated**: 2026-03-26
