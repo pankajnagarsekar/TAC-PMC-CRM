@@ -69,107 +69,15 @@ audit_service = AuditService(db)
 financial_service = FinancialRecalculationService(db)
 permission_checker = PermissionChecker(db)
 
-# Create the main app
-app = FastAPI(
-    title="Construction Management System - Phase 2 Hardened",
-    version="2.0.0",
-    description="Enterprise Construction Management with Hardened Financial Core"
-)
+# --- INTERNAL SERVICE FUNCTIONS (PHASE 0) ---
 
-# Configure CORS — MUST be added before routes
-allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://localhost:3010",
-    "http://localhost:19006",
-    "http://localhost:8081",
-    "https://localhost:3000",
-    "https://localhost:3001",
-    "https://localhost:3002",
-    "https://localhost:3010",
-    "https://localhost:19006",
-    "https://localhost:8081",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:3002",
-    "http://127.0.0.1:3010",
-    "http://127.0.0.1:19006",
-    "http://127.0.0.1:8081",
-    "https://127.0.0.1:3000",
-    "https://127.0.0.1:3001",
-    "https://127.0.0.1:3002",
-    "https://127.0.0.1:3010",
-    "https://127.0.0.1:19006",
-    "https://127.0.0.1:8081",
-]
-
-# Allow environment variable override
-env_origins = os.getenv("ALLOWED_ORIGINS")
-if env_origins:
-    allowed_origins = [origin.strip() for origin in env_origins.split(",")]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-init_rate_limiting(app)
-
-app.include_router(audit_router, prefix="/api")
-app.include_router(scheduler_router, prefix="/api/projects")
-app.include_router(enterprise_scheduler_router, prefix="/api/scheduler")
-app.include_router(portfolio_router, prefix="/api/portfolio")
-
-# Create router with /api prefix
-api_router = APIRouter(prefix="/api")
-
-# HTTP Bearer for token extraction
-security = HTTPBearer()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-
-# Startup tasks
-@app.on_event("startup")
-async def startup_db_client():
-    await ensure_indexes(db)
-    # Create AI summary service indexes
-    from core.ai_summary_service import AISummaryService
-    ai_svc = AISummaryService(db=db)
-    await ai_svc.create_indexes()
-    logger.info("Database startup tasks completed.")
-
-
-@api_router.get("/clients", response_model=List[Client])
-async def list_clients(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    current_user: dict = Depends(get_current_user)
-):
-    """List all clients for the organisation with pagination"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    clients = await db.clients.find({"organisation_id": user["organisation_id"]}).skip(skip).limit(limit).to_list(length=limit)
+async def service_list_clients(db, organisation_id: str, skip: int, limit: int):
+    """Business logic for listing clients"""
+    clients = await db.clients.find({"organisation_id": organisation_id}).skip(skip).limit(limit).to_list(length=limit)
     return [serialize_doc(c) for c in clients]
 
-
-@api_router.post("/clients", response_model=Client, status_code=status.HTTP_201_CREATED)
-async def create_client(client_data: ClientCreate, current_user: dict = Depends(get_current_user)):
-    """Create a new client"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
-    await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_client_readonly(user)
-    await permission_checker.check_admin_role(user)
-
+async def service_create_client(db, audit_service, user, client_data: ClientCreate):
+    """Business logic for creating a client"""
     client_dict = client_data.dict()
     client_dict["organisation_id"] = user["organisation_id"]
     client_dict["created_at"] = datetime.now(timezone.utc)
@@ -177,6 +85,7 @@ async def create_client(client_data: ClientCreate, current_user: dict = Depends(
     client_dict["active_status"] = True
 
     result = await db.clients.insert_one(client_dict)
+    client_id = str(result.inserted_id)
     client_dict["_id"] = result.inserted_id
 
     # Audit log
@@ -184,33 +93,22 @@ async def create_client(client_data: ClientCreate, current_user: dict = Depends(
         organisation_id=user["organisation_id"],
         module_name="CLIENT_MANAGEMENT",
         entity_type="CLIENT",
-        entity_id=str(result.inserted_id),
+        entity_id=client_id,
         action_type="CREATE",
         user_id=user["user_id"],
         new_value={"client_name": client_data.client_name}
     )
     return serialize_doc(client_dict)
 
-
-@api_router.get("/clients/{client_id}", response_model=Client)
-async def get_client(client_id: str, current_user: dict = Depends(get_current_user)):
-    """Get a specific client by ID"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    client = await db.clients.find_one({"_id": ObjectId(client_id), "organisation_id": user["organisation_id"]})
+async def service_get_client(db, client_id: str, organisation_id: str):
+    """Business logic for getting a client"""
+    client = await db.clients.find_one({"_id": ObjectId(client_id), "organisation_id": organisation_id})
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     return serialize_doc(client)
 
-
-@api_router.put("/clients/{client_id}", response_model=Client)
-async def update_client(client_id: str, client_data: ClientUpdate, current_user: dict = Depends(get_current_user)):
-    """Update a client"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
-    await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_client_readonly(user)
-    await permission_checker.check_admin_role(user)
-
+async def service_update_client(db, audit_service, user, client_id: str, client_data: ClientUpdate):
+    """Business logic for updating a client"""
     update_data = {k: v for k, v in client_data.dict().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc)
 
@@ -234,16 +132,8 @@ async def update_client(client_id: str, client_data: ClientUpdate, current_user:
     )
     return serialize_doc(result)
 
-
-@api_router.delete("/clients/{client_id}")
-async def delete_client(client_id: str, current_user: dict = Depends(get_current_user)):
-    """Soft delete a client by setting active_status to false"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
-    await permission_checker.check_web_crm_access(user)
-    await permission_checker.check_client_readonly(user)
-    await permission_checker.check_admin_role(user)
-
+async def service_delete_client(db, audit_service, user, client_id: str):
+    """Business logic for deactivating a client"""
     # Check if client has associated projects
     project_count = await db.projects.count_documents({"client_id": client_id, "organisation_id": user["organisation_id"]})
     if project_count > 0:
@@ -269,28 +159,11 @@ async def delete_client(client_id: str, current_user: dict = Depends(get_current
     )
     return {"message": "Client deleted successfully"}
 
-
-# ============================================
-
-
-
-# ============================================
-# PAYMENT CERTIFICATE ENDPOINTS
-# ============================================
-@api_router.get("/payment-certificates")
-async def list_payment_certificates(
-    project_id: str = Query(..., description="Project ID"),
-    limit: int = Query(50, ge=1, le=500, description="Results limit"),
-    cursor: Optional[str] = Query(None, description="Pagination cursor"),
-    current_user: dict = Depends(get_current_user)
-):
-    """List all payment certificates for a project"""
-    user = await permission_checker.get_authenticated_user(current_user)
+async def service_list_payment_certificates(db, user, project_id: str, limit: int, cursor: Optional[str]):
+    """Business logic for listing payment certificates for a project"""
     # Check project — handle both ObjectId and string project_id formats
-    # First, try to find by project_id field (the standard string ID)
     project = await db.projects.find_one({"project_id": project_id, "organisation_id": user["organisation_id"]})
 
-    # If not found and project_id is 24 chars, try as ObjectId (_id field)
     if not project and len(project_id) == 24:
         try:
             project = await db.projects.find_one({"_id": ObjectId(project_id), "organisation_id": user["organisation_id"]})
@@ -322,11 +195,8 @@ async def list_payment_certificates(
         "next_cursor": next_cursor
     }
 
-
-@api_router.post("/payment-certificates", response_model=PaymentCertificate, status_code=status.HTTP_201_CREATED)
-async def create_payment_certificate(pc_data: PaymentCertificateCreate, current_user: dict = Depends(get_current_user)):
-    """Create a new payment certificate (can be from OCR)"""
-    user = await permission_checker.get_authenticated_user(current_user)
+async def service_create_payment_certificate(db, audit_service, user, pc_data: PaymentCertificateCreate):
+    """Business logic for creating a payment certificate"""
     pc_dict = pc_data.dict()
     pc_dict["organisation_id"] = user["organisation_id"]
     pc_dict["created_at"] = datetime.now(timezone.utc)
@@ -348,12 +218,8 @@ async def create_payment_certificate(pc_data: PaymentCertificateCreate, current_
     )
     return serialize_doc(pc_dict)
 
-
-@api_router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register_user(user_data: UserCreate):
-    """
-    Register a new user. First user becomes Admin, subsequent users default to their specified role.
-    """
+async def service_register_user(db, audit_service, user_data: UserCreate):
+    """Business logic for registering a new user"""
     # Check if email already exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
@@ -409,14 +275,8 @@ async def register_user(user_data: UserCreate):
     del user_dict["hashed_password"]
     return UserResponse(**user_dict)
 
-
-@api_router.post("/auth/login", response_model=Token)
-async def login(login_data: LoginRequest, response: Response):
-    """
-    Authenticate user and return JWT tokens.
-    CORRECTED: Access token expires in 30 minutes (not 30 days).
-    Refresh token expires in 7 days.
-    """
+async def service_login(db, login_data: LoginRequest, response: Response):
+    """Business logic for user login"""
     # Find user by email
     user = await db.users.find_one({"email": login_data.email})
     if not user:
@@ -451,7 +311,6 @@ async def login(login_data: LoginRequest, response: Response):
     refresh_token = create_refresh_token(user_id=user_id)
 
     # Store refresh token in database (for token rotation)
-    from auth import decode_refresh_token
     refresh_payload = decode_refresh_token(refresh_token)
     refresh_token_doc = {
         "jti": refresh_payload["jti"],
@@ -495,22 +354,8 @@ async def login(login_data: LoginRequest, response: Response):
         user=user_response
     )
 
-
-@api_router.post("/auth/refresh", response_model=Token)
-async def refresh_access_token(
-    response: Response,
-    refresh_token: Optional[str] = Cookie(None)
-):
-    """
-    Refresh access token using refresh token from cookie.
-    Token Rotation: Old refresh token is revoked, new one is issued.
-    """
-    if not refresh_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token missing"
-        )
-
+async def service_refresh_token(db, refresh_token: str, response: Response):
+    """Business logic for refreshing access token"""
     try:
         # Decode refresh token
         payload = decode_refresh_token(refresh_token)
@@ -598,26 +443,18 @@ async def refresh_access_token(
             detail="Could not refresh token"
         )
 
-
-@api_router.post("/auth/logout")
-async def logout(
-    response: Response,
-    refresh_token: Optional[str] = Cookie(None),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """
-    Logout user by revoking both access token and refresh token.
-    Implements complete token revocation for security.
-    """
+async def service_logout(db, response: Response, refresh_token: Optional[str], credentials: Optional[HTTPAuthorizationCredentials]):
+    """Business logic for user logout"""
     # Revoke access token
-    try:
-        token = credentials.credentials
-        payload = decode_access_token(token)
-        jti = payload.get("jti")
-        if jti:
-            await revoke_token(jti, "access", db)
-    except Exception as e:
-        logger.debug(f"Could not revoke access token: {e}")
+    if credentials:
+        try:
+            token = credentials.credentials
+            payload = decode_access_token(token)
+            jti = payload.get("jti")
+            if jti:
+                await revoke_token(jti, "access", db)
+        except Exception as e:
+            logger.debug(f"Could not revoke access token: {e}")
 
     # Revoke refresh token
     if refresh_token:
@@ -635,6 +472,666 @@ async def logout(
 
     response.delete_cookie(key="refresh_token")
     return {"message": "Logged out successfully"}
+
+async def service_delete_user(db, audit_service, user, user_id: str):
+    """Business logic for deactivating a user"""
+    await permission_checker.check_admin_role(user)
+
+    target_user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target_user["organisation_id"] != user["organisation_id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Don't allow deleting self
+    if str(target_user["_id"]) == user["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    # Soft delete - deactivate
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="USER_MANAGEMENT",
+        entity_type="USER",
+        entity_id=user_id,
+        action_type="DELETE",
+        user_id=user["user_id"],
+        new_value={"active_status": False}
+    )
+    return {"message": "User deactivated successfully"}
+
+async def service_create_user_admin(db, audit_service, user, user_data: UserCreateAdmin):
+    """Business logic for creating a new user by Admin"""
+    await permission_checker.check_admin_role(user)
+
+    # Check email unique within org
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    hashed_pw = hash_password(user_data.password)
+    user_dict = {
+        "organisation_id": user["organisation_id"],
+        "name": user_data.name,
+        "email": user_data.email,
+        "hashed_password": hashed_pw,
+        "role": user_data.role,
+        "active_status": True,
+        "dpr_generation_permission": user_data.dpr_generation_permission,
+        "assigned_projects": user_data.assigned_projects,
+        "screen_permissions": user_data.screen_permissions,
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }
+    result = await db.users.insert_one(user_dict)
+    new_user_id = str(result.inserted_id)
+
+    # If Client, insert user_project_map rows
+    if user_data.role == "Client":
+        for pid in user_data.assigned_projects:
+            await db.user_project_map.insert_one({
+                "user_id": new_user_id,
+                "project_id": pid,
+                "created_at": datetime.now(timezone.utc),
+            })
+
+    # Audit log
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="USER_MANAGEMENT",
+        entity_type="USER",
+        entity_id=new_user_id,
+        action_type="CREATE",
+        user_id=user["user_id"],
+        new_value={"email": user_data.email, "role": user_data.role}
+    )
+
+    user_dict["user_id"] = new_user_id
+    del user_dict["hashed_password"]
+    return UserResponse(**user_dict)
+
+async def service_create_mapping(db, audit_service, user, mapping_data: UserProjectMapCreate):
+    """Business logic for creating user-project mapping"""
+    await permission_checker.check_admin_role(user)
+
+    # Verify user and project exist
+    target_user = await db.users.find_one({"_id": ObjectId(mapping_data.user_id)})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    project = await db.projects.find_one({"_id": ObjectId(mapping_data.project_id)})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    existing = await db.user_project_map.find_one({
+        "user_id": mapping_data.user_id,
+        "project_id": mapping_data.project_id
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Mapping already exists")
+
+    mapping_dict = mapping_data.dict()
+    mapping_dict["organisation_id"] = user["organisation_id"]
+    mapping_dict["created_at"] = datetime.now(timezone.utc)
+
+    result = await db.user_project_map.insert_one(mapping_dict)
+    map_id = str(result.inserted_id)
+
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="ACCESS_CONTROL",
+        entity_type="USER_PROJECT_MAP",
+        entity_id=map_id,
+        action_type="CREATE",
+        user_id=user["user_id"],
+        project_id=mapping_data.project_id,
+        new_value={"user_id": mapping_data.user_id, "project_id": mapping_data.project_id}
+    )
+
+    mapping_dict["map_id"] = map_id
+    if "_id" in mapping_dict:
+        del mapping_dict["_id"]
+    return mapping_dict
+
+async def service_get_mappings(db, user, user_id: Optional[str] = None, project_id: Optional[str] = None):
+    """Business logic for fetching user-project mappings"""
+    query = {"organisation_id": user["organisation_id"]}
+    if user_id:
+        query["user_id"] = user_id
+    if project_id:
+        query["project_id"] = project_id
+
+    mappings = await db.user_project_map.find(query).to_list(length=None)
+    for m in mappings:
+        m["map_id"] = str(m.pop("_id"))
+    return mappings
+
+async def service_create_worker_log(db, user, log_data: WorkersDailyLogCreate):
+    """Business logic for creating/updating a worker log"""
+    # Check if log already exists for this date and project
+    existing = await db.worker_logs.find_one({
+        "project_id": log_data.project_id,
+        "date": log_data.date,
+        "supervisor_id": user["user_id"]
+    })
+
+    # Calculate totals from new entries format or legacy workers format
+    if log_data.entries:
+        total_workers = sum(e.workers_count for e in log_data.entries)
+        entries_data = [e.dict() for e in log_data.entries]
+    else:
+        total_workers = len(log_data.workers)
+        entries_data = []
+
+    total_hours = sum(w.hours_worked for w in log_data.workers) if log_data.workers else 0
+
+    if existing:
+        # Update existing log
+        update_dict = {
+            "entries": entries_data,
+            "workers": [w.dict() for w in log_data.workers],
+            "total_workers": log_data.total_workers if log_data.total_workers else total_workers,
+            "total_hours": total_hours,
+            "weather": log_data.weather,
+            "site_conditions": log_data.site_conditions,
+            "remarks": log_data.remarks,
+            "status": "submitted",
+            "updated_at": datetime.now(timezone.utc)
+        }
+        await db.worker_logs.update_one(
+            {"_id": existing["_id"]},
+            {"$set": update_dict}
+        )
+        updated = await db.worker_logs.find_one({"_id": existing["_id"]})
+        updated["log_id"] = str(updated.pop("_id"))
+        return updated
+
+    log_dict = {
+        "organisation_id": user["organisation_id"],
+        "project_id": log_data.project_id,
+        "date": log_data.date,
+        "supervisor_id": user["user_id"],
+        "supervisor_name": user["name"],
+        "entries": entries_data,
+        "workers": [w.dict() for w in log_data.workers],
+        "total_workers": log_data.total_workers if log_data.total_workers else total_workers,
+        "total_hours": total_hours,
+        "weather": log_data.weather,
+        "site_conditions": log_data.site_conditions,
+        "remarks": log_data.remarks,
+        "status": "submitted",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
+    }
+    result = await db.worker_logs.insert_one(log_dict)
+    log_dict["log_id"] = str(result.inserted_id)
+    if "_id" in log_dict:
+        del log_dict["_id"]
+    return log_dict
+
+async def service_update_worker_log(db, user, log_id: str, update_data: WorkersDailyLogUpdate):
+    """Business logic for updating a specific worker log"""
+    log = await db.worker_logs.find_one({
+        "_id": ObjectId(log_id),
+        "organisation_id": user["organisation_id"]
+    })
+    if not log:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Worker log not found"
+        )
+
+    # Prepare update
+    update_dict = {}
+    if update_data.workers is not None:
+        update_dict["workers"] = [w.dict() for w in update_data.workers]
+        update_dict["total_workers"] = len(update_data.workers)
+        update_dict["total_hours"] = sum(w.hours_worked for w in update_data.workers)
+    if update_data.weather is not None:
+        update_dict["weather"] = update_data.weather
+    if update_data.site_conditions is not None:
+        update_dict["site_conditions"] = update_data.site_conditions
+    if update_data.remarks is not None:
+        update_dict["remarks"] = update_data.remarks
+    if update_data.status is not None:
+        update_dict["status"] = update_data.status
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+
+    await db.worker_logs.update_one(
+        {"_id": ObjectId(log_id)},
+        {"$set": update_dict}
+    )
+    updated_log = await db.worker_logs.find_one({"_id": ObjectId(log_id)})
+    updated_log["log_id"] = str(updated_log.pop("_id"))
+    return updated_log
+
+async def service_create_notification(db, user, notification_data: NotificationCreate):
+    """Business logic for creating a notification"""
+    notification_doc = {
+        "organisation_id": user["organisation_id"],
+        "recipient_role": notification_data.recipient_role,
+        "recipient_user_id": notification_data.recipient_user_id,
+        "title": notification_data.title,
+        "message": notification_data.message,
+        "notification_type": notification_data.notification_type,
+        "priority": notification_data.priority,
+        "reference_type": notification_data.reference_type,
+        "reference_id": notification_data.reference_id,
+        "project_id": notification_data.project_id,
+        "project_name": notification_data.project_name,
+        "sender_id": user["user_id"],
+        "sender_name": user.get("name", "System"),
+        "is_read": False,
+        "read_at": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    result = await db.notifications.insert_one(notification_doc)
+    return {
+        "notification_id": str(result.inserted_id),
+        "status": "created"
+    }
+
+async def service_get_notifications(db, user, limit: int = 50, unread_only: bool = False):
+    """Business logic for fetching notifications for a user"""
+    query = {
+        "organisation_id": user["organisation_id"],
+        "$or": [
+            {"recipient_role": user["role"].lower()},
+            {"recipient_user_id": user["user_id"]}
+        ]
+    }
+    if unread_only:
+        query["is_read"] = False
+
+    cursor = db.notifications.find(query).sort("created_at", -1).limit(limit)
+    notifications = await cursor.to_list(length=limit)
+
+    unread_count = await db.notifications.count_documents({
+        "organisation_id": user["organisation_id"],
+        "$or": [
+            {"recipient_role": user["role"].lower()},
+            {"recipient_user_id": user["user_id"]}
+        ],
+        "is_read": False
+    })
+
+    return {
+        "notifications": [serialize_doc(n) for n in notifications],
+        "unread_count": unread_count,
+        "total": len(notifications)
+    }
+
+async def service_list_projects(db, user):
+    """Business logic for listing projects"""
+    org_id = user.get("organisation_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="User has no organization assigned")
+    
+    await permission_checker.check_web_crm_access(user)
+    
+    projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
+    for p in projects:
+        p["project_id"] = str(p["_id"])
+    return [serialize_doc(p) for p in projects]
+
+async def service_get_project(db, user, project_id: str):
+    """Business logic for fetching a specific project"""
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_project_access(user, project_id, require_write=False)
+    
+    project = await db.projects.find_one({"project_id": project_id})
+    if not project:
+        try:
+            project = await db.projects.find_one({"_id": ObjectId(project_id)})
+        except:
+            pass
+            
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    project["project_id"] = str(project["_id"])
+    return serialize_doc(project)
+
+async def service_update_project(db, audit_service, user, project_id: str, project_data: ProjectUpdate):
+    """Business logic for updating project details"""
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_admin_role(user)
+    await permission_checker.check_project_access(user, project_id, require_write=True)
+
+    update_dict = {}
+    for k, v in project_data.dict(exclude_unset=True).items():
+        if v is not None:
+            if isinstance(v, Decimal):
+                update_dict[k] = Decimal128(str(v))
+            else:
+                update_dict[k] = v
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+
+    try:
+        query = {"_id": ObjectId(project_id)}
+    except ValueError:
+        query = {"project_id": project_id}
+
+    result = await db.projects.find_one_and_update(
+        query,
+        {"$set": update_dict},
+        return_document=True
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    try:
+        await audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="PROJECT_MANAGEMENT",
+            entity_type="PROJECT",
+            entity_id=project_id,
+            action_type="UPDATE",
+            user_id=user["user_id"],
+            new_value=serialize_doc(update_dict)
+        )
+    except Exception as audit_err:
+        logger.warning(f"Failed to log audit for project update {project_id}: {audit_err}")
+
+    serialized = serialize_doc(result)
+    if serialized and "_id" in serialized:
+        serialized["project_id"] = serialized["_id"]
+    return serialized
+
+async def service_create_or_update_project_budget(db, financial_service, user, project_id: str, budget_data: dict):
+    """Business logic for creating/updating a project category budget"""
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+    await permission_checker.check_project_access(user, project_id, require_write=True)
+
+    category_id = budget_data.get("category_id") or budget_data.get("code_id")
+    if not category_id:
+        raise HTTPException(status_code=400, detail="Category ID is required")
+
+    original_budget = budget_data.get("original_budget")
+    if original_budget is None:
+        raise HTTPException(status_code=400, detail="Budget amount is required")
+
+    try:
+        budget_decimal = Decimal(str(original_budget).strip())
+        if budget_decimal < 0:
+            raise HTTPException(status_code=400, detail="Budget amount must be a positive number")
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail=f"Budget amount must be a valid number (received: {original_budget})")
+
+    category = await db.code_master.find_one({"_id": ObjectId(category_id)})
+    if not category:
+        raise HTTPException(status_code=404, detail=f"Category '{category_id}' not found")
+
+    budget_decimal_128 = Decimal128(str(budget_decimal))
+    budget_dict = {
+        "project_id": project_id,
+        "category_id": category_id,
+        "organisation_id": user["organisation_id"],
+        "updated_at": datetime.now(timezone.utc),
+        "original_budget": budget_decimal_128,
+        "description": budget_data.get("description")
+    }
+
+    query = {"project_id": project_id, "category_id": category_id}
+    existing = await db.project_category_budgets.find_one(query)
+
+    if existing:
+        await db.project_category_budgets.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {
+                "original_budget": budget_decimal_128,
+                "description": budget_data.get("description"),
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
+    else:
+        budget_dict["created_at"] = datetime.now(timezone.utc)
+        budget_dict["committed_amount"] = Decimal128("0.0")
+        budget_dict["remaining_budget"] = budget_decimal_128
+        budget_dict["version"] = 1
+        insert_res = await db.project_category_budgets.insert_one(budget_dict)
+        result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
+
+    try:
+        await financial_service.recalculate_all_project_financials(project_id)
+    except Exception as e:
+        logger.warning(f"Warning: Failed to recalculate financials for project {project_id}: {e}")
+
+    return serialize_doc(result)
+
+async def service_delete_mapping(db, audit_service, user, map_id: str):
+    """Business logic for deleting user-project mapping"""
+    await permission_checker.check_admin_role(user)
+
+    mapping = await db.user_project_map.find_one({
+        "_id": ObjectId(map_id),
+        "organisation_id": user["organisation_id"]
+    })
+    if not mapping:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied or mapping not found"
+        )
+
+    await db.user_project_map.delete_one({"_id": ObjectId(map_id)})
+
+    await audit_service.log_action(
+        organisation_id=user["organisation_id"],
+        module_name="ACCESS_CONTROL",
+        entity_type="USER_PROJECT_MAP",
+        entity_id=map_id,
+        action_type="DELETE",
+        user_id=user["user_id"],
+        project_id=mapping["project_id"]
+    )
+    return None
+
+
+# Create the main app
+app = FastAPI(
+    title="Construction Management System - Phase 2 Hardened",
+    version="2.0.0",
+    description="Enterprise Construction Management with Hardened Financial Core"
+)
+
+# Configure CORS — MUST be added before routes
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3010",
+    "http://localhost:19006",
+    "http://localhost:8081",
+    "https://localhost:3000",
+    "https://localhost:3001",
+    "https://localhost:3002",
+    "https://localhost:3010",
+    "https://localhost:19006",
+    "https://localhost:8081",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    "http://127.0.0.1:3010",
+    "http://127.0.0.1:19006",
+    "http://127.0.0.1:8081",
+    "https://127.0.0.1:3000",
+    "https://127.0.0.1:3001",
+    "https://127.0.0.1:3002",
+    "https://127.0.0.1:3010",
+    "https://127.0.0.1:19006",
+    "https://127.0.0.1:8081",
+]
+
+# Allow environment variable override
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    allowed_origins = [origin.strip() for origin in env_origins.split(",")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+init_rate_limiting(app)
+
+app.include_router(audit_router, prefix="/api")
+app.include_router(scheduler_router, prefix="/api/projects")
+app.include_router(enterprise_scheduler_router, prefix="/api/scheduler")
+app.include_router(portfolio_router, prefix="/api/portfolio")
+
+# Create router with /api prefix
+api_router = APIRouter(prefix="/api")
+
+# HTTP Bearer for token extraction
+security = HTTPBearer()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+# Startup tasks
+@app.on_event("startup")
+async def startup_db_client():
+    await ensure_indexes(db)
+    # Create AI summary service indexes
+    from core.ai_summary_service import AISummaryService
+    ai_svc = AISummaryService(db=db)
+    await ai_svc.create_indexes()
+    logger.info("Database startup tasks completed.")
+
+
+@api_router.get("/clients", response_model=List[Client])
+async def list_clients(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    current_user: dict = Depends(get_current_user)
+):
+    user = await permission_checker.get_authenticated_user(current_user)
+    return await service_list_clients(db, user["organisation_id"], skip, limit)
+
+
+@api_router.post("/clients", response_model=Client, status_code=status.HTTP_201_CREATED)
+async def create_client(client_data: ClientCreate, current_user: dict = Depends(get_current_user)):
+    user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+
+    return await service_create_client(db, audit_service, user, client_data)
+
+
+@api_router.get("/clients/{client_id}", response_model=Client)
+async def get_client(client_id: str, current_user: dict = Depends(get_current_user)):
+    user = await permission_checker.get_authenticated_user(current_user)
+    return await service_get_client(db, client_id, user["organisation_id"])
+
+
+@api_router.put("/clients/{client_id}", response_model=Client)
+async def update_client(client_id: str, client_data: ClientUpdate, current_user: dict = Depends(get_current_user)):
+    user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+
+    return await service_update_client(db, audit_service, user, client_id, client_data)
+
+
+@api_router.delete("/clients/{client_id}")
+async def delete_client(client_id: str, current_user: dict = Depends(get_current_user)):
+    user = await permission_checker.get_authenticated_user(current_user)
+    # Phase 6.3: Block Supervisor from Web CRM, Block Client from writes
+    await permission_checker.check_web_crm_access(user)
+    await permission_checker.check_client_readonly(user)
+    await permission_checker.check_admin_role(user)
+
+    return await service_delete_client(db, audit_service, user, client_id)
+
+
+# ============================================
+
+
+
+# ============================================
+# PAYMENT CERTIFICATE ENDPOINTS
+# ============================================
+@api_router.get("/payment-certificates")
+async def list_payment_certificates(
+    project_id: str = Query(..., description="Project ID"),
+    limit: int = Query(50, ge=1, le=500, description="Results limit"),
+    cursor: Optional[str] = Query(None, description="Pagination cursor"),
+    current_user: dict = Depends(get_current_user)
+):
+    user = await permission_checker.get_authenticated_user(current_user)
+    return await service_list_payment_certificates(db, user, project_id, limit, cursor)
+
+
+@api_router.post("/payment-certificates", response_model=PaymentCertificate, status_code=status.HTTP_201_CREATED)
+async def create_payment_certificate(pc_data: PaymentCertificateCreate, current_user: dict = Depends(get_current_user)):
+    user = await permission_checker.get_authenticated_user(current_user)
+    return await service_create_payment_certificate(db, audit_service, user, pc_data)
+
+
+@api_router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register_user(user_data: UserCreate):
+    """
+    Register a new user. First user becomes Admin, subsequent users default to their specified role.
+    """
+    return await service_register_user(db, audit_service, user_data)
+
+
+@api_router.post("/auth/login", response_model=Token)
+async def login(login_data: LoginRequest, response: Response):
+    """
+    Authenticate user and return JWT tokens.
+    CORRECTED: Access token expires in 30 minutes (not 30 days).
+    Refresh token expires in 7 days.
+    """
+    return await service_login(db, login_data, response)
+
+
+@api_router.post("/auth/refresh", response_model=Token)
+async def refresh_access_token(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None)
+):
+    """
+    Refresh access token using refresh token from cookie.
+    Token Rotation: Old refresh token is revoked, new one is issued.
+    """
+    return await service_refresh_token(db, refresh_token, response)
+
+
+@api_router.post("/auth/logout")
+async def logout(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Logout user by revoking both access token and refresh token.
+    Implements complete token revocation for security.
+    """
+    return await service_logout(db, response, refresh_token, credentials)
 
 
 # ============================================
@@ -779,22 +1276,7 @@ async def delete_user(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
 
-    target_user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not target_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if target_user["organisation_id"] != user["organisation_id"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Don't allow deleting self
-    if str(target_user["_id"]) == user["user_id"]:
-        raise HTTPException(status_code=400, detail="Cannot delete your own account")
-
-    # Soft delete - deactivate
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"active_status": False, "updated_at": datetime.now(timezone.utc)}}
-    )
-    return {"message": "User deactivated successfully"}
+    return await service_delete_user(db, audit_service, user, user_id)
 
 
 @api_router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -802,58 +1284,7 @@ async def create_user_admin(
     user_data: UserCreateAdmin,
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new CRM user (Admin only). Supports all roles including Client."""
-    user = await permission_checker.get_authenticated_user(current_user)
-    await permission_checker.check_admin_role(user)
-
-    # Check email unique within org
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-
-    hashed_pw = hash_password(user_data.password)
-    user_dict = {
-        "organisation_id": user["organisation_id"],
-        "name": user_data.name,
-        "email": user_data.email,
-        "hashed_password": hashed_pw,
-        "role": user_data.role,
-        "active_status": True,
-        "dpr_generation_permission": user_data.dpr_generation_permission,
-        "assigned_projects": user_data.assigned_projects,
-        "screen_permissions": user_data.screen_permissions,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    }
-    result = await db.users.insert_one(user_dict)
-    new_user_id = str(result.inserted_id)
-
-    # If Client, insert user_project_map rows
-    if user_data.role == "Client":
-        for pid in user_data.assigned_projects:
-            await db.user_project_map.insert_one({
-                "user_id": new_user_id,
-                "project_id": pid,
-                "created_at": datetime.now(timezone.utc),
-            })
-
-    # Audit log
-    await audit_service.log_action(
-        organisation_id=user["organisation_id"],
-        module_name="USER_MANAGEMENT",
-        entity_type="USER",
-        entity_id=new_user_id,
-        action_type="CREATE",
-        user_id=user["user_id"],
-        new_value={"email": user_data.email, "role": user_data.role}
-    )
-
-    user_dict["user_id"] = new_user_id
-    del user_dict["hashed_password"]
-    return UserResponse(**user_dict)
+    return await service_create_user_admin(db, audit_service, user, user_data)
 
 
 # ============================================
@@ -895,56 +1326,7 @@ async def create_mapping(
     user = await permission_checker.get_authenticated_user(current_user)
     await permission_checker.check_admin_role(user)
 
-    # Verify user and project exist
-    target_user = await db.users.find_one({"_id": ObjectId(mapping_data.user_id)})
-    if not target_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
-    project = await db.projects.find_one({"_id": ObjectId(mapping_data.project_id)})
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
-        )
-
-    # Check if mapping already exists
-    existing = await db.user_project_map.find_one({
-        "user_id": mapping_data.user_id,
-        "project_id": mapping_data.project_id
-    })
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Mapping already exists"
-        )
-
-    mapping_dict = mapping_data.dict()
-    mapping_dict["organisation_id"] = user["organisation_id"]
-    mapping_dict["created_at"] = datetime.now(timezone.utc)
-
-    result = await db.user_project_map.insert_one(mapping_dict)
-    map_id = str(result.inserted_id)
-
-    # Audit log
-    await audit_service.log_action(
-        organisation_id=user["organisation_id"],
-        module_name="ACCESS_CONTROL",
-        entity_type="USER_PROJECT_MAP",
-        entity_id=map_id,
-        action_type="CREATE",
-        user_id=user["user_id"],
-        project_id=mapping_data.project_id,
-        new_value={"user_id": mapping_data.user_id, "project_id": mapping_data.project_id}
-    )
-
-    mapping_dict["map_id"] = map_id
-    # Remove MongoDB _id to avoid serialization issues
-    if "_id" in mapping_dict:
-        del mapping_dict["_id"]
-    return mapping_dict
+    return await service_create_mapping(db, audit_service, user, mapping_data)
 
 
 @api_router.get("/mappings")
@@ -954,17 +1336,7 @@ async def get_mappings(
     current_user: dict = Depends(get_current_user)
 ):
     """Get user-project mappings"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    query = {"organisation_id": user["organisation_id"]}
-    if user_id:
-        query["user_id"] = user_id
-    if project_id:
-        query["project_id"] = project_id
-
-    mappings = await db.user_project_map.find(query).to_list(length=None)
-    for m in mappings:
-        m["map_id"] = str(m.pop("_id"))
-    return mappings
+    return await service_get_mappings(db, user, user_id, project_id)
 
 
 @api_router.delete("/mappings/{map_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -973,32 +1345,7 @@ async def delete_mapping(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete user-project mapping (Admin only)"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    await permission_checker.check_admin_role(user)
-
-    mapping = await db.user_project_map.find_one({
-        "_id": ObjectId(map_id),
-        "organisation_id": user["organisation_id"]
-    })
-    if not mapping:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied or mapping not found"
-        )
-
-    await db.user_project_map.delete_one({"_id": ObjectId(map_id)})
-
-    # Audit log
-    await audit_service.log_action(
-        organisation_id=user["organisation_id"],
-        module_name="ACCESS_CONTROL",
-        entity_type="USER_PROJECT_MAP",
-        entity_id=map_id,
-        action_type="DELETE",
-        user_id=user["user_id"],
-        project_id=mapping["project_id"]
-    )
-    return None
+    return await service_delete_mapping(db, audit_service, user, map_id)
 
 
 # ============================================
@@ -1159,68 +1506,7 @@ async def create_worker_log(
     current_user: dict = Depends(get_current_user)
 ):
     """Create or update a workers daily log (Supervisor)"""
-    user = await permission_checker.get_authenticated_user(current_user)
-
-    # Check if log already exists for this date and project
-    existing = await db.worker_logs.find_one({
-        "project_id": log_data.project_id,
-        "date": log_data.date,
-        "supervisor_id": user["user_id"]
-    })
-
-    # Calculate totals from new entries format or legacy workers format
-    if log_data.entries:
-        total_workers = sum(e.workers_count for e in log_data.entries)
-        entries_data = [e.dict() for e in log_data.entries]
-    else:
-        total_workers = len(log_data.workers)
-        entries_data = []
-
-    total_hours = sum(w.hours_worked for w in log_data.workers) if log_data.workers else 0
-
-    if existing:
-        # Update existing log
-        update_dict = {
-            "entries": entries_data,
-            "workers": [w.dict() for w in log_data.workers],
-            "total_workers": log_data.total_workers if log_data.total_workers else total_workers,
-            "total_hours": total_hours,
-            "weather": log_data.weather,
-            "site_conditions": log_data.site_conditions,
-            "remarks": log_data.remarks,
-            "status": "submitted",
-            "updated_at": datetime.now(timezone.utc)
-        }
-        await db.worker_logs.update_one(
-            {"_id": existing["_id"]},
-            {"$set": update_dict}
-        )
-        updated = await db.worker_logs.find_one({"_id": existing["_id"]})
-        updated["log_id"] = str(updated.pop("_id"))
-        return updated
-
-    log_dict = {
-        "organisation_id": user["organisation_id"],
-        "project_id": log_data.project_id,
-        "date": log_data.date,
-        "supervisor_id": user["user_id"],
-        "supervisor_name": user["name"],
-        "entries": entries_data,
-        "workers": [w.dict() for w in log_data.workers],
-        "total_workers": log_data.total_workers if log_data.total_workers else total_workers,
-        "total_hours": total_hours,
-        "weather": log_data.weather,
-        "site_conditions": log_data.site_conditions,
-        "remarks": log_data.remarks,
-        "status": "submitted",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc)
-    }
-    result = await db.worker_logs.insert_one(log_dict)
-    log_dict["log_id"] = str(result.inserted_id)
-    if "_id" in log_dict:
-        del log_dict["_id"]
-    return log_dict
+    return await service_create_worker_log(db, user, log_data)
 
 
 @api_router.get("/worker-logs")
@@ -1291,40 +1577,7 @@ async def update_worker_log(
     current_user: dict = Depends(get_current_user)
 ):
     """Update a workers daily log"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    log = await db.worker_logs.find_one({
-        "_id": ObjectId(log_id),
-        "organisation_id": user["organisation_id"]
-    })
-    if not log:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Worker log not found"
-        )
-
-    # Prepare update
-    update_dict = {}
-    if update_data.workers is not None:
-        update_dict["workers"] = [w.dict() for w in update_data.workers]
-        update_dict["total_workers"] = len(update_data.workers)
-        update_dict["total_hours"] = sum(w.hours_worked for w in update_data.workers)
-    if update_data.weather is not None:
-        update_dict["weather"] = update_data.weather
-    if update_data.site_conditions is not None:
-        update_dict["site_conditions"] = update_data.site_conditions
-    if update_data.remarks is not None:
-        update_dict["remarks"] = update_data.remarks
-    if update_data.status is not None:
-        update_dict["status"] = update_data.status
-    update_dict["updated_at"] = datetime.now(timezone.utc)
-
-    await db.worker_logs.update_one(
-        {"_id": ObjectId(log_id)},
-        {"$set": update_dict}
-    )
-    updated_log = await db.worker_logs.find_one({"_id": ObjectId(log_id)})
-    updated_log["log_id"] = str(updated_log.pop("_id"))
-    return updated_log
+    return await service_update_worker_log(db, user, log_id, update_data)
 
 
 @api_router.get("/worker-logs/check/{project_id}/{date}")
@@ -1456,30 +1709,7 @@ async def create_notification(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new notification (internal use or admin)"""
-    user = await permission_checker.get_authenticated_user(current_user)
-    notification_doc = {
-        "organisation_id": user["organisation_id"],
-        "recipient_role": notification_data.recipient_role,
-        "recipient_user_id": notification_data.recipient_user_id,
-        "title": notification_data.title,
-        "message": notification_data.message,
-        "notification_type": notification_data.notification_type,
-        "priority": notification_data.priority,
-        "reference_type": notification_data.reference_type,
-        "reference_id": notification_data.reference_id,
-        "project_id": notification_data.project_id,
-        "project_name": notification_data.project_name,
-        "sender_id": user["user_id"],
-        "sender_name": user.get("name", "System"),
-        "is_read": False,
-        "read_at": None,
-        "created_at": datetime.now(timezone.utc)
-    }
-    result = await db.notifications.insert_one(notification_doc)
-    return {
-        "notification_id": str(result.inserted_id),
-        "status": "created"
-    }
+    return await service_create_notification(db, user, notification_data)
 
 
 @api_router.get("/notifications")
@@ -1489,38 +1719,7 @@ async def get_notifications(
     current_user: dict = Depends(get_current_user)
 ):
     """Get notifications for current user (based on role)"""
-    user = await permission_checker.get_authenticated_user(current_user)
-
-    # Build query
-    query = {
-        "organisation_id": user["organisation_id"],
-        "$or": [
-            {"recipient_role": user["role"].lower()},
-            {"recipient_user_id": user["user_id"]}
-        ]
-    }
-    if unread_only:
-        query["is_read"] = False
-
-    # Fetch notifications sorted by created_at (newest first)
-    cursor = db.notifications.find(query).sort("created_at", -1).limit(limit)
-    notifications = await cursor.to_list(length=limit)
-
-    # Get unread count
-    unread_count = await db.notifications.count_documents({
-        "organisation_id": user["organisation_id"],
-        "$or": [
-            {"recipient_role": user["role"].lower()},
-            {"recipient_user_id": user["user_id"]}
-        ],
-        "is_read": False
-    })
-
-    return {
-        "notifications": [serialize_doc(n) for n in notifications],
-        "unread_count": unread_count,
-        "total": len(notifications)
-    }
+    return await service_get_notifications(db, user, limit, unread_only)
 
 
 @api_router.put("/notifications/{notification_id}/read")
@@ -1582,48 +1781,13 @@ async def get_unread_count(
 @api_router.get("/projects", response_model=List[Project])
 async def list_projects(current_user: dict = Depends(get_current_user)):
     """Fetch all projects for the user's organisation."""
-    user = await permission_checker.get_authenticated_user(current_user)
-    
-    org_id = user.get("organisation_id")
-    if not org_id:
-        logging.error(f"User {user.get('user_id')} has no organisation_id assigned")
-        raise HTTPException(status_code=400, detail="User has no organization assigned")
-        
-    logging.info(f"Fetching projects for org: {org_id}")
-    
-    # 6.3 check
-    await permission_checker.check_web_crm_access(user)
-    
-    projects = await db.projects.find({"organisation_id": org_id}).to_list(length=1000)
-    for p in projects:
-        p["project_id"] = str(p["_id"])
-    return [serialize_doc(p) for p in projects]
+    return await service_list_projects(db, user)
 
 
 @api_router.get("/projects/{project_id}", response_model=Project)
 async def get_project(project_id: str, current_user: dict = Depends(get_current_user)):
     """Fetch details for a single project."""
-    user = await permission_checker.get_authenticated_user(current_user)
-    
-    # 6.3 check
-    await permission_checker.check_web_crm_access(user)
-    
-    # Check project access (this also validates organisation isolation)
-    await permission_checker.check_project_access(user, project_id, require_write=False)
-    
-    # Try finding by project_id field first, then by string ObjectId
-    project = await db.projects.find_one({"project_id": project_id})
-    if not project:
-        try:
-            project = await db.projects.find_one({"_id": ObjectId(project_id)})
-        except:
-            pass
-            
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-        
-    project["project_id"] = str(project["_id"])
-    return serialize_doc(project)
+    return await service_get_project(db, user, project_id)
 
 
 @api_router.put("/projects/{project_id}")
@@ -1633,86 +1797,7 @@ async def update_project(
     current_user: dict = Depends(get_current_user)
 ):
     """Update project details."""
-    try:
-        user = await permission_checker.get_authenticated_user(current_user)
-
-        # Check web CRM access and admin role
-        await permission_checker.check_web_crm_access(user)
-        await permission_checker.check_admin_role(user)
-
-        # Check if project access (this also validates organisation isolation)
-        await permission_checker.check_project_access(user, project_id, require_write=True)
-
-        # Build update dict - only include non-null values
-        # Convert Decimal to Decimal128 for MongoDB storage
-        update_dict = {}
-        for k, v in project_data.dict(exclude_unset=True).items():
-            if v is not None:
-                if isinstance(v, Decimal):
-                    update_dict[k] = Decimal128(str(v))
-                else:
-                    update_dict[k] = v
-        update_dict["updated_at"] = datetime.now(timezone.utc)
-
-        # Find and update - support both ObjectId and project_id string
-        try:
-            query = {"_id": ObjectId(project_id)}
-        except ValueError:
-            query = {"project_id": project_id}
-
-        result = await db.projects.find_one_and_update(
-            query,
-            {"$set": update_dict},
-            return_document=True
-        )
-
-        if not result:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        # Audit log - wrapped in try/catch to not block the response
-        try:
-            await audit_service.log_action(
-                organisation_id=user["organisation_id"],
-                module_name="PROJECT_MANAGEMENT",
-                entity_type="PROJECT",
-                entity_id=project_id,
-                action_type="UPDATE",
-                user_id=user["user_id"],
-                new_value=serialize_doc(update_dict)
-            )
-        except Exception as audit_err:
-            logger.warning(f"Failed to log audit for project update {project_id}: {audit_err}")
-            # Continue without blocking the response
-
-        # Serialize and return the updated project
-        serialized = serialize_doc(result)
-        # Ensure project_id field is set for frontend
-        if serialized and "_id" in serialized:
-            serialized["project_id"] = serialized["_id"]
-        return serialized
-
-    except HTTPException:
-        raise
-    except ValueError as ve:
-        error_msg = f"Invalid input value: {str(ve)}"
-        logger.error(f"Validation error updating project {project_id}: {ve}", exc_info=True)
-        raise HTTPException(status_code=400, detail=error_msg)
-    except Exception as e:
-        error_msg = str(e)
-        # Provide more specific error messages based on exception type
-        if "cannot encode" in error_msg.lower():
-            detail = "Data type mismatch: One or more fields contain invalid data types. Please check all numeric and decimal fields."
-        elif "not found" in error_msg.lower():
-            detail = "Project not found. The project may have been deleted."
-        elif "permission" in error_msg.lower() or "forbidden" in error_msg.lower():
-            detail = "You do not have permission to update this project."
-        elif "duplicate" in error_msg.lower():
-            detail = "A project with this code already exists."
-        else:
-            detail = f"Failed to update project: {error_msg[:100]}"
-
-        logger.error(f"Error updating project {project_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=detail)
+    return await service_update_project(db, audit_service, user, project_id, project_data)
 
 
 @api_router.get("/projects/{project_id}/budgets")
@@ -1755,129 +1840,7 @@ async def create_or_update_project_budget(
     current_user: dict = Depends(get_current_user)
 ):
     """Create or update a budget allocation for a project category."""
-    try:
-        user = await permission_checker.get_authenticated_user(current_user)
-
-        # 6.3 checks
-        await permission_checker.check_web_crm_access(user)
-        await permission_checker.check_client_readonly(user)
-        await permission_checker.check_admin_role(user)
-
-        # Check project access
-        await permission_checker.check_project_access(user, project_id, require_write=True)
-
-        # Support both code_id (from frontend) and category_id (from API spec)
-        category_id = budget_data.get("category_id") or budget_data.get("code_id")
-        if not category_id:
-            logger.warning(f"Budget save missing category_id or code_id: {budget_data}")
-            raise HTTPException(status_code=400, detail="Category ID is required")
-
-        original_budget = budget_data.get("original_budget")
-        if original_budget is None:
-            logger.warning(f"Budget save missing original_budget for project {project_id}")
-            raise HTTPException(status_code=400, detail="Budget amount is required")
-
-        # Validate and convert budget amount to Decimal
-        try:
-            budget_decimal = Decimal(str(original_budget).strip())
-            if budget_decimal < 0:
-                raise HTTPException(status_code=400, detail="Budget amount must be a positive number")
-        except (ValueError, TypeError) as e:
-            logger.warning(f"Invalid budget amount '{original_budget}': {e}")
-            raise HTTPException(status_code=400, detail=f"Budget amount must be a valid number (received: {original_budget})")
-
-        # Check if category exists
-        try:
-            category = await db.code_master.find_one({"_id": ObjectId(category_id)})
-        except Exception as e:
-            logger.error(f"Error looking up category {category_id}: {e}", exc_info=True)
-            raise HTTPException(status_code=400, detail="Invalid category ID format")
-
-        if not category:
-            logger.warning(f"Category not found: {category_id}")
-            raise HTTPException(status_code=404, detail=f"Category '{category_id}' not found")
-
-        # Build budget dict with validated decimal
-        budget_decimal_128 = Decimal128(str(budget_decimal))
-        budget_dict = {
-            "project_id": project_id,
-            "category_id": category_id,
-            "organisation_id": user["organisation_id"],
-            "updated_at": datetime.now(timezone.utc),
-            "original_budget": budget_decimal_128,
-            "description": budget_data.get("description")
-        }
-
-        # Upsert logic
-        query = {"project_id": project_id, "category_id": category_id}
-        try:
-            existing = await db.project_category_budgets.find_one(query)
-        except Exception as e:
-            logger.error(f"Error querying existing budget: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Database error: Unable to check existing budget")
-
-        if existing:
-            # Update
-            try:
-                await db.project_category_budgets.update_one(
-                    {"_id": existing["_id"]},
-                    {"$set": {
-                        "original_budget": budget_decimal_128,
-                        "description": budget_data.get("description"),
-                        "updated_at": datetime.now(timezone.utc)
-                    }}
-                )
-                result = await db.project_category_budgets.find_one({"_id": existing["_id"]})
-                logger.info(f"Updated budget for project {project_id}, category {category_id}")
-            except Exception as e:
-                logger.error(f"Error updating budget: {e}", exc_info=True)
-                raise HTTPException(status_code=500, detail="Database error: Unable to update budget")
-        else:
-            # Create
-            try:
-                budget_dict["created_at"] = datetime.now(timezone.utc)
-                budget_dict["committed_amount"] = Decimal128("0.0")
-                budget_dict["remaining_budget"] = budget_decimal_128
-                budget_dict["version"] = 1
-
-                insert_res = await db.project_category_budgets.insert_one(budget_dict)
-                result = await db.project_category_budgets.find_one({"_id": insert_res.inserted_id})
-                logger.info(f"Created new budget for project {project_id}, category {category_id}")
-            except Exception as e:
-                logger.error(f"Error creating budget: {e}", exc_info=True)
-                raise HTTPException(status_code=500, detail="Database error: Unable to create budget")
-
-        # Recalculate project financials after budget change
-        try:
-            await financial_service.recalculate_all_project_financials(project_id)
-            logger.info(f"Recalculated financials for project {project_id}")
-        except Exception as e:
-            logger.warning(f"Warning: Failed to recalculate financials for project {project_id}: {e}")
-            # Don't fail the entire request if recalculation fails, just log it
-            # The budget was still saved successfully
-
-        return serialize_doc(result)
-    except HTTPException:
-        raise
-    except ValueError as ve:
-        error_msg = f"Invalid input value: {str(ve)}"
-        logger.error(f"Validation error for budget {project_id}: {ve}", exc_info=True)
-        raise HTTPException(status_code=400, detail=error_msg)
-    except Exception as e:
-        error_msg = str(e)
-        # Provide specific error messages based on error type
-        if "category" in error_msg.lower() and "not found" in error_msg.lower():
-            detail = "Category not found. Please select a valid category."
-        elif "duplicate" in error_msg.lower():
-            detail = "A budget for this category already exists."
-        elif "database" in error_msg.lower() or "connection" in error_msg.lower():
-            detail = "Database error: Unable to save budget. Please try again."
-        else:
-            # Include actual error for debugging, but keep it brief
-            detail = f"Failed to save budget: {error_msg[:150]}"
-
-        logger.error(f"Error creating/updating budget for project {project_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=detail)
+    return await service_create_or_update_project_budget(db, financial_service, user, project_id, budget_data)
 
 
 @api_router.get("/health")

@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime, timezone
 from decimal import Decimal
 from motor.motor_asyncio import AsyncIOMotorClient
-from passlib.hash import bcrypt
+from auth import AuthService
 
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = "tac_pmc_crm"
@@ -61,7 +61,7 @@ async def seed():
         admin_doc = {
             "name": "Admin User",
             "email": admin_email,
-            "hashed_password": bcrypt.hash("Admin@1234"),
+            "hashed_password": AuthService.hash_password("Admin@1234"),
             "role": "Admin",
             "active_status": True,
             "organisation_id": org_id,
@@ -81,7 +81,7 @@ async def seed():
         supervisor_doc = {
             "name": "Supervisor User",
             "email": supervisor_email,
-            "hashed_password": bcrypt.hash("Super@1234"),
+            "hashed_password": AuthService.hash_password("Super@1234"),
             "role": "Supervisor",
             "active_status": True,
             "organisation_id": org_id,

@@ -24,12 +24,12 @@ security = HTTPBearer(auto_error=False)
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+    return AuthService.hash_password(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return AuthService.verify_password(plain_password, hashed_password)
 
 
 def generate_jti() -> str:
@@ -42,188 +42,119 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+class AuthService:
+    """Standalone service for authentication and token management"""
+    
+    @staticmethod
+    def hash_password(password: str) -> str:
+        return pwd_context.hash(password)
+
+    @staticmethod
+    def verify_password(plain_password: str, hashed_password: str) -> bool:
+        return pwd_context.verify(plain_password, hashed_password)
+
+    @staticmethod
+    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        to_encode = data.copy()
+        jti = generate_jti()
+        to_encode["jti"] = jti
+        
+        if expires_delta:
+            expire = datetime.now(timezone.utc) + expires_delta
+        else:
+            expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+        to_encode.update({
+            "exp": expire,
+            "iat": datetime.now(timezone.utc),
+            "type": "access"
+        })
+        return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    @staticmethod
+    def create_refresh_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+        jti = generate_jti()
+        if expires_delta:
+            expire = datetime.now(timezone.utc) + expires_delta
+        else:
+            expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        
+        to_encode = {
+            "user_id": user_id,
+            "jti": jti,
+            "exp": expire,
+            "iat": datetime.now(timezone.utc),
+            "type": "refresh"
+        }
+        return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    @staticmethod
+    def decode_token(token: str, token_type: str = "access") -> dict:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            if payload.get("type") != token_type:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid token type. Expected {token_type}"
+                )
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired"
+            )
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials"
+            )
+
+    @staticmethod
+    async def revoke_token(jti: str, token_type: str, db) -> None:
+        await db.token_blacklist.insert_one({
+            "jti": jti,
+            "token_type": token_type,
+            "revoked_at": datetime.now(timezone.utc)
+        })
+
+    @staticmethod
+    async def is_token_revoked(jti: str, db) -> bool:
+        return await db.token_blacklist.find_one({"jti": jti}) is not None
+
+    @staticmethod
+    async def revoke_all_user_tokens(user_id: str, db) -> None:
+        await db.refresh_tokens.update_many(
+            {"user_id": user_id, "is_revoked": False},
+            {"$set": {"is_revoked": True, "revoked_at": datetime.now(timezone.utc)}}
+        )
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Create a JWT access token.
-    
-    Args:
-        data: Dictionary containing user data (user_id, email, role, etc.)
-        expires_delta: Optional custom expiration time
-    
-    Returns:
-        Encoded JWT token string
-    """
-    to_encode = data.copy()
-    
-    # Generate unique token ID for revocation support
-    jti = generate_jti()
-    to_encode["jti"] = jti
-    
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.now(timezone.utc),
-        "type": "access"
-    })
-    
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return AuthService.create_access_token(data, expires_delta)
 
 
 def create_refresh_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Create a JWT refresh token with rotation support.
-    
-    Args:
-        user_id: The user's ID
-        expires_delta: Optional custom expiration time
-    
-    Returns:
-        Encoded JWT refresh token string
-    """
-    # Generate unique token ID for revocation support
-    jti = generate_jti()
-    
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    
-    to_encode = {
-        "user_id": user_id,
-        "jti": jti,
-        "exp": expire,
-        "iat": datetime.now(timezone.utc),
-        "type": "refresh"
-    }
-    
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return AuthService.create_refresh_token(user_id, expires_delta)
 
 
 def decode_access_token(token: str, check_revocation: bool = True) -> dict:
-    """
-    Decode and validate JWT access token.
-    
-    Args:
-        token: The JWT token to decode
-        check_revocation: Whether to check if token is revoked (default: True)
-    
-    Returns:
-        Decoded token payload
-    
-    Raises:
-        HTTPException: If token is invalid, expired, or revoked
-    """
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
-        # Verify token type
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type"
-            )
-        
-        return payload
-        
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
+    return AuthService.decode_token(token, "access")
 
 
 def decode_refresh_token(token: str, check_revocation: bool = True) -> dict:
-    """
-    Decode and validate JWT refresh token.
-    
-    Args:
-        token: The JWT refresh token to decode
-        check_revocation: Whether to check if token is revoked (default: True)
-    
-    Returns:
-        Decoded token payload
-    
-    Raises:
-        HTTPException: If token is invalid, expired, or revoked
-    """
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
-        # Verify token type
-        if payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type"
-            )
-        
-        return payload
-        
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token has expired"
-        )
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate refresh token"
-        )
+    return AuthService.decode_token(token, "refresh")
 
 
 async def revoke_token(jti: str, token_type: str, db) -> None:
-    """
-    Add token JTI to blacklist for revocation.
-    
-    Args:
-        jti: The JWT ID to revoke
-        token_type: Type of token ('access' or 'refresh')
-        db: Database connection
-    """
-    await db.token_blacklist.insert_one({
-        "jti": jti,
-        "token_type": token_type,
-        "revoked_at": datetime.now(timezone.utc)
-    })
+    return await AuthService.revoke_token(jti, token_type, db)
 
 
 async def is_token_revoked(jti: str, db) -> bool:
-    """
-    Check if a token is revoked.
-    
-    Args:
-        jti: The JWT ID to check
-        db: Database connection
-    
-    Returns:
-        True if token is revoked, False otherwise
-    """
-    return await db.token_blacklist.find_one({"jti": jti}) is not None
+    return await AuthService.is_token_revoked(jti, db)
 
 
 async def revoke_all_user_tokens(user_id: str, db) -> None:
-    """
-    Revoke all tokens for a user (useful for password change, security breach, etc.)
-    
-    Args:
-        user_id: The user ID whose tokens should be revoked
-        db: Database connection
-    """
-    # Mark all refresh tokens as revoked
-    await db.refresh_tokens.update_many(
-        {"user_id": user_id, "is_revoked": False},
-        {"$set": {"is_revoked": True, "revoked_at": datetime.now(timezone.utc)}}
-    )
+    return await AuthService.revoke_all_user_tokens(user_id, db)
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):

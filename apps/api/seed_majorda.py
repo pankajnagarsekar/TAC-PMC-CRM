@@ -56,9 +56,7 @@ pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
-def d128(value) -> Decimal128:
-    """Convert numeric/Decimal to Decimal128 for MongoDB storage."""
-    return Decimal128(str(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)))
+from core.financial_utils import to_d128 as d128, to_decimal
 
 def pct(value) -> Decimal128:
     """Store a percentage as Decimal128."""
