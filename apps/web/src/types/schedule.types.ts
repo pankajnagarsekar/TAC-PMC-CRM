@@ -109,6 +109,10 @@ export type ScheduleChangeRequest = {
   task_id: string;
   changes: {
     task_name?: string | null;
+    wbs_code?: string | null;
+    external_ref_id?: string | null;
+    parent_id?: string | null;
+    is_milestone?: boolean | null;
     scheduled_start?: string | null;
     scheduled_finish?: string | null;
     scheduled_duration?: number | null;

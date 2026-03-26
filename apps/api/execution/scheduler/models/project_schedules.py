@@ -364,6 +364,11 @@ class ScheduleChangeRequest(BaseModel):
 
 class TaskChanges(BaseModel):
     """Partial update fields accepted from the frontend."""
+    task_name: Optional[str] = None
+    wbs_code: Optional[str] = None
+    external_ref_id: Optional[str] = None
+    parent_id: Optional[Optional[PyObjectId]] = None
+    is_milestone: Optional[bool] = None
     scheduled_start: Optional[date] = None
     scheduled_finish: Optional[date] = None
     scheduled_duration: Optional[int] = Field(default=None, ge=0)
@@ -373,7 +378,6 @@ class TaskChanges(BaseModel):
     predecessors: Optional[List[Predecessor]] = None
     assigned_resources: Optional[List[PyObjectId]] = None
     task_mode: Optional[TaskMode] = None
-    task_name: Optional[str] = None
     task_status: Optional[TaskStatus] = None
     ai_suggested_duration: Optional[int] = Field(default=None, ge=0)
     ai_confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)

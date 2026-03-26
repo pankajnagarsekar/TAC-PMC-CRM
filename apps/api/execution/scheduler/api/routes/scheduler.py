@@ -93,7 +93,39 @@ async def _get_merged_tasks(
         updated_data.update(change_dict)
         current_task_map[master_tid] = ProjectScheduleTask(**updated_data)
     else:
-        logger.warning(f"Task {master_tid} not found in project {project_id}. Skipping partial update.")
+        # Handle new task creation optimistically during calculation
+        logger.info(f"Task {master_tid} not found. Creating new task document.")
+        new_id = ObjectId()
+        new_tid = str(new_id)
+        
+        # Build new task from defaults + changes
+        new_task_data = {
+            "_id": new_id,
+            "task_id": new_tid,
+            "project_id": project_id,
+            "external_ref_id": request.changes.external_ref_id or master_tid,
+            "wbs_code": request.changes.wbs_code or "99.new",
+            "task_name": request.changes.task_name or "New Task",
+            "task_status": request.changes.task_status or TaskStatus.DRAFT,
+            "version": 1,
+            "is_deleted": False,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        # Apply any other fields from the change request
+        change_dict = request.changes.model_dump(exclude_unset=True)
+        new_task_data.update(change_dict)
+        
+        # Ensure ID fields are correct
+        new_task_data["_id"] = new_id
+        new_task_data["task_id"] = new_tid
+        
+        new_task = ProjectScheduleTask(**new_task_data)
+        current_task_map[new_tid] = new_task
+        
+        # Track ID mapping if necessary (frontend updates via reconciliation)
+        logger.info(f"Created new task {new_tid} (mapped from {master_tid})")
     
     return list(current_task_map.values())
 

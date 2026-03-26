@@ -100,6 +100,10 @@ const buildChanges = (changes: ScheduleChangeRequest["changes"]) => {
   const allowedFields: Array<keyof ScheduleChangeRequest["changes"]> = [
     "scheduled_start",
     "task_name",
+    "wbs_code",
+    "external_ref_id",
+    "parent_id",
+    "is_milestone",
     "scheduled_finish",
     "scheduled_duration",
     "percent_complete",
@@ -173,10 +177,36 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
 
     reconcileWithEngine: (response) => {
       clearPendingCalculation();
+
+      const nextTaskMap = buildTaskMap(response.tasks);
+      const nextTaskOrder = buildTaskOrder(response.tasks);
+      const nextGraph = buildDependencyGraph(response.tasks);
+
+      // Handle ID mapping for selections (e.g. task-1 -> mongo_id)
+      const nextSelectedTasks = new Set<string>();
+      const currentTaskMap = get().taskMap;
+      const idMap = new Map<string, string>(); // external_ref_id -> new_task_id
+
+      response.tasks.forEach((task) => {
+        if (task.external_ref_id) {
+          idMap.set(task.external_ref_id, task.task_id);
+        }
+      });
+
+      get().selectedTasks.forEach((oldId) => {
+        const task = currentTaskMap[oldId];
+        if (task?.external_ref_id && idMap.has(task.external_ref_id)) {
+          nextSelectedTasks.add(idMap.get(task.external_ref_id)!);
+        } else if (nextTaskMap[oldId]) {
+          nextSelectedTasks.add(oldId);
+        }
+      });
+
       set({
-        taskMap: buildTaskMap(response.tasks),
-        taskOrder: buildTaskOrder(response.tasks),
-        dependencyGraph: buildDependencyGraph(response.tasks),
+        taskMap: nextTaskMap,
+        taskOrder: nextTaskOrder,
+        dependencyGraph: nextGraph,
+        selectedTasks: nextSelectedTasks,
         systemState: response.system_state,
         lastConfirmedVersion: response.calculation_version,
         pendingCalculation: false,
@@ -197,6 +227,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       const draftTask: ScheduleTask = {
         task_id,
         project_id: projectId,
+        external_ref_id: task_id, // Linkage ID
         task_name: "New Task",
         task_status: "draft",
         task_mode: "Auto",
@@ -220,6 +251,15 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
           [task_id]: state.dependencyGraph[task_id] ?? { predecessors: [], successors: [] },
         },
       }));
+
+      // Auto-trigger calculation to persist the new task
+      get().queueCalculation({
+        project_id: projectId,
+        task_id: task_id,
+        changes: { ...draftTask } as any,
+        version: 1,
+        trigger_source: "api",
+      });
 
       return draftTask;
     },

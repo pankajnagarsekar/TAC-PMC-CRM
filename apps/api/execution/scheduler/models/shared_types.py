@@ -18,9 +18,12 @@ from pydantic import BeforeValidator
 def validate_object_id(v):
     if isinstance(v, ObjectId):
         return str(v)
-    if isinstance(v, str) and ObjectId.is_valid(v):
+    if isinstance(v, str):
+        # Allow any string — specifically temporary IDs like 'task-1'
+        # but if it IS a valid hex string, we keep it as is.
+        # The service layer will handle the distinction.
         return v
-    raise ValueError(f"Invalid ObjectId: {v!r}")
+    raise ValueError(f"Invalid ObjectId type: {type(v)}")
 
 
 PyObjectId = Annotated[str, BeforeValidator(validate_object_id)]
