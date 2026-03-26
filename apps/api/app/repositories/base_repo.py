@@ -22,8 +22,8 @@ class OptimisticLockConflict(Exception):
 
 class BaseRepository(Generic[T]):
     """
-    Sovereign Gatekeeper for Data Layer (Hardened v2).
-    Addresses all 11 points from the Architectural Code Review.
+    Sovereign Gatekeeper for Data Layer (Hardened v3.1 — Refined).
+    Enforces Text Clipping, Deterministic Sorting, Optimistic Locking, and Checksum Integrity.
     """
     MAX_LIMIT = 500
     ALLOWED_SORT_FIELDS = {"created_at", "updated_at", "id", "_id", "project_id"}
@@ -34,35 +34,34 @@ class BaseRepository(Generic[T]):
         self.model_class = model_class
 
     async def ensure_indexes(self):
-        """Create necessary indexes for query performance (Point 6)."""
+        """Create necessary indexes for query performance."""
         await self.collection.create_index([("created_at", -1)])
         await self.collection.create_index([("updated_at", -1)])
         await self.collection.create_index([("is_deleted", 1)])
 
     def _generate_checksum(self, data: Dict[str, Any]) -> str:
         """
-        Point 33/5: Data Hardening. 
-        Includes 'version' in the hash to represent full logical state.
-        Excludes ID and timestamps which are physical/temporal metadata.
+        Point 33: Data Hardening. 
+        Checksum includes payload fields only, excludes:
+        - Metadata: _id, created_at, updated_at, deleted_at
+        - Technical: checksum itself, version (concurrency)
+        This ensures checksums remain stable across non-breaking metadata updates.
         """
-        clean = {
-            k: str(v) for k, v in data.items() 
-            if k not in ("_id", "checksum", "updated_at", "created_at", "deleted_at")
-        }
+        exclude = {"_id", "checksum", "updated_at", "created_at", "deleted_at", "version"}
+        clean = {k: str(v) for k, v in data.items() if k not in exclude}
         dump = json.dumps(clean, sort_keys=True)
         return hashlib.sha256(dump.encode()).hexdigest()
 
     def _clip_text(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Hard Guard: Prevent DB bloating with audit log warning (Point 4/46)."""
+        """Hard Guard: Prevent DB bloating (Point 46)."""
         limit = 4000
-        clipped_fields = []
+        clipped = []
         for k, v in data.items():
             if isinstance(v, str) and len(v) > limit:
-                clipped_fields.append(k)
                 data[k] = v[:limit] + "... [CLIPPED]"
-        
-        if clipped_fields:
-            logger.warning(f"TEXT_CLIPPED: {self.collection.name} fields {clipped_fields} truncated at 4k limit.")
+                clipped.append(k)
+        if clipped:
+            logger.warning(f"BLOB_PROTECTION: Fields {clipped} clipped in {self.collection.name}")
         return data
 
     async def get_by_id(self, id: str, session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
@@ -70,43 +69,29 @@ class BaseRepository(Generic[T]):
         doc = await self.collection.find_one({"_id": ObjectId(id)}, session=session)
         if not doc: return None
         
-        # FAIL-FAST CHECKSUM VERIFICATION (Point 1)
-        stored_checksum = doc.get("checksum")
-        if stored_checksum:
-            current_checksum = self._generate_checksum(doc)
-            if stored_checksum != current_checksum:
-                logger.critical(f"DATA_CORRUPTION: Record {id} in {self.collection.name} invalid.")
+        # Point 33: Fail-Fast Checksum
+        stored = doc.get("checksum")
+        if stored:
+            current = self._generate_checksum(doc)
+            if stored != current:
+                logger.critical(f"INTEGRITY_FAILURE: Record {id} corrupted in {self.collection.name}")
                 raise DataIntegrityError(f"Checksum mismatch for {id}")
         
         return serialize_doc(doc)
 
-    async def list(
-        self, 
-        query: Dict[str, Any] = None, 
-        skip: int = 0, 
-        limit: int = 20,
-        sort: List[tuple] = None,
-        session: Optional[AsyncIOMotorClientSession] = None,
-        include_deleted: bool = False
-    ) -> List[Dict[str, Any]]:
-        """List with pagination validation and sort-injection protection (Point 7/8/10)."""
+    async def list(self, query=None, skip=0, limit=20, sort=None, session=None, include_deleted=False) -> List[Dict[str, Any]]:
         if query is None: query = {}
+        if limit > self.MAX_LIMIT: raise ValueError("Limit exceeds safety boundary")
+        if skip < 0 or limit < 0: raise ValueError("Invalid pagination")
         
-        # VALIDATE PAGINATION (Point 7)
-        if limit > self.MAX_LIMIT: raise ValueError(f"Limit exceeds max {self.MAX_LIMIT}")
-        if skip < 0 or limit < 0: raise ValueError("Skip/Limit must be positive")
-
-        # SOFT DELETE FILTER (Point 10)
         if not include_deleted:
             query.setdefault("is_deleted", {"$ne": True})
 
-        # VALIDATE SORT (Point 8)
         if not sort:
             sort = [("created_at", -1)]
         else:
-            for field, direction in sort:
-                if field not in self.ALLOWED_SORT_FIELDS or direction not in (1, -1):
-                    raise ValueError(f"Invalid or unauthorized sort field: {field}")
+            for f, d in sort:
+                if f not in self.ALLOWED_SORT_FIELDS: raise ValueError(f"Unauthorized sort field: {f}")
 
         cursor = self.collection.find(query, session=session).skip(skip).limit(limit).sort(sort)
         docs = await cursor.to_list(length=limit)
@@ -114,10 +99,8 @@ class BaseRepository(Generic[T]):
 
     async def create(self, data: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None) -> Dict[str, Any]:
         data = self._clip_text(data)
-        data["created_at"] = now()
-        data["updated_at"] = data["created_at"]
-        data["version"] = 1
-        data["is_deleted"] = False
+        ts = now()
+        data.update({"created_at": ts, "updated_at": ts, "version": 1, "is_deleted": False})
         data["checksum"] = self._generate_checksum(data)
             
         result = await self.collection.insert_one(data, session=session)
@@ -126,44 +109,52 @@ class BaseRepository(Generic[T]):
 
     async def update(self, id: str, data: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
         """
-        Hardened Update: Merged Checksum & Explicit Version Conflict (Point 2/3).
+        Hardened Atomic Update (v3.1).
+        Enforces merged checksum and version-aware concurrency.
         """
         if not ObjectId.is_valid(id): return None
-        data = self._clip_text(data)
         
-        # 1. FETCH CURRENT STATE FOR COMPLETE HASH (Point 2)
+        # 1. PRE-FETCH CURRENT STATE
         current = await self.collection.find_one({"_id": ObjectId(id)}, session=session)
         if not current: return None
 
-        version = data.pop("version", None)
+        # 2. SANITIZE DELTA
+        data = self._clip_text(data)
+        incoming_version = data.pop("version", None)
         
-        # 2. MERGE DATA (Point 2)
+        # 3. CONSOLIDATE MERGED STATE
         merged = {**current, **data}
         merged["updated_at"] = now()
         merged["checksum"] = self._generate_checksum(merged)
 
+        # 4. PREPARE SET PAYLOAD (Avoid internal collisions)
+        update_payload = {k: v for k, v in merged.items() if k not in ("_id", "version")}
+        
+        # 5. ATOMIC EXECUTION with Locking
         query = {"_id": ObjectId(id)}
-        if version: query["version"] = version # Optimistic Locking
+        if incoming_version: query["version"] = incoming_version
 
-        # 3. ATOMIC UPDATE
         doc = await self.collection.find_one_and_update(
-            query, 
-            {"$set": merged, "$inc": {"version": 1}}, 
-            return_document=True, 
+            query,
+            {"$set": update_payload, "$inc": {"version": 1}},
+            return_document=True,
             session=session
         )
 
-        # 4. EXPLICIT CONFLICT SIGNAL (Point 3)
-        if doc is None and version:
-            raise OptimisticLockConflict(f"Version mismatch for {id}. Expected {version}.")
+        # 6. EXPLICIT CONFLICT SIGNAL
+        if doc is None:
+            if incoming_version:
+                raise OptimisticLockConflict(f"Concurrency error on {id}. Version clash.")
+            logger.warning(f"Record {id} disappeared in {self.collection.name} during update.")
+            return None
             
         return serialize_doc(doc)
 
-    async def soft_delete(self, id: str, session: Optional[AsyncIOMotorClientSession] = None) -> bool:
-        """Mark as deleted without physical removal (Point 10)."""
+    async def soft_delete(self, id: str, session=None) -> bool:
+        """Mark as deleted (Soft Delete). Note: Cascades must be handled by Services."""
         res = await self.update(id, {"is_deleted": True, "deleted_at": now()}, session=session)
         return res is not None
 
-    async def find_one(self, query: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
+    async def find_one(self, query: Dict[str, Any], session=None) -> Optional[Dict[str, Any]]:
         doc = await self.collection.find_one(query, session=session)
         return serialize_doc(doc) if doc else None
