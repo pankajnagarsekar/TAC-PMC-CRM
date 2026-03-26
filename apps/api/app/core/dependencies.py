@@ -28,6 +28,7 @@ from app.services.dashboard_service import DashboardService
 
 from app.core.permissions import PermissionChecker
 from app.core.resilience import NonceGuard
+from app.repositories.user_repo import UserRepository
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
@@ -67,16 +68,13 @@ async def get_authenticated_user(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_db)
 ) -> dict:
-    """Validate user exists in DB and is active (Point 3, 63)"""
+    """Validate user exists in DB and is active (Point 3, 63, Fixed CR-23)"""
     user_id = current_user.get("user_id")
-    if not ObjectId.is_valid(user_id):
-        raise HTTPException(status_code=401, detail="Invalid identity")
-        
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user or not user.get("active_status", False):
-        raise HTTPException(status_code=403, detail="Account inactive or not found")
-
-    user["user_id"] = str(user.pop("_id"))
+    repo = UserRepository(db)
+    user = await repo.get_by_id(user_id)
+    
+    # Authoritative active check via checker
+    await PermissionChecker.validate_active_user(user)
     return user
 
 # --- RESILIENCE DEPENDENCIES (Point 102) ---
@@ -174,12 +172,29 @@ async def get_reporting_service(
 
 async def get_cash_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    perm: PermissionChecker = Depends(get_permission_checker),
     audit: AuditService = Depends(get_audit_service)
 ) -> CashService:
-    return CashService(db, PermissionChecker(db), audit)
+    return CashService(db, perm, audit)
 
 async def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> DashboardService:
     return DashboardService(db)
 
 async def get_master_data_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> MasterDataService:
     return MasterDataService(db)
+
+async def get_notification_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service)
+) -> NotificationService:
+    return NotificationService(db, audit)
+
+async def get_ai_summary_service(
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> AISummaryService:
+    return AISummaryService(db)
+
+async def get_scheduler_service(
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> SchedulerService:
+    return SchedulerService(db)

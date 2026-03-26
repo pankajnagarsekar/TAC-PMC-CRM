@@ -1,6 +1,7 @@
 from typing import Optional, Dict, Any, List
 from motor.motor_asyncio import AsyncIOMotorClientSession
 from pydantic import BaseModel
+from pymongo import ASCENDING, DESCENDING
 from app.repositories.base_repo import BaseRepository
 from app.schemas.financial import WorkOrder, PaymentCertificate, DerivedFinancialState, CodeMaster, VendorLedgerEntry
 
@@ -12,12 +13,24 @@ class WorkOrderRepository(BaseRepository[WorkOrder]):
     def __init__(self, db):
         super().__init__(db, "work_orders", WorkOrder)
 
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        # Fixed CR-22: Optimization for project-level financial tracking
+        await self.collection.create_index([("project_id", ASCENDING), ("category_id", ASCENDING)])
+        await self.collection.create_index([("status", ASCENDING)])
+        await self.collection.create_index([("wo_ref", ASCENDING)])
+
     async def get_by_project(self, project_id: str, limit: int = 100, session: Optional[AsyncIOMotorClientSession] = None) -> List[Dict[str, Any]]:
         return await self.list({"project_id": project_id}, limit=limit, session=session)
 
 class PCRepository(BaseRepository[PaymentCertificate]):
     def __init__(self, db):
         super().__init__(db, "payment_certificates", PaymentCertificate)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index([("project_id", ASCENDING), ("status", ASCENDING)])
+        await self.collection.create_index([("pc_ref", ASCENDING)])
 
     async def list_by_project(self, project_id: str, organisation_id: str, limit: int = 100, cursor: Optional[str] = None) -> Dict[str, Any]:
         query = {"project_id": project_id, "organisation_id": organisation_id}
@@ -39,6 +52,11 @@ class BudgetRepository(BaseRepository[DerivedFinancialState]):
     def __init__(self, db):
         super().__init__(db, "project_category_budgets", DerivedFinancialState)
 
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        # Fixed CR-22: Compound unique index for budget allocation
+        await self.collection.create_index([("project_id", ASCENDING), ("category_id", ASCENDING)], unique=True)
+
     async def get_by_project_and_category(self, project_id: str, category_id: str, session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
         return await self.find_one({"project_id": project_id, "category_id": category_id}, session=session)
 
@@ -46,13 +64,27 @@ class CodeMasterRepository(BaseRepository[CodeMaster]):
     def __init__(self, db):
         super().__init__(db, "code_master", CodeMaster)
 
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index([("code", ASCENDING)])
+        await self.collection.create_index([("code_short", ASCENDING)])
+
 class LedgerRepository(BaseRepository[VendorLedgerEntry]):
     def __init__(self, db):
         super().__init__(db, "vendor_ledger", VendorLedgerEntry)
 
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index([("vendor_id", ASCENDING), ("project_id", ASCENDING)])
+
 class FinancialStateRepository(BaseRepository[DerivedFinancialState]):
     def __init__(self, db):
         super().__init__(db, "financial_state", DerivedFinancialState)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        # Fixed CR-22: Compound unique ensures only one state record per category/project
+        await self.collection.create_index([("project_id", ASCENDING), ("category_id", ASCENDING)], unique=True)
 
 class SequenceRepository(BaseRepository[SequenceModel]):
     def __init__(self, db):

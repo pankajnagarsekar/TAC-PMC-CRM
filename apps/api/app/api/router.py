@@ -6,7 +6,12 @@ from app.api.v1 import (
     ai_summary_routes, reporting_routes, scheduler_routes, 
     cash_routes, audit_routes, dashboard_routes
 )
-from execution.scheduler.api.routes import scheduler_router as enterprise_scheduler_router, portfolio_router
+# Fixed CR-02: Path updated to match new DDD structure
+try:
+    from app.modules.scheduler.api.routes import scheduler_router as enterprise_scheduler_router, portfolio_router
+    HAS_V2 = True
+except ImportError:
+    HAS_V2 = False
 
 # Central API Router (Point 21)
 api_router = APIRouter()
@@ -30,11 +35,12 @@ v1_router.include_router(cash_routes.router, prefix="/cash", tags=["Cash Flows"]
 v1_router.include_router(audit_routes.router, prefix="/audit", tags=["Audit Logs"])
 v1_router.include_router(dashboard_routes.router, prefix="/dashboard", tags=["Dashboard"])
 
-# Registry: Version 2 (Enterprise)
-v2_router = APIRouter()
-v2_router.include_router(enterprise_scheduler_router, tags=["Enterprise Scheduler"])
-v2_router.include_router(portfolio_router, prefix="/portfolio", tags=["Portfolio management"])
-
-# Mount Versions
+# Mount Version 1
 api_router.include_router(v1_router, prefix="/v1")
-api_router.include_router(v2_router, prefix="/v2")
+
+# Registry: Version 2 (Enterprise)
+if HAS_V2:
+    v2_router = APIRouter()
+    v2_router.include_router(enterprise_scheduler_router, tags=["Enterprise Scheduler"])
+    v2_router.include_router(portfolio_router, prefix="/portfolio", tags=["Portfolio management"])
+    api_router.include_router(v2_router, prefix="/v2")

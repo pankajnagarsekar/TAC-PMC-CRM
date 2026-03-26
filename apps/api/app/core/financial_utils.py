@@ -1,6 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 from bson import Decimal128
 from datetime import datetime, timezone
+from app.domain.financial_engine import FinancialEngine
 
 def to_d128(value) -> Decimal128:
     """Convert numeric/Decimal to Decimal128 for MongoDB storage."""
@@ -8,8 +9,7 @@ def to_d128(value) -> Decimal128:
         return Decimal128("0.00")
     if isinstance(value, Decimal128):
         return value
-    # Ensure 2 decimal places with ROUND_HALF_UP
-    return Decimal128(str(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)))
+    return Decimal128(str(FinancialEngine.round(value)))
 
 def to_decimal(value) -> Decimal:
     """Convert any value to Decimal safely."""
@@ -23,9 +23,8 @@ def to_decimal(value) -> Decimal:
         return Decimal("0.00")
 
 def round_half_up(value: Decimal, precision: int = 2) -> Decimal:
-    """Explicit Round-Half-Up helper."""
-    quantize_str = "0." + "0" * (precision - 1) + "1" if precision > 0 else "1"
-    return value.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
+    """Explicit Round-Half-Up helper (Delegates to Engine)."""
+    return FinancialEngine.round(value)
 
 def calculate_wo_financials(
     subtotal: Decimal, 
@@ -34,25 +33,17 @@ def calculate_wo_financials(
     cgst_pct: Decimal = Decimal("9"), 
     sgst_pct: Decimal = Decimal("9")
 ):
-    """Calculate all financial fields for a Work Order."""
-    total_before_tax = round_half_up(subtotal - discount)
-    cgst_amount = round_half_up(total_before_tax * cgst_pct / 100)
-    sgst_amount = round_half_up(total_before_tax * sgst_pct / 100)
-    grand_total = round_half_up(total_before_tax + cgst_amount + sgst_amount)
-    retention_amount = round_half_up(grand_total * retention_pct / 100)
-    actual_payable = round_half_up(grand_total - retention_amount)
-    
-    return {
-        "subtotal": subtotal,
-        "discount": discount,
-        "total_before_tax": total_before_tax,
-        "cgst": cgst_amount,
-        "sgst": sgst_amount,
-        "grand_total": grand_total,
-        "retention_amount": retention_amount,
-        "total_payable": grand_total,  # Standard nomenclature in this system
-        "actual_payable": actual_payable
-    }
+    """
+    Fixed CR-11: Delegates to FinancialEngine for authoritative logic.
+    Ensures calculations are consistent across the entire domain.
+    """
+    return FinancialEngine.calculate_wo_financials(
+        subtotal=subtotal,
+        discount=discount,
+        retention_pct=retention_pct,
+        cgst_pct=cgst_pct,
+        sgst_pct=sgst_pct
+    )
 
 def calculate_pc_financials(
     pc_value: Decimal, 
@@ -60,20 +51,12 @@ def calculate_pc_financials(
     cgst_pct: Decimal = Decimal("9"), 
     sgst_pct: Decimal = Decimal("9")
 ):
-    """Calculate all financial fields for a Payment Certificate."""
-    retention_amount = round_half_up(pc_value * retention_pct / 100)
-    total_after_retention = round_half_up(pc_value - retention_amount)
-    cgst_amount = round_half_up(total_after_retention * cgst_pct / 100)
-    sgst_amount = round_half_up(total_after_retention * sgst_pct / 100)
-    gst_amount = round_half_up(cgst_amount + sgst_amount)
-    grand_total = round_half_up(total_after_retention + gst_amount)
-    
-    return {
-        "subtotal": pc_value,
-        "retention_amount": retention_amount,
-        "total_after_retention": total_after_retention,
-        "cgst": cgst_amount,
-        "sgst": sgst_amount,
-        "gst_amount": gst_amount,
-        "grand_total": grand_total
-    }
+    """
+    Fixed CR-11: Delegates to FinancialEngine for authoritative logic.
+    """
+    return FinancialEngine.calculate_pc_financials(
+        pc_value=pc_value,
+        retention_pct=retention_pct,
+        cgst_pct=cgst_pct,
+        sgst_pct=sgst_pct
+    )

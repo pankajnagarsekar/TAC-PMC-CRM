@@ -99,3 +99,10 @@ class DPRPDFGenerator:
             except: pass
         elements.append(Paragraph(image_data.get('caption', ''), self.styles['Caption']))
         return elements
+
+    def get_filename(self, project_code: str, date_str: str) -> str:
+        """Standardized filename generator."""
+        return f"DPR_{project_code}_{date_str}.pdf"
+
+# Authoritative Instance
+pdf_generator = DPRPDFGenerator()

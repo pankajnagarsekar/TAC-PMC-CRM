@@ -107,11 +107,11 @@ class FinancialService:
 
         master_doc = {
             "project_id": project_id,
-            "category_id": None,
-            "total_budget": to_d128(totals["total_budget"]),
-            "total_committed": to_d128(totals["total_committed"]),
-            "total_certified": to_d128(totals["total_certified"]),
-            "total_remaining": to_d128(totals["total_budget"] - totals["total_committed"]),
+            "category_id": None, # Indicates project-wide master snapshot
+            "original_budget": to_d128(totals["total_budget"]),
+            "committed_value": to_d128(totals["total_committed"]),
+            "certified_value": to_d128(totals["total_certified"]),
+            "balance_budget_remaining": to_d128(totals["total_budget"] - totals["total_committed"]),
             "categories_recalculated": totals["categories_recalculated"],
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
             "last_recalculated": now()

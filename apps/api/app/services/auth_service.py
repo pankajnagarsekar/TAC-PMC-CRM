@@ -63,22 +63,19 @@ class AuthService:
         return jwt.encode(to_encode, self.config.JWT_SECRET_KEY, algorithm=self.config.ALGORITHM)
 
     async def decode_token(self, token: str, token_type: str = "access", check_revocation: bool = True) -> Dict[str, Any]:
-        """Hard Decryption with Clock Skew Handling (Point 101)."""
+        """
+        Hard Decryption with Clock Skew Handling (Point 101).
+        Fixed CR-30: Using standard JWT leeway for cleaner implementation.
+        """
         try:
-            # Decode without EXP check first to manually handle skew
+            # SKEW TOLERANCE: 30 Seconds (Point 101)
             payload = jwt.decode(
                 token, 
                 self.config.JWT_SECRET_KEY, 
                 algorithms=[self.config.ALGORITHM],
-                options={"verify_exp": False} 
+                options={"leeway": 30} 
             )
             
-            # SKEW TOLERANCE: 30 Seconds (Point 101)
-            # Use raw time for low-overhead check
-            current_ts = time.time()
-            if payload.get("exp") < (current_ts - 30):
-                 raise HTTPException(status_code=401, detail="TOKEN_EXPIRED: Period of validity exceeded.")
-
             if payload.get("type") != token_type:
                 raise HTTPException(status_code=401, detail=f"AUTH_ERROR: Invalid purpose ({token_type} expected).")
             
@@ -90,7 +87,7 @@ class AuthService:
                     
             return payload
         except JWTError:
-            raise HTTPException(status_code=401, detail="AUTH_ERROR: Identity cannot be verified.")
+            raise HTTPException(status_code=401, detail="AUTH_ERROR: Identity cannot be verified or expired.")
 
     async def login(self, login_data: LoginRequest) -> Token:
         user = await self.user_repo.get_by_email(login_data.email)

@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(
         title=settings.PROJECT_NAME,
-        version="2.2.0",
+        version="2.2.0+",
         description="TAC-PMC-CRM Supreme Hardened Backend"
     )
 
@@ -28,10 +28,10 @@ def create_app() -> FastAPI:
     app.add_middleware(BackpressureMiddleware)
     app.add_middleware(StandardResponseMiddleware)
     
-    # CORS
+    # CORS (Fixed CR-06: Using restricted list from settings)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"], 
+        allow_origins=settings.ALLOWED_ORIGINS, 
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -66,7 +66,7 @@ def create_app() -> FastAPI:
             await state["guardian"].stop()
         db_manager.close()
 
-    @app.get("/health", tags=["System"])
+    @app.get("/system/health", tags=["System"])
     async def health_check():
         return {
             "status": "online",

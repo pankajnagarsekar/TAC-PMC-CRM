@@ -25,6 +25,8 @@ importers:
         specifier: latest
         version: 2.8.13
 
+  apps/api: {}
+
   apps/mobile:
     dependencies:
       '@babel/runtime':

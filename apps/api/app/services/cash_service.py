@@ -3,16 +3,25 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from bson import ObjectId, Decimal128
 from fastapi import HTTPException
+import logging
 
 from app.repositories.cash_repo import FundAllocationRepository, CashTransactionRepository
 from app.repositories.project_repo import ProjectRepository
-from app.repositories.settings_repo import CodeMasterRepository
+from app.repositories.financial_repo import CodeMasterRepository
 from app.repositories.user_repo import UserRepository
 from app.services.audit_service import AuditService
 from app.core.financial_utils import to_d128, to_decimal
+from app.core.uow import UnitOfWork
+from app.core.permissions import PermissionChecker
+
+logger = logging.getLogger(__name__)
 
 class CashService:
-    def __init__(self, db, permission_checker, audit_service: AuditService):
+    """
+    Sovereign Cash Controller (Point 1, 31).
+    Enforces atomic fund adjustments and threshold monitoring via UnitOfWork.
+    """
+    def __init__(self, db, permission_checker: PermissionChecker, audit_service: AuditService):
         self.db = db
         self.permission_checker = permission_checker
         self.audit_service = audit_service
@@ -24,8 +33,7 @@ class CashService:
 
     def _get_threshold_for_category(self, category, project) -> Decimal:
         default_threshold = Decimal("1000.0")
-        if not category or not project:
-            return default_threshold
+        if not category or not project: return default_threshold
         cat_name = category.get("category_name", "").lower()
         if "petty" in cat_name:
             return Decimal(str(project.get("threshold_petty", default_threshold)))
@@ -34,9 +42,10 @@ class CashService:
         return default_threshold
 
     async def get_cash_summary(self, user: dict, project_id: str) -> Dict[str, Any]:
+        """Aggregate project-wide cash state with threshold status."""
         await self.permission_checker.check_project_access(user, project_id)
         
-        now = datetime.now(timezone.utc)
+        now_dt = datetime.now(timezone.utc)
         project = await self.project_repo.get_by_project_id(project_id)
         
         categories = await self.code_repo.list({
@@ -49,9 +58,7 @@ class CashService:
 
         category_ids = [str(cat["id"]) for cat in categories]
         
-        # We'll use the same aggregation logic but maybe scoped via repo if we could.
-        # For simplicity, since it's a complex aggregation, we can keep it here or move to repo.
-        # I'll keep it here for now as it's very specific to this view.
+        # Detect last PC closures for replenishment tracking
         pipeline = [
             {"$match": {"project_id": project_id, "category_id": {"$in": category_ids}}},
             {
@@ -71,7 +78,7 @@ class CashService:
                                 }
                             }
                         },
-                        {"$project": {"updated_at": 1, "_id": 0}}
+                        {"$project": {"updated_at": 1}}
                     ],
                     "as": "closed_pcs"
                 }
@@ -85,40 +92,35 @@ class CashService:
         category_map = {str(cat["id"]): cat for cat in categories}
 
         categories_data = []
-        total_cash_in_hand = Decimal("0")
-
-        def _dec(val):
-            if isinstance(val, Decimal128): return val.to_decimal()
-            return Decimal(str(val)) if val is not None else Decimal("0")
+        total_cash_in_hand = Decimal("0.0")
 
         for cat_id, allocation in allocation_by_cat.items():
             cat = category_map.get(cat_id)
             if not cat: continue
 
             threshold = self._get_threshold_for_category(cat, project)
-            allocation_received = to_decimal(allocation.get("allocation_received"))
-            total_expenses = to_decimal(allocation.get("total_expenses"))
-            allocation_original = to_decimal(allocation.get("allocation_original"))
+            alloc_received = to_decimal(allocation.get("allocation_received"))
+            expenses = to_decimal(allocation.get("total_expenses"))
+            alloc_original = to_decimal(allocation.get("allocation_original"))
 
-            cash_in_hand = allocation_received - total_expenses
-            allocation_remaining = allocation_original - allocation_received
+            cash_in_hand = alloc_received - expenses
+            alloc_remaining = alloc_original - alloc_received
             total_cash_in_hand += cash_in_hand
 
-            days_since_last_pc_close = None
+            days_since = None
             last_close = allocation.get("last_pc_close_date")
             if last_close:
-                if isinstance(last_close, datetime) and last_close.tzinfo is None:
-                    last_close = last_close.replace(tzinfo=timezone.utc)
-                days_since_last_pc_close = (now - last_close).days
+                if last_close.tzinfo is None: last_close = last_close.replace(tzinfo=timezone.utc)
+                days_since = (now_dt - last_close).days
 
             categories_data.append({
                 "category_id": cat_id,
                 "category_name": cat.get("category_name"),
                 "cash_in_hand": float(cash_in_hand),
-                "allocation_remaining": float(allocation_remaining),
-                "allocation_total": float(allocation_original),
+                "allocation_remaining": float(alloc_remaining),
+                "allocation_total": float(alloc_original),
                 "threshold": float(threshold),
-                "days_since_last_pc_close": days_since_last_pc_close,
+                "days_since_last_pc_close": days_since,
                 "is_negative": cash_in_hand < 0,
                 "threshold_breached": cash_in_hand <= threshold,
             })
@@ -137,49 +139,27 @@ class CashService:
     async def list_fund_allocations(self, user: dict, project_id: str) -> List[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
         
+        # Enriched list via aggregation for category names
         pipeline = [
             {"$match": {"project_id": project_id}},
-            {
-                "$lookup": {
-                    "from": "code_master",
-                    "let": {"cat_id": "$category_id"},
-                    "pipeline": [
-                        {"$match": {"$expr": {"$eq": [{"$toString": "$_id"}, "$$cat_id"]}}}
-                    ],
-                    "as": "category_info"
-                }
-            },
-            {"$unwind": {"path": "$category_info", "preserveNullAndEmptyArrays": True}},
-            {
-                "$project": {
-                    "id": {"$toString": "$_id"},
-                    "project_id": 1,
-                    "category_id": 1,
-                    "allocation_original": 1,
-                    "allocation_received": 1,
-                    "allocation_remaining": 1,
-                    "last_pc_closed_date": 1,
-                    "created_at": 1,
-                    "category_name": "$category_info.category_name"
-                }
-            },
+            {"$addFields": {"cid_obj": {"$toObjectId": "$category_id"}}},
+            {"$lookup": {
+                "from": "code_master",
+                "localField": "cid_obj",
+                "foreignField": "_id",
+                "as": "cat_info"
+            }},
+            {"$unwind": {"path": "$cat_info", "preserveNullAndEmptyArrays": True}},
+            {"$project": {
+                "id": {"$toString": "$_id"},
+                "project_id": 1, "category_id": 1,
+                "allocation_original": 1, "allocation_received": 1, "allocation_remaining": 1,
+                "last_pc_closed_date": 1, "created_at": 1,
+                "category_name": "$cat_info.category_name"
+            }},
             {"$sort": {"created_at": -1}}
         ]
-        
-        docs = await self.db.fund_allocations.aggregate(pipeline).to_list(length=100)
-        
-        def to_float(val):
-            if isinstance(val, Decimal128): return float(val.to_decimal())
-            return float(val) if val is not None else 0.0
-
-        for d in docs:
-            d["allocation_original"] = to_float(d.get("allocation_original"))
-            d["allocation_received"] = to_float(d.get("allocation_received"))
-            d["allocation_remaining"] = to_float(d.get("allocation_remaining"))
-            if "created_at" in d and isinstance(d["created_at"], datetime):
-                d["created_at"] = d["created_at"].isoformat()
-
-        return docs
+        return await self.db.fund_allocations.aggregate(pipeline).to_list(100)
 
     async def list_cash_transactions(
         self, user: dict, project_id: str, category_id: Optional[str] = None, cursor: Optional[str] = None, limit: int = 100
@@ -187,125 +167,101 @@ class CashService:
         await self.permission_checker.check_project_access(user, project_id)
         
         query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
-        if category_id:
-            query["category_id"] = category_id
-            
+        if category_id: query["category_id"] = category_id
         if cursor:
-            try:
-                parsed_cursor = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
-                query["created_at"] = {"$lt": parsed_cursor}
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid cursor format")
+            try: query["created_at"] = {"$lt": datetime.fromisoformat(cursor.replace('Z', '+00:00'))}
+            except ValueError: raise HTTPException(status_code=400, detail="Invalid cursor format")
 
         docs = await self.txn_repo.list(query, sort=[("created_at", -1)], limit=limit)
         
         next_cursor = None
         if len(docs) == limit:
-            last_doc = docs[-1]
-            ts = last_doc.get("created_at")
-            if isinstance(ts, datetime):
-                next_cursor = ts.isoformat()
+            ts = docs[-1].get("created_at")
+            if isinstance(ts, datetime): next_cursor = ts.isoformat()
 
-        items = []
+        # Hydrate metadata
         for d in docs:
             if d.get("created_by"):
-                u = await self.user_repo.get_by_user_id(d["created_by"])
-                if u:
-                    d["created_by_name"] = u.get("name") or u.get("full_name") or u.get("email", "").split("@")[0]
-            
+                u = await self.user_repo.get_by_id(d["created_by"])
+                if u: d["created_by_name"] = u.get("name") or u.get("email", "").split("@")[0]
             if d.get("category_id"):
-                cat = await self.code_repo.get(d["category_id"])
-                if cat:
-                    d["category_name"] = cat.get("category_name")
-            
-            if "amount" in d:
-                if isinstance(d["amount"], Decimal128):
-                    d["amount"] = float(d["amount"].to_decimal())
-            
-            if "created_at" in d and isinstance(d["created_at"], datetime):
-                d["created_at"] = d["created_at"].isoformat()
-            
-            items.append(d)
+                cat = await self.code_repo.get_by_id(d["category_id"])
+                if cat: d["category_name"] = cat.get("category_name")
+            if "amount" in d: d["amount"] = float(to_decimal(d["amount"]))
+            if "created_at" in d and isinstance(d["created_at"], datetime): d["created_at"] = d["created_at"].isoformat()
 
-        return {"items": items, "next_cursor": next_cursor}
+        return {"items": docs, "next_cursor": next_cursor}
 
     async def create_cash_transaction(self, user: dict, project_id: str, data: Dict[str, Any], idempotency_key: str) -> Dict[str, Any]:
-        await self.permission_checker.check_project_access(user, project_id, require_write=True)
-        await self.permission_checker.check_web_crm_access(user)
-        await self.permission_checker.check_client_readonly(user)
+        """Fixed CR-15: Ported to UnitOfWork for atomic fund allocation updates."""
+        await self.permission_checker.check_write_access_with_role(user, project_id)
 
         amount = Decimal(str(data["amount"]))
         category_id = data["category_id"]
         txn_type = data["type"]
 
-        async with self.db.client.start_session() as session:
-            async with session.start_transaction():
-                # Check idempotency handled by router for now? 
-                # Actually logic should be here.
-                
-                allocation = await self.fund_repo.get_one({"project_id": project_id, "category_id": category_id}, session=session)
-                if not allocation:
-                    raise HTTPException(status_code=404, detail="No active fund allocation found for this category.")
+        async with UnitOfWork(self.db) as uow:
+            # 1. Idempotency Guard
+            if idempotency_key:
+                from app.core.idempotency import get_recorded_operation
+                recorded = await get_recorded_operation(self.db, uow.session, idempotency_key)
+                if recorded: return recorded
 
-                project = await self.project_repo.get_by_project_id(project_id)
-                category = await self.code_repo.get(category_id)
+            # 2. Fetch Dependent Entities
+            allocation = await uow.db.fund_allocations.find_one(
+                {"project_id": project_id, "category_id": category_id}, session=uow.session
+            )
+            if not allocation:
+                raise HTTPException(status_code=404, detail="FUNDING_ERROR: No allocation found for category.")
 
-                if txn_type == "DEBIT":
-                    inc_ops = {
-                        "cash_in_hand": to_d128(-amount),
-                        "total_expenses": to_d128(amount),
-                    }
-                else:
-                    inc_ops = {
-                        "cash_in_hand": to_d128(amount),
-                    }
+            # 3. Update Read-Model
+            inc_ops = {
+                "cash_in_hand": to_d128(-amount) if txn_type == "DEBIT" else to_d128(amount)
+            }
+            if txn_type == "DEBIT":
+                inc_ops["total_expenses"] = to_d128(amount)
 
-                updated_alloc = await self.db.fund_allocations.find_one_and_update(
-                    {"_id": allocation["_id"] if "_id" in allocation else ObjectId(allocation["id"])},
-                    {"$inc": inc_ops},
-                    return_document=True,
-                    session=session
-                )
+            updated_alloc = await uow.db.fund_allocations.find_one_and_update(
+                {"_id": allocation["_id"]},
+                {"$inc": inc_ops},
+                return_document=True,
+                session=uow.session
+            )
+            new_cash = to_decimal(updated_alloc.get("cash_in_hand"))
 
-                new_cash_in_hand = to_decimal(updated_alloc.get("cash_in_hand"))
-                
-                doc = {
-                    "project_id": project_id,
-                    "organisation_id": user["organisation_id"],
-                    "category_id": category_id,
-                    "amount": to_d128(amount),
-                    "type": txn_type,
-                    "description": data.get("description"),
-                    "transaction_date": data.get("transaction_date"),
-                    "created_by": user["user_id"],
-                    "created_at": datetime.now(timezone.utc)
-                }
-                
-                res = await self.txn_repo.create(doc, session=session)
-                doc["id"] = str(res)
-                
-                # Audit log
-                await self.audit_service.log_action(
-                    organisation_id=user["organisation_id"],
-                    module_name="CASH_TRANSACTIONS",
-                    entity_type="CASH_TRANSACTION",
-                    entity_id=str(res),
-                    action_type="CREATE",
-                    user_id=user["user_id"],
-                    project_id=project_id,
-                    new_value=data, # Simple snapshot
-                    session=session
-                )
+            # 4. Create Transaction Record
+            txn_doc = {
+                "project_id": project_id,
+                "organisation_id": user["organisation_id"],
+                "category_id": category_id,
+                "amount": to_d128(amount),
+                "type": txn_type,
+                "description": data.get("description"),
+                "transaction_date": data.get("transaction_date"),
+                "created_by": user["user_id"],
+                "version": 1
+            }
+            new_txn = await uow.cash_transactions.create(txn_doc, session=uow.session)
 
-        threshold = self._get_threshold_for_category(category, project)
-        warnings = []
-        if new_cash_in_hand < 0:
-            warnings.append("negative_cash")
-        elif new_cash_in_hand <= threshold:
-            warnings.append("threshold_breach")
+            # 5. Audit & Idempotency
+            if idempotency_key:
+                from app.core.idempotency import record_operation
+                await record_operation(self.db, uow.session, idempotency_key, "CASH_TXN", response_payload=new_txn)
 
-        result = {**doc, "amount": float(amount), "warnings": warnings}
-        if "created_at" in result:
-            result["created_at"] = result["created_at"].isoformat()
-        return result
+            await self.audit_service.log_action(
+                organisation_id=user["organisation_id"], module_name="CASH_FLOWS",
+                entity_type="CASH_TRANSACTION", entity_id=new_txn["id"],
+                action_type="CREATE", user_id=user["user_id"], project_id=project_id,
+                new_value=new_txn, session=uow.session
+            )
 
+            # 6. Threshold Breach Checks
+            project = await uow.projects.get_by_id(project_id, organisation_id=user["organisation_id"], session=uow.session)
+            category = await uow.db.code_master.find_one({"_id": ObjectId(category_id)}, session=uow.session)
+            threshold = self._get_threshold_for_category(category, project)
+            
+            warnings = []
+            if new_cash < 0: warnings.append("negative_cash")
+            elif new_cash <= threshold: warnings.append("threshold_breach")
+
+            return {**new_txn, "warnings": warnings, "new_cash_in_hand": float(new_cash)}

@@ -16,6 +16,18 @@ class PermissionChecker:
         self.db = db
         self.map_repo = UserProjectMapRepository(db)
 
+    @staticmethod
+    async def validate_active_user(user: dict):
+        """Fixed CR-23: Unified active-status check logic."""
+        if not user:
+            raise HTTPException(status_code=401, detail="INVALID_SESSION: User record not found.")
+        if not user.get("active_status", False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="ACCESS_DENIED: Account is inactive. Contact Administrator."
+            )
+        return True
+
     async def check_project_access(
         self,
         user: dict, 
@@ -23,6 +35,8 @@ class PermissionChecker:
         require_write: bool = False
     ):
         """Verify user has clearance for a specific project."""
+        await self.validate_active_user(user)
+        
         if user.get("role") == "Admin":
             return True
 

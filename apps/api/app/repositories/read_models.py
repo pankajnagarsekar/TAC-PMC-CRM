@@ -26,8 +26,9 @@ class ProjectStatsRepository(BaseRepository[ProjectStats]):
 
     async def refresh_stats(self, project_id: str, data: Dict[str, Any]):
         """Overwrite stats entry with fresh pre-aggregated data."""
+        from datetime import datetime, timezone
         await self.collection.update_one(
             {"project_id": str(project_id)},
-            {"$set": {**data, "last_updated": self.db.client.loop.now() if hasattr(self, 'db') else None}},
+            {"$set": {**data, "last_updated": datetime.now(timezone.utc)}},
             upset=True
         )

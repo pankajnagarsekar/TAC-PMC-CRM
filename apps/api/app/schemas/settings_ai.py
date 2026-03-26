@@ -4,6 +4,9 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 from app.schemas.shared import PyObjectId
 
+# Fixed CR-07: Use authoritative CodeMaster from financial schema
+from app.schemas.financial import CodeMaster, CodeMasterCreate, CodeMasterUpdate
+
 class ClientPermissions(BaseModel):
     can_view_dpr: bool = True
     can_view_financials: bool = False
@@ -51,13 +54,14 @@ class GlobalSettingsUpdate(BaseModel):
     client_permissions: Optional[dict] = None
 
 class AISummaryReportData(BaseModel):
-    total_budget: float = 0.0
-    total_committed: float = 0.0
-    total_certified: float = 0.0
-    total_remaining: float = 0.0
+    # Fixed CR-05: Using Decimal for all financial fields
+    total_budget: Decimal = Field(default=Decimal("0.0"), ge=0)
+    total_committed: Decimal = Field(default=Decimal("0.0"), ge=0)
+    total_certified: Decimal = Field(default=Decimal("0.0"), ge=0)
+    total_remaining: Decimal = Field(default=Decimal("0.0")) # Can be negative in over-committed scenarios
     over_budget_categories: List[str] = Field(default_factory=list)
-    total_vendor_payable: float = 0.0
-    total_cash_in_hand: float = 0.0
+    total_vendor_payable: Decimal = Field(default=Decimal("0.0"), ge=0)
+    total_cash_in_hand: Decimal = Field(default=Decimal("0.0"))
     petty_cash_status: str = "Unknown"
     ovh_status: str = "Unknown"
     wo_total: int = 0
@@ -77,25 +81,3 @@ class AISummaryDocument(BaseModel):
     model: str = "mock"
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
-
-class CodeMaster(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    organisation_id: str
-    code_type: str  # e.g., "BUDGET_CATEGORY"
-    code: str
-    description: Optional[str] = ""
-    active_status: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
-
-class CodeMasterCreate(BaseModel):
-    code_type: str
-    code: str
-    description: Optional[str] = ""
-
-class CodeMasterUpdate(BaseModel):
-    code: Optional[str] = None
-    description: Optional[str] = None
-    active_status: Optional[bool] = None

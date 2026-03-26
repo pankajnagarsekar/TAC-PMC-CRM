@@ -27,10 +27,24 @@ class StateMachine:
         "Cancelled": set() # FINAL
     }
 
+    # DPR STATES (Fixed CR-20)
+    DPR_TRANSITIONS: Dict[str, Set[str]] = {
+        "Draft": {"Submitted", "Cancelled"},
+        "Submitted": {"Approved", "Rejected"},
+        "Approved": set(), # FINAL: Logic parity with WorkOrder closing
+        "Rejected": {"Draft", "Cancelled"},
+        "Cancelled": set()
+    }
+
     @classmethod
     def validate_transition(cls, entity_type: str, current_state: str, next_state: str):
         """Standard validator for all transitions. Fail fast if illegal (Point 94)"""
-        transitions = cls.PROJECT_TRANSITIONS if entity_type == "PROJECT" else cls.PAYMENT_TRANSITIONS
+        if entity_type == "PROJECT":
+            transitions = cls.PROJECT_TRANSITIONS
+        elif entity_type == "DPR":
+            transitions = cls.DPR_TRANSITIONS
+        else:
+            transitions = cls.PAYMENT_TRANSITIONS
         
         if current_state not in transitions:
             raise HTTPException(status_code=400, detail=f"DOMAIN_ERROR: Unknown state '{current_state}' for {entity_type}")
@@ -54,7 +68,13 @@ class StateMachine:
     @classmethod
     def check_modification_allowed(cls, entity_type: str, state: str):
         """Verify if fields can be updated in current state (Point 87)"""
-        transitions = cls.PROJECT_TRANSITIONS if entity_type == "PROJECT" else cls.PAYMENT_TRANSITIONS
+        if entity_type == "PROJECT":
+            transitions = cls.PROJECT_TRANSITIONS
+        elif entity_type == "DPR":
+            transitions = cls.DPR_TRANSITIONS
+        else:
+            transitions = cls.PAYMENT_TRANSITIONS
+
         if not transitions.get(state): # If no targets, it's a frozen state
             raise HTTPException(
                  status_code=403, 

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Body
 from typing import Optional, List, Dict, Any
 
-from app.core.dependencies import get_authenticated_user, get_work_order_service
+from app.core.dependencies import get_authenticated_user, get_work_order_service, verify_nonce
 from app.services.work_order_service import WorkOrderService
-from app.schemas.financial import WorkOrder, WorkOrderCreate
+from app.schemas.financial import WorkOrder, WorkOrderCreate, WorkOrderUpdate
 from app.schemas.shared import GenericResponse
 
 router = APIRouter(prefix="/work-orders", tags=["Work Orders"])
@@ -25,7 +25,8 @@ async def create_work_order(
     project_id: str,
     wo_data: WorkOrderCreate,
     user: dict = Depends(get_authenticated_user),
-    wo_service: WorkOrderService = Depends(get_work_order_service)
+    wo_service: WorkOrderService = Depends(get_work_order_service),
+    nonce: str = Depends(verify_nonce)
 ):
     """Create a new work order for a project."""
     new_wo = await wo_service.create_work_order(user, project_id, wo_data)
@@ -34,11 +35,12 @@ async def create_work_order(
 @router.patch("/{wo_id}", response_model=GenericResponse[WorkOrder])
 async def update_work_order(
     wo_id: str,
-    wo_data: dict, # Using dict for partial updates
+    wo_data: WorkOrderUpdate, # Fixed CR-24: Using formal schema for optimistic locking support
     user: dict = Depends(get_authenticated_user),
-    wo_service: WorkOrderService = Depends(get_work_order_service)
+    wo_service: WorkOrderService = Depends(get_work_order_service),
+    nonce: str = Depends(verify_nonce)
 ):
     """Update an existing work order."""
-    # Note: Logic parity fix - ensure update_work_order is implemented in service
-    result = await wo_service.update_work_order(wo_id, wo_data, user)
+    # Fixed CR-24: Using .dict() with exclude_unset for clean partial updates
+    result = await wo_service.update_work_order(wo_id, wo_data.dict(exclude_unset=True), user)
     return GenericResponse(data=result)

@@ -2,11 +2,19 @@ from app.repositories.base_repo import BaseRepository
 from app.schemas.project import Project
 from typing import Dict, Any, Optional
 from bson import ObjectId, Decimal128
+from pymongo import ASCENDING
 from app.core.financial_utils import to_d128
 
 class ProjectRepository(BaseRepository[Project]):
     def __init__(self, db):
         super().__init__(db, "projects", Project)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        # Fixed CR-22: Added critical indexes for project identification and tenant scoping
+        await self.collection.create_index([("project_id", ASCENDING)], unique=True)
+        await self.collection.create_index([("project_code", ASCENDING)])
+        await self.collection.create_index([("organisation_id", ASCENDING)])
 
     def _normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Hard Normalization: Fix data shape drift (Point 41)."""

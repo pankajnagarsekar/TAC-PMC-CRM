@@ -6,7 +6,7 @@ from decimal import Decimal
 def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
     Recursively serialize MongoDB documents for JSON responses.
-    Handles: ObjectId -> str, Decimal128 -> float, datetime -> isoformat.
+    Fixed CR-19: Does NOT convert Decimal to float. Uses str for precision.
     """
     if doc is None:
         return None
@@ -16,9 +16,10 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if isinstance(value, ObjectId):
             result[key] = str(value)
         elif isinstance(value, Decimal128):
-            result[key] = float(value.to_decimal())
+            # FIXED: Avoid float() precision loss. Use string representation.
+            result[key] = str(value.to_decimal())
         elif isinstance(value, Decimal):
-            result[key] = float(value)
+            result[key] = str(value)
         elif isinstance(value, datetime):
             result[key] = value.isoformat()
         elif isinstance(value, dict):
@@ -26,9 +27,8 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         elif isinstance(value, list):
             result[key] = [
                 serialize_doc(item) if isinstance(item, dict)
-                else float(item.to_decimal()) if isinstance(item, Decimal128)
-                else float(item) if isinstance(item, Decimal)
-                else str(item) if isinstance(item, ObjectId)
+                else str(item.to_decimal()) if isinstance(item, Decimal128)
+                else str(item) if isinstance(item, (Decimal, ObjectId))
                 else item
                 for item in value
             ]

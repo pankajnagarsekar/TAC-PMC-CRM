@@ -158,3 +158,12 @@ class BaseRepository(Generic[T]):
     async def find_one(self, query: Dict[str, Any], session=None) -> Optional[Dict[str, Any]]:
         doc = await self.collection.find_one(query, session=session)
         return serialize_doc(doc) if doc else None
+
+    async def count_documents(self, query: Dict[str, Any], session=None) -> int:
+        return await self.collection.count_documents(query, session=session)
+
+    async def update_one(self, query: Dict[str, Any], update: Dict[str, Any], session=None, upsert=False):
+        return await self.collection.update_one(query, update, session=session, upsert=upsert)
+
+    def aggregate(self, pipeline: List[Dict[str, Any]], session=None):
+        return self.collection.aggregate(pipeline, session=session)
