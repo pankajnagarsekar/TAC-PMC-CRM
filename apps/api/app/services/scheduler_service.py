@@ -20,10 +20,9 @@ class SchedulerService:
 
     def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
         """Orchestrate calls to standalone, deterministic Python scripts"""
-        # Adjust path to find scripts in the new structure if they moved, 
-        # or keep relative to ROOT_DIR.
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) # apps/api
-        script_path = os.path.join(base_dir, "execution", "scheduler", script_name)
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) # apps/api/app
+        # Path updated for DDD module structure
+        script_path = os.path.join(base_dir, "modules", "scheduler", script_name)
         
         try:
             process = subprocess.Popen(
