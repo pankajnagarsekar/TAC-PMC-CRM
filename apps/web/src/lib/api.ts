@@ -54,7 +54,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
-    if (response.data && response.data.data !== undefined && 'status' in response.data) {
+    if (response.data && response.data.data !== undefined && 'success' in response.data) {
       return { ...response, data: response.data.data };
     }
     return response;

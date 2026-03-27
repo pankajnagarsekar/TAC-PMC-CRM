@@ -195,7 +195,7 @@ async function request<T>(
         throw new ApiError(error.detail, retryResponse.status, error);
       }
       const retryData = await retryResponse.json();
-      if (retryData && retryData.data !== undefined && 'status' in retryData) {
+      if (retryData && retryData.data !== undefined && 'success' in retryData) {
         return retryData.data as T;
       }
       return retryData;
@@ -216,7 +216,7 @@ async function request<T>(
 
   const data = await response.json();
   // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
-  if (data && data.data !== undefined && 'status' in data) {
+  if (data && data.data !== undefined && 'success' in data) {
     return data.data as T;
   }
   return data;
