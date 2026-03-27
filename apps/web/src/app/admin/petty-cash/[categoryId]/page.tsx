@@ -65,7 +65,7 @@ export default function CategoryLedgerPage() {
     formData.append("project_id", activeProject.project_id);
 
     try {
-      const res = await api.post("/api/v2/ai/ocr", formData, {
+      const res = await api.post("/api/v1/ai/ocr", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const result = res.data;

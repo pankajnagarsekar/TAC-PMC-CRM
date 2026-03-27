@@ -169,7 +169,7 @@ export default function ProjectsPage() {
       return;
     setInitLoading(projectId);
     try {
-      await api.post(`/api/v2/projects/${projectId}/initialize-budgets`);
+      await api.post(`/api/v1/projects/${projectId}/initialize-budgets`);
       alert("Project financial structure initialized.");
     } catch (err: any) {
       alert(err.response?.data?.detail || "Failed to initialize financials.");

@@ -75,7 +75,7 @@ export default function AdminProjectsScreen() {
   const fetchOverview = useCallback(async () => {
     setFetchError(null);
     try {
-      const data = await apiClient.get<any>('/api/v2/admin/projects-overview');
+      const data = await apiClient.get<any>('/api/v1/admin/projects-overview');
       setProjects(data.projects || []);
     } catch (err: any) {
       console.error('Error fetching projects overview:', err);

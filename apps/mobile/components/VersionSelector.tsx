@@ -40,7 +40,7 @@ export function VersionSelector({
       const endpoint = getVersionsEndpoint(entityType, entityId);
       const response: any = await apiClient.get(endpoint);
       const versionList: VersionInfo[] = response.versions || [];
-      
+
       // Mark current as latest
       if (versionList.length > 0) {
         const maxVersion = Math.max(...versionList.map(v => v.version));
@@ -48,7 +48,7 @@ export function VersionSelector({
           v.is_current = v.version === maxVersion;
         });
       }
-      
+
       setVersions(versionList.sort((a, b) => b.version - a.version));
     } catch (error) {
       console.error('Failed to fetch versions:', error);
@@ -70,10 +70,10 @@ export function VersionSelector({
   const handleVersionSelect = async (version: number) => {
     setLoadingSnapshot(true);
     setModalVisible(false);
-    
+
     try {
       const selectedVersionInfo = versions.find(v => v.version === version);
-      
+
       if (selectedVersionInfo?.is_current) {
         // Current version - no snapshot needed, use live data
         setSelectedVersion(version);
@@ -127,10 +127,10 @@ export function VersionSelector({
           <ActivityIndicator size="small" color={Colors.primary} />
         ) : (
           <>
-            <Ionicons 
-              name={isViewingHistorical ? "time" : "document-text"} 
-              size={16} 
-              color={isViewingHistorical ? Colors.warning : Colors.primary} 
+            <Ionicons
+              name={isViewingHistorical ? "time" : "document-text"}
+              size={16}
+              color={isViewingHistorical ? Colors.warning : Colors.primary}
             />
             <Text style={[styles.selectorText, isViewingHistorical && styles.selectorTextHistorical]}>
               Version {selectedVersion}
@@ -207,12 +207,12 @@ export function VersionSelector({
 // Helper functions
 function getVersionsEndpoint(entityType: string, entityId: string): string {
   const type = entityType.toUpperCase();
-  return `/api/v2/snapshots/${type}/${entityId}/versions`;
+  return `/api/v1/snapshots/${type}/${entityId}/versions`;
 }
 
 function getSnapshotEndpoint(entityType: string, entityId: string, version: number): string {
   const type = entityType.toUpperCase();
-  return `/api/v2/snapshots/${type}/${entityId}?version=${version}`;
+  return `/api/v1/snapshots/${type}/${entityId}?version=${version}`;
 }
 
 const styles = StyleSheet.create({

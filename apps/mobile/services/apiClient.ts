@@ -418,16 +418,16 @@ export const paymentCertificatesApi = {
 // PAYMENTS API
 // ============================================
 export const paymentsApi = {
-  getByPC: (pcId: string): Promise<Payment[]> => request(`/api/v2/payments?pc_id=${pcId}`),
-  create: (data: CreatePaymentRequest): Promise<Payment> => request('/api/v2/payments', { method: 'POST', body: JSON.stringify(data) }),
+  getByPC: (pcId: string): Promise<Payment[]> => request(`/api/v1/payments?pc_id=${pcId}`),
+  create: (data: CreatePaymentRequest): Promise<Payment> => request('/api/v1/payments', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // RETENTION RELEASES API
 // ============================================
 export const retentionApi = {
-  getAll: (projectId: string): Promise<RetentionRelease[]> => request(`/api/v2/retention-releases?project_id=${projectId}`),
-  create: (data: CreateRetentionReleaseRequest): Promise<RetentionRelease> => request('/api/v2/retention-releases', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string): Promise<RetentionRelease[]> => request(`/api/v1/retention-releases?project_id=${projectId}`),
+  create: (data: CreateRetentionReleaseRequest): Promise<RetentionRelease> => request('/api/v1/retention-releases', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -678,8 +678,8 @@ export const ocrApi = {
 // USERS API
 // ============================================
 export const usersApi = {
-  getAll: (): Promise<User[]> => request('/api/users'),
-  getById: (id: string): Promise<User> => request(`/api/users/${id}`),
+  getAll: (): Promise<User[]> => request('/api/v1/users'),
+  getById: (id: string): Promise<User> => request(`/api/v1/users/${id}`),
 };
 
 // ============================================

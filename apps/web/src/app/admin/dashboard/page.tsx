@@ -71,28 +71,28 @@ export default function AdminDashboard() {
 
   const { data: financials, error: financialsError, isLoading, mutate: retryFinancials } = useSWR<DerivedFinancialState[]>(
     activeProject
-      ? `/api/v2/projects/${activeProject.project_id}/financials`
+      ? `/api/v1/projects/${activeProject.project_id}/financials`
       : null,
     fetcher,
   );
 
   const { data: vendorPayables } = useSWR<VendorPayable[]>(
-    activeProject ? `/api/projects/${activeProject.project_id}/vendor-payables` : null,
+    activeProject ? `/api/v1/projects/${activeProject.project_id}/vendor-payables` : null,
     fetcher
   );
 
   const { data: cashSummary } = useSWR<CashSummaryResponse>(
-    activeProject ? `/api/projects/${activeProject.project_id}/cash-summary` : null,
+    activeProject ? `/api/v1/cash/summary/${activeProject.project_id}` : null,
     fetcher
   );
 
   const { data: woResponse } = useSWR<{ items: WorkOrder[]; next_cursor: string | null }>(
-    activeProject ? `/api/work-orders?project_id=${activeProject.project_id}&limit=500` : null,
+    activeProject ? `/api/v1/work-orders?project_id=${activeProject.project_id}&limit=500` : null,
     fetcher
   );
 
   const { data: stats } = useSWR<DashboardStats>(
-    activeProject ? `/api/v2/projects/${activeProject.project_id}/dashboard-stats` : null,
+    activeProject ? `/api/v1/projects/${activeProject.project_id}/dashboard-stats` : null,
     fetcher
   );
 

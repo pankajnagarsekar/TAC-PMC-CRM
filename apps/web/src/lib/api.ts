@@ -131,7 +131,7 @@ export const schedulerApi = {
     idempotencyKey: string
   ): Promise<ScheduleCalculationResponse> =>
     api
-      .post(`/api/v2/scheduler/${projectId}/calculate`, changeRequest, {
+      .post(`/api/v1/scheduler/${projectId}/calculate`, changeRequest, {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
@@ -175,11 +175,11 @@ export const schedulerApi = {
     api.get(`/api/v1/projects/${projectId}/baseline/compare`, { params: { baseline_a: baselineA, baseline_b: baselineB } }).then(res => res.data),
 
   migrateLegacyData: (projectId: string, dryRun: boolean = true) =>
-    api.post(`/api/v2/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),
+    api.post(`/api/v1/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),
 };
 
 export const portfolioApi = {
-  getSummary: () => api.get("/api/v2/portfolio/summary").then(res => res.data),
-  getResourceHeatmap: () => api.get("/api/v2/portfolio/resource-heatmap").then(res => res.data),
-  getMilestones: () => api.get("/api/v2/portfolio/milestones").then(res => res.data),
+  getSummary: () => api.get("/api/v1/portfolio/summary").then(res => res.data),
+  getResourceHeatmap: () => api.get("/api/v1/portfolio/resource-heatmap").then(res => res.data),
+  getMilestones: () => api.get("/api/v1/portfolio/milestones").then(res => res.data),
 };

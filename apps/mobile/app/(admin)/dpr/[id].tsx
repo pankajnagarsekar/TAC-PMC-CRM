@@ -73,7 +73,7 @@ interface WorkerLog {
 export default function DPRDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  
+
   const [dpr, setDpr] = useState<DPRDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,16 +81,16 @@ export default function DPRDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [isViewingHistorical, setIsViewingHistorical] = useState(false);
-  
+
   // Editable fields
   const [progressNotes, setProgressNotes] = useState('');
-  
+
   // Worker log state
   const [workerLogs, setWorkerLogs] = useState<WorkerLog[]>([]);
   const [editableEntries, setEditableEntries] = useState<Record<string, WorkerLogEntry[]>>({});
   const [workerLogLoading, setWorkerLogLoading] = useState(false);
   const [savingWorkerLog, setSavingWorkerLog] = useState(false);
-  
+
   // M10: Image caption editing
   const [imageCaptions, setImageCaptions] = useState<Record<string, string>>({});
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
@@ -106,19 +106,19 @@ export default function DPRDetailScreen() {
 
   const fetchDPR = useCallback(async () => {
     if (!id) return;
-    
+
     try {
-      const response = await apiClient.get<DPRDetail>(`/api/v2/dpr/${id}`);
+      const response = await apiClient.get<DPRDetail>(`/api/v1/dpr/${id}`);
       setDpr(response);
       setProgressNotes(response.progress_notes || '');
-      
+
       // M10: Initialize image captions
       const captions: Record<string, string> = {};
       response.images.forEach(img => {
         captions[img.image_id] = img.caption || '';
       });
       setImageCaptions(captions);
-      
+
       // Fetch worker logs for this project + date
       if (response.project_id && response.dpr_date) {
         fetchWorkerLogs(response.project_id, response.dpr_date);
@@ -139,7 +139,7 @@ export default function DPRDetailScreen() {
       const data = await apiClient.get<any>(`/api/worker-logs?project_id=${projectId}&date=${dateStr}`);
       const logs = Array.isArray(data) ? data : (data.logs || []);
       setWorkerLogs(logs);
-      
+
       const editable: Record<string, WorkerLogEntry[]> = {};
       logs.forEach((log: WorkerLog) => {
         editable[log.log_id] = (log.entries || []).map((e: any) => ({
@@ -169,10 +169,10 @@ export default function DPRDetailScreen() {
 
   const handleSave = async () => {
     if (!dpr) return;
-    
+
     setSaving(true);
     try {
-      await apiClient.put(`/api/v2/dpr/${id}`, {
+      await apiClient.put(`/api/v1/dpr/${id}`, {
         progress_notes: progressNotes || undefined,
       });
       showAlert('Success', 'DPR updated successfully');
@@ -238,10 +238,10 @@ export default function DPRDetailScreen() {
   // M10: Save image caption
   const saveImageCaption = async (imageId: string) => {
     if (!dpr) return;
-    
+
     setSaving(true);
     try {
-      await apiClient.put(`/api/v2/dpr/${id}/images/${imageId}`, {
+      await apiClient.put(`/api/v1/dpr/${id}/images/${imageId}`, {
         caption: imageCaptions[imageId] || '',
       });
       showAlert('Success', 'Caption updated successfully');
@@ -256,15 +256,15 @@ export default function DPRDetailScreen() {
 
   const handleSubmit = async () => {
     if (!dpr) return;
-    
+
     if (dpr.images.length < 4) {
       showAlert('Cannot Submit', 'A minimum of 4 photos is required to submit a DPR.');
       return;
     }
-    
+
     setSaving(true);
     try {
-      await apiClient.post(`/api/v2/dpr/${id}/submit`);
+      await apiClient.post(`/api/v1/dpr/${id}/submit`);
       showAlert('Success', 'DPR submitted successfully');
       fetchDPR();
     } catch (error: any) {
@@ -279,7 +279,7 @@ export default function DPRDetailScreen() {
     if (!dpr) return;
     setSaving(true);
     try {
-      await apiClient.put(`/api/v2/dpr/${id}`, {
+      await apiClient.put(`/api/v1/dpr/${id}`, {
         status: 'approved',
       });
       showAlert('Success', 'DPR approved successfully');
@@ -302,7 +302,7 @@ export default function DPRDetailScreen() {
 
       if (!result.canceled && result.assets[0]) {
         setSaving(true);
-        await apiClient.post(`/api/v2/dpr/${id}/images`, {
+        await apiClient.post(`/api/v1/dpr/${id}/images`, {
           dpr_id: id,
           image_data: result.assets[0].base64,
           caption: '',
@@ -319,13 +319,13 @@ export default function DPRDetailScreen() {
 
   const generatePDF = async () => {
     if (!dpr) return;
-    
+
     setGeneratingPdf(true);
     try {
       const token = await authApi.getToken();
       const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-      const url = `${baseUrl}/api/v2/dpr/${id}/generate-pdf?token=${token}`;
-      
+      const url = `${baseUrl}/api/v1/dpr/${id}/generate-pdf?token=${token}`;
+
       // Use Linking to open the PDF URL which triggers the download
       const supported = await Linking.canOpenURL(url);
       if (supported) {
@@ -430,10 +430,10 @@ export default function DPRDetailScreen() {
             <Text style={styles.sectionTitle}>Progress Notes</Text>
             {!isViewingHistorical && (
               <Pressable onPress={() => setEditing(!editing)}>
-                <Ionicons 
-                  name={editing ? "checkmark-circle" : "create"} 
-                  size={24} 
-                  color={Colors.primary} 
+                <Ionicons
+                  name={editing ? "checkmark-circle" : "create"}
+                  size={24}
+                  color={Colors.primary}
                 />
               </Pressable>
             )}
@@ -612,7 +612,7 @@ export default function DPRDetailScreen() {
                 const isExpanded = expandedImageId === img.image_id;
                 return (
                   <View key={img.image_id || idx} style={styles.photoCard}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.photoHeader}
                       onPress={() => setExpandedImageId(isExpanded ? null : img.image_id)}
                     >
@@ -625,21 +625,21 @@ export default function DPRDetailScreen() {
                           </Text>
                         )}
                       </View>
-                      <Ionicons 
-                        name={isExpanded ? "chevron-up" : "chevron-down"} 
-                        size={20} 
-                        color={Colors.textMuted} 
+                      <Ionicons
+                        name={isExpanded ? "chevron-up" : "chevron-down"}
+                        size={20}
+                        color={Colors.textMuted}
                       />
                     </TouchableOpacity>
-                    
+
                     {isExpanded && (
                       <View style={styles.photoContent}>
-                        <Image 
-                          source={{ uri: img.image_url || (img.image_data?.startsWith('data:') ? img.image_data : `data:image/jpeg;base64,${img.image_data}`) || 'https://via.placeholder.com/300' }} 
-                          style={styles.photo} 
+                        <Image
+                          source={{ uri: img.image_url || (img.image_data?.startsWith('data:') ? img.image_data : `data:image/jpeg;base64,${img.image_data}`) || 'https://via.placeholder.com/300' }}
+                          style={styles.photo}
                           resizeMode="cover"
                         />
-                        
+
                         <Text style={styles.captionLabel}>Caption</Text>
                         <TextInput
                           style={styles.captionInput}
@@ -653,7 +653,7 @@ export default function DPRDetailScreen() {
                           numberOfLines={2}
                           placeholderTextColor={Colors.textMuted}
                         />
-                        
+
                         <TouchableOpacity
                           style={[styles.saveCaptionBtn, saving && styles.buttonDisabled]}
                           onPress={() => saveImageCaption(img.image_id)}
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   detailValue: { fontSize: FontSizes.md, color: Colors.text, lineHeight: 22 },
   emptyText: { fontSize: FontSizes.md, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.md },
-  
+
   // Worker Log Grid Styles
   workerCountBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.full },
   workerCountText: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.white },
@@ -804,13 +804,13 @@ const styles = StyleSheet.create({
   photoNumber: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text },
   photoPreview: { fontSize: FontSizes.sm, color: Colors.textMuted, marginLeft: Spacing.xs, flex: 1 },
   photoContent: { padding: Spacing.md, paddingTop: 0 },
-  photo: { width: '100%', aspectRatio: 16/9, borderRadius: BorderRadius.sm, marginBottom: Spacing.md },
+  photo: { width: '100%', aspectRatio: 16 / 9, borderRadius: BorderRadius.sm, marginBottom: Spacing.md },
   captionLabel: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.textSecondary, marginBottom: Spacing.xs },
   captionInput: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: Spacing.md, fontSize: FontSizes.md, color: Colors.text, minHeight: 60, textAlignVertical: 'top' },
   saveCaptionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.success, padding: Spacing.sm, borderRadius: BorderRadius.md, marginTop: Spacing.sm, gap: Spacing.xs },
   saveCaptionText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.sm },
   warningText: { textAlign: 'center', color: Colors.warning, fontSize: FontSizes.sm, marginTop: Spacing.md },
-  
+
   // Action button styles
   actions: { gap: Spacing.md, marginTop: Spacing.md },
   approveButton: { backgroundColor: Colors.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },

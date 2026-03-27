@@ -97,7 +97,8 @@ class AuthService:
         if not user.get("active_status", False):
             raise HTTPException(status_code=403, detail="ACCOUNT_DISABLED")
 
-        user_id = user["id"]
+        user_id = user["_id"]
+        user["user_id"] = user_id
         token_data = {
             "user_id": user_id,
             "organisation_id": user["organisation_id"],
@@ -118,6 +119,7 @@ class AuthService:
 
         return Token(
             access_token=access_token,
+            refresh_token=refresh_token,
             expires_in=self.config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             user=UserResponse(**user)
         )
@@ -138,6 +140,7 @@ class AuthService:
         # ROTATION: Revoke old refresh (Point 8)
         await self.refresh_repo.update_one({"jti": jti}, {"$set": {"is_revoked": True}})
 
+        user["user_id"] = user["_id"]
         token_data = {"user_id": user_id, "organisation_id": user["organisation_id"], "role": user["role"]}
         new_access = self.create_access_token(data=token_data)
         new_refresh = self.create_refresh_token(user_id=user_id)
@@ -152,6 +155,7 @@ class AuthService:
 
         return Token(
             access_token=new_access,
+            refresh_token=new_refresh,
             expires_in=self.config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             user=UserResponse(**user)
         )

@@ -48,7 +48,7 @@ interface WorkerLogSummary {
 export default function AttendanceViewScreen() {
   const router = useRouter();
   const { selectedProject, isProjectSelected } = useProject();
-  
+
   const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
   const styles = React.useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
@@ -57,7 +57,7 @@ export default function AttendanceViewScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
-  
+
   // Filters
   const [dateFilter, setDateFilter] = useState(() => {
     const now = new Date();
@@ -68,14 +68,14 @@ export default function AttendanceViewScreen() {
   const [supervisorSearch, setSupervisorSearch] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Date Picker visibility
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
   // Supervisor attendance
   const [supervisorRecords, setSupervisorRecords] = useState<AttendanceRecord[]>([]);
-  
+
   // Worker attendance (from worker logs)
   const [workerLogs, setWorkerLogs] = useState<WorkerLogSummary[]>([]);
 
@@ -95,10 +95,10 @@ export default function AttendanceViewScreen() {
       const isRange = !!(startDate || endDate);
 
       // Fetch supervisor attendance
-      const attendanceUrl = isRange 
-        ? `/api/v2/attendance/admin/all?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}`
-        : `/api/v2/attendance/admin/all?project_id=${projectId}&date=${dateFilter}&search=${supervisorSearch}`;
-      
+      const attendanceUrl = isRange
+        ? `/api/v1/attendance/admin/all?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}`
+        : `/api/v1/attendance/admin/all?project_id=${projectId}&date=${dateFilter}&search=${supervisorSearch}`;
+
       const attendanceData = await apiClient.get<any>(attendanceUrl);
       setSupervisorRecords(attendanceData.attendance || []);
 
@@ -106,7 +106,7 @@ export default function AttendanceViewScreen() {
       const workerUrl = isRange
         ? `/api/worker-logs?project_id=${projectId}&start_date=${start}&end_date=${end}&vendor=${vendorFilter}`
         : `/api/worker-logs?project_id=${projectId}&date=${dateFilter}&vendor=${vendorFilter}`;
-      
+
       const workerData = await apiClient.get<any>(workerUrl);
       const logs = Array.isArray(workerData) ? workerData : (workerData.logs || []);
       setWorkerLogs(logs);
@@ -142,11 +142,11 @@ export default function AttendanceViewScreen() {
     try {
       const start = startDate || dateFilter;
       const end = endDate || dateFilter;
-      
+
       const token = await authApi.getToken();
-      
-      const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/v2/attendance/export?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}&vendor=${vendorFilter}&token=${token}`;
-      
+
+      const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/v1/attendance/export?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}&vendor=${vendorFilter}&token=${token}`;
+
       await Linking.openURL(url);
     } catch (err) {
       console.error('Export failed:', err);
@@ -163,9 +163,9 @@ export default function AttendanceViewScreen() {
       const start = startDate || dateFilter;
       const end = endDate || dateFilter;
       const token = await authApi.getToken();
-      
-      const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/v2/attendance/export-pdf?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}&vendor=${vendorFilter}&token=${token}`;
-      
+
+      const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/v1/attendance/export-pdf?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}&vendor=${vendorFilter}&token=${token}`;
+
       await Linking.openURL(url);
     } catch (err) {
       console.error('PDF Export failed:', err);
@@ -244,8 +244,8 @@ export default function AttendanceViewScreen() {
             </Text>
           </View>
           <View style={styles.headerBtns}>
-            <Pressable 
-              style={[styles.iconBtn, showFilters && styles.activeIconBtn]} 
+            <Pressable
+              style={[styles.iconBtn, showFilters && styles.activeIconBtn]}
               onPress={() => setShowFilters(!showFilters)}
             >
               <Ionicons name="filter" size={20} color={showFilters ? Colors.primary : Colors.text} />
@@ -316,7 +316,7 @@ export default function AttendanceViewScreen() {
                 )}
               </View>
             </View>
-            
+
             <View style={styles.filterRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.filterLabel}>{activeTab === 'supervisor' ? 'Supervisor Name' : 'Vendor Name'}</Text>
@@ -328,23 +328,23 @@ export default function AttendanceViewScreen() {
                 />
               </View>
             </View>
-            
+
             <View style={styles.filterActions}>
-              <Button 
-                title="Clear Filters" 
-                variant="outline" 
-                size="sm" 
+              <Button
+                title="Clear Filters"
+                variant="outline"
+                size="sm"
                 onPress={() => {
                   setStartDate('');
                   setEndDate('');
                   setSupervisorSearch('');
                   setVendorFilter('');
-                }} 
+                }}
               />
-              <Button 
-                title="Apply" 
-                size="sm" 
-                onPress={() => fetchData()} 
+              <Button
+                title="Apply"
+                size="sm"
+                onPress={() => fetchData()}
               />
             </View>
           </Card>
@@ -506,19 +506,19 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   container: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { padding: Spacing.md, paddingBottom: 100 },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
-  
+
   header: { marginBottom: Spacing.xl, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerBtns: { flexDirection: 'row', gap: Spacing.sm },
-  iconBtn: { 
-    width: 40, height: 40, borderRadius: 20, 
-    backgroundColor: Colors.cardBg, 
+  iconBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.cardBg,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: Colors.border
   },
   activeIconBtn: { backgroundColor: Colors.primary + '10', borderColor: Colors.primary },
   pageTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
   projectLabel: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 4, fontFamily: 'Inter_400Regular' },
-  
+
   // Advanced Filters
   filterSection: { marginBottom: Spacing.lg, gap: Spacing.md },
   filterRow: { flexDirection: 'row', gap: Spacing.md },
@@ -527,9 +527,9 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   filterActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.md, marginTop: Spacing.sm },
 
   // Date navigator
-  dateNav: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     padding: Spacing.sm,
     marginBottom: Spacing.lg,
@@ -538,54 +538,54 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   dateCenter: { alignItems: 'center' },
   dateLabel: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
   dateValue: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 2, fontFamily: 'Inter_400Regular' },
-  
+
   // Summary
   summaryRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.xl },
-  summaryCard: { 
-    flex: 1, 
-    borderLeftWidth: 4, 
+  summaryCard: {
+    flex: 1,
+    borderLeftWidth: 4,
     alignItems: 'center',
     padding: Spacing.lg,
   },
   summaryNum: { fontSize: 32, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
   summaryLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', marginTop: 4, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
-  
+
   // Tabs
-  tabBar: { 
-    flexDirection: 'row', 
-    backgroundColor: Colors.cardBg, 
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.cardBg,
     borderRadius: BorderRadius.lg,
-    padding: 6, 
+    padding: 6,
     marginBottom: Spacing.xl,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  tab: { 
-    flex: 1, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.md, 
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
   },
   activeTab: { backgroundColor: Colors.primary + '10' },
   tabText: { fontSize: FontSizes.sm, color: Colors.textMuted, fontWeight: '500', fontFamily: 'Inter_500Medium' },
   activeTabText: { color: Colors.primary, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
-  
+
   // Empty states
   emptySection: { alignItems: 'center', paddingVertical: 60, gap: Spacing.md },
   emptyText: { fontSize: FontSizes.md, color: Colors.textMuted, fontFamily: 'Inter_400Regular' },
   emptyTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.md, fontFamily: 'Inter_600SemiBold' },
   selectBtn: { marginTop: Spacing.lg, backgroundColor: Colors.primary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
   selectBtnText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.md, fontFamily: 'Inter_600SemiBold' },
-  
+
   // Record card
-  recordCard: { 
+  recordCard: {
     marginBottom: Spacing.md,
   },
   recordHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  avatarCircle: { 
+  avatarCircle: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary + '15',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -595,11 +595,11 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   recordRole: { fontSize: FontSizes.xs, color: Colors.textMuted, fontFamily: 'Inter_400Regular' },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.full },
   statusText: { fontSize: FontSizes.xs, fontWeight: '600', fontFamily: 'Inter_600SemiBold' },
-  
+
   recordDetails: { marginTop: Spacing.md, gap: 6 },
   recordDetailItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   recordDetailText: { fontSize: FontSizes.sm, color: Colors.textSecondary, flex: 1, fontFamily: 'Inter_400Regular' },
-  
+
   // Worker grid
   workerGrid: { marginTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: Spacing.md },
   workerGridHeader: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },

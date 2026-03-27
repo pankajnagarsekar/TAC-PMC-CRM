@@ -11,10 +11,10 @@ import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 // Simple fetch wrapper for transitions
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-  const token = typeof window !== 'undefined' 
+  const token = typeof window !== 'undefined'
     ? (Platform.OS === 'web' ? localStorage.getItem('access_token') : null)
     : null;
-  
+
   // Try to get token from SecureStore for native
   let authToken = token;
   if (!authToken && Platform.OS !== 'web') {
@@ -22,9 +22,9 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const SecureStore = require('expo-secure-store');
       authToken = await SecureStore.getItemAsync('access_token');
-    } catch {}
+    } catch { }
   }
-  
+
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -33,12 +33,12 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
       ...options.headers,
     },
   });
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));
     throw new Error(error.detail?.message || error.detail || error.message || 'Request failed');
   }
-  
+
   return response.json();
 };
 
@@ -56,18 +56,18 @@ const TRANSITION_META: Record<string, { label: string; icon: string; color: stri
   'Issued': { label: 'Issue', icon: 'checkmark-circle', color: Colors.success, confirmMessage: 'Issue this work order?' },
   'Revised': { label: 'Revise', icon: 'create', color: Colors.warning, confirmMessage: 'Revise this work order?' },
   'Cancelled': { label: 'Cancel', icon: 'close-circle', color: Colors.error, confirmMessage: 'Cancel this work order?' },
-  
+
   // Payment Certificate transitions
   'Certified': { label: 'Certify', icon: 'shield-checkmark', color: Colors.success, confirmMessage: 'Certify this payment certificate?' },
   'Partially Paid': { label: 'Record Payment', icon: 'cash', color: Colors.info },
   'Fully Paid': { label: 'Mark Fully Paid', icon: 'checkmark-done', color: Colors.success },
-  
+
   // Issue transitions
   'In Progress': { label: 'Start Work', icon: 'play', color: Colors.warning },
   'Resolved': { label: 'Resolve', icon: 'checkmark', color: Colors.success, confirmMessage: 'Mark this issue as resolved?' },
   'Closed': { label: 'Close', icon: 'lock-closed', color: Colors.textMuted, confirmMessage: 'Close this issue?' },
   'Reopened': { label: 'Reopen', icon: 'refresh', color: Colors.warning, confirmMessage: 'Reopen this issue?' },
-  
+
   // Petty Cash transitions
   'Submitted': { label: 'Submit', icon: 'send', color: Colors.primary, confirmMessage: 'Submit this claim for approval?' },
   'Approved': { label: 'Approve', icon: 'checkmark-circle', color: Colors.success, confirmMessage: 'Approve this petty cash claim?' },
@@ -143,7 +143,7 @@ export function TransitionActions({
     }
 
     const meta = TRANSITION_META[targetStatus];
-    
+
     if (meta?.confirmMessage) {
       if (Platform.OS === 'web') {
         if (window.confirm(meta.confirmMessage)) {
@@ -224,9 +224,9 @@ export function TransitionActions({
             style={({ pressed }) => [
               styles.actionButton,
               compact && styles.actionButtonCompact,
-              { 
-                backgroundColor: periodLocked.isLocked ? Colors.textMuted + '10' : meta.color + '15', 
-                borderColor: periodLocked.isLocked ? Colors.textMuted : meta.color 
+              {
+                backgroundColor: periodLocked.isLocked ? Colors.textMuted + '10' : meta.color + '15',
+                borderColor: periodLocked.isLocked ? Colors.textMuted : meta.color
               },
               pressed && !isDisabled && styles.actionButtonPressed,
               periodLocked.isLocked && styles.actionButtonDisabled,
@@ -238,14 +238,14 @@ export function TransitionActions({
               <ActivityIndicator size="small" color={meta.color} />
             ) : (
               <>
-                <Ionicons 
-                  name={meta.icon as any} 
-                  size={compact ? 16 : 18} 
-                  color={periodLocked.isLocked ? Colors.textMuted : meta.color} 
+                <Ionicons
+                  name={meta.icon as any}
+                  size={compact ? 16 : 18}
+                  color={periodLocked.isLocked ? Colors.textMuted : meta.color}
                 />
                 <Text style={[
-                  styles.actionText, 
-                  compact && styles.actionTextCompact, 
+                  styles.actionText,
+                  compact && styles.actionTextCompact,
                   { color: periodLocked.isLocked ? Colors.textMuted : meta.color }
                 ]}>
                   {meta.label}
@@ -263,15 +263,15 @@ export function TransitionActions({
 function getTransitionsEndpoint(entityType: string, entityId: string): string {
   switch (entityType) {
     case 'work_order':
-      return `/api/v2/work-orders/${entityId}/transitions`;
+      return `/api/v1/work-orders/${entityId}/transitions`;
     case 'payment_certificate':
-      return `/api/v2/payment-certificates/${entityId}/transitions`;
+      return `/api/v1/payment-certificates/${entityId}/transitions`;
     case 'issue':
-      return `/api/v2/issues/${entityId}/transitions`;
+      return `/api/v1/issues/${entityId}/transitions`;
     case 'petty_cash':
-      return `/api/v2/petty-cash/${entityId}/transitions`;
+      return `/api/v1/petty-cash/${entityId}/transitions`;
     default:
-      return `/api/v2/${entityType}/${entityId}/transitions`;
+      return `/api/v1/${entityType}/${entityId}/transitions`;
   }
 }
 
@@ -292,20 +292,20 @@ function getTransitionEndpoint(entityType: string, entityId: string, targetStatu
     'Rejected': 'reject',
     'Paid': 'mark-paid',
   };
-  
+
   const action = actionMap[targetStatus] || targetStatus.toLowerCase().replace(' ', '-');
-  
+
   switch (entityType) {
     case 'work_order':
-      return `/api/v2/work-orders/${entityId}/${action}`;
+      return `/api/v1/work-orders/${entityId}/${action}`;
     case 'payment_certificate':
-      return `/api/v2/payment-certificates/${entityId}/${action}`;
+      return `/api/v1/payment-certificates/${entityId}/${action}`;
     case 'issue':
-      return `/api/v2/issues/${entityId}/${action}`;
+      return `/api/v1/issues/${entityId}/${action}`;
     case 'petty_cash':
-      return `/api/v2/petty-cash/${entityId}/${action}`;
+      return `/api/v1/petty-cash/${entityId}/${action}`;
     default:
-      return `/api/v2/${entityType}/${entityId}/${action}`;
+      return `/api/v1/${entityType}/${entityId}/${action}`;
   }
 }
 

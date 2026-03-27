@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     try {
       console.log('Attempting login for:', email);
-      const res = await api.post<TokenResponse>('/api/auth/login', { email, password });
+      const res = await api.post<TokenResponse>('/api/v1/auth/login', { email, password });
       const { access_token, refresh_token, user } = res.data;
 
       console.log('Login successful, role:', user.role);

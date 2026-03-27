@@ -3,13 +3,13 @@
 import { useState, useRef } from 'react';
 import { useProjectStore } from '@/store/projectStore';
 import api from '@/lib/api';
-import { 
-  Scan, 
-  Upload, 
-  FileText, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Loader2, 
+import {
+  Scan,
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
   ArrowRight,
   IndianRupee,
   FileSearch,
@@ -35,7 +35,7 @@ export default function OCRScannerPage() {
   const { activeProject } = useProjectStore();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -81,10 +81,10 @@ export default function OCRScannerPage() {
     }
 
     try {
-      const res = await api.post('/api/v2/ai/ocr', formData, {
+      const res = await api.post('/api/v1/ai/ocr', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       const result = res.data;
       setOcrResult(result);
       setVerifiedData({
@@ -103,7 +103,7 @@ export default function OCRScannerPage() {
 
   const handleCreateCertificate = async () => {
     if (!activeProject) return;
-    
+
     setLoading(true);
     try {
       await api.post('/api/payment-certificates', {
@@ -116,7 +116,7 @@ export default function OCRScannerPage() {
         total_amount: verifiedData.amount + verifiedData.gst_amount,
         ocr_id: ocrResult?.ocr_id
       });
-      
+
       setIsSuccess(true);
       setTimeout(() => {
         router.push('/admin/payment-certificates');
@@ -160,7 +160,7 @@ export default function OCRScannerPage() {
         {/* Left Column: Upload / Preview */}
         <div className="space-y-4">
           {!preview ? (
-            <div 
+            <div
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-slate-800 rounded-3xl aspect-[3/4] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-orange-500/30 hover:bg-orange-500/5 transition-all group"
             >
@@ -180,8 +180,8 @@ export default function OCRScannerPage() {
               <img src={preview} alt="Preview" className="w-full h-full object-cover opacity-80" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent flex flex-col justify-end p-6">
                 <div className="flex items-center justify-between">
-                   <button 
-                    onClick={() => {setPreview(null); setOcrResult(null);}}
+                  <button
+                    onClick={() => { setPreview(null); setOcrResult(null); }}
                     className="bg-slate-900/90 hover:bg-red-500 text-white p-2.5 rounded-xl transition-all border border-slate-800"
                   >
                     <RefreshCcw size={18} />
@@ -193,11 +193,11 @@ export default function OCRScannerPage() {
               </div>
             </div>
           )}
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
             accept="image/*,application/pdf"
           />
         </div>
@@ -209,7 +209,7 @@ export default function OCRScannerPage() {
               <div className="relative mb-6">
                 <FileSearch size={64} className="text-orange-500/20" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                   <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+                  <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
                 </div>
               </div>
               <h3 className="text-white font-bold text-lg">AI is analyzing document...</h3>
@@ -217,63 +217,63 @@ export default function OCRScannerPage() {
             </div>
           ) : ocrResult ? (
             <div className="bg-slate-900/30 border border-slate-800 rounded-3xl p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-               <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles size={18} className="text-orange-500" />
                   <h3 className="text-white font-bold">AI Extraction Result</h3>
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-wider">
-                   {Math.round(ocrResult.confidence_score * 100)}% Confidence
+                  {Math.round(ocrResult.confidence_score * 100)}% Confidence
                 </div>
               </div>
 
               <div className="space-y-4">
-                 <div className="space-y-1">
+                <div className="space-y-1">
                   <label className={labelStyle}><User size={12} /> Vendor / Beneficiary</label>
-                  <input 
-                    className={inputStyle} 
+                  <input
+                    className={inputStyle}
                     value={verifiedData.vendor_name}
-                    onChange={e => setVerifiedData({...verifiedData, vendor_name: e.target.value})}
+                    onChange={e => setVerifiedData({ ...verifiedData, vendor_name: e.target.value })}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className={labelStyle}><Hash size={12} /> Invoice Number</label>
-                    <input 
-                      className={inputStyle} 
+                    <input
+                      className={inputStyle}
                       value={verifiedData.invoice_number}
-                      onChange={e => setVerifiedData({...verifiedData, invoice_number: e.target.value})}
+                      onChange={e => setVerifiedData({ ...verifiedData, invoice_number: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1">
                     <label className={labelStyle}><Calendar size={12} /> Document Date</label>
-                    <input 
+                    <input
                       type="date"
-                      className={inputStyle} 
+                      className={inputStyle}
                       value={verifiedData.date}
-                      onChange={e => setVerifiedData({...verifiedData, date: e.target.value})}
+                      onChange={e => setVerifiedData({ ...verifiedData, date: e.target.value })}
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-1">
+                  <div className="space-y-1">
                     <label className={labelStyle}><IndianRupee size={12} /> taxable amount</label>
-                    <input 
+                    <input
                       type="number"
-                      className={inputStyle} 
+                      className={inputStyle}
                       value={verifiedData.amount || ''}
-                      onChange={e => setVerifiedData({...verifiedData, amount: parseFloat(e.target.value) || 0})}
+                      onChange={e => setVerifiedData({ ...verifiedData, amount: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
                   <div className="space-y-1">
                     <label className={labelStyle}><IndianRupee size={12} /> GST Amount</label>
-                    <input 
+                    <input
                       type="number"
-                      className={inputStyle} 
+                      className={inputStyle}
                       value={verifiedData.gst_amount || ''}
-                      onChange={e => setVerifiedData({...verifiedData, gst_amount: parseFloat(e.target.value) || 0})}
+                      onChange={e => setVerifiedData({ ...verifiedData, gst_amount: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
                 </div>
@@ -287,7 +287,7 @@ export default function OCRScannerPage() {
               </div>
 
               <div className="pt-4 space-y-3">
-                 <button 
+                <button
                   onClick={handleCreateCertificate}
                   className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-901/20 active:scale-[0.98]"
                 >

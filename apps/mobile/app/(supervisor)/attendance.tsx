@@ -67,18 +67,18 @@ interface AttendanceRecord {
 
 export default function SupervisorAttendance() {
   const { selectedProject, isProjectSelected } = useProject();
-  
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
-  
+
   // Today's attendance state
   const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [hasDPRToday, setHasDPRToday] = useState(false);
-  
+
   // History
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
 
@@ -86,7 +86,7 @@ export default function SupervisorAttendance() {
     hour: '2-digit',
     minute: '2-digit',
   });
-  
+
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -96,13 +96,13 @@ export default function SupervisorAttendance() {
 
   const loadAttendanceStatus = useCallback(async () => {
     if (!selectedProject) return;
-    
+
     try {
       const projectId = (selectedProject as any).project_id || (selectedProject as any)._id;
-      
+
       // Check today's attendance
-      const checkResponse = await apiRequest(`/api/v2/attendance/check?project_id=${projectId}`);
-      
+      const checkResponse = await apiRequest(`/api/v1/attendance/check?project_id=${projectId}`);
+
       if (checkResponse.attendance_marked) {
         setTodayAttendance({
           id: 'today',
@@ -112,27 +112,27 @@ export default function SupervisorAttendance() {
           hasDPR: false,
         });
       }
-      
+
       // Check if DPR submitted today
       try {
-        const dprResponse = await apiRequest(`/api/v2/dpr?project_id=${projectId}&date=${new Date().toISOString().split('T')[0]}`);
+        const dprResponse = await apiRequest(`/api/v1/dpr?project_id=${projectId}&date=${new Date().toISOString().split('T')[0]}`);
         if (dprResponse && dprResponse.length > 0) {
           setHasDPRToday(true);
         }
       } catch {
         // No DPR for today
       }
-      
+
       // Fetch attendance history
       try {
-        const historyResponse = await apiRequest(`/api/v2/attendance/history?limit=10`);
+        const historyResponse = await apiRequest(`/api/v1/attendance/history?limit=10`);
         if (historyResponse && historyResponse.attendance) {
           setAttendanceHistory(historyResponse.attendance);
         }
       } catch {
         console.log('No attendance history available');
       }
-      
+
     } catch (error) {
       console.error('Error loading attendance:', error);
     } finally {
@@ -162,7 +162,7 @@ export default function SupervisorAttendance() {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
-      
+
       // Try to get address
       let address = '';
       try {
@@ -220,7 +220,7 @@ export default function SupervisorAttendance() {
     }
 
     setCheckingIn(true);
-    
+
     try {
       // Step 1: Take selfie
       const selfie = await takeSelfie();
@@ -238,8 +238,8 @@ export default function SupervisorAttendance() {
 
       // Step 3: Submit attendance
       const projectId = (selectedProject as any).project_id || (selectedProject as any)._id;
-      
-      await apiRequest('/api/v2/attendance', {
+
+      await apiRequest('/api/v1/attendance', {
         method: 'POST',
         body: JSON.stringify({
           project_id: projectId,
@@ -334,7 +334,7 @@ export default function SupervisorAttendance() {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAttendanceStatus(); }} />
@@ -390,10 +390,10 @@ export default function SupervisorAttendance() {
                   <Text style={styles.statusBadgeText}>CHECKED IN</Text>
                 </View>
               </View>
-              
+
               <Text style={styles.checkedInTitle}>You&apos;re on site!</Text>
               <Text style={styles.checkedInTime}>Check-in: {todayAttendance?.checkInTime}</Text>
-              
+
               {location && (
                 <View style={styles.locationInfo}>
                   <Ionicons name="location" size={16} color={Colors.accent} />
@@ -405,10 +405,10 @@ export default function SupervisorAttendance() {
 
               {/* DPR Status */}
               <View style={[styles.dprStatus, hasDPRToday ? styles.dprStatusComplete : styles.dprStatusPending]}>
-                <Ionicons 
-                  name={hasDPRToday ? "document-text" : "document-text-outline"} 
-                  size={24} 
-                  color={hasDPRToday ? Colors.success : Colors.warning} 
+                <Ionicons
+                  name={hasDPRToday ? "document-text" : "document-text-outline"}
+                  size={24}
+                  color={hasDPRToday ? Colors.success : Colors.warning}
                 />
                 <View style={styles.dprStatusText}>
                   <Text style={styles.dprStatusTitle}>
@@ -451,7 +451,7 @@ export default function SupervisorAttendance() {
               <Text style={styles.checkInSubtitle}>
                 Take a selfie to verify your presence at the site
               </Text>
-              
+
               <View style={styles.checkInSteps}>
                 <View style={styles.stepItem}>
                   <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
@@ -472,7 +472,7 @@ export default function SupervisorAttendance() {
                   <Text style={styles.stepText}>Confirm</Text>
                 </View>
               </View>
-              
+
               <TouchableOpacity
                 style={styles.checkInButton}
                 onPress={handleCheckIn}
@@ -497,7 +497,7 @@ export default function SupervisorAttendance() {
         {/* Attendance History */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Attendance History</Text>
-          
+
           {/* Show today if checked in */}
           {todayAttendance && (
             <AttendanceHistoryItem
@@ -507,7 +507,7 @@ export default function SupervisorAttendance() {
               status={todayAttendance.status === 'checked_out' ? 'present' : 'in_progress'}
             />
           )}
-          
+
           {/* Real attendance history from API */}
           {attendanceHistory.length > 0 ? (
             attendanceHistory.map((record, index) => (
@@ -516,20 +516,20 @@ export default function SupervisorAttendance() {
                 date={new Date(record.check_in_time || record.date).toLocaleDateString('en-US', {
                   weekday: 'short', month: 'short', day: 'numeric'
                 })}
-                checkIn={record.check_in_time 
-                  ? new Date(record.check_in_time).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})
+                checkIn={record.check_in_time
+                  ? new Date(record.check_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                   : 'N/A'}
-                checkOut={record.check_out_time 
-                  ? new Date(record.check_out_time).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})
+                checkOut={record.check_out_time
+                  ? new Date(record.check_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                   : undefined}
                 status={record.check_out_time ? 'present' : record.status === 'absent' ? 'absent' : 'present'}
               />
             ))
           ) : !todayAttendance ? (
             <Card style={styles.historyCard}>
-              <View style={{alignItems: 'center', padding: Spacing.lg}}>
+              <View style={{ alignItems: 'center', padding: Spacing.lg }}>
                 <Ionicons name="calendar-outline" size={40} color={Colors.textMuted} />
-                <Text style={{color: Colors.textMuted, marginTop: Spacing.sm}}>No attendance records yet</Text>
+                <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>No attendance records yet</Text>
               </View>
             </Card>
           ) : null}
@@ -539,13 +539,13 @@ export default function SupervisorAttendance() {
   );
 }
 
-function AttendanceHistoryItem({ 
-  date, 
-  checkIn, 
+function AttendanceHistoryItem({
+  date,
+  checkIn,
   checkOut,
-  status 
-}: { 
-  date: string; 
+  status
+}: {
+  date: string;
   checkIn: string;
   checkOut?: string;
   status: 'present' | 'absent' | 'late' | 'in_progress';
@@ -556,7 +556,7 @@ function AttendanceHistoryItem({
     late: { color: Colors.warning, label: 'Late', icon: 'time' as const },
     in_progress: { color: Colors.accent, label: 'In Progress', icon: 'timer' as const },
   };
-  
+
   const config = statusConfig[status];
 
   return (
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: Spacing.md, color: Colors.textSecondary },
   content: { padding: Spacing.md },
-  
+
   // Time Card
   timeCard: {
     alignItems: 'center',
@@ -608,10 +608,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   projectBadgeText: { fontSize: FontSizes.xs, color: Colors.white },
-  
+
   // Attendance Card
   attendanceCard: { alignItems: 'center', padding: Spacing.xl, marginBottom: Spacing.lg },
-  
+
   // Check In State
   checkInIcon: {
     width: 120,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkInButtonText: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.white },
-  
+
   // Checked In State
   checkedInContainer: { position: 'relative', marginBottom: Spacing.md },
   selfieImage: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: Colors.success },
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   },
   checkOutButtonDisabled: { backgroundColor: Colors.textMuted },
   checkOutButtonText: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.white },
-  
+
   // Checked Out State
   checkedOutIcon: { marginBottom: Spacing.md },
   statusTitle: { fontSize: FontSizes.xl, fontWeight: '600', color: Colors.success, marginBottom: Spacing.lg },
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
   timeLabel: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: Spacing.xs },
   timeValue: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text },
   timeDivider: { width: 1, height: 40, backgroundColor: Colors.border },
-  
+
   // History Section
   section: { marginBottom: Spacing.lg },
   sectionTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginBottom: Spacing.md },

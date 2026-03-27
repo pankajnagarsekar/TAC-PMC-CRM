@@ -89,7 +89,7 @@ export default function DPRForm({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current.stopAndUnloadAsync().catch(() => { });
       }
     };
   }, []);
@@ -167,7 +167,7 @@ export default function DPRForm({
     try {
       const token = await getToken();
 
-      const response = await fetch(`${BASE_URL}/api/v2/speech-to-text`, {
+      const response = await fetch(`${BASE_URL}/api/v1/speech-to-text`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ export default function DPRForm({
         status: 'Draft',
       };
 
-      const createResponse = await fetch(`${BASE_URL}/api/v2/dpr`, {
+      const createResponse = await fetch(`${BASE_URL}/api/v1/dpr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -338,12 +338,12 @@ export default function DPRForm({
 
       // Handle existing DPR - delete it and create new one
       if (dprData.exists) {
-        await fetch(`${BASE_URL}/api/v2/dpr/${dprData.dpr_id}`, {
+        await fetch(`${BASE_URL}/api/v1/dpr/${dprData.dpr_id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const retryResponse = await fetch(`${BASE_URL}/api/v2/dpr`, {
+        const retryResponse = await fetch(`${BASE_URL}/api/v1/dpr`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -366,7 +366,7 @@ export default function DPRForm({
 
       // Upload photos with captions
       for (const photo of photos) {
-        await fetch(`${BASE_URL}/api/v2/dpr/${dprId}/images`, {
+        await fetch(`${BASE_URL}/api/v1/dpr/${dprId}/images`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -382,7 +382,7 @@ export default function DPRForm({
       }
 
       // Submit DPR - generates PDF and sends notification
-      const submitResponse = await fetch(`${BASE_URL}/api/v2/dpr/${dprId}/submit`, {
+      const submitResponse = await fetch(`${BASE_URL}/api/v1/dpr/${dprId}/submit`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

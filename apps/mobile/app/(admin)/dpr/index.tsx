@@ -70,10 +70,10 @@ export default function AdminDPRListScreen() {
     if (!projectId) return;
     try {
       const token = await getToken();
-      let url = `${BASE_URL}/api/v2/dpr?project_id=${projectId}`;
+      let url = `${BASE_URL}/api/v1/dpr?project_id=${projectId}`;
       if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
       if (dateFilter) url += `&date=${encodeURIComponent(dateFilter)}`;
-      
+
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ export default function AdminDPRListScreen() {
     try {
       setApprovingId(dprId);
       const token = await getToken();
-      const response = await fetch(`${BASE_URL}/api/v2/dpr/${dprId}`, {
+      const response = await fetch(`${BASE_URL}/api/v1/dpr/${dprId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ export default function AdminDPRListScreen() {
 
       if (response.ok) {
         // Immediate UI update
-        setDprs(prev => prev.map(dpr => 
+        setDprs(prev => prev.map(dpr =>
           dpr.dpr_id === dprId ? { ...dpr, status: 'Approved' } : dpr
         ));
       } else {
@@ -158,7 +158,7 @@ export default function AdminDPRListScreen() {
               </Text>
             </View>
             {item.status?.toLowerCase() === 'submitted' && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.quickApproveBtn}
                 onPress={(e) => {
                   e.stopPropagation();

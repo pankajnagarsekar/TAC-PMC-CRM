@@ -26,7 +26,7 @@ project_id = str(project['_id'])
 print(f"Target Project ID: {project_id}")
 
 # 3. Call Financials API
-financials_url = f"http://127.0.0.1:8000/api/v2/projects/{project_id}/financials"
+financials_url = f"http://127.0.0.1:8000/api/v1/projects/{project_id}/financials"
 print(f"Calling Financials API: {financials_url}")
 response = requests.get(financials_url, headers=headers)
 

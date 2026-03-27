@@ -135,3 +135,41 @@ class DashboardService:
             },
             "task_manager": task_manager_items
         }
+
+    async def get_financials(self, project_id: str) -> List[Dict[str, Any]]:
+        """Fetch project category financials from authoritative read-model."""
+        financials = await self.fin_state_repo.list(
+            {"project_id": project_id, "category_id": {"$ne": None}}, 
+            limit=500,
+            sort=[("category_id", 1)]
+        )
+        # Add category names if possible
+        # (Usually done in reporting, but for dashboard we want it fast)
+        return financials
+
+    async def get_vendor_payables(self, project_id: str) -> List[Dict[str, Any]]:
+        """Fetch pending payables per vendor for a project."""
+        from app.repositories.financial_repo import PCRepository
+        pc_repo = PCRepository(self.db)
+        
+        # Aggregate pending/closed PCs per vendor
+        pipeline = [
+            {"$match": {"project_id": project_id, "status": "Closed"}},
+            {"$group": {
+                "_id": "$vendor_id",
+                "vendor_name": {"$first": "$vendor_name"},
+                "total_certified": {"$sum": "$grand_total"},
+                "paid_amount": {"$sum": "$paid_amount"} # Assuming field exists
+            }},
+            {"$project": {
+                "vendor_id": "$_id",
+                "vendor_name": 1,
+                "net_payable": {"$subtract": ["$total_certified", {"$ifNull": ["$paid_amount", 0]}]}
+            }},
+            {"$match": {"net_payable": {"$gt": 0}}},
+            {"$sort": {"net_payable": -1}}
+        ]
+        
+        results = await self.db.payment_certificates.aggregate(pipeline).to_list(100)
+        return results
+

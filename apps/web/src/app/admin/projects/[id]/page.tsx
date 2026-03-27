@@ -43,7 +43,7 @@ export default function ProjectDetailPage() {
     mutate: mutateFinancials,
     isLoading: financialsLoading,
   } = useSWR<DerivedFinancialState[]>(
-    `/api/v2/projects/${projectId}/financials`,
+    `/api/v1/projects/${projectId}/financials`,
     fetcher,
   );
 
@@ -98,7 +98,7 @@ export default function ProjectDetailPage() {
           setSavingId(_id);
           try {
             // Note: In our current schema, _id in DerivedFinancialState refers to the ProjectBudget ID
-            await api.put(`/api/v2/budgets/${_id}`, {
+            await api.put(`/api/v1/budgets/${_id}`, {
               original_budget: parseFloat(original_budget),
               version: version,
             });
@@ -228,7 +228,7 @@ export default function ProjectDetailPage() {
                 onClick={async () => {
                   try {
                     await api.post(
-                      `/api/v2/projects/${project._id || project.project_id}/initialize-budgets`,
+                      `/api/v1/projects/${project._id || project.project_id}/initialize-budgets`,
                       {},
                     );
                     mutateFinancials();

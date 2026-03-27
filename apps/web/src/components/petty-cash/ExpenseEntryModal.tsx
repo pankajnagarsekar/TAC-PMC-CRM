@@ -142,7 +142,7 @@ export default function ExpenseEntryModal({
       formData.append("file", file);
 
       const response = await api.post(
-        `/api/v2/ai/ocr?project_id=${projectId}`,
+        `/api/v1/ai/ocr?project_id=${projectId}`,
         formData,
         {
           headers: {
