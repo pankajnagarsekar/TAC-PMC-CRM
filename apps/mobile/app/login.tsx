@@ -52,9 +52,12 @@ export default function LoginScreen() {
         router.replace('/(admin)/projects');
       } else if (role === 'Supervisor') {
         router.replace('/(supervisor)/dashboard');
+      } else if (role === 'Client') {
+        router.replace('/(client)/dashboard');
       } else {
-        // Default redirect
-        router.replace('/(admin)/projects');
+        // Fallback for unexpected roles
+        console.warn('Unknown user role:', role);
+        router.replace('/login');
       }
     } catch (err: any) {
       console.error('Login error:', err);

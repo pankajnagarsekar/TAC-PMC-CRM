@@ -9,13 +9,16 @@ export default function ClientLayout() {
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        router.replace('/login');
+        router.replace('/login'); return;
       } else if (user?.role !== 'Client') {
         // If not a client, send back to home which handles routing
         router.replace('/');
       }
     }
   }, [isAuthenticated, isLoading, user, router]);
+
+  // Guard: render nothing while auth is resolving
+  if (isLoading) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

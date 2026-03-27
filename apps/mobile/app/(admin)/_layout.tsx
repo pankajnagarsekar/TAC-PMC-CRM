@@ -25,6 +25,10 @@ export default function AdminLayout() {
     }
   }, [isAuthenticated, isLoading, user, router]);
 
+  // Guard: render nothing while auth is resolving to prevent tab-bar flash
+  if (isLoading) return null;
+
+
   return (
     <Tabs
       screenOptions={{

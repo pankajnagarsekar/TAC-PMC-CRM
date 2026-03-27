@@ -364,18 +364,18 @@ export const financialApi = {
     return request(`/api/v1/financial-state?${params}`);
   },
   getProjectFinancials: (projectId: string): Promise<DerivedFinancialState[]> =>
-    request(`/api/v2/projects/${projectId}/financials`),
+    request(`/api/v1/projects/${projectId}/financials`),
 };
 
 // ============================================
 // VENDORS API
 // ============================================
 export const vendorsApi = {
-  getAll: (activeOnly = true): Promise<Vendor[]> => request(`/api/v2/vendors?active_only=${activeOnly}`),
-  getById: (id: string): Promise<Vendor> => request(`/api/v2/vendors/${id}`),
-  create: (data: CreateVendorRequest): Promise<Vendor> => request('/api/v2/vendors', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<CreateVendorRequest>): Promise<Vendor> => request(`/api/v2/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string): Promise<void> => request(`/api/v2/vendors/${id}`, { method: 'DELETE' }),
+  getAll: (activeOnly = true): Promise<Vendor[]> => request(`/api/v1/vendors?active_only=${activeOnly}`),
+  getById: (id: string): Promise<Vendor> => request(`/api/v1/vendors/${id}`),
+  create: (data: CreateVendorRequest): Promise<Vendor> => request('/api/v1/vendors', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<CreateVendorRequest>): Promise<Vendor> => request(`/api/v1/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> => request(`/api/v1/vendors/${id}`, { method: 'DELETE' }),
 };
 
 // ============================================
@@ -386,16 +386,16 @@ export const workOrdersApi = {
     const params = new URLSearchParams();
     if (projectId) params.append('project_id', projectId);
     if (status) params.append('status_filter', status);
-    return request(`/api/v2/work-orders?${params}`);
+    return request(`/api/v1/work-orders?${params}`);
   },
-  getById: (id: string): Promise<WorkOrder> => request(`/api/v2/work-orders/${id}`),
-  create: (data: CreateWorkOrderRequest): Promise<WorkOrder> => request('/api/v2/work-orders', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: CreateWorkOrderRequest): Promise<WorkOrder> => request(`/api/v2/work-orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string): Promise<void> => request(`/api/v2/work-orders/${id}`, { method: 'DELETE' }),
-  issue: (id: string): Promise<WorkOrder> => request(`/api/v2/work-orders/${id}/issue`, { method: 'POST' }),
-  cancel: (id: string): Promise<void> => request(`/api/v2/work-orders/${id}/cancel`, { method: 'POST' }),
-  revise: (id: string, data: ReviseWorkOrderRequest): Promise<WorkOrder> => request(`/api/v2/work-orders/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
-  getTransitions: (id: string): Promise<{ allowed_transitions: string[] }> => request(`/api/v2/work-orders/${id}/transitions`),
+  getById: (id: string): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}`),
+  create: (data: CreateWorkOrderRequest): Promise<WorkOrder> => request('/api/v1/work-orders', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: CreateWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> => request(`/api/v1/work-orders/${id}`, { method: 'DELETE' }),
+  issue: (id: string): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}/issue`, { method: 'POST' }),
+  cancel: (id: string): Promise<void> => request(`/api/v1/work-orders/${id}/cancel`, { method: 'POST' }),
+  revise: (id: string, data: ReviseWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
+  getTransitions: (id: string): Promise<{ allowed_transitions: string[] }> => request(`/api/v1/work-orders/${id}/transitions`),
 };
 
 // ============================================
@@ -406,12 +406,12 @@ export const paymentCertificatesApi = {
     const params = new URLSearchParams();
     if (projectId) params.append('project_id', projectId);
     if (status) params.append('status_filter', status);
-    return request(`/api/v2/payment-certificates?${params}`);
+    return request(`/api/v1/payments/${projectId}?${params}`); // Map to list_payment_certificates
   },
-  getById: (id: string): Promise<PaymentCertificate> => request(`/api/v2/payment-certificates/${id}`),
-  create: (data: CreatePaymentCertificateRequest): Promise<PaymentCertificate> => request('/api/v2/payment-certificates', { method: 'POST', body: JSON.stringify(data) }),
-  certify: (id: string, invoiceNumber?: string): Promise<PaymentCertificate> => request(`/api/v2/payment-certificates/${id}/certify${invoiceNumber ? `?invoice_number=${invoiceNumber}` : ''}`, { method: 'POST' }),
-  revise: (id: string, data: RevisePaymentCertificateRequest): Promise<PaymentCertificate> => request(`/api/v2/payment-certificates/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
+  getById: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}`),
+  create: (data: CreatePaymentCertificateRequest): Promise<PaymentCertificate> => request('/api/v1/payments/', { method: 'POST', body: JSON.stringify(data) }),
+  certify: (id: string, invoiceNumber?: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/close`, { method: 'POST' }), // Map to close_payment_certificate
+  revise: (id: string, data: RevisePaymentCertificateRequest): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -471,11 +471,9 @@ export const delayApi = {
 // ============================================
 export const attendanceApi = {
   getAll: (projectId: string, supervisorId?: string): Promise<Attendance[]> => {
-    const params = new URLSearchParams({ project_id: projectId });
-    if (supervisorId) params.append('supervisor_id', supervisorId);
-    return request(`/api/v1/attendance?${params}`);
+    return request(`/api/v1/site/projects/${projectId}/attendance`);
   },
-  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/v1/attendance', { method: 'POST', body: JSON.stringify(data) }),
+  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/v1/attendance', { method: 'POST', body: JSON.stringify(data) }), // Check if this also needs /site/
   getToday: (projectId: string, supervisorId: string): Promise<Attendance | null> => request(`/api/v1/attendance/today?project_id=${projectId}&supervisor_id=${supervisorId}`),
 };
 
@@ -497,7 +495,7 @@ export const issuesApi = {
 // VOICE LOGS API
 // ============================================
 export const voiceLogsApi = {
-  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/voice-logs?project_id=${projectId}`),
+  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/site/projects/${projectId}/voice-logs`),
   create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
 };
 
@@ -546,6 +544,20 @@ export interface CashSummaryResponse {
   };
 }
 
+/**
+ * A single cash transaction as returned by the server.
+ */
+export interface CashTransaction {
+  transaction_id: string;
+  project_id: string;
+  category_id: string;
+  description: string;
+  amount: number;
+  transaction_date: string;
+  created_by: string;
+  created_at: string;
+}
+
 export const cashApi = {
   /**
    * Fetches the cash position summary for a project, broken down by server-computed categories.
@@ -557,7 +569,7 @@ export const cashApi = {
     request(`/api/v1/cash/summary/${projectId}`),
 
   listTransactions: (projectId: string, params?: { category_id?: string; cursor?: string; limit?: number }): Promise<{
-    items: any[];
+    items: CashTransaction[];
     next_cursor: string | null;
   }> => {
     const query = new URLSearchParams();
@@ -576,7 +588,7 @@ export const cashApi = {
    *
    * @security warning: "Client-side math is strictly forbidden. This method must only be used to POST raw entry data; balances are calculated server-side."
    */
-  createTransaction: (projectId: string, data: any, idempotencyKey: string): Promise<any> => {
+  createTransaction: (projectId: string, data: any, idempotencyKey: string): Promise<CashTransaction> => {
     return request(`/api/v1/cash/transactions`, {
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
@@ -597,9 +609,9 @@ export const csaApi = {
 // DPR API
 // ============================================
 export const dprApi = {
-  getAll: (projectId: string): Promise<DPR[]> => request(`/api/dpr?project_id=${projectId}`),
-  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/dpr/generate', { method: 'POST', body: JSON.stringify(data) }),
-  getById: (id: string): Promise<DPR> => request(`/api/dpr/${id}`),
+  getAll: (projectId: string): Promise<DPR[]> => request(`/api/v1/site/projects/${projectId}/dprs`),
+  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/dpr/generate', { method: 'POST', body: JSON.stringify(data) }),
+  getById: (id: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}`),
 };
 
 // ============================================
@@ -650,10 +662,8 @@ export const alertsApi = {
 // DASHBOARD API
 // ============================================
 export const dashboardApi = {
-  getAdminDashboard: (projectId?: string): Promise<AdminDashboardData> => {
-    const params = projectId ? `?project_id=${projectId}` : '';
-    return request(`/api/v1/projects/${projectId}/dashboard-stats`);
-  },
+  getAdminDashboard: (projectId?: string): Promise<AdminDashboardData> =>
+    request(`/api/v1/projects/${projectId}/dashboard-stats`),
   getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/dashboard/supervisor?project_id=${projectId}`),
 };
 
@@ -661,7 +671,7 @@ export const dashboardApi = {
 // OCR API
 // ============================================
 export const ocrApi = {
-  scanInvoice: (data: OCRRequest): Promise<OCRResult> => request('/api/v2/ai/ocr', { method: 'POST', body: JSON.stringify(data) }),
+  scanInvoice: (data: OCRRequest): Promise<OCRResult> => request('/api/v1/ai/ocr', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -687,16 +697,29 @@ export const auditLogsApi = {
 // ============================================
 // SETTINGS API
 // ============================================
+export interface GlobalSettings {
+  dpr_enforcement_enabled?: boolean;
+  default_retention_percentage?: number;
+  default_cgst_percentage?: number;
+  default_sgst_percentage?: number;
+  [key: string]: unknown; // allow extension without losing type safety
+}
+
 export const settingsApi = {
-  getGlobalSettings: (): Promise<any> => request('/api/v2/admin/settings'),
-  updateGlobalSettings: (data: any): Promise<any> => request('/api/v2/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  getGlobalSettings: (): Promise<GlobalSettings> => request('/api/v1/settings'),
+  updateGlobalSettings: (data: Partial<GlobalSettings>): Promise<GlobalSettings> =>
+    request('/api/v1/settings', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // REPORTING API
 // ============================================
+export interface ReportData {
+  [key: string]: unknown;
+}
+
 export const reportingApi = {
-  getReportData: (projectId: string, reportType: string, params?: { start_date?: string; end_date?: string }): Promise<any> => {
+  getReportData: (projectId: string, reportType: string, params?: { start_date?: string; end_date?: string }): Promise<ReportData> => {
     const query = new URLSearchParams();
     if (params?.start_date) query.append('start_date', params.start_date);
     if (params?.end_date) query.append('end_date', params.end_date);

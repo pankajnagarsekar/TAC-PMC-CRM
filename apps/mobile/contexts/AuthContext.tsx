@@ -39,20 +39,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   const checkAuthStatus = useCallback(async () => {
-    console.log('Checking auth status...');
+    if (__DEV__) console.log('Checking auth status...');
     try {
       const isAuth = await authApi.isAuthenticated();
-      console.log('Is authenticated:', isAuth);
       if (isAuth) {
         const user = await authApi.getCurrentUser();
-        console.log('Found user:', user?.email);
         setState({
           user,
           isLoading: false,
           isAuthenticated: !!user,
         });
       } else {
-        console.log('No auth token found');
         setState({
           user: null,
           isLoading: false,
@@ -75,13 +72,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [checkAuthStatus]);
 
   const login = useCallback(async (credentials: LoginRequest): Promise<User> => {
-    console.log('Login called with:', credentials.email);
     setState(prev => ({ ...prev, isLoading: true }));
-    
     try {
-      console.log('Calling authApi.login...');
       const response = await authApi.login(credentials);
-      console.log('Login successful, user:', response.user?.email);
       setState({
         user: response.user,
         isLoading: false,
@@ -97,7 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true }));
-    
+
     try {
       await authApi.logout();
     } finally {

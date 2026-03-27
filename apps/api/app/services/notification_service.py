@@ -5,7 +5,7 @@ from fastapi import HTTPException
 import logging
 
 from app.schemas.audit_notification import Notification, NotificationCreate
-from app.repositories.audit_repo import NotificationRepository
+from app.repositories.notification_repo import NotificationRepository
 from app.core.utils import serialize_doc
 
 logger = logging.getLogger(__name__)

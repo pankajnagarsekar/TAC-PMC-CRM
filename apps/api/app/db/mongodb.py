@@ -29,7 +29,7 @@ class DatabaseManager:
 
     async def initialize_indexes(self):
         """Fixed CR-21: Authoritative index enforcement for all repositories."""
-        if not self.db: return
+        if self.db is None: return
         
         logger.info("LIFECYCLE: Enforcing database indexes...")
         # Import inside to avoid circular deps

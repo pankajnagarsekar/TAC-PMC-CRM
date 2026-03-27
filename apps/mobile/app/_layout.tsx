@@ -46,6 +46,7 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="(admin)" />
             <Stack.Screen name="(supervisor)" />
+            <Stack.Screen name="(client)" />
           </Stack>
         </ProjectProvider>
       </AuthProvider>

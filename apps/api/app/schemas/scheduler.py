@@ -79,3 +79,15 @@ class ScheduleResponse(BaseModel):
                 "project_start": "01-01-26"
             }
         }
+
+class Schedule(BaseModel):
+    """DB model for stored project schedule."""
+    project_id: str
+    organisation_id: str
+    tasks: List[Dict[str, Any]] = []
+    project_start: Optional[str] = None
+    total_cost: Optional[Decimal] = None
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

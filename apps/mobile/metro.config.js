@@ -3,21 +3,25 @@ const { getDefaultConfig } = require("expo/metro-config");
 const path = require('path');
 const { FileStore } = require('metro-cache');
 
-const config = getDefaultConfig(__dirname);
+const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, '../..');
 
-// Use a stable on-disk store (shared across web/android)
-const root = process.env.METRO_CACHE_ROOT || path.join(__dirname, '.metro-cache');
-config.cacheStores = [
-  new FileStore({ root: path.join(root, 'cache') }),
+const config = getDefaultConfig(projectRoot);
+
+// 1. Watch all files within the workspace
+config.watchFolders = [workspaceRoot];
+
+// 2. Let Metro know where to look for find dependencies
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-
-// // Exclude unnecessary directories from file watching
-// config.watchFolders = [__dirname];
-// config.resolver.blacklistRE = /(.*)\/(__tests__|android|ios|build|dist|.git|node_modules\/.*\/android|node_modules\/.*\/ios|node_modules\/.*\/windows|node_modules\/.*\/macos)(\/.*)?$/;
-
-// // Alternative: use a more aggressive exclusion pattern
-// config.resolver.blacklistRE = /node_modules\/.*\/(android|ios|windows|macos|__tests__|\.git|.*\.android\.js|.*\.ios\.js)$/;
+// Use a stable on-disk store (shared across web/android)
+const cacheRoot = process.env.METRO_CACHE_ROOT || path.join(projectRoot, '.metro-cache');
+config.cacheStores = [
+  new FileStore({ root: path.join(cacheRoot, 'cache') }),
+];
 
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;

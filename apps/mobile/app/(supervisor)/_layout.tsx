@@ -12,14 +12,22 @@ const INACTIVE_TAB = '#9CA3AF';
 
 export default function SupervisorLayout() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated, or to home if wrong role
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace('/login');
+      } else if (user?.role !== 'Supervisor') {
+        // Non-supervisors get routed back to the role-aware index
+        router.replace('/');
+      }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, user, router]);
+
+  // Guard: render nothing while auth is resolving to prevent tab-bar flash
+  if (isLoading) return null;
 
   return (
     <Tabs

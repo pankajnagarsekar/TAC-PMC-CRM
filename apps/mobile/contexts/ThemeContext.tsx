@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { useColorScheme as useDeviceColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors as BaseColors, Spacing as BaseSpacing, FontSizes as BaseFontSizes, BorderRadius, Shadows } from '../constants/theme';
@@ -84,67 +84,64 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Determine actual theme mode
   const isDark = settings.theme === 'system' ? deviceColorScheme === 'dark' : settings.theme === 'dark';
 
-  // Construct dynamic Colors
-  const colors = { ...BaseColors };
+  // CM-06: Memoize derived tokens so consumers don't re-render on unrelated state changes
+  const colors = useMemo(() => {
+    const c = { ...BaseColors };
+    if (isDark) {
+      c.background = '#0f1113';
+      c.surface = '#17191c';
+      c.primary = '#e9c176';
+      c.text = '#F8FAFC';
+      c.textSecondary = '#94a3b8';
+      c.textMuted = '#64748b';
+      c.textInverse = '#0F172A';
+      c.border = '#24272b';
+      c.divider = '#24272b';
+      c.headerBg = '#0f1113';
+      c.tabBarBg = '#0f1113';
+      c.cardBg = '#17191c';
+      c.inputBg = '#0f1113';
+      c.inputBorder = '#24272b';
+      c.placeholder = '#4b5563';
+    } else {
+      c.background = '#f8f9fb';
+      c.surface = '#FFFFFF';
+      c.primary = '#775a19';
+      c.text = '#191c1e';
+      c.textSecondary = '#52617c';
+      c.textMuted = '#94a3b8';
+      c.textInverse = '#FFFFFF';
+      c.border = '#eceef0';
+      c.divider = '#eceef0';
+      c.headerBg = '#f8f9fb';
+      c.tabBarBg = '#f8f9fb';
+      c.cardBg = '#FFFFFF';
+      c.inputBg = '#f8f9fb';
+      c.inputBorder = '#eceef0';
+      c.placeholder = '#94a3b8';
+    }
+    return c;
+  }, [isDark]);
 
-  if (isDark) {
-    colors.background = '#0f1113';
-    colors.surface = '#17191c';
-    colors.primary = '#e9c176';
-    colors.text = '#F8FAFC';
-    colors.textSecondary = '#94a3b8';
-    colors.textMuted = '#64748b';
-    colors.textInverse = '#0F172A';
-    colors.border = '#24272b';
-    colors.divider = '#24272b';
-    colors.headerBg = '#0f1113';
-    colors.tabBarBg = '#0f1113';
-    colors.cardBg = '#17191c';
-    colors.inputBg = '#0f1113';
-    colors.inputBorder = '#24272b';
-    colors.placeholder = '#4b5563';
-  } else {
-    colors.background = '#f8f9fb';
-    colors.surface = '#FFFFFF';
-    colors.primary = '#775a19';
-    colors.text = '#191c1e';
-    colors.textSecondary = '#52617c';
-    colors.textMuted = '#94a3b8';
-    colors.textInverse = '#FFFFFF';
-    colors.border = '#eceef0';
-    colors.divider = '#eceef0';
-    colors.headerBg = '#f8f9fb';
-    colors.tabBarBg = '#f8f9fb';
-    colors.cardBg = '#FFFFFF';
-    colors.inputBg = '#f8f9fb';
-    colors.inputBorder = '#eceef0';
-    colors.placeholder = '#94a3b8';
-  }
+  const spacing = useMemo(() => {
+    const s = { ...BaseSpacing };
+    if (settings.compactMode) {
+      s.xs = 2; s.sm = 4; s.md = 8; s.lg = 12; s.xl = 16; s.xxl = 24;
+    }
+    return s;
+  }, [settings.compactMode]);
 
-  // Construct dynamic Spacing
-  const spacing = { ...BaseSpacing };
-  if (settings.compactMode) {
-    spacing.xs = 2;
-    spacing.sm = 4;
-    spacing.md = 8;
-    spacing.lg = 12;
-    spacing.xl = 16;
-    spacing.xxl = 24;
-  }
+  const fontSizes = useMemo(() => {
+    const f = { ...BaseFontSizes };
+    if (settings.fontSize === 'small') {
+      Object.keys(f).forEach((key) => { f[key as keyof typeof BaseFontSizes] -= 2; });
+    } else if (settings.fontSize === 'large') {
+      Object.keys(f).forEach((key) => { f[key as keyof typeof BaseFontSizes] += 2; });
+    }
+    return f;
+  }, [settings.fontSize]);
 
-  // Construct dynamic FontSizes
-  const fontSizes = { ...BaseFontSizes };
-  if (settings.fontSize === 'small') {
-    Object.keys(fontSizes).forEach((key) => {
-      fontSizes[key as keyof typeof BaseFontSizes] -= 2;
-    });
-  } else if (settings.fontSize === 'large') {
-    Object.keys(fontSizes).forEach((key) => {
-      fontSizes[key as keyof typeof BaseFontSizes] += 2;
-    });
-  }
-
-  const value = {
+  const value = useMemo(() => ({
     settings,
     updateSettings,
     colors,
@@ -153,8 +150,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     borderRadius: BorderRadius,
     shadows: Shadows,
     isDark,
-    toggleTheme
-  };
+    toggleTheme,
+  }), [settings, colors, spacing, fontSizes, isDark, updateSettings, toggleTheme]);
 
   if (!isLoaded) return null; // Wait for async storage
 

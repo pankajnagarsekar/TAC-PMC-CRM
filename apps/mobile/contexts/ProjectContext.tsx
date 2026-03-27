@@ -4,12 +4,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Project } from '../types/api';
-import api from '../services/apiClient';
+import { getAuthToken, projectsApi } from '../services/apiClient';
 
 interface ProjectContextType {
   selectedProject: Project | null;
-  setSelectedProject: (project: Project | null) => void;
-  clearProject: () => void;
+  setSelectedProject: (project: Project | null) => Promise<void>; // CM-07: correct async signature
+  clearProject: () => Promise<void>;
   isProjectSelected: boolean;
 }
 
@@ -31,7 +31,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (stored) {
         setSelectedProjectState(JSON.parse(stored));
       } else {
-        // Auto-select first project if none is persisted
+        // Only auto-select if we have a valid auth token (CR-06)
         await autoSelectFirstProject();
       }
     } catch (error) {
@@ -41,22 +41,20 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const autoSelectFirstProject = async () => {
     try {
-      const data = await api.get<any>('/api/v2/admin/projects-overview');
-      const projects = data.projects || [];
+      // CR-06: Guard against unauthenticated API calls on cold start
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const projects = await projectsApi.getAll();
       if (projects.length > 0) {
-        const firstProject = projects[0];
-        const project: Project = {
-          project_id: firstProject.project_id,
-          project_name: firstProject.project_name,
-        };
-        await setSelectedProject(project);
+        await setSelectedProject(projects[0]);
       }
     } catch (error) {
       console.error('Failed to auto-select first project:', error);
     }
   };
 
-  const setSelectedProject = async (project: Project | null) => {
+  const setSelectedProject = async (project: Project | null): Promise<void> => {
     setSelectedProjectState(project);
     try {
       if (project) {
@@ -69,7 +67,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const clearProject = async () => {
+  const clearProject = async (): Promise<void> => {
     setSelectedProjectState(null);
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
