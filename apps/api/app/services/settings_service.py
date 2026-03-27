@@ -15,9 +15,10 @@ class SettingsService:
     Sovereign Settings Controller (Point 1).
     Manages organizational configuration and profile data.
     """
-    def __init__(self, db, permission_checker):
+    def __init__(self, db, permission_checker, audit_service):
         self.db = db
         self.permission_checker = permission_checker
+        self.audit_service = audit_service
         self.settings_repo = SettingsRepository(db)
 
     async def get_settings(self, user: dict) -> Dict[str, Any]:
@@ -49,12 +50,20 @@ class SettingsService:
         
         existing = await self.settings_repo.find_one({"organisation_id": user["organisation_id"]})
         if existing:
-            await self.settings_repo.update(existing["id"], payload)
+            updated = await self.settings_repo.update(existing["id"], payload)
         else:
             payload["organisation_id"] = user["organisation_id"]
-            await self.settings_repo.create(payload)
+            updated = await self.settings_repo.create(payload)
+
+        # Mandatory Audit Logging (Fixed CR-AuditGap)
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"], module_name="SETTINGS",
+            entity_type="GLOBAL_SETTINGS", entity_id=str(updated.get("id") or existing.get("id") if existing else "NEW"),
+            action_type="UPDATE", user_id=user["user_id"],
+            old_value=existing, new_value=updated
+        )
             
-        return {"status": "success"}
+        return updated
 
     # NOTE: list_categories and create_category removed here (Fixed CR-08/28).
     # Those operations are now handled by MasterDataService.

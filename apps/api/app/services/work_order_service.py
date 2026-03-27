@@ -161,6 +161,13 @@ class WorkOrderService:
             if not result:
                 raise HTTPException(status_code=409, detail="CONFLICT: Resource modified or version mismatch.")
 
+            # Mandatory Audit Logging for Update (Fixed CR-AuditGap)
+            await self.audit_service.log_action(
+                organisation_id=organisation_id, module_name="WORK_ORDERS", entity_type="WORK_ORDER",
+                entity_id=wo_id, action_type="UPDATE", user_id=user["user_id"],
+                project_id=old_wo["project_id"], old_value=old_wo, new_value=result, session=uow.session
+            )
+
             agg = await uow.work_orders.aggregate([
                 {"$match": {"project_id": old_wo["project_id"], "category_id": old_wo.get("category_id"), "status": {"$ne": "Cancelled"}}},
                 {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}

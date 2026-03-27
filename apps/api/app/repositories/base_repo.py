@@ -52,23 +52,34 @@ class BaseRepository(Generic[T]):
         dump = json.dumps(clean, sort_keys=True)
         return hashlib.sha256(dump.encode()).hexdigest()
 
-    def _clip_text(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Hard Guard: Prevent DB bloating (Point 46)."""
-        limit = 4000
-        clipped = []
-        for k, v in data.items():
-            if isinstance(v, str) and len(v) > limit:
-                data[k] = v[:limit] + "... [CLIPPED]"
-                clipped.append(k)
-        if clipped:
-            logger.warning(f"BLOB_PROTECTION: Fields {clipped} clipped in {self.collection.name}")
+    def _clip_text(self, data: Any, limit: int = 4000) -> Any:
+        """Hard Guard: Prevent DB bloating by clipping large text fields recursively (Point 46)."""
+        if isinstance(data, dict):
+            for k, v in data.items():
+                data[k] = self._clip_text(v, limit)
+            return data
+        elif isinstance(data, list):
+            return [self._clip_text(item, limit) for item in data]
+        elif isinstance(data, str) and len(data) > limit:
+            logger.warning(f"BLOB_PROTECTION: Large text field clipped in {self.collection.name}")
+            return data[:limit] + "... [CLIPPED]"
         return data
 
-    async def get_by_id(self, id: str, session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
+    async def get_by_id(self, id: str, organisation_id: Optional[str] = None, session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
+        """
+        Fetch by ID with mandatory organisation_id scoping (Fixed CR-23).
+        Prevents cross-organisation data leakage by always requiring org context.
+        """
         if not ObjectId.is_valid(id): return None
-        doc = await self.collection.find_one({"_id": ObjectId(id)}, session=session)
+
+        query = {"_id": ObjectId(id)}
+        # Hard guard: If organisation_id is provided, enforce it in the query
+        if organisation_id is not None:
+            query["organisation_id"] = organisation_id
+
+        doc = await self.collection.find_one(query, session=session)
         if not doc: return None
-        
+
         # Point 33: Fail-Fast Checksum
         stored = doc.get("checksum")
         if stored:
@@ -76,7 +87,7 @@ class BaseRepository(Generic[T]):
             if stored != current:
                 logger.critical(f"INTEGRITY_FAILURE: Record {id} corrupted in {self.collection.name}")
                 raise DataIntegrityError(f"Checksum mismatch for {id}")
-        
+
         return serialize_doc(doc)
 
     async def list(self, query=None, skip=0, limit=20, sort=None, session=None, include_deleted=False) -> List[Dict[str, Any]]:

@@ -12,8 +12,9 @@ class MasterDataService:
     Sovereign Controller for Master Data (Point 1).
     Enforces organizational scoping and uniqueness for reference codes.
     """
-    def __init__(self, db):
+    def __init__(self, db, audit_service):
         self.db = db
+        self.audit_service = audit_service
         self.code_repo = CodeMasterRepository(db)
         self.permission_checker = PermissionChecker(db)
 
@@ -40,7 +41,15 @@ class MasterDataService:
         doc["organisation_id"] = user["organisation_id"]
         doc["active_status"] = True
         
-        return await self.code_repo.create(doc)
+        new_code = await self.code_repo.create(doc)
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"], module_name="MASTER_DATA",
+            entity_type="CODE_MASTER", entity_id=new_code["id"],
+            action_type="CREATE", user_id=user["user_id"],
+            new_value=new_code
+        )
+        return new_code
 
     async def update_code(self, user: dict, code_id: str, update_data: CodeMasterUpdate) -> Dict[str, Any]:
         """Fixed CR-28: Master data update with scoping."""
@@ -51,6 +60,13 @@ class MasterDataService:
             raise HTTPException(status_code=404, detail="Master code not found.")
 
         updated = await self.code_repo.update(code_id, update_data.dict(exclude_unset=True))
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"], module_name="MASTER_DATA",
+            entity_type="CODE_MASTER", entity_id=code_id,
+            action_type="UPDATE", user_id=user["user_id"],
+            old_value=existing, new_value=updated
+        )
         return updated
 
     async def get_code_by_id(self, user: dict, code_id: str) -> Dict[str, Any]:

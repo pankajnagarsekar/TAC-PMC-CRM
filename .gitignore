@@ -37,4 +37,26 @@ node_modules/
 
 # Test and command residue
 out*.txt
+tmp_*.py
+clean_*.py
+verify_*.py
+*.json.bak
+*.log
+*.tmp
+*.temp
+.pytest_cache/
+__pycache__/
 
+# Large project exports
+large_project_*.json
+
+# Design/Swarm metadata
+Ruflo_*.md
+ruflo_*.md
+*.PROTO.md
+BUDGET_FIX.md
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

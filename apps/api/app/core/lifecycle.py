@@ -44,7 +44,10 @@ class BackgroundGuardian:
                     logger.info(f"GUARDIAN: Purged {res.deleted_count} expired nonces.")
 
                 # 2. Detect Zombie Records (Point 103)
-                await self.guardian.find_zombies()
+                # Fixed CR-17: AlertService is triggered internally by find_zombies()
+                zombies = await self.guardian.find_zombies()
+                if zombies and len(zombies) > 0:
+                    logger.warning(f"INTEGRITY_ALERT: Detected {len(zombies)} zombie records. Alerts have been raised.")
 
                 # 3. Scheduled Reconciliation (Point 61)
                 # This could be expensive, so we run it incrementally or per project

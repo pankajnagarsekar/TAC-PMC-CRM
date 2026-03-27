@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Body, status
 from typing import List, Any
 from app.core.dependencies import get_authenticated_user, get_project_service, verify_nonce
 from app.services.project_service import ProjectService
-from app.schemas.project import Project, ProjectUpdate, ProjectCreate
+from app.schemas.project import Project, ProjectUpdate, ProjectCreate, ProjectBudgetCreate
 from app.schemas.shared import GenericResponse
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -65,13 +65,14 @@ async def get_project_budgets(
 @router.post("/{project_id}/budgets", response_model=GenericResponse[Any])
 async def create_or_update_project_budget(
     project_id: str,
-    budget_data: dict = Body(...),
+    budget_data: ProjectBudgetCreate,
     user: dict = Depends(get_authenticated_user),
     project_service: ProjectService = Depends(get_project_service),
     nonce: str = Depends(verify_nonce)
 ):
     """Create or update a budget allocation for a project category."""
-    result = await project_service.create_or_update_project_budget(user, project_id, budget_data)
+    # Fixed CR-12: Added typed request body with Pydantic validation
+    result = await project_service.create_or_update_project_budget(user, project_id, budget_data.dict())
     return GenericResponse(data=result, message="Budget updated successfully")
 
 @router.delete("/{project_id}", response_model=GenericResponse[dict])

@@ -160,9 +160,10 @@ async def get_vendor_service(
 
 async def get_settings_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    perm: PermissionChecker = Depends(get_permission_checker)
+    perm: PermissionChecker = Depends(get_permission_checker),
+    audit: AuditService = Depends(get_audit_service)
 ) -> SettingsService:
-    return SettingsService(db, perm)
+    return SettingsService(db, perm, audit)
 
 async def get_reporting_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
@@ -180,8 +181,11 @@ async def get_cash_service(
 async def get_dashboard_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> DashboardService:
     return DashboardService(db)
 
-async def get_master_data_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> MasterDataService:
-    return MasterDataService(db)
+async def get_master_data_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service)
+) -> MasterDataService:
+    return MasterDataService(db, audit)
 
 async def get_notification_service(
     db: AsyncIOMotorDatabase = Depends(get_db),

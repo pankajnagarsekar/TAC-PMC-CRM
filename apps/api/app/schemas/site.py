@@ -100,8 +100,9 @@ class DPRImageDetail(BaseModel):
     uploaded_at: datetime
 
 class DPRImage(BaseModel):
-    image_data: str  # Base64 encoded
-    caption: Optional[str] = None
+    # Fixed CR-25: Added max size validation (10 MB base64 = ~7.5MB binary)
+    image_data: str = Field(..., max_length=13107200)  # 10 MB in base64
+    caption: Optional[str] = Field(None, max_length=500)
     activity_code: Optional[str] = None
 
 class UpdateImageCaptionRequest(BaseModel):
