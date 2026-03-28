@@ -226,7 +226,12 @@ export default function NewWorkOrderPage() {
         return;
       }
 
-      router.push(`/admin/work-orders/${response.data._id}`);
+      if (response?.data?._id) {
+        router.push(`/admin/work-orders/${response.data._id}`);
+      } else {
+        alert("Work Order created but missing ID. Redirecting...");
+        router.push("/admin/work-orders");
+      }
     } catch (error: any) {
       const detail = error.response?.data?.detail;
       if (detail?.errors) {
