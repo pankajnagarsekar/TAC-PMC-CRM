@@ -221,7 +221,7 @@ export default function NewWorkOrderPage() {
         );
       });
 
-      if (response.data._warning === "over_budget") {
+      if (response && response.data?.data._warning === "over_budget") {
         setShowOverBudgetWarning(true);
         return;
       }
