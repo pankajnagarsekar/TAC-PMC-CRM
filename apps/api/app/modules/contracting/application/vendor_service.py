@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from fastapi import HTTPException
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 import logging
 
 from ..infrastructure.repository import VendorRepository, WorkOrderRepository, LedgerRepository
@@ -32,7 +32,7 @@ class VendorService:
         
         existing_name = await self.vendor_repo.get_by_name(vendor_data.name, user["organisation_id"])
         if existing_name:
-            raise HTTPException(status_code=400, detail="VENDOR_ALREADY_EXISTS: Name must be unique within organisation.")
+            raise ValidationError("VENDOR_ALREADY_EXISTS: Name must be unique within organisation.")
 
         vendor_dict = vendor_data.dict()
         vendor_dict["organisation_id"] = user["organisation_id"]
@@ -49,20 +49,20 @@ class VendorService:
 
     async def get_vendor(self, user: dict, vendor_id: str) -> Dict[str, Any]:
         vendor = await self.vendor_repo.get_by_id(vendor_id, organisation_id=user["organisation_id"])
-        if not vendor: raise HTTPException(status_code=404, detail="Vendor not found")
+        if not vendor: raise NotFoundError("Vendor", vendor_id)
         return vendor
 
     async def update_vendor(self, user: dict, vendor_id: str, vendor_update: VendorUpdate) -> Dict[str, Any]:
         """Vendor update with name uniqueness check."""
         existing = await self.vendor_repo.get_by_id(vendor_id, organisation_id=user["organisation_id"])
-        if not existing: raise HTTPException(status_code=404, detail="Vendor not found")
+        if not existing: raise NotFoundError("Vendor", vendor_id)
 
         update_data = vendor_update.dict(exclude_unset=True)
         
         if "name" in update_data and update_data["name"] != existing["name"]:
             duplicate = await self.vendor_repo.get_by_name(update_data["name"], user["organisation_id"])
             if duplicate:
-                raise HTTPException(status_code=400, detail="VENDOR_NAME_CONFLICT: Another vendor already uses this name.")
+                raise ValidationError("VENDOR_NAME_CONFLICT: Another vendor already uses this name.")
 
         updated_vendor = await self.vendor_repo.update(vendor_id, update_data, organisation_id=user["organisation_id"])
 
@@ -80,10 +80,10 @@ class VendorService:
         # Hard check for associations
         has_wos = await self.wo_repo.find_one({"vendor_id": vendor_id})
         if has_wos:
-            raise HTTPException(status_code=400, detail="DELETION_BLOCKED: Vendor has active work orders.")
+            raise ValidationError("DELETION_BLOCKED: Vendor has active work orders.")
 
         existing = await self.vendor_repo.get_by_id(vendor_id, organisation_id=user["organisation_id"])
-        if not existing: raise HTTPException(status_code=404, detail="Vendor not found")
+        if not existing: raise NotFoundError("Vendor", vendor_id)
 
         await self.vendor_repo.update(vendor_id, {"active_status": False}, organisation_id=user["organisation_id"])
 
@@ -97,6 +97,6 @@ class VendorService:
 
     async def get_ledger(self, user: dict, vendor_id: str) -> List[Dict[str, Any]]:
         vendor = await self.vendor_repo.get_by_id(vendor_id, organisation_id=user["organisation_id"])
-        if not vendor: raise HTTPException(status_code=404, detail="Vendor not found")
+        if not vendor: raise NotFoundError("Vendor", vendor_id)
 
         return await self.ledger_repo.list({"vendor_id": vendor_id}, sort=[("created_at", -1)], limit=500)

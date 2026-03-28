@@ -5,7 +5,7 @@ from datetime import datetime
 from app.core.dependencies import get_authenticated_user, get_notification_service, get_audit_service
 from ..application.notification_service import NotificationService
 from ..application.audit_service import AuditService
-from app.schemas.shared import GenericResponse
+from ..domain.schemas import GenericResponse
 
 router = APIRouter()
 

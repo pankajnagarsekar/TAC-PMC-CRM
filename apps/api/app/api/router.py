@@ -26,8 +26,8 @@ v1_router.include_router(shared_router)               # Handles /notifications, 
 api_router.include_router(v1_router, prefix="/v1")
 
 # Registry: Version 2 (Enterprise)
-if HAS_V2:
-    v2_router = APIRouter()
-    v2_router.include_router(enterprise_scheduler_router, tags=["Enterprise Scheduler"])
-    v2_router.include_router(portfolio_router, prefix="/portfolio", tags=["Portfolio management"])
-    api_router.include_router(v2_router, prefix="/v2")
+# if HAS_V2:
+#     v2_router = APIRouter()
+#     v2_router.include_router(enterprise_scheduler_router, tags=["Enterprise Scheduler"])
+#     v2_router.include_router(portfolio_router, prefix="/portfolio", tags=["Portfolio management"])
+#     api_router.include_router(v2_router, prefix="/v2")

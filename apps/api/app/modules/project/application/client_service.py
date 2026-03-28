@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from fastapi import HTTPException
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 import logging
 
 from ..infrastructure.repository import ClientRepository, ProjectRepository
@@ -38,7 +38,7 @@ class ClientService:
     async def get_client(self, client_id: str, organisation_id: str) -> Dict[str, Any]:
         client = await self.client_repo.get_by_id(client_id, organisation_id=organisation_id)
         if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
+            raise NotFoundError("Client", client_id)
         return client
 
     async def update_client(self, user: dict, client_id: str, client_data: ClientUpdate) -> Dict[str, Any]:
@@ -48,7 +48,7 @@ class ClientService:
         
         result = await self.client_repo.update(client_id, update_data, organisation_id=user["organisation_id"])
         if not result:
-            raise HTTPException(status_code=404, detail="Client not found")
+            raise NotFoundError("Client", client_id)
 
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],
@@ -67,11 +67,11 @@ class ClientService:
         
         projects = await self.project_repo.list({"client_id": client_id, "organisation_id": user["organisation_id"]}, limit=1)
         if projects:
-            raise HTTPException(status_code=400, detail="Cannot delete client with associated projects")
+            raise ValidationError("Cannot delete client with associated projects")
 
         result = await self.client_repo.update(client_id, {"active_status": False}, organisation_id=user["organisation_id"])
         if not result:
-            raise HTTPException(status_code=404, detail="Client not found")
+            raise NotFoundError("Client", client_id)
 
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],

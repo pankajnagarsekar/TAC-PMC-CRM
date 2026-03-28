@@ -3,7 +3,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from bson import Decimal128
-from fastapi import HTTPException
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 from ..infrastructure.repository import AISummaryRepository
 from app.modules.project.infrastructure.repository import ProjectRepository, BudgetRepository
@@ -57,7 +58,7 @@ class AISummaryService:
         await self.permission_checker.check_project_access(user, project_id)
         summary = await self.ai_repo.find_one({"project_id": project_id}, sort=[("created_at", -1)])
         if not summary:
-            raise HTTPException(status_code=404, detail="No AI summary found.")
+            raise NotFoundError("AI summary", project_id)
         return summary
 
     async def refresh_summary(self, user: dict, project_id: str) -> Dict[str, Any]:
@@ -70,7 +71,7 @@ class AISummaryService:
             )
         except Exception as e:
             logger.error(f"AI Summary failed: {e}")
-            raise HTTPException(status_code=500, detail="Generation failed.")
+            raise ValidationError("Generation failed.")
 
     async def generate_and_store(self, project_id: str, organisation_id: str, triggered_by: str = "scheduler") -> Dict[str, Any]:
         report_data = await self._aggregate_report_data(project_id, organisation_id)
@@ -93,9 +94,7 @@ class AISummaryService:
 
     async def _aggregate_report_data(self, project_id: str, organisation_id: str) -> Dict[str, Any]:
         def to_f(v):
-            if isinstance(v, Decimal128): return float(v.to_decimal())
-            try: return float(v or 0)
-            except: return 0.0
+            return float(FinancialEngine.to_decimal(v))
 
         budgets = await self.budget_repo.list({"project_id": project_id}, limit=100)
         financials = await self.fin_state_repo.list({"project_id": project_id}, limit=100)

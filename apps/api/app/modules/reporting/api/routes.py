@@ -5,7 +5,7 @@ from app.core.dependencies import get_authenticated_user, get_reporting_service,
 from ..application.reporting_service import ReportingService
 from ..application.dashboard_service import DashboardService
 from ..application.ai_summary_service import AISummaryService
-from app.schemas.shared import GenericResponse
+from app.modules.shared.domain.schemas import GenericResponse
 
 router = APIRouter()
 

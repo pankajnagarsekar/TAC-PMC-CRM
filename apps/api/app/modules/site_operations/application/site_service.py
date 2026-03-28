@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from bson import ObjectId
-from fastapi import HTTPException, status
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError, AuthenticationError, PermissionDeniedError
 
 from ..schemas.dto import (
     WorkersDailyLog, WorkersDailyLogCreate, WorkersDailyLogUpdate, 
@@ -14,6 +14,7 @@ from ..infrastructure.repository import (
     WorkerLogRepository, DPRRepository, AttendanceRepository, 
     VoiceLogRepository, SiteOverheadRepository
 )
+from ..domain.models import DailyProgressReport, WorkerLog
 # Note: UserRepository still in Identity context
 from app.modules.identity.infrastructure.repository import UserRepository
 from app.modules.shared.domain.state_machine import StateMachine
@@ -83,14 +84,10 @@ class SiteService:
     async def submit_dpr(self, user: dict, dpr_id: str) -> Dict[str, Any]:
         """Finalize DPR, generate PDF and create immutable snapshot."""
         dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr: raise HTTPException(status_code=404, detail="DPR not found")
+        if not dpr: raise NotFoundError("DPR", dpr_id)
         
-        StateMachine.validate_transition("DPR", dpr.get("status", "Draft"), "Submitted")
-        await self.permission_checker.check_project_access(user, dpr["project_id"], require_write=True)
-
-        image_count = dpr.get("image_count", 0)
-        if image_count < 4:
-            raise HTTPException(status_code=400, detail=f"DPR requires minimum 4 images. Current: {image_count}")
+        dpr_model = DailyProgressReport(dpr)
+        dpr_model.validate_for_submission()
 
         snapshot_data = await self._build_dpr_snapshot_data(dpr)
         
@@ -137,7 +134,7 @@ class SiteService:
     async def approve_dpr(self, user: dict, dpr_id: str) -> Dict[str, Any]:
         """Admin approval of a submitted DPR."""
         dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr: raise HTTPException(status_code=404, detail="DPR not found")
+        if not dpr: raise NotFoundError("DPR", dpr_id)
         
         StateMachine.validate_transition("DPR", dpr.get("status", "Draft"), "Approved")
         await self.permission_checker.check_project_access(user, dpr["project_id"], require_write=True)
@@ -163,7 +160,7 @@ class SiteService:
     async def reject_dpr(self, user: dict, dpr_id: str, reason: str) -> Dict[str, Any]:
         """Admin rejection of a submitted DPR (unlocks for editing)."""
         dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr: raise HTTPException(status_code=404, detail="DPR not found")
+        if not dpr: raise NotFoundError("DPR", dpr_id)
         
         StateMachine.validate_transition("DPR", dpr.get("status", "Draft"), "Rejected")
         await self.permission_checker.check_project_access(user, dpr["project_id"], require_write=True)
@@ -202,7 +199,7 @@ class SiteService:
 
     async def get_dpr_detail(self, user: dict, dpr_id: str) -> Dict[str, Any]:
         dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr: raise HTTPException(status_code=404, detail="DPR not found")
+        if not dpr: raise NotFoundError("DPR", dpr_id)
         await self.permission_checker.check_project_access(user, dpr["project_id"])
         return await self._enrich_with_user_names(dpr, ["approved_by", "rejected_by", "supervisor_id"])
 
@@ -229,10 +226,11 @@ class SiteService:
 
     async def add_dpr_image(self, user: dict, dpr_id: str, image_data: DPRImage) -> Dict[str, Any]:
         dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr: raise HTTPException(status_code=404, detail="DPR not found")
+        if not dpr: raise NotFoundError("DPR", dpr_id)
         
         await self.permission_checker.check_project_access(user, dpr["project_id"], require_write=True)
-        StateMachine.check_modification_allowed("DPR", dpr.get("status", "Draft"))
+        dpr_model = DailyProgressReport(dpr)
+        dpr_model.can_modify()
 
         compressed_data = image_data.image_data
         estimated_size_kb = len(compressed_data) * 0.75 / 1024
@@ -250,22 +248,23 @@ class SiteService:
 
     async def update_image_caption(self, user: dict, dpr_id: str, image_id: str, caption: str) -> Dict[str, Any]:
         dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr: raise HTTPException(status_code=404, detail="DPR not found")
+        if not dpr: raise NotFoundError("DPR", dpr_id)
         
         await self.permission_checker.check_project_access(user, dpr["project_id"], require_write=True)
-        StateMachine.check_modification_allowed("DPR", dpr.get("status", "Draft"))
+        dpr_model = DailyProgressReport(dpr)
+        dpr_model.can_modify()
 
         result = await self.db.dpr.update_one(
             {"_id": ObjectId(dpr_id), "images.image_id": image_id},
             {"$set": {"images.$.caption": caption, "updated_at": ts_now()}}
         )
-        if result.modified_count == 0: raise HTTPException(status_code=404, detail="Image not found in DPR")
+        if result.modified_count == 0: raise NotFoundError("DPR Image", image_id)
         return {"status": "updated", "message": "Caption updated successfully"}
 
     async def verify_attendance(self, user: dict, log_id: str) -> Dict[str, Any]:
         await self.permission_checker.check_admin_role(user)
         existing = await self.attendance_repo.get_by_id(log_id)
-        if not existing: raise HTTPException(status_code=404, detail="Attendance record not found")
+        if not existing: raise NotFoundError("Attendance record", log_id)
         
         await self.permission_checker.check_project_access(user, existing["project_id"], require_write=True)
         update_data = {"verified_by_admin": True, "verified_at": ts_now(), "verified_user_id": user["user_id"]}
@@ -299,8 +298,9 @@ class SiteService:
             "project_id": log_data.project_id, "date": log_data.date, "supervisor_id": user["user_id"]
         })
 
-        total_workers = sum(e.workers_count for e in log_data.entries) if log_data.entries else len(log_data.workers or [])
-        total_hours = sum(w.hours_worked for w in log_data.workers) if log_data.workers else 0
+        totals = WorkerLog.calculate_totals(log_data.entries, log_data.workers)
+        total_workers = totals["total_workers"]
+        total_hours = totals["total_hours"]
 
         log_dict = log_data.model_dump()
         log_dict.update({

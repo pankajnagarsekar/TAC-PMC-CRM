@@ -6,7 +6,7 @@ from ..application.auth_service import AuthService
 from ..application.user_service import UserService
 from ..application.settings_service import SettingsService
 from ..schemas.dto import Token, LoginRequest, RefreshTokenRequest, UserResponse, UserCreateAdmin, GlobalSettings
-from app.schemas.shared import GenericResponse
+from app.modules.shared.domain.schemas import GenericResponse
 
 # Create one router for the Identity Context
 router = APIRouter(tags=["Identity"])

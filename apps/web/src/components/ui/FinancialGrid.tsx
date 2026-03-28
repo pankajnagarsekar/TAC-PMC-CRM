@@ -134,7 +134,7 @@ export default function FinancialGrid<T extends any>({
     if (key === "Enter") {
       if ((event as unknown as { editing?: boolean }).editing) {
         api.stopEditing();
-        const rowIndex = event.node.rowIndex ?? 0;
+        const rowIndex = event.node?.rowIndex ?? 0;
         const colId = colDef.field;
         if (colId) {
           api.ensureIndexVisible(rowIndex + 1);
@@ -230,7 +230,7 @@ export default function FinancialGrid<T extends any>({
   // Get row class based on validation status
   const getRowClass = useCallback(
     (params: any) => {
-      const validation = rowValidations.get(params.node.rowIndex);
+      const validation = rowValidations.get(params.node?.rowIndex ?? 0);
       if (validation) {
         if (!validation.valid) {
           return "row-invalid";

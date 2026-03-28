@@ -5,7 +5,7 @@ import sys
 import logging
 from datetime import datetime, timezone
 from typing import List, Dict, Any
-from fastapi import HTTPException
+from app.modules.shared.domain.exceptions import ValidationError
 
 from app.core.utils import serialize_doc
 
@@ -43,14 +43,14 @@ class SchedulerService:
                 
             return json.loads(stdout)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            raise ValidationError(str(e))
 
     async def calculate_schedule(self, project_id: str, tasks: List[Dict[str, Any]], project_start: str) -> Dict[str, Any]:
         input_payload = {"tasks": tasks, "project_start": project_start}
         results = self.run_scheduler_script("calculate_critical_path.py", input_payload)
         
         if "error" in results:
-            raise HTTPException(status_code=400, detail=results["error"])
+            raise ValidationError(results["error"])
             
         return results
 

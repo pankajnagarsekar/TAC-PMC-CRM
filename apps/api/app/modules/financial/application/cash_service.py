@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any
 from bson import ObjectId, Decimal128
-from fastapi import HTTPException
 
 from ..schemas.dto import FundAllocation, FundAllocationCreate, CashTransaction, CashTransactionCreate
 from ..infrastructure.repository import FundAllocationRepository, CashTransactionRepository, CodeMasterRepository
@@ -11,9 +10,10 @@ from ..infrastructure.repository import FundAllocationRepository, CashTransactio
 from app.modules.project.infrastructure.repository import ProjectRepository
 from app.modules.identity.infrastructure.repository import UserRepository
 
-from app.core.financial_utils import to_d128, to_decimal
 from app.core.uow import UnitOfWork
 from app.core.permissions import PermissionChecker
+from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +99,9 @@ class CashService:
             if not cat: continue
 
             threshold = self._get_threshold_for_category(cat, project)
-            alloc_received = to_decimal(allocation.get("allocation_received"))
-            expenses = to_decimal(allocation.get("total_expenses"))
-            alloc_original = to_decimal(allocation.get("allocation_original"))
+            alloc_received = FinancialEngine.to_decimal(allocation.get("allocation_received"))
+            expenses = FinancialEngine.to_decimal(allocation.get("total_expenses"))
+            alloc_original = FinancialEngine.to_decimal(allocation.get("allocation_original"))
 
             cash_in_hand = alloc_received - expenses
             alloc_remaining = alloc_original - alloc_received
@@ -169,7 +169,7 @@ class CashService:
         if category_id: query["category_id"] = category_id
         if cursor:
             try: query["created_at"] = {"$lt": datetime.fromisoformat(cursor.replace('Z', '+00:00'))}
-            except ValueError: raise HTTPException(status_code=400, detail="Invalid cursor format")
+            except ValueError: raise ValidationError("Invalid cursor format")
 
         docs = await self.txn_repo.list(query, sort=[("created_at", -1)], limit=limit)
         
@@ -185,7 +185,7 @@ class CashService:
             if d.get("category_id"):
                 cat = await self.code_repo.get_by_id(d["category_id"])
                 if cat: d["category_name"] = cat.get("category_name")
-            if "amount" in d: d["amount"] = float(to_decimal(d["amount"]))
+            if "amount" in d: d["amount"] = float(FinancialEngine.to_decimal(d["amount"]))
             if "created_at" in d and isinstance(d["created_at"], datetime): d["created_at"] = d["created_at"].isoformat()
 
         return {"items": docs, "next_cursor": next_cursor}
@@ -209,13 +209,13 @@ class CashService:
                 {"project_id": project_id, "category_id": category_id}, session=uow.session
             )
             if not allocation:
-                raise HTTPException(status_code=404, detail="FUNDING_ERROR: No allocation found for category.")
+                raise NotFoundError("Category Allocation", category_id)
 
             inc_ops = {
-                "cash_in_hand": to_d128(-amount) if txn_type == "DEBIT" else to_d128(amount)
+                "cash_in_hand": FinancialEngine.to_d128(-amount) if txn_type == "DEBIT" else FinancialEngine.to_d128(amount)
             }
             if txn_type == "DEBIT":
-                inc_ops["total_expenses"] = to_d128(amount)
+                inc_ops["total_expenses"] = FinancialEngine.to_d128(amount)
 
             updated_alloc = await uow.db.fund_allocations.find_one_and_update(
                 {"_id": allocation["_id"]},
@@ -223,13 +223,13 @@ class CashService:
                 return_document=True,
                 session=uow.session
             )
-            new_cash = to_decimal(updated_alloc.get("cash_in_hand"))
+            new_cash = FinancialEngine.to_decimal(updated_alloc.get("cash_in_hand"))
 
             txn_doc = {
                 "project_id": project_id,
                 "organisation_id": user["organisation_id"],
                 "category_id": category_id,
-                "amount": to_d128(amount),
+                "amount": FinancialEngine.to_d128(amount),
                 "type": txn_type,
                 "description": data.get("description"),
                 "transaction_date": data.get("transaction_date"),

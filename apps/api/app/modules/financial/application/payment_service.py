@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any
 from bson import ObjectId, Decimal128
-from fastapi import HTTPException
 
 from ..schemas.dto import PaymentCertificate, PaymentCertificateCreate
 from ..infrastructure.repository import PCRepository
@@ -12,8 +11,9 @@ from app.modules.project.infrastructure.repository import ProjectRepository
 from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
 
 from app.core.utils import serialize_doc
-from app.core.financial_utils import to_d128, to_decimal, calculate_pc_financials
 from app.core.uow import UnitOfWork
+from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class PaymentService:
                 parsed_cursor = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
                 query["created_at"] = {"$lt": parsed_cursor}
             except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid cursor format")
+                raise ValidationError("Invalid cursor format")
 
         docs = await self.pc_repo.list(query, sort=[("created_at", -1)], limit=limit)
         
@@ -79,14 +79,14 @@ class PaymentService:
             for item in pc_data.line_items:
                 qty = Decimal(str(item.qty))
                 rate = Decimal(str(item.rate))
-                item_total = to_decimal(round(qty * rate, 2)) # Simple rounding for now
+                item_total = FinancialEngine.round(qty * rate)
                 item.total = item_total
                 subtotal += item_total
                 item_dict = item.dict()
-                item_dict["total"] = to_d128(item_total)
+                item_dict["total"] = FinancialEngine.to_d128(item_total)
                 line_items_processed.append(item_dict)
             
-            fin = calculate_pc_financials(
+            fin = FinancialEngine.calculate_pc_financials(
                 pc_value=subtotal,
                 retention_pct=Decimal(str(pc_data.retention_percent or 0)),
                 cgst_pct=cgst_pct,
@@ -102,12 +102,12 @@ class PaymentService:
             pc_dict.update({
                 "organisation_id": organisation_id,
                 "pc_ref": pc_ref,
-                "subtotal": to_d128(fin["subtotal"]),
-                "retention_amount": to_d128(fin["retention_amount"]),
-                "total_after_retention": to_d128(fin["total_after_retention"]),
-                "cgst": to_d128(fin["cgst"]),
-                "sgst": to_d128(fin["sgst"]),
-                "grand_total": to_d128(fin["grand_total"]),
+                "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
+                "retention_amount": FinancialEngine.to_d128(fin["retention_amount"]),
+                "total_after_retention": FinancialEngine.to_d128(fin["total_after_retention"]),
+                "cgst": FinancialEngine.to_d128(fin["cgst"]),
+                "sgst": FinancialEngine.to_d128(fin["sgst"]),
+                "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
                 "status": "Draft",
                 "line_items": line_items_processed,
                 "version": 1,
@@ -135,10 +135,10 @@ class PaymentService:
 
         async with UnitOfWork(self.db) as uow:
             pc = await uow.payments.get_by_id(pc_id, organisation_id=organisation_id, session=uow.session)
-            if not pc: raise HTTPException(status_code=404, detail="Payment Certificate not found")
+            if not pc: raise NotFoundError("Payment Certificate", pc_id)
             
             await self.permission_checker.check_project_access(user, pc["project_id"], require_write=True)
-            if pc["status"] == "Closed": raise HTTPException(status_code=400, detail="Already closed")
+            if pc["status"] == "Closed": raise ValidationError("Already closed")
 
             grand_total = Decimal(str(pc["grand_total"]))
             retention_amount = Decimal(str(pc["retention_amount"]))
@@ -150,18 +150,18 @@ class PaymentService:
             if pc_type == "WO_LINKED" and pc.get("vendor_id"):
                 await uow.db.vendors.update_one(
                     {"_id": ObjectId(pc["vendor_id"])},
-                    {"$inc": {"total_payable": to_d128(-grand_total), "retention_held": to_d128(-retention_amount)}},
+                    {"$inc": {"total_payable": FinancialEngine.to_d128(-grand_total), "retention_held": FinancialEngine.to_d128(-retention_amount)}},
                     session=uow.session
                 )
 
             if pc_type == "PETTY_OVH":
                 fund_alloc = await uow.fund_allocations.find_one({"project_id": project_id}, session=uow.session)
                 if fund_alloc:
-                    new_received = to_decimal(fund_alloc.get("allocation_received", 0)) + grand_total
-                    new_cash = to_decimal(fund_alloc.get("cash_in_hand", 0)) + grand_total
+                    new_received = FinancialEngine.to_decimal(fund_alloc.get("allocation_received", 0)) + grand_total
+                    new_cash = FinancialEngine.to_decimal(fund_alloc.get("cash_in_hand", 0)) + grand_total
                     await uow.fund_allocations.update(fund_alloc["id"], {
-                        "allocation_received": to_d128(new_received),
-                        "cash_in_hand": to_d128(new_cash),
+                        "allocation_received": FinancialEngine.to_d128(new_received),
+                        "cash_in_hand": FinancialEngine.to_d128(new_cash),
                         "last_pc_closed_date": datetime.now(timezone.utc)
                     }, session=uow.session)
                     

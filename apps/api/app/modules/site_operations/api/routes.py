@@ -8,7 +8,7 @@ from ..schemas.dto import (
     DPRImage, UpdateImageCaptionRequest,
     SiteOverhead, SiteOverheadCreate, SiteOverheadUpdate
 )
-from app.schemas.shared import GenericResponse
+from app.modules.shared.domain.schemas import GenericResponse
 
 router = APIRouter()
 

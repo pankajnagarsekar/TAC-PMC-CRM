@@ -1,7 +1,6 @@
 import logging
 from typing import Dict, Any, List, Optional
 from bson import Decimal128
-from fastapi import HTTPException, status
 
 from ..infrastructure.repository import (
     PCRepository, FinancialStateRepository, CodeMasterRepository
@@ -11,8 +10,9 @@ from app.modules.project.infrastructure.repository import ProjectRepository, Bud
 from app.modules.contracting.infrastructure.repository import WorkOrderRepository, VendorRepository
 
 from app.core.time import now
-from app.core.financial_utils import to_decimal, to_d128
 from app.modules.shared.domain.financial_engine import FinancialEngine
+from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from ..domain.models import FinancialState
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class FinancialService:
         if not budget:
             return None
 
-        approved_budget = to_decimal(budget.get("original_budget", "0"))
+        approved_budget = FinancialEngine.to_decimal(budget.get("original_budget", "0"))
 
         committed_pipeline = [
             {"$match": {
@@ -48,7 +48,7 @@ class FinancialService:
             {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
         ]
         committed_result = await self.wo_repo.aggregate(committed_pipeline, session=session)
-        committed_value = to_decimal(committed_result[0].get("total") if committed_result else None)
+        committed_value = FinancialEngine.to_decimal(committed_result[0].get("total") if committed_result else None)
 
         certified_pipeline = [
             {"$match": {
@@ -59,19 +59,25 @@ class FinancialService:
             {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
         ]
         certified_result = await self.pc_repo.aggregate(certified_pipeline, session=session)
-        certified_value = to_decimal(certified_result[0].get("total") if certified_result else None)
+        certified_value = FinancialEngine.to_decimal(certified_result[0].get("total") if certified_result else None)
 
-        balance_remaining = FinancialEngine.round(approved_budget - committed_value)
-        over_commit = committed_value > approved_budget
-
+        # Use Domain Aggregate for Invariants and Calculations
+        state = FinancialState({
+            "project_id": project_id,
+            "category_id": category_id,
+            "original_budget": approved_budget,
+            "committed_value": committed_value,
+            "certified_value": certified_value
+        })
+        
         serializable_doc = {
             "project_id": project_id,
             "category_id": category_id,
-            "original_budget": to_d128(approved_budget),
-            "committed_value": to_d128(committed_value),
-            "certified_value": to_d128(certified_value),
-            "balance_budget_remaining": to_d128(balance_remaining),
-            "over_commit_flag": over_commit,
+            "original_budget": FinancialEngine.to_d128(state.original_budget),
+            "committed_value": FinancialEngine.to_d128(state.committed_value),
+            "certified_value": FinancialEngine.to_d128(state.certified_value),
+            "balance_budget_remaining": FinancialEngine.to_d128(state.balance_remaining),
+            "over_commit_flag": state.is_over_committed,
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
             "last_recalculated": now()
         }
@@ -102,18 +108,18 @@ class FinancialService:
             
             res = await self.recalculate_project_code_financials(project_id, cat_id, session=session)
             if res:
-                totals["total_budget"] += to_decimal(res["original_budget"])
-                totals["total_committed"] += to_decimal(res["committed_value"])
-                totals["total_certified"] += to_decimal(res["certified_value"])
+                totals["total_budget"] += FinancialEngine.to_decimal(res["original_budget"])
+                totals["total_committed"] += FinancialEngine.to_decimal(res["committed_value"])
+                totals["total_certified"] += FinancialEngine.to_decimal(res["certified_value"])
                 totals["categories_recalculated"] += 1
 
         master_doc = {
             "project_id": project_id,
             "category_id": None,
-            "original_budget": to_d128(totals["total_budget"]),
-            "committed_value": to_d128(totals["total_committed"]),
-            "certified_value": to_d128(totals["total_certified"]),
-            "balance_budget_remaining": to_d128(totals["total_budget"] - totals["total_committed"]),
+            "original_budget": FinancialEngine.to_d128(totals["total_budget"]),
+            "committed_value": FinancialEngine.to_d128(totals["total_committed"]),
+            "certified_value": FinancialEngine.to_d128(totals["total_certified"]),
+            "balance_budget_remaining": FinancialEngine.to_d128(totals["total_budget"] - totals["total_committed"]),
             "categories_recalculated": totals["categories_recalculated"],
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
             "last_recalculated": now()
@@ -137,7 +143,7 @@ class FinancialService:
         )
         if not allocation: return False
 
-        cash_in_hand = to_decimal(allocation.get("cash_in_hand", 0))
+        cash_in_hand = FinancialEngine.to_decimal(allocation.get("cash_in_hand", 0))
         project = await self.project_repo.get_by_id(project_id, session=session)
         if not project: return False
 
@@ -147,7 +153,10 @@ class FinancialService:
         
         if category and category.get("budget_type") == "fund_transfer":
             cat_name = category.get("category_name", "").lower()
-            threshold = to_decimal(project.get("threshold_ovh", "0") if "ovh" in cat_name else project.get("threshold_petty", "0"))
-            return cash_in_hand <= threshold
+            threshold = FinancialEngine.to_decimal(project.get("threshold_ovh", "0") if "ovh" in cat_name else project.get("threshold_petty", "0"))
+            
+            # Domain logic delegate
+            state = FinancialState({"project_id": project_id, "category_id": category_id})
+            return state.is_threshold_breached(cash_in_hand, threshold)
         
         return False

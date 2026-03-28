@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query, status
-from typing import List, Any
+from typing import List, Any, Dict, Optional
 
 from app.core.dependencies import get_authenticated_user, get_project_service, get_client_service, get_scheduler_service, verify_nonce
 from ..application.project_service import ProjectService
 from ..application.client_service import ClientService
 from ..application.scheduler_service import SchedulerService
 from ..schemas.dto import Project, ProjectUpdate, ProjectCreate, ProjectBudgetCreate, Client, ClientCreate, ClientUpdate
-from app.schemas.scheduler import ScheduleCalculateRequest, ScheduleSaveRequest, ScheduleResponse
-from app.schemas.shared import GenericResponse
+from ..schemas.scheduler import ScheduleCalculateRequest, ScheduleSaveRequest, ScheduleResponse
+from app.modules.shared.domain.schemas import GenericResponse
 
 router = APIRouter()
 

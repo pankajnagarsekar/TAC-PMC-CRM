@@ -3,15 +3,16 @@ import secrets
 from decimal import Decimal
 from typing import List, Optional, Dict, Any
 from bson import ObjectId, Decimal128
-from fastapi import HTTPException
 
 from ..schemas.dto import Project, ProjectUpdate, ProjectCreate, ProjectBudget
 from ..infrastructure.repository import ProjectRepository, BudgetRepository
-from app.repositories.read_models import ProjectStatsRepository
+from ..infrastructure.read_models import ProjectStatsRepository
 from app.modules.shared.domain.state_machine import StateMachine
 from app.core.time import now
-from app.core.financial_utils import to_decimal, to_d128
 from app.core.uow import UnitOfWork
+from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from app.modules.shared.domain.financial_engine import FinancialEngine
+from ..domain.models import Project as ProjectModel
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +55,14 @@ class ProjectService:
             "version": 1,
             "created_at": now(),
             "updated_at": now(),
-            "master_original_budget": Decimal128("0.0"),
-            "master_remaining_budget": Decimal128("0.0"),
-            "completion_percentage": Decimal128("0.0")
+            "master_original_budget": FinancialEngine.to_d128(Decimal("0.0")),
+            "master_remaining_budget": FinancialEngine.to_d128(Decimal("0.0")),
+            "completion_percentage": FinancialEngine.to_d128(Decimal("0.0"))
         })
 
         for k, v in doc.items():
             if isinstance(v, Decimal):
-                doc[k] = Decimal128(str(v))
+                doc[k] = FinancialEngine.to_d128(v)
 
         result = await self.project_repo.create(doc)
         
@@ -88,7 +89,7 @@ class ProjectService:
             })
             
         if not project:
-            raise HTTPException(status_code=404, detail="PROJECT_NOT_FOUND")
+            raise NotFoundError("Project", project_id)
             
         return project
 
@@ -99,24 +100,24 @@ class ProjectService:
         await self.permission_checker.check_project_access(user, project_id, require_write=True)
 
         existing = await self.get_project(user, project_id)
-        current_status = existing.get("status", "Draft")
+        project_model = ProjectModel(existing)
         
         update_dict = project_data.model_dump(exclude_unset=True)
 
         if "status" in update_dict:
-            StateMachine.validate_transition("PROJECT", current_status, update_dict["status"])
+            project_model.validate_transition(update_dict["status"])
         
-        StateMachine.check_modification_allowed("PROJECT", current_status)
+        project_model.can_modify()
 
         for k, v in update_dict.items():
             if isinstance(v, Decimal):
-                update_dict[k] = Decimal128(str(v))
+                update_dict[k] = FinancialEngine.to_d128(v)
 
         update_dict["updated_at"] = now()
         result = await self.project_repo.update(project_id, update_dict, organisation_id=user["organisation_id"])
         
         if not result:
-             raise HTTPException(status_code=404, detail="DATA_CONSISTENCY_ERROR")
+             raise ValidationError("DATA_CONSISTENCY_ERROR: Project not found or update failed.")
 
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"], module_name="PROJECT_MANAGEMENT",

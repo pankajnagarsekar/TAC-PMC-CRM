@@ -52,3 +52,11 @@ class TokenBlacklistRepository(BaseRepository[TokenBlacklist]):
 class RefreshTokenRepository(BaseRepository[RefreshToken]):
     def __init__(self, db):
         super().__init__(db, "refresh_tokens", RefreshToken)
+
+class SettingsRepository(BaseRepository[Any]):
+    def __init__(self, db):
+        super().__init__(db, "organisation_settings", Any)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index([("organisation_id", ASCENDING)], unique=True)

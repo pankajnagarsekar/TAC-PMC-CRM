@@ -94,4 +94,20 @@ class Organisation(BaseModel):
 class OrganisationCreate(BaseModel):
     name: str
 
+# SETTINGS DTOs
+class CompanyProfile(BaseModel):
+    name: str = "TAC PMC"
+    address: str = "Default Address"
+    registration_no: str = ""
+    contact_email: str = ""
+
+class GlobalSettings(BaseModel):
+    organisation_id: str
+    cgst_percentage: float = 9.0
+    sgst_percentage: float = 9.0
+    retention_percentage: float = 5.0
+    currency: str = "INR"
+    currency_symbol: str = "₹"
+    company_profile: CompanyProfile = Field(default_factory=CompanyProfile)
+
 Token.model_rebuild()

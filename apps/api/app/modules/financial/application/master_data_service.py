@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from fastapi import HTTPException
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 import logging
 
 from ..infrastructure.repository import CodeMasterRepository
@@ -34,7 +34,7 @@ class MasterDataService:
             "code_short": code_data.code_short
         })
         if existing:
-            raise HTTPException(status_code=400, detail="CODE_EXISTS: A master code with this short name already exists.")
+            raise ValidationError("CODE_EXISTS: A master code with this short name already exists.")
 
         doc = code_data.dict()
         doc["organisation_id"] = user["organisation_id"]
@@ -56,7 +56,7 @@ class MasterDataService:
         
         existing = await self.code_repo.get_by_id(code_id)
         if not existing or existing.get("organisation_id") != user["organisation_id"]:
-            raise HTTPException(status_code=404, detail="Master code not found.")
+            raise NotFoundError("Master code", code_id)
 
         updated = await self.code_repo.update(code_id, update_data.dict(exclude_unset=True))
 
@@ -72,7 +72,7 @@ class MasterDataService:
         """Get details for a specific category code with scoping."""
         code = await self.code_repo.get_by_id(code_id)
         if not code or code.get("organisation_id") != user["organisation_id"]:
-            raise HTTPException(status_code=404, detail="Master code not found.")
+            raise NotFoundError("Master code", code_id)
         return code
 
     async def list_units(self, user: dict) -> List[str]:

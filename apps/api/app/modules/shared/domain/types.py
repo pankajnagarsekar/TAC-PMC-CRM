@@ -21,8 +21,9 @@ class PyObjectId(str):
                     core_schema.no_info_plain_validator_function(cls.validate),
                 ])
             ]),
-            serialization=core_schema.plain_serializer_function_wrap_handler(
-                lambda v, h: str(v) if isinstance(v, ObjectId) else h(v)
+            serialization=core_schema.wrap_serializer_function_ser_schema(
+                lambda v, h: str(v) if isinstance(v, ObjectId) else h(v),
+                schema=core_schema.str_schema()
             ),
         )
 

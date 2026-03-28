@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, List
 from pymongo import ASCENDING
-from app.repositories.base_repo import BaseRepository
+from app.modules.shared.infrastructure.base_repository import BaseRepository
 from ..schemas.dto import WorkersDailyLog, SiteOverhead, DPR, VoiceLog
 
 class WorkerLogRepository(BaseRepository[WorkersDailyLog]):

@@ -3,18 +3,18 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from bson import ObjectId, Decimal128
-from fastapi import HTTPException
 
 from ..schemas.dto import WorkOrder, WorkOrderCreate, WorkOrderUpdate
 from ..infrastructure.repository import WorkOrderRepository, VendorRepository, LedgerRepository
 # Note: SequenceRepository is now in Shared Kernel
 from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
 # These depend on other contexts yet to be migrated
-from app.repositories.project_repo import ProjectRepository
-from app.repositories.financial_repo import BudgetRepository
+from app.modules.project.infrastructure.repository import ProjectRepository, BudgetRepository
 from app.core.utils import serialize_doc
-from app.core.financial_utils import to_d128, to_decimal, calculate_wo_financials
 from app.core.uow import UnitOfWork
+from ..domain.models import WorkOrder as WorkOrderModel
+from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 logger = logging.getLogger(__name__)
 
@@ -48,34 +48,37 @@ class WorkOrderService:
                 if recorded: return recorded
 
             budget = await uow.budgets.get_by_project_and_category(project_id, wo_data.category_id, session=uow.session)
-            if not budget: raise HTTPException(status_code=400, detail="Category budget not initialized.")
+            if not budget: raise ValidationError("Category budget not initialized.")
 
             vendor = await uow.db.vendors.find_one({"_id": ObjectId(wo_data.vendor_id), "organisation_id": organisation_id}, session=uow.session)
-            if not vendor: raise HTTPException(status_code=400, detail="Vendor not found.")
+            if not vendor: raise ValidationError("Vendor not found.")
 
-            subtotal = Decimal("0.0")
+            # Sovereign Logic: Calculate Line Items
+            items_data = [item.dict() for item in wo_data.line_items]
+            line_result = FinancialEngine.calculate_line_items(items_data)
             line_items_processed = []
-            for item in wo_data.line_items:
-                qty = Decimal(str(item.qty))
-                rate = Decimal(str(item.rate))
-                item_total = self.financial_service.round_half_up(qty * rate)
-                subtotal += item_total
-                item_dict = item.dict()
-                item_dict["total"] = to_d128(item_total)
-                line_items_processed.append(item_dict)
+            for itm in line_result["items"]:
+                itm["total"] = FinancialEngine.to_d128(itm["total"])
+                line_items_processed.append(itm)
+            
+            subtotal = line_result["subtotal"]
             
             project = await uow.projects.get_by_id(project_id, organisation_id=organisation_id, session=uow.session)
             cgst_pct = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
             sgst_pct = Decimal(str(project.get("project_sgst_percentage", "9.0"))) if project else Decimal("9.0")
             
-            fin = calculate_wo_financials(subtotal=subtotal, retention_pct=Decimal(str(wo_data.retention_percent or 0)),
-                                         discount=Decimal(str(wo_data.discount or 0)), cgst_pct=cgst_pct, sgst_pct=sgst_pct)
+            fin = FinancialEngine.calculate_wo_financials(
+                subtotal=subtotal, 
+                retention_pct=Decimal(str(wo_data.retention_percent or 0)),
+                discount=Decimal(str(wo_data.discount or 0)), 
+                cgst_pct=cgst_pct, 
+                sgst_pct=sgst_pct
+            )
             grand_total = fin["grand_total"]
 
-            seq_val = await uow.db.sequences.find_one_and_update(
-                {"_id": f"wo_seq_{organisation_id}"}, {"$inc": {"seq": 1}}, upsert=True, return_document=True, session=uow.session
-            )
-            wo_ref = f"WO-{seq_val['seq']:04d}"
+            # Sovereign Logic: Sequence Generation
+            next_seq = await self.seq_repo.get_next_sequence(f"wo_seq_{organisation_id}", session=uow.session)
+            wo_ref = f"WO-{next_seq:04d}"
 
             wo_dict = wo_data.dict()
             wo_dict.update({
@@ -113,29 +116,27 @@ class WorkOrderService:
         
         async with UnitOfWork(self.db) as uow:
             old_wo = await uow.work_orders.get_by_id(wo_id, organisation_id=organisation_id, session=uow.session)
-            if not old_wo: raise HTTPException(status_code=404, detail="Work Order not found.")
+            if not old_wo: raise NotFoundError("Work Order", wo_id)
             
             await self.permission_checker.check_write_access_with_role(user, old_wo["project_id"])
             await self.financial_service.validate_financial_document("WORK_ORDER", update_req.dict(), old_wo["project_id"])
-
-            if old_wo["status"] not in ["Draft", "Pending"]:
-                raise HTTPException(status_code=400, detail="Only 'Draft' or 'Pending' Work Orders can be edited.")
+            
+            wo_model = WorkOrderModel(old_wo)
 
             linked_pcs = await uow.payments.list({"work_order_id": wo_id, "status": {"$ne": "Cancelled"}}, session=uow.session)
-            linked_pc_total = sum(to_decimal(pc.get("grand_total", 0)) for pc in linked_pcs)
+            linked_pc_total = sum(FinancialEngine.to_decimal(pc.get("grand_total", 0)) for pc in linked_pcs)
 
-            subtotal = Decimal("0.0")
             line_items_data = update_req.line_items if update_req.line_items is not None else old_wo.get("line_items", [])
-            line_items_processed = []
+            items_raw = [item if isinstance(item, dict) else item.dict() for item in (line_items_data if isinstance(line_items_data, list) else [])]
             
-            for item in (line_items_data if isinstance(line_items_data, list) else []):
-                i_dict = item if isinstance(item, dict) else item.dict()
-                qty = Decimal(str(i_dict.get("qty", 0)))
-                rate = Decimal(str(i_dict.get("rate", 0)))
-                item_total = self.financial_service.round_half_up(qty * rate)
-                subtotal += item_total
-                i_dict["total"] = to_d128(item_total)
-                line_items_processed.append(i_dict)
+            # Sovereign Logic: Calculate Line Items
+            line_result = FinancialEngine.calculate_line_items(items_raw)
+            line_items_processed = []
+            for itm in line_result["items"]:
+                itm["total"] = FinancialEngine.to_d128(itm["total"])
+                line_items_processed.append(itm)
+            
+            subtotal = line_result["subtotal"]
             
             project = await uow.projects.get_by_id(old_wo["project_id"], organisation_id=organisation_id, session=uow.session)
             cgst_pct = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
@@ -144,25 +145,35 @@ class WorkOrderService:
             retention_pct = Decimal(str(update_req.retention_percent if update_req.retention_percent is not None else old_wo.get("retention_percent", 0)))
             discount_val = Decimal(str(update_req.discount if update_req.discount is not None else old_wo.get("discount", 0)))
 
-            fin = calculate_wo_financials(subtotal=subtotal, retention_pct=retention_pct, discount=discount_val, 
-                                         cgst_pct=cgst_pct, sgst_pct=sgst_pct)
+            fin = FinancialEngine.calculate_wo_financials(
+                subtotal=subtotal, 
+                retention_pct=retention_pct, 
+                discount=discount_val, 
+                cgst_pct=cgst_pct, 
+                sgst_pct=sgst_pct
+            )
 
-            if linked_pc_total > 0 and fin["grand_total"] < linked_pc_total:
-                raise HTTPException(status_code=400, detail=f"Cannot reduce WO below linked PC total of ₹{linked_pc_total}")
+            # Domain Aggregate Invariant Check
+            wo_model.validate_for_update(linked_pc_total, fin["grand_total"])
 
             update_dict = {
-                "subtotal": to_d128(fin["subtotal"]), "discount": to_d128(fin["discount"]),
-                "total_before_tax": to_d128(fin["total_before_tax"]), "cgst": to_d128(fin["cgst"]),
-                "sgst": to_d128(fin["sgst"]), "grand_total": to_d128(fin["grand_total"]),
-                "retention_percent": to_d128(retention_pct), "retention_amount": to_d128(fin["retention_amount"]),
-                "total_payable": to_d128(fin["total_payable"]), "actual_payable": to_d128(fin["actual_payable"]),
+                "subtotal": FinancialEngine.to_d128(fin["subtotal"]), 
+                "discount": FinancialEngine.to_d128(fin["discount"]),
+                "total_before_tax": FinancialEngine.to_d128(fin["total_before_tax"]), 
+                "cgst": FinancialEngine.to_d128(fin["cgst"]),
+                "sgst": FinancialEngine.to_d128(fin["sgst"]), 
+                "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
+                "retention_percent": FinancialEngine.to_d128(retention_pct), 
+                "retention_amount": FinancialEngine.to_d128(fin["retention_amount"]),
+                "total_payable": FinancialEngine.to_d128(fin["total_payable"]), 
+                "actual_payable": FinancialEngine.to_d128(fin["actual_payable"]),
                 "line_items": line_items_processed, "updated_at": datetime.now(timezone.utc),
                 "version": update_req.expected_version 
             }
 
             result = await uow.work_orders.update(wo_id, update_dict, session=uow.session)
             if not result:
-                raise HTTPException(status_code=409, detail="CONFLICT: Resource modified or version mismatch.")
+                raise ValidationError("CONFLICT: Resource modified or version mismatch.")
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id, module_name="WORK_ORDERS", entity_type="WORK_ORDER",

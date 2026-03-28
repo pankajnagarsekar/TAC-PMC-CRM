@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+from app.modules.shared.domain.exceptions import AuthenticationError, PermissionDeniedError, ValidationError
 import secrets
 import logging
 
@@ -70,24 +70,24 @@ class AuthService:
             )
             
             if payload.get("type") != token_type:
-                raise HTTPException(status_code=401, detail=f"AUTH_ERROR: Invalid purpose ({token_type} expected).")
+                raise AuthenticationError(f"AUTH_ERROR: Invalid purpose ({token_type} expected).")
             
             if check_revocation:
                 jti = payload.get("jti")
                 if jti and await self.is_token_revoked(jti):
-                    raise HTTPException(status_code=401, detail="AUTH_ERROR: Identity has been retired.")
+                    raise AuthenticationError("AUTH_ERROR: Identity has been retired.")
                     
             return payload
         except JWTError:
-            raise HTTPException(status_code=401, detail="AUTH_ERROR: Identity cannot be verified or expired.")
+            raise AuthenticationError("AUTH_ERROR: Identity cannot be verified or expired.")
 
     async def login(self, login_data: LoginRequest) -> Token:
         user = await self.user_repo.get_by_email(login_data.email)
         if not user or not self.verify_password(login_data.password, user["hashed_password"]):
-            raise HTTPException(status_code=401, detail="INVALID_CREDENTIALS")
+            raise AuthenticationError("INVALID_CREDENTIALS")
 
         if not user.get("active_status", False):
-            raise HTTPException(status_code=403, detail="ACCOUNT_DISABLED")
+            raise PermissionDeniedError("ACCOUNT_DISABLED")
 
         user_id = user["_id"]
         user["user_id"] = user_id
@@ -123,11 +123,11 @@ class AuthService:
 
         token_doc = await self.refresh_repo.find_one({"jti": jti, "user_id": user_id, "is_revoked": False})
         if not token_doc:
-            raise HTTPException(status_code=401, detail="SESSION_EXPIRED")
+            raise AuthenticationError("SESSION_EXPIRED")
 
         user = await self.user_repo.get_by_id(user_id)
         if not user or not user.get("active_status", False):
-             raise HTTPException(status_code=401, detail="IDENTITY_INACTIVE")
+             raise AuthenticationError("IDENTITY_INACTIVE")
 
         await self.refresh_repo.update_one({"jti": jti}, {"$set": {"is_revoked": True}})
 

@@ -42,15 +42,29 @@ def create_app() -> FastAPI:
     # REGISTRY: Central Routing
     app.include_router(api_router, prefix="/api")
 
-    # ERROR HANDLING: Domain → HTTP
+    # ERROR HANDLING: Domain → HTTP (Strict Layer Separation)
     @app.exception_handler(DomainError)
     async def domain_error_handler(request: Request, exc: DomainError):
+        from app.modules.shared.domain.exceptions import (
+            NotFoundError, PermissionDeniedError, ValidationError,
+            IllegalTransitionError, DataFreezeError, FinancialIntegrityError,
+            AuthenticationError
+        )
+        
+        status_code = 400
+        if isinstance(exc, NotFoundError):
+            status_code = 404
+        elif isinstance(exc, PermissionDeniedError):
+            status_code = 403
+        elif isinstance(exc, AuthenticationError):
+            status_code = 401
+        
         return JSONResponse(
-            status_code=400,
+            status_code=status_code,
             content={
                 "status": "error",
-                "message": exc.message,
-                "entity_id": exc.entity_id or "none",
+                "message": str(exc),
+                "entity_id": getattr(exc, "entity_id", "none"),
                 "error_type": exc.__class__.__name__
             }
         )

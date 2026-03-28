@@ -5,7 +5,7 @@ from app.core.dependencies import get_authenticated_user, get_vendor_service, ge
 from ..application.vendor_service import VendorService
 from ..application.work_order_service import WorkOrderService
 from ..schemas.dto import Vendor, VendorCreate, VendorUpdate, WorkOrder, WorkOrderCreate, WorkOrderUpdate
-from app.schemas.shared import GenericResponse
+from app.modules.shared.domain.schemas import GenericResponse
 
 # Create one router for the Contracting Context
 router = APIRouter()

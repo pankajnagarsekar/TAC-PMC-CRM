@@ -1,6 +1,6 @@
+import logging
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone, timedelta
-from fastapi import HTTPException
 from decimal import Decimal
 from bson import Decimal128, ObjectId
 
@@ -12,6 +12,10 @@ from app.modules.financial.infrastructure.repository import FinancialStateReposi
 from app.modules.site_operations.infrastructure.repository import WorkerLogRepository
 
 from app.core.time import now
+from app.modules.shared.domain.exceptions import ValidationError
+from app.modules.shared.domain.financial_engine import FinancialEngine
+
+logger = logging.getLogger(__name__)
 
 ReportType = Literal[
     "project_summary",
@@ -42,7 +46,7 @@ class ReportingService:
         await self.permission_checker.check_project_access(user, project_id)
         
         if not ExportService.validate_report_type(report_type):
-            raise HTTPException(status_code=400, detail=f"Invalid report type: {report_type}")
+            raise ValidationError(f"Invalid report type: {report_type}")
 
         start_dt = datetime.fromisoformat(start_date) if start_date else None
         end_dt = datetime.fromisoformat(end_date) if end_date else None
@@ -82,8 +86,8 @@ class ReportingService:
         
         for b in budgets:
             cid = str(b.get("category_id"))
-            master_budget += self._to_decimal(b.get("original_budget"))
-            total_committed += self._to_decimal(fin_map.get(cid, {}).get("committed_value"))
+            master_budget += FinancialEngine.to_decimal(b.get("original_budget"))
+            total_committed += FinancialEngine.to_decimal(fin_map.get(cid, {}).get("committed_value"))
 
         resolved_tasks = await self.wo_repo.count({
             "project_id": project_id, 
@@ -142,10 +146,10 @@ class ReportingService:
         totals = {"budget": Decimal("0"), "committed": Decimal("0"), "certified": Decimal("0"), "remaining": Decimal("0")}
 
         for item in financial_data:
-            budget = self._to_decimal(item.get("original_budget"))
-            committed = self._to_decimal(item.get("committed_value"))
-            certified = self._to_decimal(item.get("certified_value"))
-            remaining = self._to_decimal(item.get("balance_budget_remaining"))
+            budget = FinancialEngine.to_decimal(item.get("original_budget"))
+            committed = FinancialEngine.to_decimal(item.get("committed_value"))
+            certified = FinancialEngine.to_decimal(item.get("certified_value"))
+            remaining = FinancialEngine.to_decimal(item.get("balance_budget_remaining"))
 
             rows.append([item.get("category_code"), item.get("category_name"), str(budget), str(committed), str(certified), str(remaining), "TBD"])
             totals["budget"] += budget
@@ -187,8 +191,8 @@ class ReportingService:
         rows = []
         total_amount = Decimal("0")
         for wo in wo_data:
-            amount = self._to_decimal(wo.get("grand_total"))
-            ret_amount = self._to_decimal(wo.get("retention_amount"))
+            amount = FinancialEngine.to_decimal(wo.get("grand_total"))
+            ret_amount = FinancialEngine.to_decimal(wo.get("retention_amount"))
             rows.append([wo.get("category_code", ""), wo.get("wo_ref", ""), wo.get("vendor_name", ""), str(amount), str(ret_amount), wo.get("created_at").strftime("%Y-%m-%d"), "TBD"])
             total_amount += amount
         return {"title": "Work Order Tracker", "rows": rows, "totals": {"total_amount": str(total_amount)}}
@@ -216,7 +220,7 @@ class ReportingService:
         rows = []
         total_certified = Decimal("0")
         for pc in pc_data:
-            amount = self._to_decimal(pc.get("grand_total"))
+            amount = FinancialEngine.to_decimal(pc.get("grand_total"))
             rows.append([pc.get("category_code", ""), pc.get("pc_ref", ""), pc.get("vendor_name", ""), str(amount), pc.get("created_at").strftime("%Y-%m-%d"), str(amount) if pc.get("status") == "Closed" else "0.00", "Pending"])
             total_certified += amount
         return {"title": "Payment Certificate Tracker", "rows": rows, "totals": {"total_certified": str(total_certified)}}
@@ -228,7 +232,7 @@ class ReportingService:
         rows = []
         total_value = Decimal("0")
         for pc in pcs:
-            amount = self._to_decimal(pc.get("grand_total"))
+            amount = FinancialEngine.to_decimal(pc.get("grand_total"))
             rows.append([pc.get("created_at").strftime("%Y-%m-%d"), pc.get("pc_ref", ""), str(amount), "Refill Request"])
             total_value += amount
         return {"title": "Petty Cash & OVH Tracker", "rows": rows, "totals": {"total_funds_received": str(total_value)}}
@@ -255,8 +259,3 @@ class ReportingService:
         rows = [[w.get("category_code"), w.get("wo_ref"), w.get("vendor_name"), 1.0 if w.get("status") == "Closed" else 0.5, w.get("status")] for w in wos]
         return {"title": f"{window.title()} Progress Report", "rows": rows}
 
-    def _to_decimal(self, value: Any) -> Decimal:
-        if isinstance(value, Decimal): return value
-        if isinstance(value, Decimal128): return value.to_decimal()
-        try: return Decimal(str(value))
-        except: return Decimal("0")

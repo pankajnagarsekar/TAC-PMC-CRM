@@ -1,10 +1,11 @@
 from typing import List, Optional, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.modules.shared.infrastructure.base_repository import BaseRepository
+from app.modules.shared.domain.schemas import Snapshot
 
-class SnapshotRepository(BaseRepository):
+class SnapshotRepository(BaseRepository[Snapshot]):
     def __init__(self, db: AsyncIOMotorDatabase):
-        super().__init__(db, "snapshots")
+        super().__init__(db, "snapshots", Snapshot)
 
     async def get_latest_by_entity(self, entity_type: str, entity_id: str) -> Optional[Dict[str, Any]]:
         """Get the most recent snapshot for an entity."""

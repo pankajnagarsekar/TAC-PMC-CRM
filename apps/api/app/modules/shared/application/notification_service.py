@@ -57,8 +57,8 @@ class NotificationService:
             organisation_id=user["organisation_id"]
         )
         if not result:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="Notification not found")
+            from app.modules.shared.domain.exceptions import NotFoundError
+            raise NotFoundError("Notification", notification_id)
         return {"status": "marked_read"}
 
     async def mark_all_read(self, user: dict) -> Dict[str, Any]:

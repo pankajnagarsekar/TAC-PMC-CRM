@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal, TypeVar, Generic
 from pydantic import BaseModel, Field
 from .types import PyObjectId
 
@@ -66,3 +66,27 @@ class Alert(BaseModel):
     version: int = 1
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+class Snapshot(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    entity_type: str
+    entity_id: str
+    organisation_id: str
+    project_id: Optional[str] = None
+    report_type: str
+    version: int
+    data_json: Dict[str, Any]
+    data_checksum: str
+    generated_by: str
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    is_latest: bool = True
+    immutable_flag: bool = True
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+T = TypeVar("T")
+
+class GenericResponse(BaseModel, Generic[T]):
+    success: bool = True
+    message: Optional[str] = None
+    data: Optional[T] = None

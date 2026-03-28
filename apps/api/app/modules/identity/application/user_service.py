@@ -4,9 +4,12 @@ import logging
 
 from ..infrastructure.repository import UserRepository
 from ..schemas.dto import User, UserCreateAdmin
+from ..domain.models import User as UserModel
 # Note: Use AuthService for password hashing
 
 logger = logging.getLogger(__name__)
+
+from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
 
 class UserService:
     def __init__(self, db, audit_service, permission_checker):
@@ -25,8 +28,7 @@ class UserService:
         # Check if email exists
         existing = await self.user_repo.get_by_email(user_data.email)
         if existing:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Email already registered")
+            raise ValidationError("Email already registered")
 
         # Circular import protection
         from .auth_service import AuthService
@@ -56,15 +58,13 @@ class UserService:
         """Business logic for deactivating a user"""
         await self.permission_checker.check_admin_role(user)
 
-        if target_user_id == user["user_id"]:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
-
         # Get old value for audit
         old_user = await self.user_repo.get_by_id(target_user_id, organisation_id=user["organisation_id"])
         if not old_user:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="User not found")
+            raise NotFoundError("User", target_user_id)
+
+        user_model = UserModel(old_user)
+        user_model.validate_for_deactivation(user["user_id"])
 
         updated_user = await self.user_repo.update(
             target_user_id, 

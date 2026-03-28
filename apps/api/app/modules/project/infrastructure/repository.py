@@ -1,10 +1,10 @@
 from typing import Optional, Dict, Any, List
 from motor.motor_asyncio import AsyncIOMotorClientSession
 from bson import ObjectId, Decimal128
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 from app.modules.shared.infrastructure.base_repository import BaseRepository
 from ..schemas.dto import Project, Client, ProjectBudget, UserProjectMap
-from app.core.financial_utils import to_d128
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 class ProjectRepository(BaseRepository[Project]):
     def __init__(self, db):
@@ -23,7 +23,7 @@ class ProjectRepository(BaseRepository[Project]):
         money_fields = ["total_budget", "total_committed", "total_certified", "total_remaining"]
         for field in money_fields:
             if field in data:
-                data[field] = to_d128(data[field])
+                data[field] = FinancialEngine.to_d128(data[field])
         return data
 
     async def create(self, data: Dict[str, Any], session=None) -> Dict[str, Any]:
@@ -78,3 +78,18 @@ class ScheduleRepository(BaseRepository[Any]):
         await super().ensure_indexes()
         await self.collection.create_index([("project_id", ASCENDING)])
         await self.collection.create_index([("organisation_id", ASCENDING)])
+
+class TimelineRepository(BaseRepository[Any]):
+    def __init__(self, db):
+        super().__init__(db, "project_timeline", Any)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index([("project_id", ASCENDING), ("timestamp", DESCENDING)])
+
+    async def list_project_timeline(self, project_id: str, organisation_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+        return await self.list(
+            {"project_id": project_id, "organisation_id": organisation_id},
+            sort=[("timestamp", -1)],
+            limit=limit
+        )

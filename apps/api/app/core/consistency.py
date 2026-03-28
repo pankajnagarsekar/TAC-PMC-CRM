@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.core.financial_utils import to_decimal
+from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.shared.application.alert_service import AlertService
 
 logger = logging.getLogger(__name__)
@@ -58,8 +58,8 @@ class ConsistencyGuardian:
         ]).to_list(length=1)
         
         if category_sum:
-            actual = to_decimal(category_sum[0]["total_committed"])
-            expected = to_decimal(master["total_committed"])
+            actual = FinancialEngine.to_decimal(category_sum[0]["total_committed"])
+            expected = FinancialEngine.to_decimal(master["total_committed"])
             
             if actual != expected:
                  logger.critical(f"INTEGRITY_FAILURE: Project {project_id} Master ({expected}) != Category Sum ({actual})")

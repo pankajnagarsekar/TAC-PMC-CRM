@@ -10,7 +10,7 @@ from app.modules.contracting.infrastructure.repository import WorkOrderRepositor
 from app.modules.financial.infrastructure.repository import FinancialStateRepository, PCRepository
 from app.modules.site_operations.infrastructure.repository import DPRRepository
 
-from app.core.financial_utils import to_decimal
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class DashboardService:
                 finish = self._parse_date(t.get("finish"))
                 prog_pct = t.get("percentComplete") or t.get("progress") or 0
                 prog = Decimal(str(prog_pct)) / Decimal("100.0")
-                cost = to_decimal(t.get("cost"))
+                cost = FinancialEngine.to_decimal(t.get("cost"))
                 if is_m and finish < now_dt and prog_pct < 100: overdue_milestones += 1
                 total_pv += cost
                 total_ev += (cost * prog)
@@ -111,8 +111,8 @@ class DashboardService:
             {
                 "id": wo.get("wo_ref") or f"WO-{str(wo.get('id'))[:6]}",
                 "label": "Approve Work Order",
-                "priority": "Financial" if to_decimal(wo.get("grand_total")) > 100000 else "Routine",
-                "color": "text-primary" if to_decimal(wo.get("grand_total")) > 100000 else "text-zinc-400"
+                "priority": "Financial" if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000 else "Routine",
+                "color": "text-primary" if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000 else "text-zinc-400"
             } for wo in pending_wos
         ]
         if not task_manager_items:
@@ -124,8 +124,8 @@ class DashboardService:
                 "total_phases": total_phases,
                 "active_items": active_items_count,
                 "overdue_milestones": overdue_milestones,
-                "master_budget": float(to_decimal(master_budget)),
-                "total_committed": float(to_decimal(total_committed))
+                "master_budget": float(FinancialEngine.to_decimal(master_budget)),
+                "total_committed": float(FinancialEngine.to_decimal(total_committed))
             },
             "schedule_status": {
                 "variance": float(round(variance, 1)),

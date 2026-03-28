@@ -23,3 +23,20 @@ class DataFreezeError(DomainError):
 class FinancialIntegrityError(DomainError):
     """Raised when financial calculations or checksums fail integrity checks."""
     pass
+
+class NotFoundError(DomainError):
+    """Raised when an entity is not found (Replaces 404)."""
+    def __init__(self, entity_type: str, entity_id: str):
+        super().__init__(f"{entity_type} with ID {entity_id} not found.", entity_id)
+
+class PermissionDeniedError(DomainError):
+    """Raised when an operation is forbidden (Replaces 403)."""
+    pass
+
+class ValidationError(DomainError):
+    """Raised when input validation fails in domain logic (Replaces 400)."""
+    pass
+
+class AuthenticationError(DomainError):
+    """Raised when authentication fails or token is invalid (Replaces 401)."""
+    pass
