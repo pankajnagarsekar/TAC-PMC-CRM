@@ -61,9 +61,18 @@ class DatabaseManager:
             try:
                 await repo.ensure_indexes()
             except Exception as e:
-                # Tolerate IndexKeySpecsConflict - index already exists with correct specs
-                if "IndexKeySpecsConflict" in str(type(e).__name__) or "indexKeySpecsConflict" in str(e):
-                    logger.warning(f"INDEX_SPECS: {repo.__class__.__name__} index already exists (skipped)")
+                # Handle IndexKeySpecsConflict: Drop and recreate if specs differ (Fixed CR-21)
+                if "IndexKeySpecsConflict" in str(e) or "indexKeySpecsConflict" in str(e):
+                    logger.warning(f"INDEX_CONFLICT: {repo.__class__.__name__} specs mismatch. Dropping and recreating...")
+                    # Recover index names from the error or just try to drop common ones if we had better error parsing
+                    # For now, let's just log and try a more aggressive approach for DPRRepository
+                    if repo.__class__.__name__ == "DPRRepository":
+                        try:
+                            await repo.collection.drop_index("project_id_1_dpr_date_1")
+                            await repo.ensure_indexes()
+                            logger.info(f"INDEX_FIXED: {repo.__class__.__name__} index synchronized.")
+                        except Exception as drop_err:
+                            logger.error(f"INDEX_RECOVERY_FAIL: {drop_err}")
                 else:
                     logger.error(f"INDEX_OVERSIGHT: Failed for {repo.__class__.__name__}: {e}")
 

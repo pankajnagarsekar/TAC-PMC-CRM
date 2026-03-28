@@ -83,6 +83,11 @@ def create_app() -> FastAPI:
             state["guardian"] = BackgroundGuardian(db_manager.get_db())
             await state["guardian"].start()
             
+            if settings.OPENAI_API_KEY:
+                logger.info(f"LIFECYCLE: AI engine active (key detected)")
+            else:
+                logger.warning("LIFECYCLE: AI engine in MOCK mode (key missing)")
+            
         except Exception as e:
             logger.critical(f"LIFECYCLE_FATAL: Core systems failed to bootstrap: {e}")
             raise

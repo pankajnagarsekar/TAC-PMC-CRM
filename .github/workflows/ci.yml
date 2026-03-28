@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  api:
+    name: API — Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r apps/api/requirements.txt
+      - name: Lint (flake8)
+        run: cd apps/api && flake8 app/ --max-line-length=120
+      - name: Test (pytest)
+        run: cd apps/api && pytest tests/ -v
+        env:
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: test_db
+          JWT_SECRET_KEY: test-secret-key-for-ci
+          ENVIRONMENT: development
+
+  web:
+    name: Web — Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: cd apps/web && npx tsc --noEmit
+
+  docker-api:
+    name: Docker Build — API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t tac-pmc-api apps/api/
+
+  docker-web:
+    name: Docker Build — Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Web image
+        run: docker build -t tac-pmc-web --build-arg NEXT_PUBLIC_BACKEND_URL=https://placeholder.onrender.com -f apps/web/Dockerfile .

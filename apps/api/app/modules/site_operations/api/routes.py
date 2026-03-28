@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status, Query
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from app.core.dependencies import get_authenticated_user, get_site_service
 from ..application.site_service import SiteService
@@ -33,6 +33,17 @@ async def update_worker_log(
     result = await site_service.update_worker_log(user, log_id, update_data)
     return GenericResponse(data=result, message="Worker log updated successfully")
 
+@router.get("/worker-logs", response_model=GenericResponse[List[Any]], tags=["Site Operations"])
+async def list_worker_logs(
+    project_id: str,
+    limit: int = Query(100),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    """List worker logs for a project."""
+    result = await site_service.list_site_logs(user, project_id, limit=limit)
+    return GenericResponse(data=result)
+
 # --- DPR ENDPOINTS ---
 
 @router.get("/projects/{project_id}/dprs", response_model=GenericResponse[List[Any]], tags=["Site Operations"])
@@ -43,6 +54,29 @@ async def list_project_dprs(
 ):
     result = await site_service.list_project_dprs(user, project_id)
     return GenericResponse(data=result)
+
+@router.post("/dprs/", response_model=GenericResponse[Any], status_code=status.HTTP_201_CREATED, tags=["Site Operations"])
+async def create_dpr(
+    dpr_data: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    """Creates a new DPR draft."""
+    project_id = dpr_data.get("project_id")
+    if not project_id:
+        from app.modules.shared.domain.exceptions import ValidationError
+        raise ValidationError("project_id is required")
+    result = await site_service.create_dpr(user, project_id, dpr_data)
+    return GenericResponse(data=result)
+
+@router.delete("/dprs/{dpr_id}", response_model=GenericResponse[Any], tags=["Site Operations"])
+async def delete_dpr(
+    dpr_id: str,
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    result = await site_service.delete_dpr(user, dpr_id)
+    return GenericResponse(data=result, message="DPR deleted successfully")
 
 @router.get("/dprs/{dpr_id}", response_model=GenericResponse[Any], tags=["Site Operations"])
 async def get_dpr_detail(
@@ -113,6 +147,48 @@ async def list_project_attendance(
     result = await site_service.list_project_attendance(user, project_id)
     return GenericResponse(data=result)
 
+@router.get("/attendance/today", response_model=GenericResponse[Optional[Any]], tags=["Site Operations"])
+async def get_project_attendance_today(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    result = await site_service.get_today_attendance(user, project_id)
+    return GenericResponse(data=result)
+
+@router.get("/attendance/admin/all", response_model=GenericResponse[Dict[str, Any]], tags=["Site Operations"])
+async def list_all_attendance(
+    project_id: str,
+    date: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    """Admin view for all supervisor attendance records."""
+    filters = {"project_id": project_id}
+    if date: filters["date"] = date
+    if start_date and end_date: filters["date_range"] = (start_date, end_date)
+    if search: filters["search"] = search
+    
+    records = await site_service.list_project_attendance(user, project_id, filters=filters)
+    return GenericResponse(data={"attendance": records})
+
+@router.post("/attendance/check-in", response_model=GenericResponse[Any], tags=["Site Operations"])
+async def check_in(
+    data: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    project_id = data.get("project_id")
+    if not project_id:
+        from app.modules.shared.domain.exceptions import ValidationError
+        raise ValidationError("project_id is required")
+        
+    result = await site_service.check_in(user, project_id, data)
+    return GenericResponse(data=result, message="Checked in successfully")
+
 @router.patch("/attendance/{log_id}/verify", response_model=GenericResponse[Any], tags=["Site Operations"])
 async def verify_attendance(
     log_id: str,
@@ -131,6 +207,17 @@ async def list_project_voice_logs(
     site_service: SiteService = Depends(get_site_service)
 ):
     result = await site_service.list_project_voice_logs(user, project_id)
+    return GenericResponse(data=result)
+
+@router.post("/voice-logs", response_model=GenericResponse[Any], status_code=status.HTTP_201_CREATED, tags=["Site Operations"])
+async def create_voice_log(
+    log_data: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service)
+):
+    """Saves a transcribed voice log to project activity."""
+    # Note: Using generic dict for flexibility, Service will validate
+    result = await site_service.create_voice_log(user, log_data)
     return GenericResponse(data=result)
 
 # --- SITE OVERHEAD ENDPOINTS ---

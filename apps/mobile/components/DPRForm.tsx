@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { Card } from './ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
+import { aiApi, dprApi } from '../services/apiClient';
 
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 const MIN_PHOTOS = 4;
@@ -165,36 +166,22 @@ export default function DPRForm({
 
   const transcribeAudio = async (base64Audio: string) => {
     try {
-      const token = await getToken();
+      const result = await aiApi.speechToText(base64Audio);
 
-      const response = await fetch(`${BASE_URL}/api/v1/speech-to-text`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          audio_data: base64Audio,
-          audio_format: 'm4a',
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.transcript) {
+      if (result.text) {
         setVoiceSummary(prev => {
           if (prev.trim()) {
-            return prev + ' ' + result.transcript;
+            return prev + ' ' + result.text;
           }
-          return result.transcript;
+          return result.text;
         });
         showAlert('Transcribed', 'Voice has been converted to text');
-      } else if (result.error) {
-        showAlert('Transcription Failed', result.error || result.note || 'Unknown error');
+      } else {
+        showAlert('Transcription Failed', 'No text returned from AI');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Transcription error:', error);
-      showAlert('Error', 'Failed to transcribe audio');
+      showAlert('Error', error.message || 'Failed to transcribe audio');
     } finally {
       setIsTranscribing(false);
     }
@@ -310,7 +297,6 @@ export default function DPRForm({
 
     setIsSubmitting(true);
     try {
-      const token = await getToken();
       const today = new Date();
 
       // Create DPR payload
@@ -324,75 +310,31 @@ export default function DPRForm({
         status: 'Draft',
       };
 
-      const createResponse = await fetch(`${BASE_URL}/api/v1/dpr`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(dprPayload),
-      });
-
-      const dprData = await createResponse.json();
+      let dprData = await dprApi.create(dprPayload);
       let dprId: string;
 
       // Handle existing DPR - delete it and create new one
       if (dprData.exists) {
-        await fetch(`${BASE_URL}/api/v1/dpr/${dprData.dpr_id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const retryResponse = await fetch(`${BASE_URL}/api/v1/dpr`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(dprPayload),
-        });
-
-        if (!retryResponse.ok) {
-          throw new Error('Failed to create DPR after deleting existing');
-        }
-
-        const retryData = await retryResponse.json();
-        dprId = retryData.dpr_id;
-      } else if (!createResponse.ok) {
-        throw new Error(dprData.detail || 'Failed to create DPR');
-      } else {
-        dprId = dprData.dpr_id;
+        await dprApi.delete(dprData.dpr_id);
+        dprData = await dprApi.create(dprPayload);
       }
+
+      dprId = dprData.dpr_id || dprData.id || '';
 
       // Upload photos with captions
       for (const photo of photos) {
-        await fetch(`${BASE_URL}/api/v1/dpr/${dprId}/images`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            dpr_id: dprId,
-            image_data: `data:image/jpeg;base64,${photo.base64}`,
-            caption: photo.caption,
-            is_portrait: true,
-          }),
+        await dprApi.uploadImage(dprId, {
+          dpr_id: dprId,
+          image_data: `data:image/jpeg;base64,${photo.base64}`,
+          caption: photo.caption,
+          is_portrait: true,
         });
       }
 
       // Submit DPR - generates PDF and sends notification
-      const submitResponse = await fetch(`${BASE_URL}/api/v1/dpr/${dprId}/submit`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const submitData = await dprApi.submit(dprId);
 
-      if (submitResponse.ok) {
-        const submitData = await submitResponse.json();
-
-        // Handle PDF download
+      if (submitData) {
         if (submitData.pdf_data) {
           try {
             if (Platform.OS === 'web') {
@@ -461,12 +403,10 @@ export default function DPRForm({
         } else {
           showAlert('Success', 'DPR submitted successfully!', onSuccess);
         }
-      } else {
-        throw new Error('Failed to submit DPR');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submit error:', error);
-      showAlert('Error', 'Failed to submit DPR. Please try again.');
+      showAlert('Error', error.message || 'Failed to submit DPR. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

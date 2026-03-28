@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # REDIS (For Rate Limiting / Shared State - Point 116)
     REDIS_URL: Optional[str] = None
 
+    # AI (OpenAI)
+    OPENAI_API_KEY: Optional[str] = None
+
     # CORS (Fixed CR-06)
     ALLOWED_ORIGINS: list[str] = ["*"]
 
@@ -52,6 +55,11 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Post-Init Hard Guard (Fixed CR-04)
+if settings.OPENAI_API_KEY:
+    logger.info(f"CONFIG: OpenAI API Key detected (prefix={settings.OPENAI_API_KEY[:7]}...)")
+else:
+    logger.warning("CONFIG: OpenAI API Key NOT FOUND in environment or .env file.")
+
 if settings.ENVIRONMENT != "development" and settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME":
     logger.critical("SECURITY_BREACH: Default JWT secret found in production environment. Application halted.")
     raise ValueError("INSECURE_PRODUCTION_SECRET")

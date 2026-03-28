@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { apiClient, authApi } from '../../../services/apiClient';
+import { apiClient, authApi, dprApi, workerLogsApi } from '../../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 // eslint-disable-next-line import/no-named-as-default
 import VersionSelector from '../../../components/VersionSelector';
@@ -104,40 +104,11 @@ export default function DPRDetailScreen() {
     }
   };
 
-  const fetchDPR = useCallback(async () => {
-    if (!id) return;
-
-    try {
-      const response = await apiClient.get<DPRDetail>(`/api/v1/dpr/${id}`);
-      setDpr(response);
-      setProgressNotes(response.progress_notes || '');
-
-      // M10: Initialize image captions
-      const captions: Record<string, string> = {};
-      response.images.forEach(img => {
-        captions[img.image_id] = img.caption || '';
-      });
-      setImageCaptions(captions);
-
-      // Fetch worker logs for this project + date
-      if (response.project_id && response.dpr_date) {
-        fetchWorkerLogs(response.project_id, response.dpr_date);
-      }
-    } catch (error: any) {
-      console.error('Error fetching DPR:', error);
-      showAlert('Error', error.message || 'Failed to load DPR');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [id, fetchWorkerLogs]);
-
   const fetchWorkerLogs = useCallback(async (projectId: string, dprDate: string) => {
     setWorkerLogLoading(true);
     try {
       const dateStr = dprDate.substring(0, 10);
-      const data = await apiClient.get<any>(`/api/worker-logs?project_id=${projectId}&date=${dateStr}`);
-      const logs = Array.isArray(data) ? data : (data.logs || []);
+      const logs = await workerLogsApi.getAll(projectId, { date: dateStr });
       setWorkerLogs(logs);
 
       const editable: Record<string, WorkerLogEntry[]> = {};
@@ -158,6 +129,34 @@ export default function DPRDetailScreen() {
     }
   }, []);
 
+  const fetchDPR = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      const response = await dprApi.getById(id);
+      setDpr(response as any);
+      setProgressNotes(response.progress_notes || '');
+
+      // M10: Initialize image captions
+      const captions: Record<string, string> = {};
+      response.images?.forEach(img => {
+        captions[img.image_id] = img.caption || '';
+      });
+      setImageCaptions(captions);
+
+      // Fetch worker logs for this project + date
+      if (response.project_id && response.dpr_date) {
+        fetchWorkerLogs(response.project_id, response.dpr_date);
+      }
+    } catch (error: any) {
+      console.error('Error fetching DPR:', error);
+      showAlert('Error', error.message || 'Failed to load DPR');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [id, fetchWorkerLogs]);
+
   useEffect(() => {
     fetchDPR();
   }, [fetchDPR]);
@@ -172,7 +171,7 @@ export default function DPRDetailScreen() {
 
     setSaving(true);
     try {
-      await apiClient.put(`/api/v1/dpr/${id}`, {
+      await dprApi.update(id!, {
         progress_notes: progressNotes || undefined,
       });
       showAlert('Success', 'DPR updated successfully');
@@ -190,7 +189,7 @@ export default function DPRDetailScreen() {
     setSavingWorkerLog(true);
     try {
       const entries = editableEntries[logId] || [];
-      await apiClient.put(`/api/worker-logs/${logId}`, {
+      await apiClient.put(`/api/v1/worker-logs/${logId}`, {
         entries: entries.map(e => ({
           vendor_name: e.vendor_name,
           workers_count: e.workers_count,
@@ -241,7 +240,7 @@ export default function DPRDetailScreen() {
 
     setSaving(true);
     try {
-      await apiClient.put(`/api/v1/dpr/${id}/images/${imageId}`, {
+      await apiClient.put(`/api/v1/dprs/${id}/images/${imageId}`, {
         caption: imageCaptions[imageId] || '',
       });
       showAlert('Success', 'Caption updated successfully');
@@ -264,7 +263,7 @@ export default function DPRDetailScreen() {
 
     setSaving(true);
     try {
-      await apiClient.post(`/api/v1/dpr/${id}/submit`);
+      await dprApi.submit(id!);
       showAlert('Success', 'DPR submitted successfully');
       fetchDPR();
     } catch (error: any) {
@@ -279,7 +278,7 @@ export default function DPRDetailScreen() {
     if (!dpr) return;
     setSaving(true);
     try {
-      await apiClient.put(`/api/v1/dpr/${id}`, {
+      await dprApi.update(id!, {
         status: 'approved',
       });
       showAlert('Success', 'DPR approved successfully');
@@ -302,7 +301,7 @@ export default function DPRDetailScreen() {
 
       if (!result.canceled && result.assets[0]) {
         setSaving(true);
-        await apiClient.post(`/api/v1/dpr/${id}/images`, {
+        await dprApi.uploadImage(id!, {
           dpr_id: id,
           image_data: result.assets[0].base64,
           caption: '',
@@ -324,7 +323,7 @@ export default function DPRDetailScreen() {
     try {
       const token = await authApi.getToken();
       const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-      const url = `${baseUrl}/api/v1/dpr/${id}/generate-pdf?token=${token}`;
+      const url = `${baseUrl}/api/v1/dprs/${id}/generate-pdf?token=${token}`;
 
       // Use Linking to open the PDF URL which triggers the download
       const supported = await Linking.canOpenURL(url);

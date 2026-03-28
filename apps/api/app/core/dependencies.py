@@ -23,6 +23,7 @@ from app.modules.identity.application.settings_service import SettingsService
 from app.modules.reporting.application.reporting_service import ReportingService
 from app.modules.reporting.application.dashboard_service import DashboardService
 from app.modules.reporting.application.ai_summary_service import AISummaryService
+from app.modules.reporting.application.ai_service import AIService
 from app.modules.project.application.scheduler_service import SchedulerService
 from app.modules.financial.application.master_data_service import MasterDataService
 from app.modules.shared.application.alert_service import AlertService
@@ -196,9 +197,13 @@ async def get_notification_service(
     return NotificationService(db, audit)
 
 async def get_ai_summary_service(
-    db: AsyncIOMotorDatabase = Depends(get_db)
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    perm: PermissionChecker = Depends(get_permission_checker)
 ) -> AISummaryService:
-    return AISummaryService(db)
+    return AISummaryService(db, perm)
+
+async def get_ai_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AIService:
+    return AIService(db)
 
 async def get_scheduler_service(
     db: AsyncIOMotorDatabase = Depends(get_db)

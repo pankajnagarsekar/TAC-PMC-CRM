@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
 import { useRouter } from 'expo-router';
-import { apiClient, authApi } from '../../services/apiClient';
+import { apiClient, authApi, attendanceApi, workerLogsApi } from '../../services/apiClient';
+import { Attendance } from '../../types/api';
 import { Card, Input, Button } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 import * as Linking from 'expo-linking';
@@ -74,7 +75,7 @@ export default function AttendanceViewScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
 
   // Supervisor attendance
-  const [supervisorRecords, setSupervisorRecords] = useState<AttendanceRecord[]>([]);
+  const [supervisorRecords, setSupervisorRecords] = useState<Attendance[]>([]);
 
   // Worker attendance (from worker logs)
   const [workerLogs, setWorkerLogs] = useState<WorkerLogSummary[]>([]);
@@ -94,22 +95,25 @@ export default function AttendanceViewScreen() {
       const end = endDate || dateFilter;
       const isRange = !!(startDate || endDate);
 
-      // Fetch supervisor attendance
-      const attendanceUrl = isRange
-        ? `/api/v1/attendance/admin/all?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}`
-        : `/api/v1/attendance/admin/all?project_id=${projectId}&date=${dateFilter}&search=${supervisorSearch}`;
+      // Fetch supervisor attendance using hardened API client
+      const attendanceRes = await attendanceApi.adminGetAll(projectId, {
+        date: !isRange ? dateFilter : undefined,
+        start_date: isRange ? start : undefined,
+        end_date: isRange ? end : undefined,
+        search: supervisorSearch || undefined,
+      });
+      setSupervisorRecords(attendanceRes.attendance || []);
 
-      const attendanceData = await apiClient.get<any>(attendanceUrl);
-      setSupervisorRecords(attendanceData.attendance || []);
-
-      // Fetch worker logs
-      const workerUrl = isRange
-        ? `/api/worker-logs?project_id=${projectId}&start_date=${start}&end_date=${end}&vendor=${vendorFilter}`
-        : `/api/worker-logs?project_id=${projectId}&date=${dateFilter}&vendor=${vendorFilter}`;
-
-      const workerData = await apiClient.get<any>(workerUrl);
-      const logs = Array.isArray(workerData) ? workerData : (workerData.logs || []);
-      setWorkerLogs(logs);
+      // Fetch worker logs using hardened API client
+      const logs = await workerLogsApi.getAll(projectId, isRange ? {
+        start_date: start,
+        end_date: end,
+        vendor: vendorFilter || undefined,
+      } : {
+        date: dateFilter,
+        vendor: vendorFilter || undefined,
+      });
+      setWorkerLogs(logs || []);
     } catch (err: any) {
       console.error('Error fetching attendance:', err);
     } finally {
@@ -413,7 +417,7 @@ export default function AttendanceViewScreen() {
             </View>
           ) : (
             supervisorRecords.map((record) => (
-              <Card key={record.attendance_id} style={styles.recordCard}>
+              <Card key={record.id} style={styles.recordCard}>
                 <View style={styles.recordHeader}>
                   <View style={styles.avatarCircle}>
                     <Text style={styles.avatarText}>
@@ -433,7 +437,7 @@ export default function AttendanceViewScreen() {
                   <View style={styles.recordDetailItem}>
                     <Ionicons name="time" size={14} color={Colors.textMuted} />
                     <Text style={styles.recordDetailText}>
-                      Check-in: {formatTime(record.check_in_time)}
+                      Check-in: {formatTime(record.check_in_time || record.check_in_timestamp || '')}
                     </Text>
                   </View>
                   {record.location?.address && (

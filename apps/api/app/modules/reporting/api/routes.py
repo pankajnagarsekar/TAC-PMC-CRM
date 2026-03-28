@@ -1,13 +1,30 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, Dict, Any, List
 
-from app.core.dependencies import get_authenticated_user, get_reporting_service, get_dashboard_service, get_ai_summary_service, get_permission_checker, PermissionChecker
+from app.core.dependencies import (
+    get_authenticated_user, get_reporting_service, get_dashboard_service, 
+    get_ai_summary_service, get_permission_checker, PermissionChecker,
+    get_ai_service
+)
 from ..application.reporting_service import ReportingService
 from ..application.dashboard_service import DashboardService
 from ..application.ai_summary_service import AISummaryService
+from ..application.ai_service import AIService
 from app.modules.shared.domain.schemas import GenericResponse
 
 router = APIRouter()
+
+# --- AI ENDPOINTS ---
+
+@router.post("/speech-to-text", response_model=GenericResponse[Dict[str, Any]], tags=["AI"])
+async def project_speech_to_text(
+    data: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    ai_service: AIService = Depends(get_ai_service)
+):
+    """Voice to Text transcription for DPRs."""
+    text = await ai_service.transcribe_audio(user, data.get("audio_data", ""))
+    return GenericResponse(data={"text": text})
 
 # --- PROJECT REPORTING ENDPOINTS ---
 

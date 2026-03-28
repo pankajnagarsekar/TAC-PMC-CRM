@@ -21,8 +21,7 @@ import { useRouter } from 'expo-router';
 import { useProject } from '../../contexts/ProjectContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
-
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { vendorsApi, workerLogsApi } from '../../services/apiClient';
 
 interface Vendor {
   code_id: string;
@@ -43,26 +42,16 @@ interface WorkerEntry {
 export default function WorkerLogScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
-  
+
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [entries, setEntries] = useState<WorkerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Modal state for vendor selection
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState('');
-
-  // Get token helper
-  const getToken = async () => {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem('access_token');
-    }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SecureStore = require('expo-secure-store');
-    return await SecureStore.getItemAsync('access_token');
-  };
 
   // Load vendors
   useEffect(() => {
@@ -72,22 +61,15 @@ export default function WorkerLogScreen() {
 
   const loadVendors = async () => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${BASE_URL}/api/vendors`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const formattedVendors = (data || []).map((v: any) => ({
-          code_id: v.vendor_id,
-          code: v.vendor_type || '',
-          first_name: v.vendor_name || '',
-          last_name: '',
-          display_name: v.vendor_name || v.display_name || '',
-        }));
-        setVendors(formattedVendors);
-      }
+      const data = await vendorsApi.getAll();
+      const formattedVendors = (data || []).map((v: any) => ({
+        code_id: v.vendor_id,
+        code: v.vendor_type || '',
+        first_name: v.vendor_name || '',
+        last_name: '',
+        display_name: v.vendor_name || v.display_name || '',
+      }));
+      setVendors(formattedVendors);
     } catch (error) {
       console.error('Failed to load vendors:', error);
     } finally {
@@ -110,7 +92,7 @@ export default function WorkerLogScreen() {
 
   // Toggle entry collapse
   const toggleCollapse = (id: string) => {
-    setEntries(entries.map(e => 
+    setEntries(entries.map(e =>
       e.id === id ? { ...e, isCollapsed: !e.isCollapsed } : e
     ));
   };
@@ -127,7 +109,7 @@ export default function WorkerLogScreen() {
 
   // Update entry
   const updateEntry = (id: string, field: keyof WorkerEntry, value: any) => {
-    setEntries(entries.map(e => 
+    setEntries(entries.map(e =>
       e.id === id ? { ...e, [field]: value } : e
     ));
   };
@@ -149,7 +131,7 @@ export default function WorkerLogScreen() {
   };
 
   // Filter vendors based on search
-  const filteredVendors = vendors.filter(v => 
+  const filteredVendors = vendors.filter(v =>
     v.display_name.toLowerCase().includes(vendorSearch.toLowerCase())
   );
 
@@ -172,8 +154,7 @@ export default function WorkerLogScreen() {
 
     try {
       setIsSaving(true);
-      const token = await getToken();
-      
+
       const payload = {
         project_id: selectedProject?.project_id,
         date: new Date().toISOString().split('T')[0],
@@ -186,28 +167,16 @@ export default function WorkerLogScreen() {
         total_workers: totalWorkers,
       };
 
-      const response = await fetch(`${BASE_URL}/api/worker-logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      await workerLogsApi.create(payload);
 
-      if (response.ok) {
-        Alert.alert(
-          'Success',
-          'Worker log saved successfully!',
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-      } else {
-        const error = await response.json();
-        Alert.alert('Error', error.detail || 'Failed to save worker log');
-      }
-    } catch (error) {
+      Alert.alert(
+        'Success',
+        'Worker log saved successfully!',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } catch (error: any) {
       console.error('Save error:', error);
-      Alert.alert('Error', 'Failed to save worker log');
+      Alert.alert('Error', error.message || 'Failed to save worker log');
     } finally {
       setIsSaving(false);
     }
@@ -245,13 +214,13 @@ export default function WorkerLogScreen() {
         {entries.map((entry, index) => (
           <Card key={entry.id} style={styles.entryCard}>
             {/* Collapsible Header */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.entryHeader}
               onPress={() => toggleCollapse(entry.id)}
             >
               <View style={styles.entryHeaderLeft}>
                 {isEntryComplete(entry) && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.success} style={{marginRight: 8}} />
+                  <Ionicons name="checkmark-circle" size={20} color={Colors.success} style={{ marginRight: 8 }} />
                 )}
                 <Text style={styles.entryNumber}>Entry #{index + 1}</Text>
                 {entry.isCollapsed && entry.vendor && (
@@ -261,10 +230,10 @@ export default function WorkerLogScreen() {
                 )}
               </View>
               <View style={styles.entryHeaderRight}>
-                <Ionicons 
-                  name={entry.isCollapsed ? "chevron-down" : "chevron-up"} 
-                  size={20} 
-                  color={Colors.textMuted} 
+                <Ionicons
+                  name={entry.isCollapsed ? "chevron-down" : "chevron-up"}
+                  size={20}
+                  color={Colors.textMuted}
                 />
                 <TouchableOpacity onPress={() => removeEntry(entry.id)} style={styles.removeButton}>
                   <Ionicons name="trash-outline" size={20} color={Colors.error} />
@@ -277,7 +246,7 @@ export default function WorkerLogScreen() {
               <>
                 {/* Vendor Selection */}
                 <Text style={styles.fieldLabel}>Vendor Name</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.selectField}
                   onPress={() => openVendorModal(entry.id)}
                 >
@@ -310,10 +279,10 @@ export default function WorkerLogScreen() {
                   multiline
                   numberOfLines={2}
                 />
-                
+
                 {/* Done button to collapse */}
                 {isEntryComplete(entry) && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.doneButton}
                     onPress={() => toggleCollapse(entry.id)}
                   >
@@ -346,7 +315,7 @@ export default function WorkerLogScreen() {
 
       {/* Save Button */}
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={isSaving}
@@ -395,7 +364,7 @@ export default function WorkerLogScreen() {
               data={filteredVendors}
               keyExtractor={(item) => item.code_id}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.vendorItem}
                   onPress={() => selectVendor(item)}
                 >
@@ -624,7 +593,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.white,
   },
-  
+
   // Modal Styles
   modalOverlay: {
     flex: 1,

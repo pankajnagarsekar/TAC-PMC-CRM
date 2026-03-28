@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: apps/api
+    ports:
+      - "8000:8000"
+    env_file:
+      - apps/api/.env
+    depends_on:
+      - mongo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/system/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

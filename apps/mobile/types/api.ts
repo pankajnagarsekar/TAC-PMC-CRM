@@ -377,15 +377,25 @@ export interface DelayAnalysis {
 // ATTENDANCE
 // ============================================
 export interface Attendance {
-  attendance_id: string;
+  id: string;
   project_id: string;
   supervisor_id: string;
-  attendance_date: string;
-  check_in_timestamp: string;
-  selfie_image_id: string;
+  user_id?: string;
+  user_name?: string;
+  role?: string;
+  project_name?: string;
+  date: string;
+  check_in_time?: string;
+  check_in_timestamp?: string;
+  check_out_time?: string;
+  check_out_timestamp?: string;
+  selfie_image_id?: string;
+  dpr_id?: string;
+  location?: { latitude: number; longitude: number; address?: string };
   gps_lat?: number;
   gps_long?: number;
   verified_by_admin: boolean;
+  status: string;
   created_at: string;
 }
 
@@ -500,18 +510,37 @@ export interface CreateCSARequest {
 // ============================================
 // DPR (Daily Progress Report)
 // ============================================
+export interface DPRImage {
+  image_id: string;
+  image_url?: string;
+  image_data?: string;
+  caption?: string;
+  uploaded_at?: string;
+}
+
 export interface DPR {
+  id?: string;
   dpr_id: string;
   project_id: string;
+  project_name?: string;
+  project_code?: string;
   supervisor_id?: string;
   dpr_date: string;
-  file_name: string;
-  file_size_kb: number;
+  status: string;
+  progress_notes?: string;
+  created_by_name?: string;
+  created_by_role?: string;
+  images: DPRImage[];
+  images_count?: number;
+  file_name?: string;
+  file_size_kb?: number;
   drive_file_id?: string;
   drive_link?: string;
-  version_number: number;
-  locked_flag: boolean;
+  version?: number;
+  version_number?: number;
+  locked_flag?: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface GenerateDPRRequest {

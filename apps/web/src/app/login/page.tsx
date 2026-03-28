@@ -37,7 +37,7 @@ export default function LoginPage() {
       setAuth(user, access_token, refresh_token);
 
       // Set a cookie so middleware can check on server side (30 days max-age)
-      document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
 
       // Role-based redirect
       if (user.role === 'Admin' || user.role === 'Client') {

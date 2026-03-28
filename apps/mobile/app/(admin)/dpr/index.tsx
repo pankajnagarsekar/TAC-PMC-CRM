@@ -21,26 +21,8 @@ import { useRouter } from 'expo-router';
 import { useProject } from '../../../contexts/ProjectContext';
 import { Card } from '../../../components/ui';
 import { useTheme } from '../../../contexts/ThemeContext';
-
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-interface DPRItem {
-  dpr_id: string;
-  dpr_date: string;
-  status: string;
-  progress_notes?: string;
-  created_by_name?: string;
-  created_by_role?: string;
-  images_count?: number;
-  created_at: string;
-}
+import { dprApi } from '../../../services/apiClient';
+import { DPR } from '../../../types/api';
 
 export default function AdminDPRListScreen() {
   const router = useRouter();
@@ -48,7 +30,7 @@ export default function AdminDPRListScreen() {
   const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
   const styles = React.useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
-  const [dprs, setDprs] = useState<DPRItem[]>([]);
+  const [dprs, setDprs] = useState<DPR[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,21 +51,11 @@ export default function AdminDPRListScreen() {
   const loadDPRs = useCallback(async () => {
     if (!projectId) return;
     try {
-      const token = await getToken();
-      let url = `${BASE_URL}/api/v1/dpr?project_id=${projectId}`;
-      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
-      if (dateFilter) url += `&date=${encodeURIComponent(dateFilter)}`;
-
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
+      const data = await dprApi.getAll(projectId, {
+        search: searchQuery || undefined,
+        date: dateFilter || undefined,
       });
-      if (response.ok) {
-        const data = await response.json();
-        setDprs(data.dprs || data || []);
-      }
+      setDprs(data);
     } catch (error) {
       console.error('Error loading DPRs:', error);
     } finally {
@@ -114,34 +86,20 @@ export default function AdminDPRListScreen() {
   const approveDPR = async (dprId: string) => {
     try {
       setApprovingId(dprId);
-      const token = await getToken();
-      const response = await fetch(`${BASE_URL}/api/v1/dpr/${dprId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ status: 'Approved' }),
-      });
-
-      if (response.ok) {
-        // Immediate UI update
-        setDprs(prev => prev.map(dpr =>
-          dpr.dpr_id === dprId ? { ...dpr, status: 'Approved' } : dpr
-        ));
-      } else {
-        const err = await response.json();
-        Alert.alert('Error', err.detail || 'Failed to approve DPR');
-      }
-    } catch (error) {
+      await dprApi.approve(dprId);
+      // Immediate UI update
+      setDprs(prev => prev.map(dpr =>
+        dpr.dpr_id === dprId ? { ...dpr, status: 'Approved' } : dpr
+      ));
+    } catch (error: any) {
       console.error('Error approving DPR:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      Alert.alert('Error', error.message || 'Failed to approve DPR');
     } finally {
       setApprovingId(null);
     }
   };
 
-  const renderDPR = ({ item }: { item: DPRItem }) => (
+  const renderDPR = ({ item }: { item: DPR }) => (
     <TouchableOpacity onPress={() => router.push(`/(admin)/dpr/${item.dpr_id}`)}>
       <Card style={styles.dprCard}>
         <View style={styles.dprHeader}>

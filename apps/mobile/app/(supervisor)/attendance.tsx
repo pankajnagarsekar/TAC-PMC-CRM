@@ -20,6 +20,7 @@ import * as Location from 'expo-location';
 import { useProject } from '../../contexts/ProjectContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
+import { attendanceApi, dprApi } from '../../services/apiClient';
 
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -99,24 +100,25 @@ export default function SupervisorAttendance() {
 
     try {
       const projectId = (selectedProject as any).project_id || (selectedProject as any)._id;
+      const dateStr = new Date().toISOString().split('T')[0];
 
       // Check today's attendance
-      const checkResponse = await apiRequest(`/api/v1/attendance/check?project_id=${projectId}`);
+      const todayRecord = await attendanceApi.getToday(projectId);
 
-      if (checkResponse.attendance_marked) {
+      if (todayRecord) {
         setTodayAttendance({
-          id: 'today',
-          date: new Date().toISOString().split('T')[0],
-          checkInTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          id: todayRecord.id || 'today',
+          date: todayRecord.date || dateStr,
+          checkInTime: todayRecord.check_in_time || '',
           status: 'checked_in',
-          hasDPR: false,
+          hasDPR: !!todayRecord.dpr_id,
         });
       }
 
       // Check if DPR submitted today
       try {
-        const dprResponse = await apiRequest(`/api/v1/dpr?project_id=${projectId}&date=${new Date().toISOString().split('T')[0]}`);
-        if (dprResponse && dprResponse.length > 0) {
+        const dprs = await dprApi.getAll(projectId, { date: dateStr });
+        if (dprs && dprs.length > 0) {
           setHasDPRToday(true);
         }
       } catch {
@@ -125,9 +127,18 @@ export default function SupervisorAttendance() {
 
       // Fetch attendance history
       try {
-        const historyResponse = await apiRequest(`/api/v1/attendance/history?limit=10`);
+        const historyResponse = await attendanceApi.getHistory(projectId, 10);
         if (historyResponse && historyResponse.attendance) {
-          setAttendanceHistory(historyResponse.attendance);
+          const records: AttendanceRecord[] = historyResponse.attendance.map((a: any) => ({
+            id: a.id || a.attendance_id || 'unknown',
+            date: a.date || new Date().toISOString().split('T')[0],
+            checkInTime: a.check_in_time || '',
+            checkOutTime: a.check_out_time,
+            status: a.status || 'absent',
+            hasDPR: !!a.dpr_id,
+            location: a.location,
+          }));
+          setAttendanceHistory(records);
         }
       } catch {
         console.log('No attendance history available');
@@ -239,16 +250,13 @@ export default function SupervisorAttendance() {
       // Step 3: Submit attendance
       const projectId = (selectedProject as any).project_id || (selectedProject as any)._id;
 
-      await apiRequest('/api/v1/attendance', {
-        method: 'POST',
-        body: JSON.stringify({
-          project_id: projectId,
-          location: loc ? {
-            latitude: loc.latitude,
-            longitude: loc.longitude,
-            address: loc.address,
-          } : undefined,
-        }),
+      await attendanceApi.checkIn({
+        project_id: projectId,
+        location: loc ? {
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          address: loc.address,
+        } : undefined,
       });
 
       setTodayAttendance({

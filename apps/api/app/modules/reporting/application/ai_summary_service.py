@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from bson import Decimal128
+from app.core.config import settings
 from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
@@ -47,7 +48,7 @@ class AISummaryService:
     def __init__(self, db, permission_checker):
         self.db = db
         self.permission_checker = permission_checker
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = settings.OPENAI_API_KEY
         self.provider = EmergentSummaryProvider(api_key) if api_key else MockSummaryProvider()
         self.ai_repo = AISummaryRepository(db)
         self.project_repo = ProjectRepository(db)

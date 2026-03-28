@@ -185,6 +185,25 @@ class SiteService:
         )
         return result
 
+    async def delete_dpr(self, user: dict, dpr_id: str) -> Dict[str, Any]:
+        """Delete a DPR draft."""
+        dpr = await self.dpr_repo.get_by_id(dpr_id)
+        if not dpr: raise NotFoundError("DPR", dpr_id)
+        
+        await self.permission_checker.check_project_access(user, dpr["project_id"], require_write=True)
+        if dpr.get("status") not in ["Draft", "Rejected"]:
+            raise ValidationError(f"Cannot delete DPR in status {dpr.get('status')}")
+            
+        await self.dpr_repo.delete_by_id(dpr_id)
+        
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"], module_name="SITE_OPERATIONS",
+            entity_type="DPR", entity_id=dpr_id,
+            action_type="DELETE", user_id=user["user_id"], project_id=dpr["project_id"],
+            old_value=dpr
+        )
+        return {"status": "deleted"}
+
     async def list_site_logs(self, user: dict, project_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
         return await self.worker_log_repo.list({
@@ -203,17 +222,55 @@ class SiteService:
         await self.permission_checker.check_project_access(user, dpr["project_id"])
         return await self._enrich_with_user_names(dpr, ["approved_by", "rejected_by", "supervisor_id"])
 
-    async def list_project_attendance(self, user: dict, project_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    async def list_project_attendance(self, user: dict, project_id: str, limit: int = 100, filters: dict = None) -> List[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
-        return await self.attendance_repo.list({
-            "project_id": project_id, "organisation_id": user["organisation_id"]
-        }, limit=limit, sort=[("check_in_time", -1)])
+        query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
+        
+        if filters:
+            if filters.get("date"):
+                # Assuming check_in_time is stored as ISO string starting with YYYY-MM-DD
+                query["check_in_time"] = {"$regex": f"^{filters['date']}"}
+            if filters.get("date_range"):
+                start, end = filters["date_range"]
+                query["check_in_time"] = {"$gte": start, "$lte": f"{end}T23:59:59"}
+            if filters.get("search"):
+                # Rough search by user name (if stored in record)
+                query["user_name"] = {"$regex": filters["search"], "$options": "i"}
+
+        return await self.attendance_repo.list(query, limit=limit, sort=[("check_in_time", -1)])
+
+    async def get_today_attendance(self, user: dict, project_id: str) -> Optional[Dict[str, Any]]:
+        """Check if supervisor has checked in today for this project."""
+        await self.permission_checker.check_project_access(user, project_id)
+        today = ts_now().strftime("%Y-%m-%d")
+        
+        # Search for record by supervisor, project and date prefix
+        query = {
+            "project_id": project_id,
+            "supervisor_id": user["user_id"],
+            "date": today
+        }
+        return await self.attendance_repo.find_one(query)
 
     async def list_project_voice_logs(self, user: dict, project_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
         logs = await self.voice_log_repo.list({"project_id": project_id}, limit=limit, sort=[("created_at", -1)])
         for log in logs: await self._enrich_with_user_names(log, ["supervisor_id"])
         return logs
+
+    async def create_voice_log(self, user: dict, log_data: dict) -> Dict[str, Any]:
+        project_id = log_data.get("project_id")
+        if not project_id: raise ValidationError("project_id is required")
+        await self.permission_checker.check_project_access(user, project_id, require_write=True)
+        
+        doc = {
+            "project_id": project_id,
+            "supervisor_id": user["user_id"],
+            "transcription": log_data.get("transcription", ""),
+            "audio_url": log_data.get("audio_url", ""),
+            "created_at": ts_now()
+        }
+        return await self.voice_log_repo.create(doc)
 
     async def record_attendance(self, user: dict, project_id: str, attendance_data: List[dict]) -> Dict[str, Any]:
         await self.permission_checker.check_project_access(user, project_id, require_write=True)
@@ -223,6 +280,37 @@ class SiteService:
             res = await self.attendance_repo.create(entry)
             results.append(res)
         return {"status": "success", "count": len(results)}
+
+    async def check_in(self, user: dict, project_id: str, data: dict) -> Dict[str, Any]:
+        """Record current supervisor check-in."""
+        await self.permission_checker.check_project_access(user, project_id, require_write=True)
+        
+        today = ts_now().strftime("%Y-%m-%d")
+        existing = await self.attendance_repo.find_one({
+            "project_id": project_id,
+            "supervisor_id": user["user_id"],
+            "date": today
+        })
+        
+        if existing:
+            return existing
+
+        doc = {
+            "project_id": project_id,
+            "organisation_id": user["organisation_id"],
+            "supervisor_id": user["user_id"],
+            "date": today,
+            "check_in_time": ts_now().strftime("%I:%M %p"),
+            "check_in_timestamp": ts_now(),
+            "gps_lat": data.get("gps_lat"),
+            "gps_long": data.get("gps_long"),
+            "selfie_image_id": data.get("selfie_image_id"),
+            "status": "checked_in",
+            "verified_by_admin": False,
+            "created_at": ts_now()
+        }
+        
+        return await self.attendance_repo.create(doc)
 
     async def add_dpr_image(self, user: dict, dpr_id: str, image_data: DPRImage) -> Dict[str, Any]:
         dpr = await self.dpr_repo.get_by_id(dpr_id)

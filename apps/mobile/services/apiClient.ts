@@ -330,7 +330,7 @@ export const authApi = {
 // ============================================
 export const projectsApi = {
   getAll: (): Promise<Project[]> => request('/api/v1/projects/'),
-  getById: (id: string): Promise<Project> => request(`/api/v1/projects/${id}`),
+  getById: (id: string): Promise<Project> => request(`/api/v1/projects/${id}/`),
   create: (data: CreateProjectRequest): Promise<Project> => request('/api/v1/projects/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<CreateProjectRequest>): Promise<Project> => request(`/api/v1/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
@@ -434,29 +434,72 @@ export const retentionApi = {
 // ============================================
 export const attendanceApi = {
   getAll: (projectId: string): Promise<Attendance[]> => {
-    return request(`/api/v1/site/projects/${projectId}/attendance`);
+    return request(`/api/v1/projects/${projectId}/attendance`);
   },
-  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/v1/site/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
-  getToday: (projectId: string): Promise<Attendance | null> => request(`/api/v1/site/attendance/today?project_id=${projectId}`),
+  adminGetAll: (projectId: string, filters: any = {}): Promise<{ attendance: Attendance[] }> => {
+    const params = new URLSearchParams({ project_id: projectId, ...filters });
+    return request(`/api/v1/attendance/admin/all?${params}`);
+  },
+  logWorkers: (data: CreateAttendanceRequest): Promise<Attendance> =>
+    request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
+  checkIn: (data: { project_id: string; location?: any }): Promise<Attendance> =>
+    request('/api/v1/attendance/check-in/', { method: 'POST', body: JSON.stringify(data) }),
+  getToday: (projectId: string): Promise<Attendance | null> =>
+    request(`/api/v1/attendance/today?project_id=${projectId}`),
+  getHistory: (projectId: string, limit: number = 10): Promise<{ attendance: Attendance[] }> =>
+    request(`/api/v1/attendance/admin/all?project_id=${projectId}&limit=${limit}`),
+};
+
+// ============================================
+// AI API
+// ============================================
+export const aiApi = {
+  speechToText: (audioBase64: string): Promise<{ text: string }> =>
+    request('/api/v1/speech-to-text', { method: 'POST', body: JSON.stringify({ audio_data: audioBase64 }) }),
 };
 
 // ============================================
 // VOICE LOGS API
 // ============================================
 export const voiceLogsApi = {
-  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/site/projects/${projectId}/voice-logs`),
-  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/site/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/projects/${projectId}/voice-logs`),
+  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// WORKER LOGS API
+// ============================================
+export const workerLogsApi = {
+  create: (data: any): Promise<any> =>
+    request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string, filters: any = {}): Promise<any[]> => {
+    const params = new URLSearchParams({ project_id: projectId, ...filters });
+    return request(`/api/v1/worker-logs/?${params}`);
+  },
 };
 
 // ============================================
 // DPR API
 // ============================================
 export const dprApi = {
-  getAll: (projectId: string): Promise<DPR[]> => request(`/api/v1/site/projects/${projectId}/dprs`),
-  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/site/dpr/generate', { method: 'POST', body: JSON.stringify(data) }),
-  getById: (id: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}`),
-  approve: (id: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}/approve`, { method: 'PATCH' }),
-  reject: (id: string, reason: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+  getAll: (projectId: string, filters: any = {}): Promise<DPR[]> => {
+    const params = new URLSearchParams({ ...filters });
+    return request(`/api/v1/projects/${projectId}/dprs?${params}`);
+  },
+  create: (data: any): Promise<DPR & { exists?: boolean }> =>
+    request('/api/v1/dprs/', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> =>
+    request(`/api/v1/dprs/${id}`, { method: 'DELETE' }),
+  uploadImage: (dprId: string, data: any): Promise<any> =>
+    request(`/api/v1/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
+  submit: (id: string): Promise<any> =>
+    request(`/api/v1/dprs/${id}/submit`, { method: 'POST' }),
+  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/dpr/generate/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any): Promise<DPR> =>
+    request(`/api/v1/dprs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getById: (id: string): Promise<DPR> => request(`/api/v1/dprs/${id}`),
+  approve: (id: string): Promise<DPR> => request(`/api/v1/dprs/${id}/approve`, { method: 'PATCH' }),
+  reject: (id: string, reason: string): Promise<DPR> => request(`/api/v1/dprs/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
 };
 
 // ============================================
@@ -467,7 +510,7 @@ export const dashboardApi = {
     request(`/api/v1/admin/projects-overview`),
   getProjectDashboard: (projectId: string): Promise<AdminDashboardData> =>
     request(`/api/v1/reports/${projectId}/dashboard-stats`),
-  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/v1/site/projects/${projectId}/dashboard`),
+  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/v1/projects/${projectId}/dashboard`),
 };
 
 // ============================================
@@ -512,33 +555,27 @@ export interface CashTransaction {
 export const cashApi = {
   getSummary: (projectId: string): Promise<CashSummaryResponse> =>
     request(`/api/v1/cash/summary/${projectId}`),
-
-  listTransactions: (projectId: string, params?: { category_id?: string; cursor?: string; limit?: number }): Promise<{
-    items: CashTransaction[];
-    next_cursor: string | null;
-  }> => {
-    const query = new URLSearchParams();
-    if (params?.category_id) query.append('category_id', params.category_id);
-    if (params?.cursor) query.append('cursor', params.cursor);
-    if (params?.limit) query.append('limit', String(params.limit));
-    return request(`/api/v1/cash/transactions?${query}`);
+  listTransactions: (projectId: string, params?: { category_id?: string; limit?: number; cursor?: string }): Promise<{ items: any[]; next_cursor?: string }> => {
+    let url = `/api/v1/cash/transactions?project_id=${projectId}`;
+    if (params?.category_id) url += `&category_id=${params.category_id}`;
+    if (params?.limit) url += `&limit=${params.limit}`;
+    if (params?.cursor) url += `&cursor=${params.cursor}`;
+    return request(url);
   },
-
-  createTransaction: (data: any, idempotencyKey: string): Promise<CashTransaction> => {
-    return request(`/api/v1/cash/transactions`, {
+  createTransaction: (projectId: string, data: any, idempotencyKey?: string): Promise<any> =>
+    request('/api/v1/petty-cash/transaction', {
       method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify(data),
-    });
-  },
+      body: JSON.stringify({ ...data, project_id: projectId }),
+      headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {}
+    }),
 };
 
 // ============================================
 // CSA API
 // ============================================
 export const csaApi = {
-  getAll: (projectId: string): Promise<CSA[]> => request(`/api/v1/site/projects/${projectId}/csa`),
-  create: (data: CreateCSARequest): Promise<CSA> => request('/api/v1/site/csa', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string): Promise<CSA[]> => request(`/api/v1/projects/${projectId}/csa`),
+  create: (data: CreateCSARequest): Promise<CSA> => request('/api/v1/csa', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -548,9 +585,9 @@ export const imagesApi = {
   getAll: (projectId: string, codeId?: string): Promise<Image[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/v1/site/images?${params}`);
+    return request(`/api/v1/images?${params}`);
   },
-  uploadToDPR: (dprId: string, data: CreateImageRequest): Promise<Image> => request(`/api/v1/site/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
+  uploadToDPR: (dprId: string, data: CreateImageRequest): Promise<Image> => request(`/api/v1/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================

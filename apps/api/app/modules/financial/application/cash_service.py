@@ -94,14 +94,14 @@ class CashService:
         categories_data = []
         total_cash_in_hand = Decimal("0.0")
 
-        for cat_id, allocation in allocation_by_cat.items():
-            cat = category_map.get(cat_id)
-            if not cat: continue
-
+        for cat in categories:
+            cat_id = str(cat["id"])
+            allocation = allocation_by_cat.get(cat_id, {})
+            
             threshold = self._get_threshold_for_category(cat, project)
-            alloc_received = FinancialEngine.to_decimal(allocation.get("allocation_received"))
-            expenses = FinancialEngine.to_decimal(allocation.get("total_expenses"))
-            alloc_original = FinancialEngine.to_decimal(allocation.get("allocation_original"))
+            alloc_received = FinancialEngine.to_decimal(allocation.get("allocation_received", 0))
+            expenses = FinancialEngine.to_decimal(allocation.get("total_expenses", 0))
+            alloc_original = FinancialEngine.to_decimal(allocation.get("allocation_original", 0))
 
             cash_in_hand = alloc_received - expenses
             alloc_remaining = alloc_original - alloc_received
