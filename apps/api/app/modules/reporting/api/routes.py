@@ -11,6 +11,15 @@ router = APIRouter()
 
 # --- PROJECT REPORTING ENDPOINTS ---
 
+@router.get("/admin/projects-overview", response_model=GenericResponse[Dict[str, Any]], tags=["Admin"])
+async def get_projects_overview(
+    user: dict = Depends(get_authenticated_user),
+    reporting_service: ReportingService = Depends(get_reporting_service)
+):
+    """Provides a bird's-eye view of all projects for the admin dashboard."""
+    overview = await reporting_service.get_projects_overview(user)
+    return GenericResponse(data=overview)
+
 @router.get("/reports/{project_id}/{report_type}", response_model=GenericResponse[Dict[str, Any]], tags=["Reporting"])
 async def get_report(
     project_id: str,

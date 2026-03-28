@@ -124,6 +124,84 @@ class ReportingService:
             }
         }
 
+    async def get_projects_overview(self, user: dict) -> Dict[str, Any]:
+        """Provides a bird's-eye view of all projects for the admin dashboard."""
+        await self.permission_checker.check_admin_role(user)
+        
+        projects = await self.db.projects.find({"organisation_id": user["organisation_id"], "is_deleted": {"$ne": True}}).to_list(100)
+        
+        results = []
+        ts_now = now()
+        today_start = ts_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        for proj in projects:
+            p_id = proj["project_id"]
+            
+            # 1. Financial Stats
+            master_state = await self.fin_state_repo.find_one({"project_id": p_id, "category_id": None})
+            categories = await self.fin_state_repo.list({"project_id": p_id, "category_id": {"$ne": None}}, limit=100)
+            
+            # 2. DPR & Worker Stats
+            dpr_total = await self.worker_log_repo.count({"project_id": p_id})
+            dpr_today = await self.worker_log_repo.count({"project_id": p_id, "created_at": {"$gte": today_start}})
+            dpr_pending = await self.worker_log_repo.count({"project_id": p_id, "status": "Pending"})
+            
+            worker_stats = await self.db.worker_logs.aggregate([
+                {"$match": {"project_id": p_id, "created_at": {"$gte": today_start}}},
+                {"$group": {"_id": None, "total": {"$sum": "$worker_count"}}}
+            ]).to_list(1)
+            recent_workers = worker_stats[0]["total"] if worker_stats else 0
+            
+            # 3. Cash & Categories breakdown
+            allocations = await self.db.fund_allocations.find({"project_id": p_id}).to_list(100)
+            categories_data = []
+            petty_cash_total = Decimal("0.0")
+            
+            for alloc in allocations:
+                cash_in_hand = FinancialEngine.to_decimal(alloc.get("cash_in_hand", 0))
+                petty_cash_total += cash_in_hand
+                categories_data.append({
+                    "code_id": str(alloc.get("category_id")),
+                    "code_name": f"Category {alloc.get('category_id')}",
+                    "approved_budget": float(FinancialEngine.to_decimal(alloc.get("allocation_original", 0))),
+                    "committed": float(FinancialEngine.to_decimal(alloc.get("total_expenses", 0))),
+                    "certified": 0.0,
+                    "remaining": float(FinancialEngine.to_decimal(alloc.get("allocation_remaining", 0)))
+                })
+
+            results.append({
+                "project_id": p_id,
+                "project_name": proj.get("name") or proj.get("project_name"),
+                "project_code": proj.get("project_code"),
+                "status": proj.get("status", "Active"),
+                "completion_pct": float(FinancialEngine.to_decimal(proj.get("completion_percentage", 0))),
+                "budget": {
+                    "total_master": float(FinancialEngine.to_decimal(master_state.get("original_budget", 0))) if master_state else 0.0,
+                    "total_committed": float(FinancialEngine.to_decimal(master_state.get("committed_value", 0))) if master_state else 0.0,
+                    "total_certified": float(FinancialEngine.to_decimal(master_state.get("certified_value", 0))) if master_state else 0.0,
+                    "total_remaining": float(FinancialEngine.to_decimal(master_state.get("balance_budget_remaining", 0))) if master_state else 0.0,
+                    "categories": categories_data
+                },
+                "petty_cash_total": float(petty_cash_total),
+                "dprs": {
+                    "total": dpr_total,
+                    "today": dpr_today,
+                    "pending_approvals": dpr_pending
+                },
+                "workers": {
+                    "recent_total": recent_workers
+                }
+            })
+            
+        return {
+            "projects": results,
+            "summary": {
+                "total_projects": len(results),
+                "total_pending_dprs": sum(p["dprs"]["pending_approvals"] for p in results),
+                "total_active_workers": sum(p["workers"]["recent_total"] for p in results)
+            }
+        }
+
     async def _project_summary_report(self, project_id: str) -> Dict[str, Any]:
         pipeline = [
             {"$match": {"project_id": project_id}},

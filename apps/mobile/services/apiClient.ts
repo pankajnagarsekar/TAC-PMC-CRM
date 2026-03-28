@@ -329,9 +329,9 @@ export const authApi = {
 // PROJECTS API
 // ============================================
 export const projectsApi = {
-  getAll: (): Promise<Project[]> => request('/api/v1/projects'),
+  getAll: (): Promise<Project[]> => request('/api/v1/projects/'),
   getById: (id: string): Promise<Project> => request(`/api/v1/projects/${id}`),
-  create: (data: CreateProjectRequest): Promise<Project> => request('/api/v1/projects', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data: CreateProjectRequest): Promise<Project> => request('/api/v1/projects/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<CreateProjectRequest>): Promise<Project> => request(`/api/v1/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
@@ -339,18 +339,18 @@ export const projectsApi = {
 // CODES API
 // ============================================
 export const codesApi = {
-  getAll: (activeOnly = true): Promise<Code[]> => request(`/api/v1/codes?active_only=${activeOnly}`),
-  getById: (id: string): Promise<Code> => request(`/api/v1/codes/${id}`),
-  create: (data: CreateCodeRequest): Promise<Code> => request('/api/v1/codes', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (activeOnly = true): Promise<Code[]> => request(`/api/v1/settings/codes?active_only=${activeOnly}`),
+  getById: (id: string): Promise<Code> => request(`/api/v1/settings/codes/${id}`),
+  create: (data: CreateCodeRequest): Promise<Code> => request('/api/v1/settings/codes', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // BUDGETS API
 // ============================================
 export const budgetsApi = {
-  getAll: (projectId?: string): Promise<BudgetPerCode[]> => request(`/api/v1/budgets${projectId ? `?project_id=${projectId}` : ''}`),
-  getById: (id: string): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`),
-  create: (data: CreateBudgetRequest): Promise<BudgetPerCode> => request('/api/v1/budgets', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string): Promise<BudgetPerCode[]> => request(`/api/v1/projects/${projectId}/budgets`),
+  getById: (id: string): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`), // Check if this exists globally or per project
+  create: (projectId: string, data: CreateBudgetRequest): Promise<BudgetPerCode> => request(`/api/v1/projects/${projectId}/budgets`, { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: UpdateBudgetRequest): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
@@ -361,7 +361,7 @@ export const financialApi = {
   getState: (projectId: string, codeId?: string): Promise<FinancialState[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/v1/financial-state?${params}`);
+    return request(`/api/v1/projects/${projectId}/financials?${params}`);
   },
   getProjectFinancials: (projectId: string): Promise<DerivedFinancialState[]> =>
     request(`/api/v1/projects/${projectId}/financials`),
@@ -371,9 +371,9 @@ export const financialApi = {
 // VENDORS API
 // ============================================
 export const vendorsApi = {
-  getAll: (activeOnly = true): Promise<Vendor[]> => request(`/api/v1/vendors?active_only=${activeOnly}`),
+  getAll: (activeOnly = true): Promise<Vendor[]> => request(`/api/v1/vendors/?active_only=${activeOnly}`),
   getById: (id: string): Promise<Vendor> => request(`/api/v1/vendors/${id}`),
-  create: (data: CreateVendorRequest): Promise<Vendor> => request('/api/v1/vendors', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data: CreateVendorRequest): Promise<Vendor> => request('/api/v1/vendors/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<CreateVendorRequest>): Promise<Vendor> => request(`/api/v1/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> => request(`/api/v1/vendors/${id}`, { method: 'DELETE' }),
 };
@@ -384,12 +384,12 @@ export const vendorsApi = {
 export const workOrdersApi = {
   getAll: (projectId?: string, status?: string): Promise<WorkOrder[]> => {
     const params = new URLSearchParams();
-    if (projectId) params.append('project_id', projectId);
     if (status) params.append('status_filter', status);
-    return request(`/api/v1/work-orders?${params}`);
+    const endpoint = projectId ? `/api/v1/work-orders/${projectId}` : `/api/v1/work-orders/`;
+    return request(`${endpoint}?${params}`);
   },
   getById: (id: string): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}`),
-  create: (data: CreateWorkOrderRequest): Promise<WorkOrder> => request('/api/v1/work-orders', { method: 'POST', body: JSON.stringify(data) }),
+  create: (projectId: string, data: CreateWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${projectId}`, { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: CreateWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> => request(`/api/v1/work-orders/${id}`, { method: 'DELETE' }),
   issue: (id: string): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}/issue`, { method: 'POST' }),
@@ -402,15 +402,14 @@ export const workOrdersApi = {
 // PAYMENT CERTIFICATES API
 // ============================================
 export const paymentCertificatesApi = {
-  getAll: (projectId?: string, status?: string): Promise<PaymentCertificate[]> => {
+  getAll: (projectId: string, status?: string): Promise<PaymentCertificate[]> => {
     const params = new URLSearchParams();
-    if (projectId) params.append('project_id', projectId);
     if (status) params.append('status_filter', status);
-    return request(`/api/v1/payments/${projectId}?${params}`); // Map to list_payment_certificates
+    return request(`/api/v1/payments/${projectId}?${params}`);
   },
   getById: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}`),
   create: (data: CreatePaymentCertificateRequest): Promise<PaymentCertificate> => request('/api/v1/payments/', { method: 'POST', body: JSON.stringify(data) }),
-  certify: (id: string, invoiceNumber?: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/close`, { method: 'POST' }), // Map to close_payment_certificate
+  certify: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/close`, { method: 'POST' }),
   revise: (id: string, data: RevisePaymentCertificateRequest): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
@@ -431,64 +430,14 @@ export const retentionApi = {
 };
 
 // ============================================
-// PROGRESS API
-// ============================================
-export const progressApi = {
-  getAll: (projectId: string, codeId?: string): Promise<ProgressEntry[]> => {
-    const params = new URLSearchParams({ project_id: projectId });
-    if (codeId) params.append('code_id', codeId);
-    return request(`/api/v1/progress?${params}`);
-  },
-  create: (data: CreateProgressRequest): Promise<ProgressEntry> => request('/api/v1/progress', { method: 'POST', body: JSON.stringify(data) }),
-  getLatest: (projectId: string, codeId: string): Promise<ProgressEntry> => request(`/api/v1/progress/latest?project_id=${projectId}&code_id=${codeId}`),
-};
-
-// ============================================
-// PLANNED PROGRESS API
-// ============================================
-export const plannedProgressApi = {
-  getAll: (projectId: string, codeId?: string): Promise<PlannedProgress[]> => {
-    const params = new URLSearchParams({ project_id: projectId });
-    if (codeId) params.append('code_id', codeId);
-    return request(`/api/v1/planned-progress?${params}`);
-  },
-  create: (data: CreatePlannedProgressRequest): Promise<PlannedProgress> => request('/api/v1/planned-progress', { method: 'POST', body: JSON.stringify(data) }),
-};
-
-// ============================================
-// DELAY ANALYSIS API
-// ============================================
-export const delayApi = {
-  analyze: (projectId: string, codeId?: string): Promise<DelayAnalysis[]> => {
-    const params = new URLSearchParams({ project_id: projectId });
-    if (codeId) params.append('code_id', codeId);
-    return request(`/api/v1/delay-analysis?${params}`);
-  },
-};
-
-// ============================================
 // ATTENDANCE API
 // ============================================
 export const attendanceApi = {
-  getAll: (projectId: string, supervisorId?: string): Promise<Attendance[]> => {
+  getAll: (projectId: string): Promise<Attendance[]> => {
     return request(`/api/v1/site/projects/${projectId}/attendance`);
   },
-  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/v1/attendance', { method: 'POST', body: JSON.stringify(data) }), // Check if this also needs /site/
-  getToday: (projectId: string, supervisorId: string): Promise<Attendance | null> => request(`/api/v1/attendance/today?project_id=${projectId}&supervisor_id=${supervisorId}`),
-};
-
-// ============================================
-// ISSUES API
-// ============================================
-export const issuesApi = {
-  getAll: (projectId: string, status?: string): Promise<Issue[]> => {
-    const params = new URLSearchParams({ project_id: projectId });
-    if (status) params.append('status', status);
-    return request(`/api/v1/issues?${params}`);
-  },
-  getById: (id: string): Promise<Issue> => request(`/api/v1/issues/${id}`),
-  create: (data: CreateIssueRequest): Promise<Issue> => request('/api/v1/issues', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: UpdateIssueRequest): Promise<Issue> => request(`/api/v1/issues/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  checkIn: (data: CreateAttendanceRequest): Promise<Attendance> => request('/api/v1/site/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
+  getToday: (projectId: string): Promise<Attendance | null> => request(`/api/v1/site/attendance/today?project_id=${projectId}`),
 };
 
 // ============================================
@@ -496,47 +445,52 @@ export const issuesApi = {
 // ============================================
 export const voiceLogsApi = {
   getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/site/projects/${projectId}/voice-logs`),
-  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/site/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
-// PETTY CASH API
+// DPR API
 // ============================================
-export const pettyCashApi = {
-  getAll: (projectId: string, status?: string): Promise<PettyCash[]> => {
-    const params = new URLSearchParams({ project_id: projectId });
-    if (status) params.append('status', status);
-    return request(`/api/v1/petty-cash?${params}`);
-  },
-  create: (data: CreatePettyCashRequest): Promise<PettyCash> => request('/api/v1/petty-cash', { method: 'POST', body: JSON.stringify(data) }),
-  approve: (id: string): Promise<PettyCash> => request(`/api/v1/petty-cash/${id}/approve`, { method: 'POST' }),
-  reject: (id: string, reason?: string): Promise<PettyCash> => request(`/api/v1/petty-cash/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+export const dprApi = {
+  getAll: (projectId: string): Promise<DPR[]> => request(`/api/v1/site/projects/${projectId}/dprs`),
+  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/site/dpr/generate', { method: 'POST', body: JSON.stringify(data) }),
+  getById: (id: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}`),
+  approve: (id: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}/approve`, { method: 'PATCH' }),
+  reject: (id: string, reason: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+};
+
+// ============================================
+// DASHBOARD API
+// ============================================
+export const dashboardApi = {
+  getAdminDashboard: (): Promise<{ projects: any[] }> =>
+    request(`/api/v1/admin/projects-overview`),
+  getProjectDashboard: (projectId: string): Promise<AdminDashboardData> =>
+    request(`/api/v1/reports/${projectId}/dashboard-stats`),
+  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/v1/site/projects/${projectId}/dashboard`),
+};
+
+// ============================================
+// USERS API
+// ============================================
+export const usersApi = {
+  getAll: (): Promise<User[]> => request('/api/v1/users/'),
+  getById: (id: string): Promise<User> => request(`/api/v1/users/${id}`),
 };
 
 // ============================================
 // HARDENED CASH API (Phase 7 Parity)
 // ============================================
 
-/**
- * A single financial category as returned by the server's cash-summary endpoint.
- * All balance flags (`is_negative`, `threshold_breached`) are computed exclusively
- * server-side and must never be derived or overridden on the client.
- */
 export interface CashCategory {
   category_id: string;
   category_name: string;
   cash_in_hand: number;
   allocation_total: number;
-  /** True when this category's cash-in-hand balance falls below zero. Server-computed. */
   is_negative: boolean;
-  /** True when this category has breached the configured threshold. Server-computed. */
   threshold_breached: boolean;
 }
 
-/**
- * Full response envelope for `cashApi.getSummary`.
- * Conforms strictly to the v2 nested category schema returned by `GET /api/projects/:id/cash-summary`.
- */
 export interface CashSummaryResponse {
   categories: CashCategory[];
   summary: {
@@ -544,9 +498,6 @@ export interface CashSummaryResponse {
   };
 }
 
-/**
- * A single cash transaction as returned by the server.
- */
 export interface CashTransaction {
   transaction_id: string;
   project_id: string;
@@ -559,12 +510,6 @@ export interface CashTransaction {
 }
 
 export const cashApi = {
-  /**
-   * Fetches the cash position summary for a project, broken down by server-computed categories.
-   *
-   * @param projectId - The project to query.
-   * @returns A `CashSummaryResponse` with a `categories` array and aggregate `summary`.
-   */
   getSummary: (projectId: string): Promise<CashSummaryResponse> =>
     request(`/api/v1/cash/summary/${projectId}`),
 
@@ -579,16 +524,7 @@ export const cashApi = {
     return request(`/api/v1/cash/transactions?${query}`);
   },
 
-  /**
-   * POSTs a raw cash transaction entry to the server.
-   *
-   * @param projectId - The project context for the transaction.
-   * @param data - Raw entry payload (description, amount, category_id, attachments, etc.).
-   * @param idempotencyKey - A unique key (UUID v4 recommended) to prevent duplicate submissions.
-   *
-   * @security warning: "Client-side math is strictly forbidden. This method must only be used to POST raw entry data; balances are calculated server-side."
-   */
-  createTransaction: (projectId: string, data: any, idempotencyKey: string): Promise<CashTransaction> => {
+  createTransaction: (data: any, idempotencyKey: string): Promise<CashTransaction> => {
     return request(`/api/v1/cash/transactions`, {
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
@@ -601,17 +537,8 @@ export const cashApi = {
 // CSA API
 // ============================================
 export const csaApi = {
-  getAll: (projectId: string): Promise<CSA[]> => request(`/api/csa?project_id=${projectId}`),
-  create: (data: CreateCSARequest): Promise<CSA> => request('/api/csa', { method: 'POST', body: JSON.stringify(data) }),
-};
-
-// ============================================
-// DPR API
-// ============================================
-export const dprApi = {
-  getAll: (projectId: string): Promise<DPR[]> => request(`/api/v1/site/projects/${projectId}/dprs`),
-  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/dpr/generate', { method: 'POST', body: JSON.stringify(data) }),
-  getById: (id: string): Promise<DPR> => request(`/api/v1/site/dprs/${id}`),
+  getAll: (projectId: string): Promise<CSA[]> => request(`/api/v1/site/projects/${projectId}/csa`),
+  create: (data: CreateCSARequest): Promise<CSA> => request('/api/v1/site/csa', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -621,17 +548,16 @@ export const imagesApi = {
   getAll: (projectId: string, codeId?: string): Promise<Image[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (codeId) params.append('code_id', codeId);
-    return request(`/api/images?${params}`);
+    return request(`/api/v1/site/images?${params}`);
   },
-  upload: (data: CreateImageRequest): Promise<Image> => request('/api/images', { method: 'POST', body: JSON.stringify(data) }),
-  getToday: (projectId: string, supervisorId: string): Promise<Image[]> => request(`/api/images/today?project_id=${projectId}&supervisor_id=${supervisorId}`),
+  uploadToDPR: (dprId: string, data: CreateImageRequest): Promise<Image> => request(`/api/v1/site/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ============================================
 // TIMELINE API
 // ============================================
 export const timelineApi = {
-  getAll: (projectId: string, limit = 50): Promise<TimelineEvent[]> => request(`/api/timeline?project_id=${projectId}&limit=${limit}`),
+  getAll: (projectId: string, limit = 50): Promise<TimelineEvent[]> => request(`/api/v1/projects/${projectId}/timeline?limit=${limit}`),
 };
 
 // ============================================
@@ -641,9 +567,9 @@ export const snapshotsApi = {
   getAll: (projectId: string, type?: string): Promise<Snapshot[]> => {
     const params = new URLSearchParams({ project_id: projectId });
     if (type) params.append('type', type);
-    return request(`/api/snapshots?${params}`);
+    return request(`/api/v1/shared/snapshots?${params}`);
   },
-  getById: (id: string): Promise<Snapshot> => request(`/api/snapshots/${id}`),
+  getById: (id: string): Promise<Snapshot> => request(`/api/v1/shared/snapshots/${id}`),
 };
 
 // ============================================
@@ -653,18 +579,9 @@ export const alertsApi = {
   getAll: (projectId?: string, resolved = false): Promise<Alert[]> => {
     const params = new URLSearchParams({ resolved: String(resolved) });
     if (projectId) params.append('project_id', projectId);
-    return request(`/api/alerts?${params}`);
+    return request(`/api/v1/shared/alerts?${params}`);
   },
-  resolve: (id: string): Promise<Alert> => request(`/api/alerts/${id}/resolve`, { method: 'POST' }),
-};
-
-// ============================================
-// DASHBOARD API
-// ============================================
-export const dashboardApi = {
-  getAdminDashboard: (projectId?: string): Promise<AdminDashboardData> =>
-    request(`/api/v1/projects/${projectId}/dashboard-stats`),
-  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/dashboard/supervisor?project_id=${projectId}`),
+  resolve: (id: string): Promise<Alert> => request(`/api/v1/shared/alerts/${id}/resolve`, { method: 'POST' }),
 };
 
 // ============================================
@@ -675,14 +592,6 @@ export const ocrApi = {
 };
 
 // ============================================
-// USERS API
-// ============================================
-export const usersApi = {
-  getAll: (): Promise<User[]> => request('/api/v1/users'),
-  getById: (id: string): Promise<User> => request(`/api/v1/users/${id}`),
-};
-
-// ============================================
 // AUDIT LOGS API
 // ============================================
 export const auditLogsApi = {
@@ -690,7 +599,7 @@ export const auditLogsApi = {
     const params = new URLSearchParams({ limit: String(limit) });
     if (entityType) params.append('entity_type', entityType);
     if (entityId) params.append('entity_id', entityId);
-    return request(`/api/audit-logs?${params}`);
+    return request(`/api/v1/audit-logs?${params}`);
   },
 };
 
@@ -700,15 +609,13 @@ export const auditLogsApi = {
 export interface GlobalSettings {
   dpr_enforcement_enabled?: boolean;
   default_retention_percentage?: number;
-  default_cgst_percentage?: number;
-  default_sgst_percentage?: number;
-  [key: string]: unknown; // allow extension without losing type safety
+  [key: string]: unknown;
 }
 
 export const settingsApi = {
-  getGlobalSettings: (): Promise<GlobalSettings> => request('/api/v1/settings'),
+  getGlobalSettings: (): Promise<GlobalSettings> => request('/api/v1/settings/'),
   updateGlobalSettings: (data: Partial<GlobalSettings>): Promise<GlobalSettings> =>
-    request('/api/v1/settings', { method: 'PUT', body: JSON.stringify(data) }),
+    request('/api/v1/settings/', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ============================================
@@ -723,13 +630,13 @@ export const reportingApi = {
     const query = new URLSearchParams();
     if (params?.start_date) query.append('start_date', params.start_date);
     if (params?.end_date) query.append('end_date', params.end_date);
-    return request(`/api/projects/${projectId}/reports/${reportType}?${query}`);
+    return request(`/api/v1/reports/${projectId}/${reportType}?${query}`);
   },
   getExportUrl: (projectId: string, reportType: string, format: 'excel' | 'pdf', params?: { start_date?: string; end_date?: string }): string => {
     const query = new URLSearchParams();
     if (params?.start_date) query.append('start_date', params.start_date);
     if (params?.end_date) query.append('end_date', params.end_date);
-    return `${BASE_URL}/api/projects/${projectId}/reports/${reportType}/export/${format}?${query}`;
+    return `${BASE_URL}/api/v1/reports/${projectId}/${reportType}/export/${format}?${query}`;
   }
 };
 
@@ -747,24 +654,21 @@ export default {
   paymentCertificates: paymentCertificatesApi,
   payments: paymentsApi,
   retention: retentionApi,
-  progress: progressApi,
-  plannedProgress: plannedProgressApi,
-  delay: delayApi,
   attendance: attendanceApi,
-  issues: issuesApi,
   voiceLogs: voiceLogsApi,
-  pettyCash: pettyCashApi,
-  csa: csaApi,
   dpr: dprApi,
+  dashboard: dashboardApi,
+  users: usersApi,
+  settings: settingsApi,
+  reporting: reportingApi,
+  cash: cashApi,
+  csa: csaApi,
   images: imagesApi,
   timeline: timelineApi,
   snapshots: snapshotsApi,
   alerts: alertsApi,
-  dashboard: dashboardApi,
   ocr: ocrApi,
-  users: usersApi,
   auditLogs: auditLogsApi,
-  cash: cashApi,
-  settings: settingsApi,
-  reporting: reportingApi,
 };
+
+
