@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 import time
 import logging
@@ -8,6 +9,7 @@ from app.api.router import api_router
 from app.db.mongodb import db_manager, get_db
 from app.core.middleware import StandardResponseMiddleware, BackpressureMiddleware
 from app.core.lifecycle import BackgroundGuardian
+from app.modules.shared.domain.exceptions import DomainError
 
 # Logging Configuration
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +41,19 @@ def create_app() -> FastAPI:
 
     # REGISTRY: Central Routing
     app.include_router(api_router, prefix="/api")
+
+    # ERROR HANDLING: Domain → HTTP
+    @app.exception_handler(DomainError)
+    async def domain_error_handler(request: Request, exc: DomainError):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "error",
+                "message": exc.message,
+                "entity_id": exc.entity_id or "none",
+                "error_type": exc.__class__.__name__
+            }
+        )
 
     # State for background tasks
     state = {"guardian": None}

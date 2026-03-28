@@ -140,13 +140,13 @@ export default function Sidebar({
   const { user, clearAuth } = useAuthStore();
   const { activeProject } = useProjectStore();
   const { data: settings } = useSWR<GlobalSettings>(
-    "/api/settings",
+    "/api/v1/settings",
     fetcher
   );
 
   async function handleLogout() {
     try {
-      await api.post("/api/auth/logout");
+      await api.post("/api/v1/auth/logout");
     } catch {
       // Ignore logout API errors
     }

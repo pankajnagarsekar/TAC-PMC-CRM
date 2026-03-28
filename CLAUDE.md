@@ -33,21 +33,31 @@ TAC-PMC-CRM/
 └── pnpm-workspace.yaml # Workspace configuration
 ```
 
-### API Architecture (FastAPI + DDD)
+### API Architecture (Strict DDD)
 
-The API follows Domain-Driven Design with clear separation of concerns:
+The API strictly follows Domain-Driven Design with sovereign Bounded Contexts:
 
 ```
 apps/api/app/
-├── api/               # Route handlers (FastAPI)
-├── core/              # Shared services, dependencies, config
-├── db/                # Database connections (MongoDB with Motor)
-├── domain/            # Domain entities and business logic
-├── modules/           # Feature modules (e.g., project, work_order, site)
-├── repositories/      # Data access layer (BaseRepository)
-├── schemas/           # Pydantic schemas (request/response)
-└── services/          # Business logic services
+├── api/               # Central Router registry (router.py)
+├── core/              # Shared kernel & dependency injection
+├── db/                # Database manager (MongoDB initialization)
+└── modules/           # Sovereign Bounded Contexts
+    ├── identity/      # Auth, Users, Roles
+    ├── project/       # Projects, Clients, Timelines
+    ├── financial/     # Payments, Budgets, Cash Flow
+    ├── contracting/   # Work Orders, Vendors
+    ├── site_operations/ # DPRs, Attendance, Site Logs
+    ├── reporting/     # AI Summaries, Analytics
+    └── shared/        # Shared Kernel (Audit, Alerts, BaseRepo)
 ```
+
+**Module Anatomy:**
+- `api/`: Route handlers and dependencies
+- `application/`: Application services (Use cases)
+- `domain/`: Business logic, aggregators, and exceptions
+- `infrastructure/`: Repositories and external adapters
+- `schemas/`: Pydantic models (DTOs)
 
 **Key Patterns:**
 - **BaseRepository**: Hardened CRUD with optimistic locking and checksum integrity
@@ -244,20 +254,21 @@ npx -y ruflo@latest hooks worker dispatch --trigger audit
 
 ### Routes & Endpoints
 
-Routes are organized by feature in `apps/api/app/api/v1/`:
-- `project_routes.py`: Project management endpoints
-- `work_order_routes.py`: Work order endpoints
-- `site_routes.py`: Site management endpoints
+Routes are organized within each Bounded Context in `apps/api/app/modules/[module]/api/`:
+- `identity/api/routes.py`: Auth and User management
+- `project/api/routes.py`: Projects and Timelines
+- `financial/api/routes.py`: Payments and Master Data
+- `contracting/api/routes.py`: Work Orders and Vendors
 
-**Pattern**: Each route module uses dependency injection from `apps/api/app/core/dependencies.py`.
+**Aggregation**: The central `apps/api/app/api/router.py` imports and registers these modular routers.
 
 ### Services Layer
 
-Business logic in `apps/api/app/services/`:
-- `master_data_service.py`: Core data aggregation
-- `work_order_service.py`: Work order logic
-- `settings_service.py`: Configuration/settings
-- `scheduler_service.py`: Background scheduling (Celery)
+Business logic resides in the `application/` layer of each module:
+- `identity/application/auth_service.py`: Authentication logic
+- `financial/application/master_data_service.py`: Reference data management
+- `project/application/scheduler_service.py`: Critical path and scheduling
+- `shared/application/alert_service.py`: Cross-context system alerts
 
 ### Validation & Error Handling
 

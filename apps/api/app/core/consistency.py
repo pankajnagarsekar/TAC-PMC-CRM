@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.financial_utils import to_decimal
-from app.services.alert_service import AlertService
+from app.modules.shared.application.alert_service import AlertService
 
 logger = logging.getLogger(__name__)
 

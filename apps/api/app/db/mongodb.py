@@ -33,15 +33,12 @@ class DatabaseManager:
         
         logger.info("LIFECYCLE: Enforcing database indexes...")
         # Import inside to avoid circular deps
-        from app.repositories.user_repo import UserRepository, UserProjectMapRepository
-        from app.repositories.project_repo import ProjectRepository
-        from app.repositories.financial_repo import WorkOrderRepository, PCRepository, BudgetRepository, CodeMasterRepository, FinancialStateRepository
-        from app.repositories.vendor_repo import VendorRepository
-        from app.repositories.client_repo import ClientRepository
-        from app.repositories.site_repo import DPRRepository, WorkerLogRepository, AttendanceRepository
-        from app.repositories.notification_repo import NotificationRepository
-        from app.repositories.audit_repo import AuditRepository
-        from app.repositories.alert_repo import AlertRepository
+        from app.modules.identity.infrastructure.repository import UserRepository, UserProjectMapRepository
+        from app.modules.project.infrastructure.repository import ProjectRepository, ClientRepository
+        from app.modules.contracting.infrastructure.repository import WorkOrderRepository, VendorRepository
+        from app.modules.financial.infrastructure.repository import PCRepository, BudgetRepository, CodeMasterRepository, FinancialStateRepository
+        from app.modules.site_operations.infrastructure.repository import DPRRepository, WorkerLogRepository, AttendanceRepository
+        from app.modules.shared.infrastructure.repository import NotificationRepository, AuditRepository, AlertRepository
         
         repos = [
             UserRepository(self.db), UserProjectMapRepository(self.db),

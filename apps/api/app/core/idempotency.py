@@ -2,7 +2,7 @@ import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Optional, Dict, Any
 from app.core.time import now
-from app.domain.financial_engine import FinancialEngine
+from app.modules.financial.domain.financial_engine import FinancialEngine
 
 logger = logging.getLogger(__name__)
 

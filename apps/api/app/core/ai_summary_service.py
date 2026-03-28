@@ -10,8 +10,8 @@ from bson import ObjectId, Decimal128
 import logging
 import os
 
-from app.repositories.ai_summary_repo import AISummaryRepository
-from app.repositories.project_repo import ProjectRepository
+from app.modules.reporting.infrastructure.repository import AISummaryRepository
+from app.modules.project.infrastructure.repository import ProjectRepository
 
 logger = logging.getLogger(__name__)
 

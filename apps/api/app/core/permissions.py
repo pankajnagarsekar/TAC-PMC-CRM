@@ -3,8 +3,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 import logging
 
-from app.repositories.user_repo import UserProjectMapRepository
-
+from app.modules.identity.infrastructure.repository import UserRepository
+from app.modules.project.infrastructure.repository import UserProjectMapRepository
+from app.db.mongodb import get_db
 logger = logging.getLogger(__name__)
 
 class PermissionChecker:

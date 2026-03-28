@@ -2,10 +2,10 @@ from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 from typing import Optional
 import logging
 
-from app.repositories.project_repo import ProjectRepository
-from app.repositories.financial_repo import WorkOrderRepository, PCRepository, BudgetRepository
-from app.repositories.cash_repo import CashTransactionRepository, FundAllocationRepository
-from app.repositories.site_repo import DPRRepository
+from app.modules.project.infrastructure.repository import ProjectRepository
+from app.modules.contracting.infrastructure.repository import WorkOrderRepository
+from app.modules.financial.infrastructure.repository import PCRepository, BudgetRepository, CashTransactionRepository, FundAllocationRepository
+from app.modules.site_operations.infrastructure.repository import DPRRepository
 
 logger = logging.getLogger(__name__)
 

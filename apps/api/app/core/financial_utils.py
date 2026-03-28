@@ -1,7 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 from bson import Decimal128
 from datetime import datetime, timezone
-from app.domain.financial_engine import FinancialEngine
+from app.modules.financial.domain.financial_engine import FinancialEngine
 
 def to_d128(value) -> Decimal128:
     """Convert numeric/Decimal to Decimal128 for MongoDB storage."""

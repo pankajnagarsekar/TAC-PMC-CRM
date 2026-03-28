@@ -6,29 +6,31 @@ from typing import Optional, List
 import logging
 
 from app.db.mongodb import get_db
-from app.services.audit_service import AuditService
-from app.services.auth_service import AuthService
-from app.services.user_service import UserService
-from app.services.project_service import ProjectService
-from app.services.client_service import ClientService
-from app.services.financial_service import FinancialService
-from app.services.payment_service import PaymentService
-from app.services.notification_service import NotificationService
-from app.services.site_service import SiteService
-from app.services.work_order_service import WorkOrderService
-from app.services.vendor_service import VendorService
-from app.services.settings_service import SettingsService
-from app.services.ai_summary_service import AISummaryService
-from app.services.reporting_service import ReportingService
-from app.services.scheduler_service import SchedulerService
-from app.services.cash_service import CashService
-from app.services.master_data_service import MasterDataService
-from app.services.snapshot_service import SnapshotService
-from app.services.dashboard_service import DashboardService
+from app.modules.shared.application.audit_service import AuditService
+from app.modules.identity.application.auth_service import AuthService
+from app.modules.identity.application.user_service import UserService
+from app.modules.project.application.project_service import ProjectService
+from app.modules.project.application.client_service import ClientService
+from app.modules.project.application.timeline_service import TimelineService
+from app.modules.financial.application.financial_service import FinancialService
+from app.modules.financial.application.payment_service import PaymentService
+from app.modules.financial.application.cash_service import CashService
+from app.modules.site_operations.application.site_service import SiteService
+from app.modules.shared.application.notification_service import NotificationService
+from app.modules.contracting.application.work_order_service import WorkOrderService
+from app.modules.contracting.application.vendor_service import VendorService
+from app.modules.identity.application.settings_service import SettingsService
+from app.modules.reporting.application.reporting_service import ReportingService
+from app.modules.reporting.application.dashboard_service import DashboardService
+from app.modules.reporting.application.ai_summary_service import AISummaryService
+from app.modules.project.application.scheduler_service import SchedulerService
+from app.modules.financial.application.master_data_service import MasterDataService
+from app.modules.shared.application.alert_service import AlertService
+from app.modules.shared.application.snapshot_service import SnapshotService
 
 from app.core.permissions import PermissionChecker
 from app.core.resilience import NonceGuard
-from app.repositories.user_repo import UserRepository
+from app.modules.identity.infrastructure.repository import UserRepository
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
@@ -202,3 +204,8 @@ async def get_scheduler_service(
     db: AsyncIOMotorDatabase = Depends(get_db)
 ) -> SchedulerService:
     return SchedulerService(db)
+
+async def get_alert_service(
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> AlertService:
+    return AlertService(db)

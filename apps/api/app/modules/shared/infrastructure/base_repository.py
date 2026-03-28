@@ -1,0 +1,88 @@
+from typing import Generic, TypeVar, List, Optional, Dict, Any, Type
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClientSession
+from datetime import datetime, timezone
+from bson import ObjectId
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
+
+class BaseRepository(Generic[T]):
+    """
+    Sovereign Base Repository (Point 75, 115).
+    Abstracts MongoDB operations with automatic audit hooks and type safety.
+    """
+    def __init__(self, db: AsyncIOMotorDatabase, collection_name: str, model_class: Type[T]):
+        self.db = db
+        self.collection = db[collection_name]
+        self.model_class = model_class
+
+    async def ensure_indexes(self):
+        """Authoritative index enforcement hook (Point 118)."""
+        pass
+
+    async def get_by_id(self, id: str, session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
+        """Retrieve a single document by its hex ID or string ID."""
+        try:
+            query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
+        except:
+            query = {"_id": id}
+        doc = await self.collection.find_one(query, session=session)
+        return self._format_id(doc)
+
+    async def find_one(self, query: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None, sort=None) -> Optional[Dict[str, Any]]:
+        """Find the first matching document."""
+        if sort:
+            doc = await self.collection.find_one(query, session=session, sort=sort)
+        else:
+            doc = await self.collection.find_one(query, session=session)
+        return self._format_id(doc)
+
+    async def create(self, data: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None) -> Dict[str, Any]:
+        """Atomic document insertion with timestamping (Point 75)."""
+        data["created_at"] = datetime.now(timezone.utc)
+        data["updated_at"] = data["created_at"]
+        
+        result = await self.collection.insert_one(data, session=session)
+        data["id"] = str(result.inserted_id)
+        return data
+
+    async def update(self, id: str, data: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None) -> Optional[Dict[str, Any]]:
+        """Update a document and return the new version."""
+        data["updated_at"] = datetime.now(timezone.utc)
+        
+        try:
+            query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
+        except:
+            query = {"_id": id}
+            
+        result = await self.collection.find_one_and_update(
+            query,
+            {"$set": data},
+            return_document=True,
+            session=session
+        )
+        return self._format_id(result)
+
+    async def list(self, query: Dict[str, Any], limit: int = 100, sort: List = None, session: Optional[AsyncIOMotorClientSession] = None) -> List[Dict[str, Any]]:
+        """Retrieve multiple documents with optional sorting."""
+        cursor = self.collection.find(query, session=session).limit(limit)
+        if sort:
+            cursor = cursor.sort(sort)
+        docs = await cursor.to_list(length=limit)
+        return [self._format_id(doc) for doc in docs]
+
+    async def delete(self, id: str, session: Optional[AsyncIOMotorClientSession] = None) -> bool:
+        """Physical deletion (Use with caution - Point 87)."""
+        try:
+            query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
+        except:
+            query = {"_id": id}
+            
+        result = await self.collection.delete_one(query, session=session)
+        return result.deleted_count > 0
+
+    def _format_id(self, doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Move _id to id string for JSON parity."""
+        if doc and "_id" in doc:
+            doc["id"] = str(doc.pop("_id"))
+        return doc
