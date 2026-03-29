@@ -150,14 +150,14 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
   };
 
   const handleClientSelect = (clientId: string) => {
-    const selectedClient = clients.find(c => c._id === clientId || c.id === clientId);
+    const selectedClient = clients.find(c => c._id === clientId);
 
     if (selectedClient) {
       setFormData({
         ...formData,
         selectedClientId: clientId,
-        name: selectedClient.name || "",
-        email: selectedClient.email || ""
+        name: selectedClient.client_name || "",
+        email: selectedClient.client_email || ""
       });
     } else {
       setFormData({
@@ -287,8 +287,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
                   >
                     <option value="">-- Select a client --</option>
                     {clients.map((client) => (
-                      <option key={client._id} value={client._id || client.id}>
-                        {client.name}
+                      <option key={client._id} value={client._id}>
+                        {client.client_name}
                       </option>
                     ))}
                   </select>
@@ -308,9 +308,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
               onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, name: e.target.value })}
               disabled={formData.useExistingClient}
               placeholder="John Smith"
-              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${
-                formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
             />
           </div>
 
@@ -325,9 +324,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
               onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, email: e.target.value })}
               disabled={formData.useExistingClient}
               placeholder="john@example.com"
-              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${
-                formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
             />
           </div>
 

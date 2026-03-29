@@ -16,7 +16,7 @@ import { useRequestLock } from "@/lib/requestLock";
 import { idempotency } from "@/lib/idempotency";
 import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
-import { Vendor, CodeMaster } from "@/types/api";
+import { Vendor, CodeMaster, WorkOrder } from "@/types/api";
 import { formatCurrency } from "@tac-pmc/ui";
 import {
   Dialog,
@@ -212,7 +212,7 @@ export default function NewWorkOrderPage() {
       };
 
       const response = await executeWorkOrderSaveWithLock(async () => {
-        return await api.post(
+        return await api.post<WorkOrder>(
           `/api/projects/${activeProject._id || activeProject.project_id}/work-orders`,
           payload,
           {
@@ -221,13 +221,15 @@ export default function NewWorkOrderPage() {
         );
       });
 
-      if (response && response.data?.data._warning === "over_budget") {
+      const responseData = response?.data as any;
+
+      if (responseData?._warning === "over_budget") {
         setShowOverBudgetWarning(true);
         return;
       }
 
-      if (response?.data?._id) {
-        router.push(`/admin/work-orders/${response.data._id}`);
+      if (responseData?._id) {
+        router.push(`/admin/work-orders/${responseData._id}`);
       } else {
         alert("Work Order created but missing ID. Redirecting...");
         router.push("/admin/work-orders");

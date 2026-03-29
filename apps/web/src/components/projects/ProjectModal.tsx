@@ -229,7 +229,7 @@ export default function ProjectModal({
                       <option value="">Select Client</option>
                       {clients?.map((c) => (
                         <option key={c._id} value={c._id}>
-                          {(c as any).name || (c as any).client_name}
+                          {c.client_name}
                         </option>
                       ))}
                     </select>

@@ -393,6 +393,8 @@ export interface UserCreate {
   name: string;
   role?: string;
   dpr_generation_permission?: boolean;
+  assigned_projects?: string[];
+  screen_permissions?: string[];
 }
 
 export interface UserUpdate {
@@ -401,6 +403,7 @@ export interface UserUpdate {
   active_status?: boolean;
   dpr_generation_permission?: boolean;
   assigned_projects?: string[];
+  screen_permissions?: string[];
 }
 
 // ──────────────────────────────────────────────────────────────────────────
