@@ -13,7 +13,6 @@ package-lock.json
 yarn.lock
 .expo/
 .metro-cache/
-.turbo
 
 # Editor/system
 .vscode/
@@ -61,3 +60,9 @@ BUDGET_FIX.md
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Build artifacts
+.turbo/
+
+# GSD Files
+.planning/
