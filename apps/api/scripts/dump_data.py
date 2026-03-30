@@ -1,4 +1,3 @@
-from bson import Decimal128, ObjectId
 from pymongo import MongoClient
 
 client = MongoClient("mongodb://localhost:27017")

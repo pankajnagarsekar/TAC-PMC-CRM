@@ -1,7 +1,6 @@
 import asyncio
 
 import motor.motor_asyncio
-from bson import ObjectId
 
 
 async def run():

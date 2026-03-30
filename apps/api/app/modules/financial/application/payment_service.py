@@ -1,12 +1,11 @@
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from bson import Decimal128, ObjectId
+from bson import ObjectId
 
 from app.core.uow import UnitOfWork
-from app.core.utils import serialize_doc
 
 # Note: Repositories from other contexts
 from app.modules.project.infrastructure.repository import ProjectRepository
@@ -15,7 +14,7 @@ from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
 
 from ..infrastructure.repository import PCRepository
-from ..schemas.dto import PaymentCertificate, PaymentCertificateCreate
+from ..schemas.dto import PaymentCertificateCreate
 
 logger = logging.getLogger(__name__)
 

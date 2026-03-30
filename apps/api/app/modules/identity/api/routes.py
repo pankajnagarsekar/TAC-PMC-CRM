@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, Response
 
 from app.core.dependencies import (
     get_auth_service,

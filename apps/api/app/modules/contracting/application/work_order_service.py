@@ -1,12 +1,11 @@
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from bson import Decimal128, ObjectId
 
 from app.core.uow import UnitOfWork
-from app.core.utils import serialize_doc
 
 # These depend on other contexts yet to be migrated
 from app.modules.project.infrastructure.repository import (
@@ -21,7 +20,6 @@ from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
 
 from ..domain.models import WorkOrder as WorkOrderModel
 from ..infrastructure.repository import (
-    LedgerRepository,
     VendorRepository,
     WorkOrderRepository,
 )
@@ -131,18 +129,18 @@ class WorkOrderService:
                     "organisation_id": organisation_id,
                     "project_id": project_id,
                     "wo_ref": wo_ref,
-                    "subtotal": to_d128(fin["subtotal"]),
-                    "discount": to_d128(fin["discount"]),
-                    "total_before_tax": to_d128(fin["total_before_tax"]),
-                    "cgst": to_d128(fin["cgst"]),
-                    "sgst": to_d128(fin["sgst"]),
-                    "grand_total": to_d128(fin["grand_total"]),
-                    "retention_percent": to_d128(
+                    "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
+                    "discount": FinancialEngine.to_d128(fin["discount"]),
+                    "total_before_tax": FinancialEngine.to_d128(fin["total_before_tax"]),
+                    "cgst": FinancialEngine.to_d128(fin["cgst"]),
+                    "sgst": FinancialEngine.to_d128(fin["sgst"]),
+                    "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
+                    "retention_percent": FinancialEngine.to_d128(
                         Decimal(str(wo_data.retention_percent or 0))
                     ),
-                    "retention_amount": to_d128(fin["retention_amount"]),
-                    "total_payable": to_d128(fin["total_payable"]),
-                    "actual_payable": to_d128(fin["actual_payable"]),
+                    "retention_amount": FinancialEngine.to_d128(fin["retention_amount"]),
+                    "total_payable": FinancialEngine.to_d128(fin["total_payable"]),
+                    "actual_payable": FinancialEngine.to_d128(fin["actual_payable"]),
                     "line_items": line_items_processed,
                     "status": "Draft",
                     "version": 1,
@@ -157,8 +155,8 @@ class WorkOrderService:
                 budget["id"],
                 {
                     "$inc": {
-                        "remaining_budget": to_d128(-grand_total),
-                        "committed_amount": to_d128(grand_total),
+                        "remaining_budget": FinancialEngine.to_d128(-grand_total),
+                        "committed_amount": FinancialEngine.to_d128(grand_total),
                     }
                 },
                 session=uow.session,

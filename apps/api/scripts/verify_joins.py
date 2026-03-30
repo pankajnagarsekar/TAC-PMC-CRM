@@ -7,7 +7,7 @@ project = db.projects.find_one({'project_name': 'Majorda Villa'})
 pid = str(project['_id'])
 
 budgets = list(db.project_category_budgets.find({'project_id': pid}))
-states  = list(db.financial_state.find({'project_id': pid}))
+states = list(db.financial_state.find({'project_id': pid}))
 
 state_map = {s.get('category_id'): s for s in states}
 

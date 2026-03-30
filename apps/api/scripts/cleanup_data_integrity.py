@@ -6,8 +6,6 @@ Resolves duplicate DPR records and zombie PC orphans
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
-
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -65,14 +63,13 @@ class DataCleanupManager:
         for dup_group in duplicates:
             key = dup_group["_id"]
             ids = dup_group["ids"]
-            count = dup_group["count"]
 
             # Keep the most recent, delete others
             docs_for_group = await dpr_collection.find(
                 {"_id": {"$in": ids}}, sort=[("created_at", -1)]
             ).to_list(None)
 
-            keep_id = docs_for_group[0]["_id"]
+            # keep_id = docs_for_group[0]["_id"]
             remove_ids = [d["_id"] for d in docs_for_group[1:]]
 
             # Delete duplicates
@@ -170,7 +167,7 @@ async def main():
         await cleanup.verify_indexes()
         await cleanup.generate_report()
 
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"  - DPR duplicates removed: {dpr_removed}")
         print(f"  - Zombie PCs removed: {pc_removed}")
 

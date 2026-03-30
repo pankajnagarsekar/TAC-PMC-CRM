@@ -1,12 +1,8 @@
 import asyncio
-import base64
-import json
-
-import httpx
 
 
 async def test_ocr():
-    url = "http://localhost:8000/api/v1/ai/ocr"
+    # url = "http://localhost:8000/api/v1/ai/ocr"
 
     # Simple transparent pixel base64
     pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="

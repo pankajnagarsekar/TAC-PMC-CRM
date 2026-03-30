@@ -1,5 +1,3 @@
-import os
-
 import seed_majorda
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError

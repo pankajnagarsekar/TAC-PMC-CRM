@@ -11,7 +11,6 @@ from app.core.time import now
 from app.modules.shared.domain.exceptions import (
     AuthenticationError,
     PermissionDeniedError,
-    ValidationError,
 )
 
 from ..infrastructure.repository import (
@@ -223,6 +222,6 @@ class AuthService:
                 await self.refresh_repo.update_one(
                     {"jti": payload["jti"]}, {"$set": {"is_revoked": True}}
                 )
-            except:
+            except Exception:
                 pass
         return {"status": "SUCCESS"}

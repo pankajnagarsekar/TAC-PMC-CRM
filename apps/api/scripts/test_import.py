@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.getcwd())
 
 try:
-    from server import app
+    from server import app  # noqa: F401
 
     print("App imported successfully")
 except Exception as e:

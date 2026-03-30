@@ -1,7 +1,7 @@
 import logging
 import secrets
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from bson import ObjectId
 

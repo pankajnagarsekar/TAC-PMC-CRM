@@ -15,7 +15,7 @@ def test_api():
     data = res.json()
     token = data.get("access_token")
     user_data = data.get("user", {})
-    print(f"Logged in successfully.")
+    print("Logged in successfully.")
     print(f"User Role: {user_data.get('role')}")
     print(f"User Org ID: {user_data.get('organisation_id')}")
 
@@ -26,7 +26,7 @@ def test_api():
     print(f"Status: {proj_res.status_code}")
     try:
         print(f"Response: {proj_res.json()}")
-    except Exception as e:
+    except Exception:
         print(f"Response Raw: {proj_res.text}")
 
 

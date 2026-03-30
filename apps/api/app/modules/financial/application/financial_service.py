@@ -1,6 +1,5 @@
 import logging
 
-from bson import Decimal128
 
 from app.core.time import now
 from app.modules.contracting.infrastructure.repository import (
@@ -13,7 +12,6 @@ from app.modules.project.infrastructure.repository import (
     BudgetRepository,
     ProjectRepository,
 )
-from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
 from ..domain.models import FinancialState

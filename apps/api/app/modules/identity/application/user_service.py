@@ -1,16 +1,15 @@
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..domain.models import User as UserModel
 from ..infrastructure.repository import UserRepository
-from ..schemas.dto import User, UserCreateAdmin
+from ..schemas.dto import UserCreateAdmin
 
 # Note: Use AuthService for password hashing
 
-logger = logging.getLogger(__name__)
-
 from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -75,7 +74,7 @@ class UserService:
         user_model = UserModel(old_user)
         user_model.validate_for_deactivation(user["user_id"])
 
-        updated_user = await self.user_repo.update(
+        await self.user_repo.update(
             target_user_id,
             {"active_status": False},
             organisation_id=user["organisation_id"],

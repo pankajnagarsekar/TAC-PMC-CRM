@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Query, status
 from app.core.dependencies import (
     get_authenticated_user,
     get_cash_service,
-    get_financial_service,
     get_master_data_service,
     get_payment_service,
     verify_nonce,
@@ -13,15 +12,12 @@ from app.core.dependencies import (
 from app.modules.shared.domain.schemas import GenericResponse
 
 from ..application.cash_service import CashService
-from ..application.financial_service import FinancialService
 from ..application.master_data_service import MasterDataService
 from ..application.payment_service import PaymentService
 from ..schemas.dto import (
-    CashTransaction,
     CashTransactionCreate,
     CodeMaster,
     CodeMasterCreate,
-    FundAllocation,
     FundAllocationCreate,
     PaymentCertificate,
     PaymentCertificateCreate,

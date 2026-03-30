@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from bson import Decimal128, ObjectId
+from bson import ObjectId
 
 from app.core.permissions import PermissionChecker
 from app.core.uow import UnitOfWork
@@ -19,12 +19,7 @@ from ..infrastructure.repository import (
     CodeMasterRepository,
     FundAllocationRepository,
 )
-from ..schemas.dto import (
-    CashTransaction,
-    CashTransactionCreate,
-    FundAllocation,
-    FundAllocationCreate,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +111,6 @@ class CashService:
             length=200
         )
         allocation_by_cat = {str(doc["category_id"]): doc for doc in allocation_docs}
-        category_map = {str(cat["id"]): cat for cat in categories}
 
         categories_data = []
         total_cash_in_hand = Decimal("0.0")

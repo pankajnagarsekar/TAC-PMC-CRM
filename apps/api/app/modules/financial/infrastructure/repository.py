@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from motor.motor_asyncio import AsyncIOMotorClientSession
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING
 
 from app.modules.shared.infrastructure.base_repository import BaseRepository
 

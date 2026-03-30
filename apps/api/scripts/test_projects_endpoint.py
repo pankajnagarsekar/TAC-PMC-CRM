@@ -1,6 +1,5 @@
 import asyncio
 
-import server
 from motor.motor_asyncio import AsyncIOMotorClient
 
 
@@ -29,7 +28,7 @@ async def test_endpoint():
         }
         res = await list_projects(skip=0, limit=100, current_user=current_user)
         print("Success:", len(res))
-    except Exception as e:
+    except Exception:
         print("Error in list_projects:")
         import traceback
 

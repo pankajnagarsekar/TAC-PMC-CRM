@@ -4,7 +4,7 @@ from pydantic_core import core_schema
 
 def test_pydantic_fix():
     try:
-        schema = core_schema.json_or_python_schema(
+        core_schema.json_or_python_schema(
             json_schema=core_schema.str_schema(),
             python_schema=core_schema.union_schema(
                 [

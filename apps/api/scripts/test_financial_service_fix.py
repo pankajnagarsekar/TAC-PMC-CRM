@@ -7,9 +7,8 @@ Tests for critical bugs fixed in financial_service.py:
 3. Master budget recalculation flow
 """
 
-from datetime import datetime, timezone
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from bson import Decimal128, ObjectId

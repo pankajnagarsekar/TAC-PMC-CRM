@@ -2,13 +2,12 @@ import asyncio
 import os
 import sys
 
-from bson import ObjectId
+from dotenv import load_dotenv
+
+from core.database import db_manager
 
 # Add current dir to path
 sys.path.append(os.getcwd())
-
-from core.database import db_manager
-from dotenv import load_dotenv
 
 
 async def check_project():

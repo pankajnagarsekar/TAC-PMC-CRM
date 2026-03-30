@@ -1,8 +1,7 @@
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from app.modules.shared.domain.exceptions import DomainError
-from app.modules.shared.domain.state_machine import StateMachine
 
 
 class WorkOrder:
@@ -22,13 +21,16 @@ class WorkOrder:
         """Invariant: Cannot reduce Work Order below the total of already certified payments."""
         if self.status not in ["Draft", "Pending"]:
             raise DomainError(
-                f"Only 'Draft' or 'Pending' Work Orders can be edited. Current: {self.status}"
+                f"Only 'Draft' or 'Pending' Work Orders can be edited. "
+                f"Current: {self.status}"
             )
 
         if linked_pc_total > 0 and new_total < linked_pc_total:
-            raise DomainError(
-                f"Cannot reduce Work Order below linked Payment Certificate total of {linked_pc_total}. New total: {new_total}"
+            msg = (
+                f"Cannot reduce Work Order below linked Payment Certificate total of "
+                f"{linked_pc_total}. New total: {new_total}"
             )
+            raise DomainError(msg)
 
 
 class Vendor:
