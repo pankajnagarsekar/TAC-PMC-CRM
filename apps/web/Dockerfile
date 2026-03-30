@@ -4,8 +4,7 @@ RUN npm install -g pnpm@10.30.3
 FROM base AS builder
 WORKDIR /repo
 
-# IMPROVED: Ensure a completely flat node_modules structure so Next.js standalone 
-# can correctly resolve and copy all dependencies into the build artifact.
+# Ensure flat node_modules for proper dependency resolution
 RUN echo "shamefully-hoist=true" > .npmrc && \
     echo "public-hoist-pattern[]=*;" >> .npmrc
 
@@ -23,17 +22,18 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# The standalone folder contains the minimal server and node_modules
-# Copy all contents from standalone (includes server.js and dependencies)
+# Copy standalone output
 COPY --from=builder /repo/apps/web/.next/standalone ./
 
-# Copy static files and public assets to correct locations
+# Copy static files and public assets
 COPY --from=builder /repo/apps/web/.next/static ./.next/static
 COPY --from=builder /repo/apps/web/public ./public
+
+# Copy production node_modules from builder (required for Next.js server)
+COPY --from=builder /repo/node_modules ./node_modules
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Entry point: server.js is at root of standalone output
 CMD ["node", "server.js"]
