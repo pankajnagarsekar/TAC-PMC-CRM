@@ -24,13 +24,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # The standalone folder contains the minimal server and node_modules
+# Copy all contents from standalone (includes server.js and dependencies)
 COPY --from=builder /repo/apps/web/.next/standalone ./
-COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /repo/apps/web/public ./apps/web/public
+
+# Copy static files and public assets to correct locations
+COPY --from=builder /repo/apps/web/.next/static ./.next/static
+COPY --from=builder /repo/apps/web/public ./public
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Note: In monorepos, the entry point remains at the original subpath
-CMD ["node", "apps/web/server.js"]
+# Entry point: server.js is at root of standalone output
+CMD ["node", "server.js"]
