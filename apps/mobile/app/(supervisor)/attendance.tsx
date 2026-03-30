@@ -13,6 +13,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -67,6 +68,7 @@ interface AttendanceRecord {
 }
 
 export default function SupervisorAttendance() {
+  const router = useRouter();
   const { selectedProject, isProjectSelected } = useProject();
 
   const [loading, setLoading] = useState(true);
@@ -428,6 +430,17 @@ export default function SupervisorAttendance() {
                 </View>
               </View>
 
+              {/* Action Buttons */}
+              {!hasDPRToday && (
+                <TouchableOpacity
+                  style={styles.dprButton}
+                  onPress={() => router.push('/(supervisor)/dpr')}
+                >
+                  <Ionicons name="add-circle" size={24} color={Colors.white} />
+                  <Text style={styles.dprButtonText}>Submit Daily Progress Report</Text>
+                </TouchableOpacity>
+              )}
+
               {/* Check Out Button */}
               <TouchableOpacity
                 style={[
@@ -725,6 +738,23 @@ const styles = StyleSheet.create({
   },
   checkOutButtonDisabled: { backgroundColor: Colors.textMuted },
   checkOutButtonText: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.white },
+  dprButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.sm,
+    width: '100%',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
+    ...Platform.select({
+      ios: { shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      android: { elevation: 4 }
+    })
+  },
+  dprButtonText: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.white, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // Checked Out State
   checkedOutIcon: { marginBottom: Spacing.md },

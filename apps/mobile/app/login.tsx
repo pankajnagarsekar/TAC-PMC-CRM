@@ -49,7 +49,7 @@ export default function LoginScreen() {
 
       // Redirect based on role
       if (role === 'Admin') {
-        router.replace('/(admin)/projects');
+        router.replace('/(admin)/dashboard');
       } else if (role === 'Supervisor') {
         router.replace('/(supervisor)/dashboard');
       } else if (role === 'Client') {

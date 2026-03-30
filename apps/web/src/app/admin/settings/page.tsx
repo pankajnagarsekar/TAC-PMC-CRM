@@ -15,7 +15,9 @@ import {
   Upload,
   X,
   Globe,
+  LayoutGrid,
 } from "lucide-react";
+import Link from "next/link";
 import { CodeMaster } from "@/types/api";
 import CategoryModal from "@/components/categories/CategoryModal";
 
@@ -141,9 +143,19 @@ export default function SettingsPage() {
             <Settings className="text-orange-500" />
             Global Settings
           </h1>
-          <p className="text-zinc-500 dark:text-slate-500 text-sm mt-1">
-            Manage company identity and system-wide financial taxonomies.
-          </p>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-zinc-500 dark:text-slate-500 text-sm">
+              Manage company identity and system-wide financial taxonomies.
+            </p>
+            <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+            <Link
+              href="/admin/settings/projects"
+              className="text-xs font-bold text-orange-500 hover:text-orange-400 flex items-center gap-1.5 transition-colors uppercase tracking-wider"
+            >
+              <LayoutGrid size={14} />
+              Manage Operational Projects
+            </Link>
+          </div>
         </div>
         <button
           onClick={handleSaveSettings}

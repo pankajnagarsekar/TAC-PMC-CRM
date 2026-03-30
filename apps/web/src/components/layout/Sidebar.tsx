@@ -47,12 +47,6 @@ const NAV_ITEMS: NavItem[] = [
   },
   { href: "/admin/clients", icon: Users, label: "Clients", key: "clients" },
   {
-    href: "/admin/projects",
-    icon: FolderOpen,
-    label: "Projects",
-    key: "projects",
-  },
-  {
     href: "/admin/scheduler",
     icon: CalendarDays,
     label: "Project Scheduler",
