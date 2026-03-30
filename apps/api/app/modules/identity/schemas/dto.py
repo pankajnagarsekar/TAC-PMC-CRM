@@ -1,21 +1,27 @@
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
+
 from app.modules.shared.domain.types import PyObjectId
+
 
 # AUTH DTOs
 class LoginRequest(BaseModel):
     email: str
     password: str
 
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
 
 class Token(BaseModel):
     access_token: str
     refresh_token: str
     expires_in: int
     user: "UserResponse"
+
 
 # USER DTOs
 class User(BaseModel):
@@ -34,12 +40,14 @@ class User(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class UserCreate(BaseModel):
     email: str
     password: str
     name: str
     role: str = "Supervisor"
     dpr_generation_permission: bool = False
+
 
 class UserCreateAdmin(BaseModel):
     email: str
@@ -49,6 +57,7 @@ class UserCreateAdmin(BaseModel):
     dpr_generation_permission: bool = False
     assigned_projects: List[str] = Field(default_factory=list)
     screen_permissions: List[str] = Field(default_factory=list)
+
 
 class UserResponse(BaseModel):
     user_id: str
@@ -65,6 +74,7 @@ class UserResponse(BaseModel):
 
     model_config = {"populate_by_name": True}
 
+
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
@@ -72,6 +82,7 @@ class UserUpdate(BaseModel):
     dpr_generation_permission: Optional[bool] = None
     assigned_projects: Optional[List[str]] = None
     screen_permissions: Optional[List[str]] = None
+
 
 class UserProjectMap(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -83,6 +94,7 @@ class UserProjectMap(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 # ORGANISATION DTOs
 class Organisation(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -91,8 +103,10 @@ class Organisation(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class OrganisationCreate(BaseModel):
     name: str
+
 
 # SETTINGS DTOs
 class CompanyProfile(BaseModel):
@@ -100,6 +114,7 @@ class CompanyProfile(BaseModel):
     address: str = "Default Address"
     registration_no: str = ""
     contact_email: str = ""
+
 
 class GlobalSettings(BaseModel):
     organisation_id: str
@@ -109,5 +124,6 @@ class GlobalSettings(BaseModel):
     currency: str = "INR"
     currency_symbol: str = "₹"
     company_profile: CompanyProfile = Field(default_factory=CompanyProfile)
+
 
 Token.model_rebuild()

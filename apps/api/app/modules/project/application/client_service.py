@@ -1,11 +1,13 @@
-from typing import List, Dict, Any
-from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 import logging
+from typing import Any, Dict, List
+
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 
 from ..infrastructure.repository import ClientRepository, ProjectRepository
-from ..schemas.dto import Client, ClientCreate, ClientUpdate
+from ..schemas.dto import ClientCreate, ClientUpdate
 
 logger = logging.getLogger(__name__)
+
 
 class ClientService:
     def __init__(self, db, audit_service):
@@ -14,10 +16,16 @@ class ClientService:
         self.client_repo = ClientRepository(db)
         self.project_repo = ProjectRepository(db)
 
-    async def list_clients(self, organisation_id: str, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
-        return await self.client_repo.list({"organisation_id": organisation_id}, skip=skip, limit=limit)
+    async def list_clients(
+        self, organisation_id: str, skip: int = 0, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        return await self.client_repo.list(
+            {"organisation_id": organisation_id}, skip=skip, limit=limit
+        )
 
-    async def create_client(self, user: dict, client_data: ClientCreate) -> Dict[str, Any]:
+    async def create_client(
+        self, user: dict, client_data: ClientCreate
+    ) -> Dict[str, Any]:
         client_dict = client_data.dict()
         client_dict["organisation_id"] = user["organisation_id"]
         client_dict["active_status"] = True
@@ -31,22 +39,28 @@ class ClientService:
             entity_id=new_client["id"],
             action_type="CREATE",
             user_id=user["user_id"],
-            new_value=new_client
+            new_value=new_client,
         )
         return new_client
 
     async def get_client(self, client_id: str, organisation_id: str) -> Dict[str, Any]:
-        client = await self.client_repo.get_by_id(client_id, organisation_id=organisation_id)
+        client = await self.client_repo.get_by_id(
+            client_id, organisation_id=organisation_id
+        )
         if not client:
             raise NotFoundError("Client", client_id)
         return client
 
-    async def update_client(self, user: dict, client_id: str, client_data: ClientUpdate) -> Dict[str, Any]:
+    async def update_client(
+        self, user: dict, client_id: str, client_data: ClientUpdate
+    ) -> Dict[str, Any]:
         existing = await self.get_client(client_id, user["organisation_id"])
-        
+
         update_data = client_data.dict(exclude_unset=True)
-        
-        result = await self.client_repo.update(client_id, update_data, organisation_id=user["organisation_id"])
+
+        result = await self.client_repo.update(
+            client_id, update_data, organisation_id=user["organisation_id"]
+        )
         if not result:
             raise NotFoundError("Client", client_id)
 
@@ -58,18 +72,23 @@ class ClientService:
             action_type="UPDATE",
             user_id=user["user_id"],
             old_value=existing,
-            new_value=result
+            new_value=result,
         )
         return result
 
     async def delete_client(self, user: dict, client_id: str) -> Dict[str, Any]:
         existing = await self.get_client(client_id, user["organisation_id"])
-        
-        projects = await self.project_repo.list({"client_id": client_id, "organisation_id": user["organisation_id"]}, limit=1)
+
+        projects = await self.project_repo.list(
+            {"client_id": client_id, "organisation_id": user["organisation_id"]},
+            limit=1,
+        )
         if projects:
             raise ValidationError("Cannot delete client with associated projects")
 
-        result = await self.client_repo.update(client_id, {"active_status": False}, organisation_id=user["organisation_id"])
+        result = await self.client_repo.update(
+            client_id, {"active_status": False}, organisation_id=user["organisation_id"]
+        )
         if not result:
             raise NotFoundError("Client", client_id)
 
@@ -81,6 +100,6 @@ class ClientService:
             action_type="DELETE",
             user_id=user["user_id"],
             old_value=existing,
-            new_value=result
+            new_value=result,
         )
         return {"message": "Client deleted successfully"}

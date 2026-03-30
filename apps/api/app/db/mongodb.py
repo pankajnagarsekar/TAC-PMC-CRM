@@ -1,12 +1,14 @@
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 import logging
 from typing import Optional
-import os
+
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
 
+
 class DatabaseManager:
     """System Constitution: Database Sovereignty (Point 7)."""
+
     def __init__(self):
         self.client: Optional[AsyncIOMotorClient] = None
         self.db: Optional[AsyncIOMotorDatabase] = None
@@ -17,64 +19,117 @@ class DatabaseManager:
             self.client = AsyncIOMotorClient(mongo_url)
             self.db = self.client[db_name]
             # Hard Ping (Point 7)
-            await self.client.admin.command('ping')
+            await self.client.admin.command("ping")
             logger.info(f"LIFECYCLE: Connected to MongoDB ({db_name})")
-            
+
             # Fixed CR-21: Trigger index creation on startup
             await self.initialize_indexes()
-            
+
         except Exception as e:
             logger.error(f"LIFECYCLE_FATAL: MongoDB connection failed: {e}")
             raise
 
     async def initialize_indexes(self):
         """Fixed CR-21: Authoritative index enforcement for all repositories."""
-        if self.db is None: return
+        if self.db is None:
+            return
 
         logger.info("LIFECYCLE: Enforcing database indexes...")
         # Import inside to avoid circular deps
-        from app.modules.identity.infrastructure.repository import UserRepository, UserProjectMapRepository, SettingsRepository
-        from app.modules.project.infrastructure.repository import ProjectRepository, ClientRepository, BudgetRepository, TimelineRepository, ScheduleRepository
-        from app.modules.project.infrastructure.read_models import ProjectStatsRepository
-        from app.modules.contracting.infrastructure.repository import WorkOrderRepository, VendorRepository, LedgerRepository
-        from app.modules.financial.infrastructure.repository import PCRepository, CodeMasterRepository, FinancialStateRepository, FundAllocationRepository, CashTransactionRepository
-        from app.modules.site_operations.infrastructure.repository import DPRRepository, WorkerLogRepository, AttendanceRepository
-        from app.modules.shared.infrastructure.notification_repo import NotificationRepository
-        from app.modules.shared.infrastructure.audit_repo import AuditRepository
+        from app.modules.contracting.infrastructure.repository import (
+            LedgerRepository,
+            VendorRepository,
+            WorkOrderRepository,
+        )
+        from app.modules.financial.infrastructure.repository import (
+            CashTransactionRepository,
+            CodeMasterRepository,
+            FinancialStateRepository,
+            FundAllocationRepository,
+            PCRepository,
+        )
+        from app.modules.identity.infrastructure.repository import (
+            SettingsRepository,
+            UserProjectMapRepository,
+            UserRepository,
+        )
+        from app.modules.project.infrastructure.read_models import (
+            ProjectStatsRepository,
+        )
+        from app.modules.project.infrastructure.repository import (
+            BudgetRepository,
+            ClientRepository,
+            ProjectRepository,
+            ScheduleRepository,
+            TimelineRepository,
+        )
         from app.modules.shared.infrastructure.alert_repo import AlertRepository
+        from app.modules.shared.infrastructure.audit_repo import AuditRepository
+        from app.modules.shared.infrastructure.notification_repo import (
+            NotificationRepository,
+        )
         from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
         from app.modules.shared.infrastructure.snapshot_repo import SnapshotRepository
-        
+        from app.modules.site_operations.infrastructure.repository import (
+            AttendanceRepository,
+            DPRRepository,
+            WorkerLogRepository,
+        )
+
         repos = [
-            UserRepository(self.db), UserProjectMapRepository(self.db), SettingsRepository(self.db),
-            ProjectRepository(self.db), ClientRepository(self.db), BudgetRepository(self.db), TimelineRepository(self.db), ScheduleRepository(self.db),
+            UserRepository(self.db),
+            UserProjectMapRepository(self.db),
+            SettingsRepository(self.db),
+            ProjectRepository(self.db),
+            ClientRepository(self.db),
+            BudgetRepository(self.db),
+            TimelineRepository(self.db),
+            ScheduleRepository(self.db),
             ProjectStatsRepository(self.db),
-            WorkOrderRepository(self.db), VendorRepository(self.db), LedgerRepository(self.db),
-            PCRepository(self.db), CodeMasterRepository(self.db), FinancialStateRepository(self.db),
-            FundAllocationRepository(self.db), CashTransactionRepository(self.db),
-            DPRRepository(self.db), WorkerLogRepository(self.db), AttendanceRepository(self.db),
-            NotificationRepository(self.db), AuditRepository(self.db), AlertRepository(self.db),
-            SequenceRepository(self.db), SnapshotRepository(self.db)
+            WorkOrderRepository(self.db),
+            VendorRepository(self.db),
+            LedgerRepository(self.db),
+            PCRepository(self.db),
+            CodeMasterRepository(self.db),
+            FinancialStateRepository(self.db),
+            FundAllocationRepository(self.db),
+            CashTransactionRepository(self.db),
+            DPRRepository(self.db),
+            WorkerLogRepository(self.db),
+            AttendanceRepository(self.db),
+            NotificationRepository(self.db),
+            AuditRepository(self.db),
+            AlertRepository(self.db),
+            SequenceRepository(self.db),
+            SnapshotRepository(self.db),
         ]
-        
+
         for repo in repos:
             try:
                 await repo.ensure_indexes()
             except Exception as e:
                 # Handle IndexKeySpecsConflict: Drop and recreate if specs differ (Fixed CR-21)
-                if "IndexKeySpecsConflict" in str(e) or "indexKeySpecsConflict" in str(e):
-                    logger.warning(f"INDEX_CONFLICT: {repo.__class__.__name__} specs mismatch. Dropping and recreating...")
+                if "IndexKeySpecsConflict" in str(e) or "indexKeySpecsConflict" in str(
+                    e
+                ):
+                    logger.warning(
+                        f"INDEX_CONFLICT: {repo.__class__.__name__} specs mismatch. Dropping and recreating..."
+                    )
                     # Recover index names from the error or just try to drop common ones if we had better error parsing
                     # For now, let's just log and try a more aggressive approach for DPRRepository
                     if repo.__class__.__name__ == "DPRRepository":
                         try:
                             await repo.collection.drop_index("project_id_1_dpr_date_1")
                             await repo.ensure_indexes()
-                            logger.info(f"INDEX_FIXED: {repo.__class__.__name__} index synchronized.")
+                            logger.info(
+                                f"INDEX_FIXED: {repo.__class__.__name__} index synchronized."
+                            )
                         except Exception as drop_err:
                             logger.error(f"INDEX_RECOVERY_FAIL: {drop_err}")
                 else:
-                    logger.error(f"INDEX_OVERSIGHT: Failed for {repo.__class__.__name__}: {e}")
+                    logger.error(
+                        f"INDEX_OVERSIGHT: Failed for {repo.__class__.__name__}: {e}"
+                    )
 
     def close(self):
         """Graceful termination (Point 118)."""
@@ -85,11 +140,15 @@ class DatabaseManager:
     def get_db(self) -> AsyncIOMotorDatabase:
         """Access the database instance (Point 7)."""
         if self.db is None:
-            raise RuntimeError("DATABASE_DOMAIN_ERROR: Engine not initialized. Access blocked.")
+            raise RuntimeError(
+                "DATABASE_DOMAIN_ERROR: Engine not initialized. Access blocked."
+            )
         return self.db
+
 
 # Global singleton for app lifecycle management (Point 7)
 db_manager = DatabaseManager()
+
 
 async def get_db() -> AsyncIOMotorDatabase:
     """Dependency injection provider for database."""

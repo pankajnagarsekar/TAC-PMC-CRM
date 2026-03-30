@@ -1,24 +1,34 @@
-from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
-from typing import Optional
 import logging
+from typing import Optional
 
-from app.modules.project.infrastructure.repository import ProjectRepository, BudgetRepository
+from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
+
 from app.modules.contracting.infrastructure.repository import WorkOrderRepository
-from app.modules.financial.infrastructure.repository import PCRepository, CashTransactionRepository, FundAllocationRepository
+from app.modules.financial.infrastructure.repository import (
+    CashTransactionRepository,
+    FundAllocationRepository,
+    PCRepository,
+)
+from app.modules.project.infrastructure.repository import (
+    BudgetRepository,
+    ProjectRepository,
+)
 from app.modules.site_operations.infrastructure.repository import DPRRepository
 
 logger = logging.getLogger(__name__)
+
 
 class UnitOfWork:
     """
     Atomic transaction manager for cross-repository updates (Point 75, 91, 115).
     Ensures that multi-step financial flows either commit fully or rollback entirely.
     """
+
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.client = db.client
         self.session: Optional[AsyncIOMotorClientSession] = None
-        
+
         # Repositories (Lazy loaded with session)
         self.projects = ProjectRepository(db)
         self.work_orders = WorkOrderRepository(db)
@@ -43,7 +53,7 @@ class UnitOfWork:
             await self.session.abort_transaction()
         else:
             await self.session.commit_transaction()
-        
+
         await self.session.end_session()
 
     async def commit(self):

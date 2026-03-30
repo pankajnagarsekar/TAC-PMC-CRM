@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from typing import Optional, List
 from decimal import Decimal
+from typing import Optional
+
 from pydantic import BaseModel, Field
+
 from app.modules.shared.domain.types import PyObjectId
+
 
 # PROJECT DTOs
 class Project(BaseModel):
@@ -30,6 +33,7 @@ class Project(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class ProjectCreate(BaseModel):
     project_name: str
     client_id: Optional[str] = None
@@ -44,6 +48,7 @@ class ProjectCreate(BaseModel):
     completion_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
+
 
 class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
@@ -60,6 +65,7 @@ class ProjectUpdate(BaseModel):
     threshold_petty: Optional[Decimal] = Field(None, ge=0)
     threshold_ovh: Optional[Decimal] = Field(None, ge=0)
 
+
 # MAPPING DTOs
 class UserProjectMap(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -69,9 +75,11 @@ class UserProjectMap(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class UserProjectMapCreate(BaseModel):
     user_id: str
     project_id: str
+
 
 # BUDGET DTOs
 class ProjectBudget(BaseModel):
@@ -88,15 +96,18 @@ class ProjectBudget(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class ProjectBudgetCreate(BaseModel):
     project_id: str
     category_id: str
     original_budget: Decimal = Field(..., ge=0)
     description: Optional[str] = None
 
+
 class ProjectBudgetUpdate(BaseModel):
     original_budget: Optional[Decimal] = Field(None, ge=0)
     version: int
+
 
 # CLIENT DTOs
 class Client(BaseModel):
@@ -110,8 +121,9 @@ class Client(BaseModel):
     active_status: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
 
 class ClientCreate(BaseModel):
     name: str
@@ -119,6 +131,7 @@ class ClientCreate(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
+
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None

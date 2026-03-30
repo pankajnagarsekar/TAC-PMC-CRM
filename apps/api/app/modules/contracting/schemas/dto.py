@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Literal
 from decimal import Decimal
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
+
 from app.modules.shared.domain.types import PyObjectId
+
 
 # WORK ORDER DTOs
 class WOLineItem(BaseModel):
@@ -11,6 +14,7 @@ class WOLineItem(BaseModel):
     qty: Decimal = Field(Decimal("0.0"), ge=0)
     rate: Decimal = Field(Decimal("0.0"), ge=0)
     total: Decimal = Field(Decimal("0.0"), ge=0)
+
 
 class WorkOrder(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -37,6 +41,7 @@ class WorkOrder(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class WorkOrderCreate(BaseModel):
     project_id: str
     category_id: str
@@ -46,6 +51,7 @@ class WorkOrderCreate(BaseModel):
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     idempotency_key: Optional[str] = None
 
+
 class WorkOrderUpdate(BaseModel):
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
@@ -53,6 +59,7 @@ class WorkOrderUpdate(BaseModel):
     discount: Optional[Decimal] = Field(None, ge=0)
     retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)
     expected_version: int
+
 
 # VENDOR DTOs
 class Vendor(BaseModel):
@@ -70,6 +77,7 @@ class Vendor(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class VendorCreate(BaseModel):
     name: str
     gstin: Optional[str] = None
@@ -77,6 +85,7 @@ class VendorCreate(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
+
 
 class VendorUpdate(BaseModel):
     name: Optional[str] = None
@@ -86,6 +95,7 @@ class VendorUpdate(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     active_status: Optional[bool] = None
+
 
 # LEDGER DTOs (Part of Contracting Domain)
 class VendorLedgerEntry(BaseModel):

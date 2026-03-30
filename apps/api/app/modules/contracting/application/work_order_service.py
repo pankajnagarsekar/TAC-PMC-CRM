@@ -1,28 +1,41 @@
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, Any, List, Optional
-from bson import ObjectId, Decimal128
+from typing import Any, Dict, List, Optional
 
-from ..schemas.dto import WorkOrder, WorkOrderCreate, WorkOrderUpdate
-from ..infrastructure.repository import WorkOrderRepository, VendorRepository, LedgerRepository
-# Note: SequenceRepository is now in Shared Kernel
-from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
-# These depend on other contexts yet to be migrated
-from app.modules.project.infrastructure.repository import ProjectRepository, BudgetRepository
-from app.core.utils import serialize_doc
+from bson import Decimal128, ObjectId
+
 from app.core.uow import UnitOfWork
-from ..domain.models import WorkOrder as WorkOrderModel
-from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from app.core.utils import serialize_doc
+
+# These depend on other contexts yet to be migrated
+from app.modules.project.infrastructure.repository import (
+    BudgetRepository,
+    ProjectRepository,
+)
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
+# Note: SequenceRepository is now in Shared Kernel
+from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
+
+from ..domain.models import WorkOrder as WorkOrderModel
+from ..infrastructure.repository import (
+    LedgerRepository,
+    VendorRepository,
+    WorkOrderRepository,
+)
+from ..schemas.dto import WorkOrder, WorkOrderCreate, WorkOrderUpdate
+
 logger = logging.getLogger(__name__)
+
 
 class WorkOrderService:
     """
     Sovereign Work Order Orchestrator for Contracting Context.
     Enforces atomic transactions and cascading budget recalculations via UnitOfWork.
     """
+
     def __init__(self, db, audit_service, financial_service, permission_checker):
         self.db = db
         self.audit_service = audit_service
@@ -34,24 +47,44 @@ class WorkOrderService:
         self.project_repo = ProjectRepository(db)
         self.seq_repo = SequenceRepository(db)
 
-    async def create_work_order(self, user: dict, project_id: str, wo_data: WorkOrderCreate) -> Dict[str, Any]:
+    async def create_work_order(
+        self, user: dict, project_id: str, wo_data: WorkOrderCreate
+    ) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
         idempotency_key = wo_data.idempotency_key
-        
-        await self.permission_checker.check_project_access(user, project_id, require_write=True)
-        await self.financial_service.validate_financial_document("WORK_ORDER", wo_data.dict(), project_id)
-        
+
+        await self.permission_checker.check_project_access(
+            user, project_id, require_write=True
+        )
+        await self.financial_service.validate_financial_document(
+            "WORK_ORDER", wo_data.dict(), project_id
+        )
+
         async with UnitOfWork(self.db) as uow:
             if idempotency_key:
                 from app.core.idempotency import get_recorded_operation
-                recorded = await get_recorded_operation(self.db, uow.session, idempotency_key)
-                if recorded: return recorded
 
-            budget = await uow.budgets.get_by_project_and_category(project_id, wo_data.category_id, session=uow.session)
-            if not budget: raise ValidationError("Category budget not initialized.")
+                recorded = await get_recorded_operation(
+                    self.db, uow.session, idempotency_key
+                )
+                if recorded:
+                    return recorded
 
-            vendor = await uow.db.vendors.find_one({"_id": ObjectId(wo_data.vendor_id), "organisation_id": organisation_id}, session=uow.session)
-            if not vendor: raise ValidationError("Vendor not found.")
+            budget = await uow.budgets.get_by_project_and_category(
+                project_id, wo_data.category_id, session=uow.session
+            )
+            if not budget:
+                raise ValidationError("Category budget not initialized.")
+
+            vendor = await uow.db.vendors.find_one(
+                {
+                    "_id": ObjectId(wo_data.vendor_id),
+                    "organisation_id": organisation_id,
+                },
+                session=uow.session,
+            )
+            if not vendor:
+                raise ValidationError("Vendor not found.")
 
             # Sovereign Logic: Calculate Line Items
             items_data = [item.dict() for item in wo_data.line_items]
@@ -60,145 +93,272 @@ class WorkOrderService:
             for itm in line_result["items"]:
                 itm["total"] = FinancialEngine.to_d128(itm["total"])
                 line_items_processed.append(itm)
-            
+
             subtotal = line_result["subtotal"]
-            
-            project = await uow.projects.get_by_id(project_id, organisation_id=organisation_id, session=uow.session)
-            cgst_pct = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
-            sgst_pct = Decimal(str(project.get("project_sgst_percentage", "9.0"))) if project else Decimal("9.0")
-            
+
+            project = await uow.projects.get_by_id(
+                project_id, organisation_id=organisation_id, session=uow.session
+            )
+            cgst_pct = (
+                Decimal(str(project.get("project_cgst_percentage", "9.0")))
+                if project
+                else Decimal("9.0")
+            )
+            sgst_pct = (
+                Decimal(str(project.get("project_sgst_percentage", "9.0")))
+                if project
+                else Decimal("9.0")
+            )
+
             fin = FinancialEngine.calculate_wo_financials(
-                subtotal=subtotal, 
+                subtotal=subtotal,
                 retention_pct=Decimal(str(wo_data.retention_percent or 0)),
-                discount=Decimal(str(wo_data.discount or 0)), 
-                cgst_pct=cgst_pct, 
-                sgst_pct=sgst_pct
+                discount=Decimal(str(wo_data.discount or 0)),
+                cgst_pct=cgst_pct,
+                sgst_pct=sgst_pct,
             )
             grand_total = fin["grand_total"]
 
             # Sovereign Logic: Sequence Generation
-            next_seq = await self.seq_repo.get_next_sequence(f"wo_seq_{organisation_id}", session=uow.session)
+            next_seq = await self.seq_repo.get_next_sequence(
+                f"wo_seq_{organisation_id}", session=uow.session
+            )
             wo_ref = f"WO-{next_seq:04d}"
 
             wo_dict = wo_data.dict()
-            wo_dict.update({
-                "organisation_id": organisation_id, "project_id": project_id, "wo_ref": wo_ref,
-                "subtotal": to_d128(fin["subtotal"]), "discount": to_d128(fin["discount"]),
-                "total_before_tax": to_d128(fin["total_before_tax"]), "cgst": to_d128(fin["cgst"]),
-                "sgst": to_d128(fin["sgst"]), "grand_total": to_d128(fin["grand_total"]),
-                "retention_percent": to_d128(Decimal(str(wo_data.retention_percent or 0))),
-                "retention_amount": to_d128(fin["retention_amount"]), "total_payable": to_d128(fin["total_payable"]),
-                "actual_payable": to_d128(fin["actual_payable"]), "line_items": line_items_processed,
-                "status": "Draft", "version": 1, "created_at": datetime.now(timezone.utc), "updated_at": datetime.now(timezone.utc)
-            })
+            wo_dict.update(
+                {
+                    "organisation_id": organisation_id,
+                    "project_id": project_id,
+                    "wo_ref": wo_ref,
+                    "subtotal": to_d128(fin["subtotal"]),
+                    "discount": to_d128(fin["discount"]),
+                    "total_before_tax": to_d128(fin["total_before_tax"]),
+                    "cgst": to_d128(fin["cgst"]),
+                    "sgst": to_d128(fin["sgst"]),
+                    "grand_total": to_d128(fin["grand_total"]),
+                    "retention_percent": to_d128(
+                        Decimal(str(wo_data.retention_percent or 0))
+                    ),
+                    "retention_amount": to_d128(fin["retention_amount"]),
+                    "total_payable": to_d128(fin["total_payable"]),
+                    "actual_payable": to_d128(fin["actual_payable"]),
+                    "line_items": line_items_processed,
+                    "status": "Draft",
+                    "version": 1,
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            )
 
             new_wo = await uow.work_orders.create(wo_dict, session=uow.session)
 
-            await uow.budgets.update(budget["id"], {
-                "$inc": {"remaining_budget": to_d128(-grand_total), "committed_amount": to_d128(grand_total)}
-            }, session=uow.session)
+            await uow.budgets.update(
+                budget["id"],
+                {
+                    "$inc": {
+                        "remaining_budget": to_d128(-grand_total),
+                        "committed_amount": to_d128(grand_total),
+                    }
+                },
+                session=uow.session,
+            )
 
             if idempotency_key:
                 from app.core.idempotency import record_operation
-                await record_operation(self.db, uow.session, idempotency_key, "WORK_ORDER", response_payload=new_wo)
+
+                await record_operation(
+                    self.db,
+                    uow.session,
+                    idempotency_key,
+                    "WORK_ORDER",
+                    response_payload=new_wo,
+                )
 
             await self.audit_service.log_action(
-                organisation_id=organisation_id, module_name="WORK_ORDERS", entity_type="WORK_ORDER",
-                entity_id=new_wo["id"], action_type="CREATE", user_id=user["user_id"],
-                project_id=project_id, new_value=new_wo, session=uow.session
+                organisation_id=organisation_id,
+                module_name="WORK_ORDERS",
+                entity_type="WORK_ORDER",
+                entity_id=new_wo["id"],
+                action_type="CREATE",
+                user_id=user["user_id"],
+                project_id=project_id,
+                new_value=new_wo,
+                session=uow.session,
             )
 
-            await self.financial_service.recalculate_master_budget(project_id, session=uow.session)
+            await self.financial_service.recalculate_master_budget(
+                project_id, session=uow.session
+            )
             return new_wo
 
-    async def update_work_order(self, user: dict, wo_id: str, update_req: WorkOrderUpdate) -> Dict[str, Any]:
+    async def update_work_order(
+        self, user: dict, wo_id: str, update_req: WorkOrderUpdate
+    ) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
-        
+
         async with UnitOfWork(self.db) as uow:
-            old_wo = await uow.work_orders.get_by_id(wo_id, organisation_id=organisation_id, session=uow.session)
-            if not old_wo: raise NotFoundError("Work Order", wo_id)
-            
-            await self.permission_checker.check_write_access_with_role(user, old_wo["project_id"])
-            await self.financial_service.validate_financial_document("WORK_ORDER", update_req.dict(), old_wo["project_id"])
-            
+            old_wo = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=organisation_id, session=uow.session
+            )
+            if not old_wo:
+                raise NotFoundError("Work Order", wo_id)
+
+            await self.permission_checker.check_write_access_with_role(
+                user, old_wo["project_id"]
+            )
+            await self.financial_service.validate_financial_document(
+                "WORK_ORDER", update_req.dict(), old_wo["project_id"]
+            )
+
             wo_model = WorkOrderModel(old_wo)
 
-            linked_pcs = await uow.payments.list({"work_order_id": wo_id, "status": {"$ne": "Cancelled"}}, session=uow.session)
-            linked_pc_total = sum(FinancialEngine.to_decimal(pc.get("grand_total", 0)) for pc in linked_pcs)
+            linked_pcs = await uow.payments.list(
+                {"work_order_id": wo_id, "status": {"$ne": "Cancelled"}},
+                session=uow.session,
+            )
+            linked_pc_total = sum(
+                FinancialEngine.to_decimal(pc.get("grand_total", 0))
+                for pc in linked_pcs
+            )
 
-            line_items_data = update_req.line_items if update_req.line_items is not None else old_wo.get("line_items", [])
-            items_raw = [item if isinstance(item, dict) else item.dict() for item in (line_items_data if isinstance(line_items_data, list) else [])]
-            
+            line_items_data = (
+                update_req.line_items
+                if update_req.line_items is not None
+                else old_wo.get("line_items", [])
+            )
+            items_raw = [
+                item if isinstance(item, dict) else item.dict()
+                for item in (
+                    line_items_data if isinstance(line_items_data, list) else []
+                )
+            ]
+
             # Sovereign Logic: Calculate Line Items
             line_result = FinancialEngine.calculate_line_items(items_raw)
             line_items_processed = []
             for itm in line_result["items"]:
                 itm["total"] = FinancialEngine.to_d128(itm["total"])
                 line_items_processed.append(itm)
-            
+
             subtotal = line_result["subtotal"]
-            
-            project = await uow.projects.get_by_id(old_wo["project_id"], organisation_id=organisation_id, session=uow.session)
-            cgst_pct = Decimal(str(project.get("project_cgst_percentage", "9.0"))) if project else Decimal("9.0")
-            sgst_pct = Decimal(str(project.get("project_sgst_percentage", "9.0"))) if project else Decimal("9.0")
-            
-            retention_pct = Decimal(str(update_req.retention_percent if update_req.retention_percent is not None else old_wo.get("retention_percent", 0)))
-            discount_val = Decimal(str(update_req.discount if update_req.discount is not None else old_wo.get("discount", 0)))
+
+            project = await uow.projects.get_by_id(
+                old_wo["project_id"],
+                organisation_id=organisation_id,
+                session=uow.session,
+            )
+            cgst_pct = (
+                Decimal(str(project.get("project_cgst_percentage", "9.0")))
+                if project
+                else Decimal("9.0")
+            )
+            sgst_pct = (
+                Decimal(str(project.get("project_sgst_percentage", "9.0")))
+                if project
+                else Decimal("9.0")
+            )
+
+            retention_pct = Decimal(
+                str(
+                    update_req.retention_percent
+                    if update_req.retention_percent is not None
+                    else old_wo.get("retention_percent", 0)
+                )
+            )
+            discount_val = Decimal(
+                str(
+                    update_req.discount
+                    if update_req.discount is not None
+                    else old_wo.get("discount", 0)
+                )
+            )
 
             fin = FinancialEngine.calculate_wo_financials(
-                subtotal=subtotal, 
-                retention_pct=retention_pct, 
-                discount=discount_val, 
-                cgst_pct=cgst_pct, 
-                sgst_pct=sgst_pct
+                subtotal=subtotal,
+                retention_pct=retention_pct,
+                discount=discount_val,
+                cgst_pct=cgst_pct,
+                sgst_pct=sgst_pct,
             )
 
             # Domain Aggregate Invariant Check
             wo_model.validate_for_update(linked_pc_total, fin["grand_total"])
 
             update_dict = {
-                "subtotal": FinancialEngine.to_d128(fin["subtotal"]), 
+                "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
                 "discount": FinancialEngine.to_d128(fin["discount"]),
-                "total_before_tax": FinancialEngine.to_d128(fin["total_before_tax"]), 
+                "total_before_tax": FinancialEngine.to_d128(fin["total_before_tax"]),
                 "cgst": FinancialEngine.to_d128(fin["cgst"]),
-                "sgst": FinancialEngine.to_d128(fin["sgst"]), 
+                "sgst": FinancialEngine.to_d128(fin["sgst"]),
                 "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
-                "retention_percent": FinancialEngine.to_d128(retention_pct), 
+                "retention_percent": FinancialEngine.to_d128(retention_pct),
                 "retention_amount": FinancialEngine.to_d128(fin["retention_amount"]),
-                "total_payable": FinancialEngine.to_d128(fin["total_payable"]), 
+                "total_payable": FinancialEngine.to_d128(fin["total_payable"]),
                 "actual_payable": FinancialEngine.to_d128(fin["actual_payable"]),
-                "line_items": line_items_processed, "updated_at": datetime.now(timezone.utc),
-                "version": update_req.expected_version 
+                "line_items": line_items_processed,
+                "updated_at": datetime.now(timezone.utc),
+                "version": update_req.expected_version,
             }
 
-            result = await uow.work_orders.update(wo_id, update_dict, session=uow.session)
+            result = await uow.work_orders.update(
+                wo_id, update_dict, session=uow.session
+            )
             if not result:
-                raise ValidationError("CONFLICT: Resource modified or version mismatch.")
+                raise ValidationError(
+                    "CONFLICT: Resource modified or version mismatch."
+                )
 
             await self.audit_service.log_action(
-                organisation_id=organisation_id, module_name="WORK_ORDERS", entity_type="WORK_ORDER",
-                entity_id=wo_id, action_type="UPDATE", user_id=user["user_id"],
-                project_id=old_wo["project_id"], old_value=old_wo, new_value=result, session=uow.session
+                organisation_id=organisation_id,
+                module_name="WORK_ORDERS",
+                entity_type="WORK_ORDER",
+                entity_id=wo_id,
+                action_type="UPDATE",
+                user_id=user["user_id"],
+                project_id=old_wo["project_id"],
+                old_value=old_wo,
+                new_value=result,
+                session=uow.session,
             )
 
-            agg = await uow.work_orders.aggregate([
-                {"$match": {"project_id": old_wo["project_id"], "category_id": old_wo.get("category_id"), "status": {"$ne": "Cancelled"}}},
-                {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
-            ], session=uow.session).to_list(1)
+            agg = await uow.work_orders.aggregate(
+                [
+                    {
+                        "$match": {
+                            "project_id": old_wo["project_id"],
+                            "category_id": old_wo.get("category_id"),
+                            "status": {"$ne": "Cancelled"},
+                        }
+                    },
+                    {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
+                ],
+                session=uow.session,
+            ).to_list(1)
             committed_sum = agg[0]["total"] if agg else Decimal128("0.0")
 
             await uow.budgets.update_one(
-                {"project_id": old_wo["project_id"], "category_id": old_wo.get("category_id")},
-                {"$set": {"committed_amount": committed_sum}}, session=uow.session
+                {
+                    "project_id": old_wo["project_id"],
+                    "category_id": old_wo.get("category_id"),
+                },
+                {"$set": {"committed_amount": committed_sum}},
+                session=uow.session,
             )
 
-            await self.financial_service.recalculate_master_budget(old_wo["project_id"], session=uow.session)
+            await self.financial_service.recalculate_master_budget(
+                old_wo["project_id"], session=uow.session
+            )
             return result
 
-    async def list_work_orders(self, user: dict, project_id: Optional[str], limit: int, cursor: Optional[str]) -> Dict[str, Any]:
+    async def list_work_orders(
+        self, user: dict, project_id: Optional[str], limit: int, cursor: Optional[str]
+    ) -> Dict[str, Any]:
         query = {"organisation_id": user["organisation_id"]}
-        if project_id: query["project_id"] = project_id
-        if cursor: query["created_at"] = {"$lt": datetime.fromisoformat(cursor)}
+        if project_id:
+            query["project_id"] = project_id
+        if cursor:
+            query["created_at"] = {"$lt": datetime.fromisoformat(cursor)}
 
         docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
         next_cursor = docs[-1]["created_at"].isoformat() if len(docs) == limit else None

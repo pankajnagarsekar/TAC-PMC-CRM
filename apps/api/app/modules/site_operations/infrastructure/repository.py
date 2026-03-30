@@ -1,7 +1,11 @@
-from typing import Optional, Dict, Any, List
+from typing import Any
+
 from pymongo import ASCENDING
+
 from app.modules.shared.infrastructure.base_repository import BaseRepository
-from ..schemas.dto import WorkersDailyLog, SiteOverhead, DPR, VoiceLog
+
+from ..schemas.dto import DPR, SiteOverhead, VoiceLog, WorkersDailyLog
+
 
 class WorkerLogRepository(BaseRepository[WorkersDailyLog]):
     def __init__(self, db):
@@ -11,13 +15,17 @@ class WorkerLogRepository(BaseRepository[WorkersDailyLog]):
         await super().ensure_indexes()
         await self.collection.create_index([("project_id", ASCENDING)])
 
+
 class SiteOverheadRepository(BaseRepository[SiteOverhead]):
     def __init__(self, db):
         super().__init__(db, "site_overheads", SiteOverhead)
 
     async def ensure_indexes(self):
         await super().ensure_indexes()
-        await self.collection.create_index([("project_id", ASCENDING), ("category_id", ASCENDING)])
+        await self.collection.create_index(
+            [("project_id", ASCENDING), ("category_id", ASCENDING)]
+        )
+
 
 class DPRRepository(BaseRepository[DPR]):
     def __init__(self, db):
@@ -26,8 +34,11 @@ class DPRRepository(BaseRepository[DPR]):
     async def ensure_indexes(self):
         await super().ensure_indexes()
         # Ensure project+date uniqueness for DPRs
-        await self.collection.create_index([("project_id", ASCENDING), ("dpr_date", ASCENDING)], unique=True)
+        await self.collection.create_index(
+            [("project_id", ASCENDING), ("dpr_date", ASCENDING)], unique=True
+        )
         await self.collection.create_index([("status", ASCENDING)])
+
 
 class AttendanceRepository(BaseRepository[Any]):
     def __init__(self, db):
@@ -35,7 +46,10 @@ class AttendanceRepository(BaseRepository[Any]):
 
     async def ensure_indexes(self):
         await super().ensure_indexes()
-        await self.collection.create_index([("project_id", ASCENDING), ("date", ASCENDING)])
+        await self.collection.create_index(
+            [("project_id", ASCENDING), ("date", ASCENDING)]
+        )
+
 
 class VoiceLogRepository(BaseRepository[VoiceLog]):
     def __init__(self, db):

@@ -1,6 +1,8 @@
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from ..infrastructure.audit_repo import AuditRepository
 
 # ARCHITECTURAL GUARD: Financial entity types that CANNOT be deleted
@@ -8,8 +10,9 @@ FINANCIAL_ENTITY_TYPES = [
     "WORK_ORDER",
     "PAYMENT_CERTIFICATE",
     "PAYMENT",
-    "RETENTION_RELEASE"
+    "RETENTION_RELEASE",
 ]
+
 
 class AuditService:
     """Service for immutable audit logging"""
@@ -23,7 +26,10 @@ class AuditService:
         if action_type == "DELETE" and entity_type in FINANCIAL_ENTITY_TYPES:
             # We raise a generic Exception or we could import the DomainException here
             from ..domain.exceptions import FinancialIntegrityError
-            raise FinancialIntegrityError(f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type}. Financial entities are immutable.")
+
+            raise FinancialIntegrityError(
+                f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type}. Financial entities are immutable."
+            )
 
     async def log_action(
         self,
@@ -36,7 +42,7 @@ class AuditService:
         project_id: Optional[str] = None,
         old_value: Optional[Dict[str, Any]] = None,
         new_value: Optional[Dict[str, Any]] = None,
-        session=None
+        session=None,
     ):
         """Log an action to audit trail (INSERT ONLY)."""
         self.enforce_financial_delete_guard(entity_type, action_type)
@@ -52,7 +58,7 @@ class AuditService:
                 "old_value_json": old_value,
                 "new_value_json": new_value,
                 "user_id": user_id,
-                "timestamp": datetime.now(timezone.utc)
+                "timestamp": datetime.now(timezone.utc),
             }
 
             await self.audit_repo.create(audit_entry, session=session)
@@ -72,25 +78,33 @@ class AuditService:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: int = 100,
-        cursor: Optional[datetime] = None
+        cursor: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve audit logs (READ ONLY)"""
         query = {"organisation_id": organisation_id}
 
-        if entity_type: query["entity_type"] = entity_type
-        if entity_id: query["entity_id"] = entity_id
-        if project_id: query["project_id"] = project_id
-        if action_type: query["action_type"] = action_type
-        if user_id: query["user_id"] = user_id
-        
+        if entity_type:
+            query["entity_type"] = entity_type
+        if entity_id:
+            query["entity_id"] = entity_id
+        if project_id:
+            query["project_id"] = project_id
+        if action_type:
+            query["action_type"] = action_type
+        if user_id:
+            query["user_id"] = user_id
+
         if start_date or end_date:
             date_filter = {}
-            if start_date: date_filter["$gte"] = start_date
-            if end_date: date_filter["$lte"] = end_date
+            if start_date:
+                date_filter["$gte"] = start_date
+            if end_date:
+                date_filter["$lte"] = end_date
             query["timestamp"] = date_filter
-            
+
         if cursor:
-            if "timestamp" not in query: query["timestamp"] = {}
+            if "timestamp" not in query:
+                query["timestamp"] = {}
             query["timestamp"]["$lt"] = cursor
 
         return await self.audit_repo.list(query, sort=[("timestamp", -1)], limit=limit)

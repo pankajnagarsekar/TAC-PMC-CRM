@@ -1,12 +1,15 @@
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 from app.modules.shared.domain.financial_engine import FinancialEngine
+
 
 class FinancialState:
     """
     Aggregate representing the financial health of a project/category.
     Encapsulates budget, commitments, and certified values.
     """
+
     def __init__(self, data: Dict[str, Any]):
         self.project_id = data.get("project_id")
         self.category_id = data.get("category_id")
@@ -35,5 +38,5 @@ class FinancialState:
             "committed_value": self.committed_value,
             "certified_value": self.certified_value,
             "balance_budget_remaining": self.balance_remaining,
-            "over_commit_flag": self.is_over_committed
+            "over_commit_flag": self.is_over_committed,
         }

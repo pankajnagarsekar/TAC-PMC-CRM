@@ -1,7 +1,10 @@
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from ..infrastructure.repository import TimelineRepository
+
 
 class TimelineService:
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -16,7 +19,7 @@ class TimelineService:
         message: str,
         data: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
-        session=None
+        session=None,
     ) -> Dict[str, Any]:
         """Log an event to the project timeline."""
         event_doc = {
@@ -26,15 +29,14 @@ class TimelineService:
             "message": message,
             "data": data,
             "user_id": user_id or "SYSTEM",
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(timezone.utc),
         }
         return await self.timeline_repo.create(event_doc, session=session)
 
     async def list_project_timeline(
-        self,
-        organisation_id: str,
-        project_id: str,
-        limit: int = 100
+        self, organisation_id: str, project_id: str, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """List events for a specific project."""
-        return await self.timeline_repo.list_project_timeline(project_id, organisation_id, limit)
+        return await self.timeline_repo.list_project_timeline(
+            project_id, organisation_id, limit
+        )

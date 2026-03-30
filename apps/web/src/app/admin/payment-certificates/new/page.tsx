@@ -11,7 +11,7 @@ import {
   FileText,
 } from "lucide-react";
 import Link from "next/link";
-import {
+import type {
   ColDef,
   ValueSetterParams,
   CellValueChangedEvent,
@@ -188,10 +188,10 @@ export default function NewPaymentCertificatePage() {
       headerName: "Sr No",
       width: 80,
       editable: false,
-      valueGetter: (params) =>
-        params.node && params.node.rowIndex !== null
-          ? params.node.rowIndex + 1
-          : "",
+      valueGetter: (params) => {
+        const rowIndex = params.node?.rowIndex;
+        return (rowIndex !== undefined && rowIndex !== null) ? rowIndex + 1 : "";
+      },
     },
     {
       field: "scope_of_work",
@@ -245,8 +245,10 @@ export default function NewPaymentCertificatePage() {
       cellRenderer: (params: ICellRendererParams<PCLineItem>) => (
         <button
           onClick={() => {
+            const rowIndex = params.node?.rowIndex;
+            if (rowIndex === undefined || rowIndex === null) return;
             const updated = [...lineItems];
-            updated.splice(params.node!.rowIndex!, 1);
+            updated.splice(rowIndex, 1);
             setLineItems(updated);
           }}
           className="admin-only text-red-500 hover:text-red-400 p-1"

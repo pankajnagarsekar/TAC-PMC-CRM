@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Literal, TypeVar, Generic
+from typing import Any, Dict, Generic, Literal, Optional, TypeVar
+
 from pydantic import BaseModel, Field
+
 from .types import PyObjectId
+
 
 class AuditLog(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -17,6 +20,7 @@ class AuditLog(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
 
 class Notification(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -39,6 +43,7 @@ class Notification(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class NotificationCreate(BaseModel):
     recipient_role: Optional[str] = None
     recipient_user_id: Optional[str] = None
@@ -51,11 +56,14 @@ class NotificationCreate(BaseModel):
     project_id: Optional[str] = None
     project_name: Optional[str] = None
 
+
 class Alert(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: str
     project_id: Optional[str] = None
-    alert_type: str # e.g., "ZOMBIE_RECORD", "FINANCIAL_DIVERGENCE", "INTEGRITY_FAILURE"
+    alert_type: (
+        str  # e.g., "ZOMBIE_RECORD", "FINANCIAL_DIVERGENCE", "INTEGRITY_FAILURE"
+    )
     severity: Literal["low", "medium", "high", "critical"]
     message: str
     data: Optional[Dict[str, Any]] = None
@@ -66,6 +74,7 @@ class Alert(BaseModel):
     version: int = 1
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
 
 class Snapshot(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -84,7 +93,9 @@ class Snapshot(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 T = TypeVar("T")
+
 
 class GenericResponse(BaseModel, Generic[T]):
     success: bool = True

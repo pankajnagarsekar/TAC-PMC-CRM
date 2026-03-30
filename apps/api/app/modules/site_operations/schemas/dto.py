@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Literal
 from decimal import Decimal
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
+
 from app.modules.shared.domain.types import PyObjectId
+
 
 # WORKER LOG DTOs
 class WorkerEntry(BaseModel):
@@ -12,6 +15,7 @@ class WorkerEntry(BaseModel):
     rate_per_hour: Decimal = Field(Decimal("0.0"), ge=0)
     remarks: Optional[str] = None
 
+
 class VendorWorkerEntry(BaseModel):
     vendor_id: Optional[str] = None
     vendor_name: str = ""
@@ -19,6 +23,7 @@ class VendorWorkerEntry(BaseModel):
     skill_type: str = ""
     rate_per_worker: Decimal = Field(Decimal("0.0"), ge=0)
     remarks: Optional[str] = None
+
 
 class WorkersDailyLog(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -40,6 +45,7 @@ class WorkersDailyLog(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class WorkersDailyLogCreate(BaseModel):
     project_id: str
     date: str
@@ -50,6 +56,7 @@ class WorkersDailyLogCreate(BaseModel):
     site_conditions: Optional[str] = None
     remarks: Optional[str] = None
 
+
 class WorkersDailyLogUpdate(BaseModel):
     entries: Optional[List[VendorWorkerEntry]] = None
     workers: Optional[List[WorkerEntry]] = None
@@ -57,6 +64,7 @@ class WorkersDailyLogUpdate(BaseModel):
     site_conditions: Optional[str] = None
     remarks: Optional[str] = None
     status: Optional[str] = None
+
 
 # OVERHEAD DTOs
 class SiteOverhead(BaseModel):
@@ -70,16 +78,19 @@ class SiteOverhead(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class SiteOverheadCreate(BaseModel):
     project_id: str
     amount: Decimal = Field(..., ge=0)
     purpose: str
+
 
 class SiteOverheadUpdate(BaseModel):
     amount: Optional[Decimal] = Field(None, ge=0)
     purpose: Optional[str] = None
     description: Optional[str] = None
     version: int
+
 
 # VOICE LOG DTOs
 class VoiceLog(BaseModel):
@@ -92,6 +103,7 @@ class VoiceLog(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 # DPR DTOs
 class DPRImageDetail(BaseModel):
     image_id: str
@@ -103,13 +115,16 @@ class DPRImageDetail(BaseModel):
     uploaded_by: str
     uploaded_at: datetime
 
+
 class DPRImage(BaseModel):
     image_data: str = Field(..., max_length=13107200)  # 10 MB in base64
     caption: Optional[str] = Field(None, max_length=500)
     activity_code: Optional[str] = None
 
+
 class UpdateImageCaptionRequest(BaseModel):
     caption: str
+
 
 class DPR(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")

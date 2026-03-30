@@ -1,16 +1,20 @@
 import asyncio
 import logging
 import time
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from app.core.consistency import ConsistencyGuardian
 
 logger = logging.getLogger(__name__)
+
 
 class BackgroundGuardian:
     """
     Sovereign Maintenance Controller (Point 103, 118, 122).
     Executes periodic reconciliation and cleanup to ensure long-term survivability.
     """
+
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.guardian = ConsistencyGuardian(db)
@@ -39,7 +43,9 @@ class BackgroundGuardian:
             try:
                 # 1. Purge request nonces > 24h (Point 102)
                 yesterday = time.time() - (24 * 3600)
-                res = await self.db.request_nonces.delete_many({"used_at": {"$lt": yesterday}})
+                res = await self.db.request_nonces.delete_many(
+                    {"used_at": {"$lt": yesterday}}
+                )
                 if res.deleted_count > 0:
                     logger.info(f"GUARDIAN: Purged {res.deleted_count} expired nonces.")
 
@@ -47,13 +53,15 @@ class BackgroundGuardian:
                 # Fixed CR-17: AlertService is triggered internally by find_zombies()
                 zombies = await self.guardian.find_zombies()
                 if zombies and len(zombies) > 0:
-                    logger.warning(f"INTEGRITY_ALERT: Detected {len(zombies)} zombie records. Alerts have been raised.")
+                    logger.warning(
+                        f"INTEGRITY_ALERT: Detected {len(zombies)} zombie records. Alerts have been raised."
+                    )
 
                 # 3. Scheduled Reconciliation (Point 61)
                 # This could be expensive, so we run it incrementally or per project
                 # For now, just a heart-beat check
-                
-                await asyncio.sleep(3600) # Run every hour
+
+                await asyncio.sleep(3600)  # Run every hour
             except Exception as e:
                 logger.error(f"GUARDIAN_LOOP_FAULT: {e}")
-                await asyncio.sleep(60) # Back off on error
+                await asyncio.sleep(60)  # Back off on error

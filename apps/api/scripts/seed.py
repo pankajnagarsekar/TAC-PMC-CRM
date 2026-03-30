@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # Seed script for TAC-PMC database
 
-import os
 import asyncio
+import os
 from datetime import datetime, timezone
-from motor.motor_asyncio import AsyncIOMotorClient
-from app.services.auth_service import AuthService
+
 from bson import Decimal128
+from motor.motor_asyncio import AsyncIOMotorClient
+
+from app.services.auth_service import AuthService
 
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = "tac_pmc_crm"
+
 
 async def seed():
     client = AsyncIOMotorClient(MONGO_URL)
@@ -23,7 +26,9 @@ async def seed():
         print(f"Organisation '{org_name}' - skipped")
         org_id = str(existing_org["_id"])
     else:
-        result = await db.organisations.insert_one({"name": org_name, "created_at": datetime.now(timezone.utc)})
+        result = await db.organisations.insert_one(
+            {"name": org_name, "created_at": datetime.now(timezone.utc)}
+        )
         org_id = str(result.inserted_id)
         print(f"Organisation '{org_name}' - inserted")
 
@@ -46,6 +51,7 @@ async def seed():
 
     client.close()
     print("Seed complete.")
+
 
 if __name__ == "__main__":
     asyncio.run(seed())

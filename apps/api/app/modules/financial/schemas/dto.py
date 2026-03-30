@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Literal
 from decimal import Decimal
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
+
 from app.modules.shared.domain.types import PyObjectId
+
 
 # CODE MASTER DTOs
 class CodeMaster(BaseModel):
@@ -19,6 +22,7 @@ class CodeMaster(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class CodeMasterCreate(BaseModel):
     code_short: str = ""
     code_description: str = ""
@@ -26,10 +30,12 @@ class CodeMasterCreate(BaseModel):
     code: Optional[str] = None
     budget_type: Optional[Literal["commitment", "fund_transfer"]] = "commitment"
 
+
 class CodeMasterUpdate(BaseModel):
     code_short: Optional[str] = None
     code_description: Optional[str] = None
     active_status: Optional[bool] = None
+
 
 # PAYMENT CERTIFICATE DTOs
 class PCLineItem(BaseModel):
@@ -39,6 +45,7 @@ class PCLineItem(BaseModel):
     qty: Decimal = Field(Decimal("0.0"), ge=0)
     unit: str = ""
     total: Decimal = Field(Decimal("0.0"), ge=0)
+
 
 class PaymentCertificate(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -64,6 +71,7 @@ class PaymentCertificate(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class PaymentCertificateCreate(BaseModel):
     project_id: str
     work_order_id: Optional[str] = None
@@ -73,6 +81,7 @@ class PaymentCertificateCreate(BaseModel):
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     fund_request: bool = False
     idempotency_key: Optional[str] = None
+
 
 # DERIVED STATE DTOs
 class DerivedFinancialState(BaseModel):
@@ -92,6 +101,7 @@ class DerivedFinancialState(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 # FUND ALLOCATION DTOs
 class FundAllocation(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -109,11 +119,13 @@ class FundAllocation(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class FundAllocationCreate(BaseModel):
     project_id: str
     category_id: str
     amount: Decimal = Field(..., ge=0)
     description: Optional[str] = None
+
 
 # CASH TRANSACTION DTOs
 class CashTransaction(BaseModel):
@@ -130,13 +142,17 @@ class CashTransaction(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+
 class CashTransactionCreate(BaseModel):
     project_id: str
     category_id: str
     amount: Decimal = Field(..., ge=0)
     type: Literal["DEBIT", "CREDIT"]
     description: Optional[str] = None
-    transaction_date: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    transaction_date: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
 
 # LEDGER DTOs
 class VendorLedgerEntry(BaseModel):

@@ -330,7 +330,7 @@ cd apps/web
 npx tsc --noEmit
 ```
 
-No test framework configured yet—use Jest + React Testing Library when adding tests.
+Jest + React Testing Library available for component and integration tests. Test files use `__tests__` directory convention.
 
 ---
 
@@ -359,7 +359,10 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **Web**: Next.js app, runs on port 3000
 - **Mobile**: Expo web on port 3001
 
-Docker/Kubernetes config not yet configured—add when deploying to production.
+**Docker & CI/CD**:
+- Docker support: `Dockerfile` and `.dockerignore` configured in `apps/api/`
+- GitHub Actions CI/CD: `.github/workflows/ci.yml` automates testing, linting, and deployments
+- Container builds optimized for Python FastAPI with health checks and signal handling
 
 ---
 
@@ -393,6 +396,8 @@ If you see "module not found" errors:
 - **apps/api/CLAUDE.md**: API-specific RuFlo configuration
 - **turbo.json**: Monorepo task definitions
 - **pnpm-workspace.yaml**: Workspace configuration
+- **.github/workflows/ci.yml**: GitHub Actions CI/CD pipeline
+- **.planning/**: RuFlo memory and planning artifacts (added to .gitignore)
 
 ---
 
@@ -412,6 +417,37 @@ npx @claude-flow/cli@latest swarm "Feature Name" --strategy adaptive
 ```
 
 See Ruflo.md for complete CLI reference.
+
+---
+
+## Recent Implementations
+
+### Cash Management & Financial Services (v1.4+)
+
+The `financial/` module now includes:
+- **Cash Service**: Real-time cash position tracking and reconciliation
+- **Master Data Service**: Reference data management for financial codes
+- **Payment Service**: Payment processing and transaction management
+- **Financial Engine**: Domain logic for budgets, payments, and cash flow
+
+### Work Order & Contracting Features
+
+- **Work Order Creation**: New page with financial grid and line-item management
+- **Budget Validation**: Real-time budget checks against project allocations
+- **Idempotency Support**: Duplicate-safe operations for financial transactions
+- **Vendor Management**: Vendor repository and service layer
+
+### Reporting & AI Insights
+
+- **AI Summary Service**: LLM-powered project and financial summaries
+- **Analytics Dashboard**: Real-time project metrics and KPIs
+- **AI Service Layer**: Integration with LLM providers for intelligent reporting
+
+### Infrastructure
+
+- **CI/CD Pipeline**: Automated testing and deployment via GitHub Actions
+- **Docker Containerization**: Production-ready Python containerization
+- **Health Checks**: Liveness and readiness probes for container orchestration
 
 ---
 

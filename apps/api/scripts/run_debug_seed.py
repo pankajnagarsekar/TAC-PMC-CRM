@@ -1,7 +1,9 @@
+import os
+
 import seed_majorda
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
-import os
+
 
 def run():
     client = MongoClient("mongodb://localhost:27017")
@@ -17,11 +19,12 @@ def run():
     except BulkWriteError as bwe:
         print("BulkWriteError details:")
         # Print first error
-        print(bwe.details['writeErrors'][0])
+        print(bwe.details["writeErrors"][0])
     except Exception as e:
         print(f"Error: {e}")
     finally:
         client.close()
+
 
 if __name__ == "__main__":
     run()

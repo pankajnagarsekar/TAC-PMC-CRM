@@ -1,11 +1,14 @@
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 from app.modules.shared.domain.state_machine import StateMachine
+
 
 class Project:
     """
     Aggregate Root for Project Management.
     Enforces project lifecycle rules and state invariants.
     """
+
     def __init__(self, data: Dict[str, Any]):
         self.id = data.get("id") or data.get("_id")
         self.project_id = data.get("project_id")
@@ -20,8 +23,10 @@ class Project:
         """Invariant: Project can only be modified in non-final states."""
         StateMachine.check_modification_allowed("PROJECT", self.status)
 
+
 class ProjectBudget:
     """Entity representing a project's line-item budget."""
+
     def __init__(self, data: Dict[str, Any]):
         self.category_id = data.get("category_id")
         self.original_budget = data.get("original_budget", 0)

@@ -1,12 +1,15 @@
-from typing import Dict, Any, Optional
-from app.modules.shared.infrastructure.base_repository import BaseRepository
+from typing import Any, Dict, Optional
+
 from app.core.time import now
+from app.modules.shared.infrastructure.base_repository import BaseRepository
+
 
 class ProjectStatsRepository(BaseRepository[Any]):
     """
     Read Model Repository for Project-level statistics.
     Provides optimized access for dashboards and reporting.
     """
+
     def __init__(self, db):
         super().__init__(db, "project_stats", Any)
 
@@ -16,16 +19,9 @@ class ProjectStatsRepository(BaseRepository[Any]):
 
     async def refresh_stats(self, project_id: str, stats: Dict[str, Any], session=None):
         """Standard update-or-insert for project stats read-model."""
-        doc = {
-            "project_id": project_id,
-            **stats,
-            "last_updated": now()
-        }
+        doc = {"project_id": project_id, **stats, "last_updated": now()}
         return await self.update_one(
-            {"project_id": project_id},
-            {"$set": doc},
-            upsert=True,
-            session=session
+            {"project_id": project_id}, {"$set": doc}, upsert=True, session=session
         )
 
     async def get_stats(self, project_id: str) -> Optional[Dict[str, Any]]:

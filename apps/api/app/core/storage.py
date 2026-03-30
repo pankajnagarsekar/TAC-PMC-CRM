@@ -1,8 +1,7 @@
-import os
-import shutil
 from pathlib import Path
-from typing import Optional
+
 from app.core.config import settings
+
 
 class StorageManager:
     def __init__(self, base_path: str = settings.STORAGE_PATH):
@@ -28,5 +27,6 @@ class StorageManager:
 
     async def exists(self, relative_path: str) -> bool:
         return self.get_file_path(relative_path).exists()
+
 
 storage_manager = StorageManager()

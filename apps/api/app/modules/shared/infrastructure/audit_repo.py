@@ -1,6 +1,8 @@
-from app.modules.shared.infrastructure.base_repository import BaseRepository
-from app.modules.shared.domain.schemas import AuditLog
 from pymongo import ASCENDING
+
+from app.modules.shared.domain.schemas import AuditLog
+from app.modules.shared.infrastructure.base_repository import BaseRepository
+
 
 class AuditRepository(BaseRepository[AuditLog]):
     def __init__(self, db):

@@ -1,14 +1,18 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+
 
 class ScheduleCalculateRequest(BaseModel):
     tasks: List[Dict[str, Any]]
     project_start: str
 
+
 class ScheduleSaveRequest(BaseModel):
     tasks: List[Dict[str, Any]]
     project_start: Optional[str] = None
     total_cost: Optional[float] = 0.0
+
 
 class ScheduleResponse(BaseModel):
     tasks: List[Dict[str, Any]]

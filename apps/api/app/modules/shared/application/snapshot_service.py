@@ -1,9 +1,12 @@
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
 import hashlib
 import json
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from ..infrastructure.snapshot_repo import SnapshotRepository
+
 
 class SnapshotService:
     REPORT_TYPES = [
@@ -14,7 +17,7 @@ class SnapshotService:
         "BUDGET_UTILIZATION",
         "DPR_DAILY",
         "PROGRESS_REPORT",
-        "AUDIT_TRAIL"
+        "AUDIT_TRAIL",
     ]
 
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -35,7 +38,7 @@ class SnapshotService:
         data: Dict[str, Any],
         project_id: Optional[str] = None,
         report_type: Optional[str] = None,
-        session=None
+        session=None,
     ) -> Dict[str, Any]:
         """
         Create an immutable snapshot of an entity or report.
@@ -60,11 +63,13 @@ class SnapshotService:
             "generated_by": user_id,
             "generated_at": datetime.now(timezone.utc),
             "is_latest": True,
-            "immutable_flag": True
+            "immutable_flag": True,
         }
 
         # 4. Mark previous not latest
-        await self.snapshot_repo.mark_previous_not_latest(entity_type, entity_id, session=session)
+        await self.snapshot_repo.mark_previous_not_latest(
+            entity_type, entity_id, session=session
+        )
 
         # 5. Insert
         return await self.snapshot_repo.create(snapshot_doc, session=session)
@@ -72,11 +77,16 @@ class SnapshotService:
     async def get_snapshot(self, snapshot_id: str) -> Optional[Dict[str, Any]]:
         return await self.snapshot_repo.get(snapshot_id)
 
-    async def list_snapshots(self, organisation_id: str, project_id: Optional[str] = None, report_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def list_snapshots(
+        self,
+        organisation_id: str,
+        project_id: Optional[str] = None,
+        report_type: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         query = {"organisation_id": organisation_id}
         if project_id:
             query["project_id"] = project_id
         if report_type:
             query["report_type"] = report_type
-        
+
         return await self.snapshot_repo.list(query, sort=[("generated_at", -1)])

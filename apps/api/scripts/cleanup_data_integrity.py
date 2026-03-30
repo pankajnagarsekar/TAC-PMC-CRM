@@ -2,19 +2,23 @@
 Data Integrity Cleanup Script
 Resolves duplicate DPR records and zombie PC orphans
 """
+
 import asyncio
 import os
 import sys
-from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timezone
+
 from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient
 
 # Fix Unicode encoding on Windows
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 load_dotenv()
+
 
 class DataCleanupManager:
     def __init__(self, mongo_url: str, db_name: str):
@@ -27,7 +31,7 @@ class DataCleanupManager:
         """Connect to MongoDB"""
         self.client = AsyncIOMotorClient(self.mongo_url)
         self.db = self.client[self.db_name]
-        await self.client.admin.command('ping')
+        await self.client.admin.command("ping")
         print(f"✓ Connected to MongoDB ({self.db_name})")
 
     async def cleanup_duplicate_dprs(self):
@@ -43,10 +47,10 @@ class DataCleanupManager:
                     "_id": {"project_id": "$project_id", "dpr_date": "$dpr_date"},
                     "count": {"$sum": 1},
                     "ids": {"$push": "$_id"},
-                    "latest_created": {"$max": "$created_at"}
+                    "latest_created": {"$max": "$created_at"},
                 }
             },
-            {"$match": {"count": {"$gt": 1}}}
+            {"$match": {"count": {"$gt": 1}}},
         ]
 
         duplicates = await dpr_collection.aggregate(pipeline).to_list(None)
@@ -65,8 +69,7 @@ class DataCleanupManager:
 
             # Keep the most recent, delete others
             docs_for_group = await dpr_collection.find(
-                {"_id": {"$in": ids}},
-                sort=[("created_at", -1)]
+                {"_id": {"$in": ids}}, sort=[("created_at", -1)]
             ).to_list(None)
 
             keep_id = docs_for_group[0]["_id"]
@@ -151,6 +154,7 @@ class DataCleanupManager:
         if self.client:
             self.client.close()
 
+
 async def main():
     mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
     db_name = os.getenv("DB_NAME", "tac_pmc_crm")
@@ -172,6 +176,7 @@ async def main():
 
     finally:
         await cleanup.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

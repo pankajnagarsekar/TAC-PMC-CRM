@@ -1,16 +1,18 @@
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from ..infrastructure.repository import SettingsRepository
 
 logger = logging.getLogger(__name__)
+
 
 class SettingsService:
     """
     Sovereign Settings Controller.
     Manages organizational configuration and profile data.
     """
+
     def __init__(self, db, permission_checker, audit_service):
         self.db = db
         self.permission_checker = permission_checker
@@ -19,7 +21,9 @@ class SettingsService:
 
     async def get_settings(self, user: dict) -> Dict[str, Any]:
         """Fetch settings for organisation with default fallback."""
-        settings = await self.settings_repo.find_one({"organisation_id": user["organisation_id"]})
+        settings = await self.settings_repo.find_one(
+            {"organisation_id": user["organisation_id"]}
+        )
         if not settings:
             return {
                 "organisation_id": user["organisation_id"],
@@ -29,22 +33,28 @@ class SettingsService:
                 "currency": "INR",
                 "currency_symbol": "₹",
                 "company_profile": {
-                    "name": "TAC PMC", 
-                    "address": "Default Address", 
-                    "registration_no": "", 
-                    "contact_email": ""
-                }
+                    "name": "TAC PMC",
+                    "address": "Default Address",
+                    "registration_no": "",
+                    "contact_email": "",
+                },
             }
         return settings
 
     async def update_settings(self, user: dict, settings_data: dict) -> Dict[str, Any]:
         """Atomic update of global settings with mandatory audit logging."""
         await self.permission_checker.check_admin_role(user)
-        
+
         # Sanitize sensitive fields
-        payload = {k: v for k, v in settings_data.items() if k not in ("id", "_id", "organisation_id")}
-        
-        existing = await self.settings_repo.find_one({"organisation_id": user["organisation_id"]})
+        payload = {
+            k: v
+            for k, v in settings_data.items()
+            if k not in ("id", "_id", "organisation_id")
+        }
+
+        existing = await self.settings_repo.find_one(
+            {"organisation_id": user["organisation_id"]}
+        )
         if existing:
             updated = await self.settings_repo.update(existing["id"], payload)
         else:
@@ -53,10 +63,16 @@ class SettingsService:
 
         # Mandatory Audit Logging
         await self.audit_service.log_action(
-            organisation_id=user["organisation_id"], module_name="SETTINGS",
-            entity_type="GLOBAL_SETTINGS", entity_id=str(updated.get("id") or existing.get("id") if existing else "NEW"),
-            action_type="UPDATE", user_id=user["user_id"],
-            old_value=existing, new_value=updated
+            organisation_id=user["organisation_id"],
+            module_name="SETTINGS",
+            entity_type="GLOBAL_SETTINGS",
+            entity_id=str(
+                updated.get("id") or existing.get("id") if existing else "NEW"
+            ),
+            action_type="UPDATE",
+            user_id=user["user_id"],
+            old_value=existing,
+            new_value=updated,
         )
-            
+
         return updated

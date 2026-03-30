@@ -1,6 +1,8 @@
-from app.modules.shared.infrastructure.base_repository import BaseRepository
-from app.modules.shared.domain.schemas import Notification
 from pymongo import ASCENDING
+
+from app.modules.shared.domain.schemas import Notification
+from app.modules.shared.infrastructure.base_repository import BaseRepository
+
 
 class NotificationRepository(BaseRepository[Notification]):
     def __init__(self, db):

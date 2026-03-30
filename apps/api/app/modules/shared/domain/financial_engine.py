@@ -1,10 +1,12 @@
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, Any, List, Optional
 import hashlib
 import json
-from .exceptions import FinancialIntegrityError
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Dict, List
 
 from bson import Decimal128
+
+from .exceptions import FinancialIntegrityError
+
 
 class FinancialEngine:
     """
@@ -12,21 +14,26 @@ class FinancialEngine:
     Enforces ROUND_HALF_UP and prevents data drift via logic versioning.
     This is the Single Source of Truth for the entire ecosystem.
     """
+
     DOMAIN_LOGIC_VERSION: int = 1
     PRECISION: Decimal = Decimal("0.01")
 
     @staticmethod
     def to_d128(value: Any) -> Decimal128:
         """Sovereign MongoDB conversion (Point 75)."""
-        if value is None: return Decimal128("0.00")
-        if isinstance(value, Decimal128): return value
+        if value is None:
+            return Decimal128("0.00")
+        if isinstance(value, Decimal128):
+            return value
         return Decimal128(str(FinancialEngine.round(value)))
 
     @staticmethod
     def to_decimal(value: Any) -> Decimal:
         """Sovereign Decimal conversion."""
-        if value is None: return Decimal("0.00")
-        if isinstance(value, Decimal128): return value.to_decimal()
+        if value is None:
+            return Decimal("0.00")
+        if isinstance(value, Decimal128):
+            return value.to_decimal()
         try:
             return Decimal(str(value))
         except (ValueError, TypeError):
@@ -35,7 +42,8 @@ class FinancialEngine:
     @classmethod
     def round(cls, value: Any) -> Decimal:
         """Standardized Round-Half-Up."""
-        if value is None: return Decimal("0.00")
+        if value is None:
+            return Decimal("0.00")
         if not isinstance(value, Decimal):
             value = Decimal(str(value))
         return value.quantize(cls.PRECISION, rounding=ROUND_HALF_UP)
@@ -68,11 +76,18 @@ class FinancialEngine:
         return {"items": processed, "subtotal": subtotal}
 
     @classmethod
-    def calculate_wo_financials(cls, subtotal: Decimal, discount: Decimal, retention_pct: Decimal, cgst_pct: Decimal, sgst_pct: Decimal) -> Dict[str, Any]:
+    def calculate_wo_financials(
+        cls,
+        subtotal: Decimal,
+        discount: Decimal,
+        retention_pct: Decimal,
+        cgst_pct: Decimal,
+        sgst_pct: Decimal,
+    ) -> Dict[str, Any]:
         """Core logic for Work Orders. (Strict CR-11/75 alignment)."""
         subtotal = cls.round(subtotal)
         discount = cls.round(discount)
-        
+
         total_before_tax = cls.round(subtotal - discount)
         if total_before_tax < 0:
             raise FinancialIntegrityError("Subtotal cannot be negative after discount.")
@@ -81,7 +96,7 @@ class FinancialEngine:
         sgst_amount = cls.calculate_tax(total_before_tax, sgst_pct)
         gst_amount = cls.round(cgst_amount + sgst_amount)
         grand_total = cls.round(total_before_tax + gst_amount)
-        
+
         retention_amount = cls.calculate_retention(total_before_tax, retention_pct)
         actual_payable = cls.round(grand_total - retention_amount)
 
@@ -96,16 +111,22 @@ class FinancialEngine:
             "grand_total": grand_total,
             "retention_amount": retention_amount,
             "actual_payable": actual_payable,
-            "logic_version": cls.DOMAIN_LOGIC_VERSION
+            "logic_version": cls.DOMAIN_LOGIC_VERSION,
         }
 
     @classmethod
-    def calculate_pc_financials(cls, pc_value: Decimal, retention_pct: Decimal, cgst_pct: Decimal, sgst_pct: Decimal) -> Dict[str, Any]:
+    def calculate_pc_financials(
+        cls,
+        pc_value: Decimal,
+        retention_pct: Decimal,
+        cgst_pct: Decimal,
+        sgst_pct: Decimal,
+    ) -> Dict[str, Any]:
         """Core logic for Payment Certificates."""
         pc_value = cls.round(pc_value)
         retention_amount = cls.calculate_retention(pc_value, retention_pct)
         total_after_retention = cls.round(pc_value - retention_amount)
-        
+
         cgst_amount = cls.calculate_tax(total_after_retention, cgst_pct)
         sgst_amount = cls.calculate_tax(total_after_retention, sgst_pct)
         gst_amount = cls.round(cgst_amount + sgst_amount)
@@ -119,7 +140,7 @@ class FinancialEngine:
             "sgst": sgst_amount,
             "gst_amount": gst_amount,
             "grand_total": grand_total,
-            "logic_version": cls.DOMAIN_LOGIC_VERSION
+            "logic_version": cls.DOMAIN_LOGIC_VERSION,
         }
 
     @classmethod
@@ -132,5 +153,7 @@ class FinancialEngine:
     @classmethod
     def verify_integrity(cls, data: Dict[str, Any], expected_checksum: str) -> bool:
         """Verify data hasn't been corrupted in DB."""
-        actual = cls.generate_fingerprint({k: v for k, v in data.items() if k != "checksum"})
+        actual = cls.generate_fingerprint(
+            {k: v for k, v in data.items() if k != "checksum"}
+        )
         return actual == expected_checksum

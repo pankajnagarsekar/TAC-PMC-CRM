@@ -7,12 +7,12 @@ Tests for critical bugs fixed in financial_service.py:
 3. Master budget recalculation flow
 """
 
-import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
-from bson import ObjectId, Decimal128
 
+import pytest
+from bson import Decimal128, ObjectId
 from financial_service import FinancialRecalculationService
 
 
@@ -33,12 +33,14 @@ class TestDecimal128SerializationFix:
 
         # The aggregation result with empty remaining_budget should use 0.0 as default
         aggregate_mock = AsyncMock()
-        aggregate_mock.to_list = AsyncMock(return_value=[
-            {
-                "total_original": Decimal128("1000.00"),
-                "total_remaining": Decimal128("500.00")
-            }
-        ])
+        aggregate_mock.to_list = AsyncMock(
+            return_value=[
+                {
+                    "total_original": Decimal128("1000.00"),
+                    "total_remaining": Decimal128("500.00"),
+                }
+            ]
+        )
 
         db_mock.project_category_budgets.aggregate = MagicMock(
             return_value=aggregate_mock
@@ -63,7 +65,9 @@ class TestDecimal128SerializationFix:
         if_null_expr = group_stage["$group"]["total_remaining"]["$sum"]["$ifNull"][1]
 
         # CRITICAL ASSERTION: Should be float, not Decimal128
-        assert isinstance(if_null_expr, float), f"Expected float but got {type(if_null_expr)}"
+        assert isinstance(
+            if_null_expr, float
+        ), f"Expected float but got {type(if_null_expr)}"
         assert if_null_expr == 0.0, f"Expected 0.0 but got {if_null_expr}"
 
         # Verify result is correct
@@ -83,9 +87,7 @@ class TestDecimal128SerializationFix:
         db_mock.project_category_budgets.aggregate = MagicMock(
             return_value=aggregate_mock
         )
-        db_mock.projects.find_one = AsyncMock(
-            return_value={"_id": ObjectId()}
-        )
+        db_mock.projects.find_one = AsyncMock(return_value={"_id": ObjectId()})
         db_mock.projects.update_one = AsyncMock(
             return_value=MagicMock(matched_count=1, modified_count=1)
         )
@@ -115,9 +117,14 @@ class TestProjectQueryFallbackValidation:
         project_id = "507f1f77bcf86cd799439011"  # Valid ObjectId string
 
         aggregate_mock = AsyncMock()
-        aggregate_mock.to_list = AsyncMock(return_value=[
-            {"total_original": Decimal128("1000"), "total_remaining": Decimal128("500")}
-        ])
+        aggregate_mock.to_list = AsyncMock(
+            return_value=[
+                {
+                    "total_original": Decimal128("1000"),
+                    "total_remaining": Decimal128("500"),
+                }
+            ]
+        )
 
         db_mock.project_category_budgets.aggregate = MagicMock(
             return_value=aggregate_mock
@@ -146,9 +153,14 @@ class TestProjectQueryFallbackValidation:
         project_id = "invalid-project-id"  # Will fail ObjectId, trigger fallback
 
         aggregate_mock = AsyncMock()
-        aggregate_mock.to_list = AsyncMock(return_value=[
-            {"total_original": Decimal128("1000"), "total_remaining": Decimal128("500")}
-        ])
+        aggregate_mock.to_list = AsyncMock(
+            return_value=[
+                {
+                    "total_original": Decimal128("1000"),
+                    "total_remaining": Decimal128("500"),
+                }
+            ]
+        )
 
         db_mock.project_category_budgets.aggregate = MagicMock(
             return_value=aggregate_mock
@@ -168,8 +180,9 @@ class TestProjectQueryFallbackValidation:
 
         # Assert
         # CRITICAL: find_one should be called TWICE (first ObjectId, then fallback)
-        assert db_mock.projects.find_one.call_count == 2, \
-            f"Expected 2 find_one calls but got {db_mock.projects.find_one.call_count}"
+        assert (
+            db_mock.projects.find_one.call_count == 2
+        ), f"Expected 2 find_one calls but got {db_mock.projects.find_one.call_count}"
         assert result is not None
 
     @pytest.mark.asyncio
@@ -181,9 +194,14 @@ class TestProjectQueryFallbackValidation:
         project_id = "nonexistent-project"
 
         aggregate_mock = AsyncMock()
-        aggregate_mock.to_list = AsyncMock(return_value=[
-            {"total_original": Decimal128("1000"), "total_remaining": Decimal128("500")}
-        ])
+        aggregate_mock.to_list = AsyncMock(
+            return_value=[
+                {
+                    "total_original": Decimal128("1000"),
+                    "total_remaining": Decimal128("500"),
+                }
+            ]
+        )
 
         db_mock.project_category_budgets.aggregate = MagicMock(
             return_value=aggregate_mock
@@ -222,7 +240,7 @@ class TestFinancialStateDocumentSerialization:
                 "_id": ObjectId(),
                 "original_budget": Decimal128("5000"),
                 "category_id": category_id,
-                "project_id": project_id
+                "project_id": project_id,
             }
         )
 
@@ -244,14 +262,18 @@ class TestFinancialStateDocumentSerialization:
         update_doc = call_args[0][1]["$set"]
 
         # CRITICAL: Verify all monetary fields are Decimal128, not Decimal
-        assert isinstance(update_doc["original_budget"], Decimal128), \
-            f"original_budget should be Decimal128, got {type(update_doc['original_budget'])}"
-        assert isinstance(update_doc["committed_value"], Decimal128), \
-            f"committed_value should be Decimal128, got {type(update_doc['committed_value'])}"
-        assert isinstance(update_doc["certified_value"], Decimal128), \
-            f"certified_value should be Decimal128, got {type(update_doc['certified_value'])}"
-        assert isinstance(update_doc["balance_budget_remaining"], Decimal128), \
-            f"balance_budget_remaining should be Decimal128, got {type(update_doc['balance_budget_remaining'])}"
+        assert isinstance(
+            update_doc["original_budget"], Decimal128
+        ), f"original_budget should be Decimal128, got {type(update_doc['original_budget'])}"
+        assert isinstance(
+            update_doc["committed_value"], Decimal128
+        ), f"committed_value should be Decimal128, got {type(update_doc['committed_value'])}"
+        assert isinstance(
+            update_doc["certified_value"], Decimal128
+        ), f"certified_value should be Decimal128, got {type(update_doc['certified_value'])}"
+        assert isinstance(
+            update_doc["balance_budget_remaining"], Decimal128
+        ), f"balance_budget_remaining should be Decimal128, got {type(update_doc['balance_budget_remaining'])}"
 
 
 class TestBudgetInitializationFlow:
@@ -270,15 +292,17 @@ class TestBudgetInitializationFlow:
         # Setup mocks
         db_mock.project_category_budgets.find = AsyncMock(
             return_value=AsyncMock(
-                to_list=AsyncMock(return_value=[
-                    {
-                        "_id": ObjectId(),
-                        "project_id": project_id,
-                        "category_id": "507f1f77bcf86cd799439012",
-                        "original_budget": Decimal128("1000"),
-                        "version": 1
-                    }
-                ])
+                to_list=AsyncMock(
+                    return_value=[
+                        {
+                            "_id": ObjectId(),
+                            "project_id": project_id,
+                            "category_id": "507f1f77bcf86cd799439012",
+                            "original_budget": Decimal128("1000"),
+                            "version": 1,
+                        }
+                    ]
+                )
             )
         )
 
@@ -291,9 +315,14 @@ class TestBudgetInitializationFlow:
 
         db_mock.project_category_budgets.aggregate = MagicMock(
             return_value=AsyncMock(
-                to_list=AsyncMock(return_value=[
-                    {"total_original": Decimal128("1000"), "total_remaining": Decimal128("1000")}
-                ])
+                to_list=AsyncMock(
+                    return_value=[
+                        {
+                            "total_original": Decimal128("1000"),
+                            "total_remaining": Decimal128("1000"),
+                        }
+                    ]
+                )
             )
         )
 

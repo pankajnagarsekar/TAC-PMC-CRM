@@ -1,7 +1,9 @@
-from typing import Any, Dict, List, Optional
 from datetime import datetime
-from bson import ObjectId, Decimal128
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
+from bson import Decimal128, ObjectId
+
 
 def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
@@ -10,7 +12,7 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
     if doc is None:
         return None
-        
+
     result = {}
     for key, value in doc.items():
         if isinstance(value, ObjectId):
@@ -26,15 +28,23 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
             result[key] = serialize_doc(value)
         elif isinstance(value, list):
             result[key] = [
-                serialize_doc(item) if isinstance(item, dict)
-                else str(item.to_decimal()) if isinstance(item, Decimal128)
-                else str(item) if isinstance(item, (Decimal, ObjectId))
-                else item
+                (
+                    serialize_doc(item)
+                    if isinstance(item, dict)
+                    else (
+                        str(item.to_decimal())
+                        if isinstance(item, Decimal128)
+                        else (
+                            str(item) if isinstance(item, (Decimal, ObjectId)) else item
+                        )
+                    )
+                )
                 for item in value
             ]
         else:
             result[key] = value
     return result
+
 
 def serialize_list(docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Helper to serialize a list of MongoDB documents."""

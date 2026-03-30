@@ -1,15 +1,17 @@
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
+from ..domain.models import User as UserModel
 from ..infrastructure.repository import UserRepository
 from ..schemas.dto import User, UserCreateAdmin
-from ..domain.models import User as UserModel
+
 # Note: Use AuthService for password hashing
 
 logger = logging.getLogger(__name__)
 
-from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
+
 
 class UserService:
     def __init__(self, db, audit_service, permission_checker):
@@ -21,7 +23,9 @@ class UserService:
     async def list_users(self, organisation_id: str) -> List[Dict[str, Any]]:
         return await self.user_repo.list({"organisation_id": organisation_id})
 
-    async def create_user_admin(self, user, user_data: UserCreateAdmin) -> Dict[str, Any]:
+    async def create_user_admin(
+        self, user, user_data: UserCreateAdmin
+    ) -> Dict[str, Any]:
         """Business logic for admin-initiated user creation"""
         await self.permission_checker.check_admin_role(user)
 
@@ -32,13 +36,16 @@ class UserService:
 
         # Circular import protection
         from .auth_service import AuthService
+
         auth_service = AuthService(self.db)
 
         user_dict = user_data.dict()
-        user_dict["hashed_password"] = auth_service.hash_password(user_dict.pop("password"))
+        user_dict["hashed_password"] = auth_service.hash_password(
+            user_dict.pop("password")
+        )
         user_dict["organisation_id"] = user["organisation_id"]
         user_dict["active_status"] = True
-        
+
         new_user = await self.user_repo.create(user_dict)
 
         # Audit log
@@ -49,7 +56,7 @@ class UserService:
             entity_id=new_user["id"],
             action_type="CREATE",
             user_id=user["user_id"],
-            new_value={"email": user_data.email, "role": user_data.role}
+            new_value={"email": user_data.email, "role": user_data.role},
         )
 
         return new_user
@@ -59,7 +66,9 @@ class UserService:
         await self.permission_checker.check_admin_role(user)
 
         # Get old value for audit
-        old_user = await self.user_repo.get_by_id(target_user_id, organisation_id=user["organisation_id"])
+        old_user = await self.user_repo.get_by_id(
+            target_user_id, organisation_id=user["organisation_id"]
+        )
         if not old_user:
             raise NotFoundError("User", target_user_id)
 
@@ -67,9 +76,9 @@ class UserService:
         user_model.validate_for_deactivation(user["user_id"])
 
         updated_user = await self.user_repo.update(
-            target_user_id, 
-            {"active_status": False}, 
-            organisation_id=user["organisation_id"]
+            target_user_id,
+            {"active_status": False},
+            organisation_id=user["organisation_id"],
         )
 
         # Audit log
@@ -81,7 +90,7 @@ class UserService:
             action_type="DEACTIVATE",
             user_id=user["user_id"],
             old_value={"active_status": old_user.get("active_status")},
-            new_value={"active_status": False}
+            new_value={"active_status": False},
         )
 
         return {"message": "User deactivated successfully"}

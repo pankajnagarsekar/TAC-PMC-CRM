@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from typing import Optional, List
 from decimal import Decimal
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
+
 from app.modules.shared.domain.types import PyObjectId
+
 
 class AISummaryReportData(BaseModel):
     total_budget: Decimal = Field(default=Decimal("0.0"), ge=0)
@@ -20,6 +23,7 @@ class AISummaryReportData(BaseModel):
     pc_total: int = 0
     pc_closed: int = 0
     schedule_task_count: int = 0
+
 
 class AISummaryDocument(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")

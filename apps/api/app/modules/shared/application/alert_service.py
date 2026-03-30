@@ -1,13 +1,17 @@
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from ..infrastructure.alert_repo import AlertRepository
+
 
 class AlertService:
     """
     Sovereign Alert Service.
     Manages system-level alerts across all contexts.
     """
+
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.alert_repo = AlertRepository(db)
@@ -20,7 +24,7 @@ class AlertService:
         message: str,
         project_id: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
-        session=None
+        session=None,
     ) -> Dict[str, Any]:
         """Raise a new system alert."""
         alert_doc = {
@@ -31,7 +35,7 @@ class AlertService:
             "message": message,
             "data": data,
             "detected_at": datetime.now(timezone.utc),
-            "resolved": False
+            "resolved": False,
         }
         return await self.alert_repo.create(alert_doc, session=session)
 
@@ -44,6 +48,6 @@ class AlertService:
         update_data = {
             "resolved": True,
             "resolved_at": datetime.now(timezone.utc),
-            "resolved_by": user_id
+            "resolved_by": user_id,
         }
         return await self.alert_repo.update(alert_id, update_data)
