@@ -4,8 +4,10 @@ RUN npm install -g pnpm@10.30.3
 FROM base AS builder
 WORKDIR /repo
 
-# Force hoisting so standalone build can find and copy dependencies correctly in a pnpm monorepo
-RUN echo "shamefully-hoist=true" > .npmrc
+# IMPROVED: Ensure a completely flat node_modules structure so Next.js standalone 
+# can correctly resolve and copy all dependencies into the build artifact.
+RUN echo "shamefully-hoist=true" > .npmrc && \
+    echo "public-hoist-pattern[]=*;" >> .npmrc
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
 COPY packages/ ./packages/
@@ -21,8 +23,7 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Next.js standalone in a monorepo preserves the directory structure.
-# The server.js entry point will be at apps/web/server.js inside the standalone folder.
+# The standalone folder contains the minimal server and node_modules
 COPY --from=builder /repo/apps/web/.next/standalone ./
 COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
@@ -31,5 +32,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Note: server.js is located within the preserved apps/web path
+# Note: In monorepos, the entry point remains at the original subpath
 CMD ["node", "apps/web/server.js"]
