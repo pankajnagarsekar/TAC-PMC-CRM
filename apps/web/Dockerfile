@@ -22,18 +22,21 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy standalone output
-COPY --from=builder /repo/apps/web/.next/standalone ./
+# Copy the entire .next build output (includes standalone server)
+COPY --from=builder /repo/apps/web/.next ./.next
 
-# Copy static files and public assets
-COPY --from=builder /repo/apps/web/.next/static ./.next/static
+# Copy public assets
 COPY --from=builder /repo/apps/web/public ./public
 
-# Copy production node_modules from builder (required for Next.js server)
+# Copy package.json (needed by Next.js server)
+COPY --from=builder /repo/apps/web/package.json ./
+
+# Copy production node_modules from builder
 COPY --from=builder /repo/node_modules ./node_modules
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Run Next.js standalone server (located in .next/standalone)
+CMD ["node", ".next/standalone/server.js"]
