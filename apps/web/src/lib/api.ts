@@ -54,7 +54,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
-    if (response.data && response.data.data !== undefined && 'success' in response.data) {
+    // Better handling for objects with 'success' and 'data' keys to ensure they are correctly unwrapped
+    const isEnvelope = response.data &&
+      typeof response.data === 'object' &&
+      'success' in response.data &&
+      'data' in response.data;
+
+    if (isEnvelope && response.data.data !== undefined) {
       return { ...response, data: response.data.data };
     }
     return response;
@@ -75,11 +81,12 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        const res = await axios.post(`${BACKEND_URL}/api/v1/auth/refresh`, {
+        const refreshRes = await axios.post(`${BACKEND_URL}/api/v1/auth/refresh`, {
           refresh_token: refreshToken,
         });
 
-        const { access_token, refresh_token } = res.data;
+        // Unwrap GenericResponse manually as we are using the base axios instance
+        const { access_token, refresh_token } = refreshRes.data.data || refreshRes.data;
         localStorage.setItem("access_token", access_token);
         localStorage.setItem("refresh_token", refresh_token);
 

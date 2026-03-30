@@ -11,7 +11,15 @@ const config = getDefaultConfig(projectRoot);
 // 1. Watch all files within the workspace
 config.watchFolders = [workspaceRoot];
 
-// 2. Let Metro know where to look for find dependencies
+// 2. Ignore build artifacts and temp directories to prevent watch errors
+config.resolver.blockList = [
+  /.*\.next\/.*/,
+  /.*\.turbo\/.*/,
+  /.*\/dist\/.*/,
+  /.*\/build\/.*/
+];
+
+// 3. Let Metro know where to look for find dependencies
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),

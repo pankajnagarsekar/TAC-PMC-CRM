@@ -29,9 +29,16 @@ export default function LoginPage() {
     try {
       console.log('Attempting login for:', email);
       const res = await api.post<TokenResponse>('/api/v1/auth/login', { email, password });
-      const { access_token, refresh_token, user } = res.data;
 
-      console.log('Login successful, role:', user.role);
+      // Safe unpacking: handle both unwrapped (via interceptor) and wrapped response
+      const serverData = (res.data as any).data || res.data;
+      const { access_token, refresh_token, user } = serverData;
+
+      if (!user) {
+        throw new Error('Identity verification failed: User profile missing from response.');
+      }
+
+      console.log('Login successful, identity established:', user.email, 'Role:', user.role);
 
       // Persist auth (also sets cookie-compatible localStorage for middleware)
       setAuth(user, access_token, refresh_token);
