@@ -10,7 +10,8 @@ RUN pnpm install --frozen-lockfile
 
 ARG NEXT_PUBLIC_BACKEND_URL
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
-RUN pnpm --filter web build
+RUN pnpm --filter tac-pmc-web build
+
 
 FROM base AS runner
 WORKDIR /app
