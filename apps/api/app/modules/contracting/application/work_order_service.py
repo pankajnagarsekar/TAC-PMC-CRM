@@ -25,7 +25,7 @@ from ..infrastructure.repository import (
     VendorRepository,
     WorkOrderRepository,
 )
-from ..schemas.dto import WorkOrder, WorkOrderCreate, WorkOrderUpdate
+from ..schemas.dto import WorkOrderCreate, WorkOrderUpdate
 
 logger = logging.getLogger(__name__)
 

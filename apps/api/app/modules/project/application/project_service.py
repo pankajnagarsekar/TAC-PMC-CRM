@@ -3,7 +3,7 @@ import secrets
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from bson import Decimal128, ObjectId
+from bson import ObjectId
 
 from app.core.time import now
 from app.core.uow import UnitOfWork
