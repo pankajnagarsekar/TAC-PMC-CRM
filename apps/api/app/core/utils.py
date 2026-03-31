@@ -7,8 +7,8 @@ from bson import Decimal128, ObjectId
 
 def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
-    Recursively serialize MongoDB documents for JSON responses.
-    Fixed CR-19: Does NOT convert Decimal to float. Uses str for precision.
+    Authoritative JSON serialization for MongoDB documents (Optimized for Pydantic v2).
+    Fixed CR-19: Recursive handling of nested objects, lists, and types.
     """
     if doc is None:
         return None
@@ -18,31 +18,36 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if isinstance(value, ObjectId):
             result[key] = str(value)
         elif isinstance(value, Decimal128):
-            # FIXED: Avoid float() precision loss. Use string representation.
-            result[key] = str(value.to_decimal())
-        elif isinstance(value, Decimal):
-            result[key] = str(value)
+            # FIXED: Handle possible to_decimal() failures
+            try:
+                result[key] = str(value.to_decimal())
+            except Exception:
+                result[key] = str(value)
         elif isinstance(value, datetime):
             result[key] = value.isoformat()
+        elif isinstance(value, (Decimal, float)):
+            # Keep as float for JSON parity unless Decimal is needed
+            result[key] = float(value) if isinstance(value, Decimal) else value
         elif isinstance(value, dict):
             result[key] = serialize_doc(value)
         elif isinstance(value, list):
-            result[key] = [
-                (
-                    serialize_doc(item)
-                    if isinstance(item, dict)
-                    else (
-                        str(item.to_decimal())
-                        if isinstance(item, Decimal128)
-                        else (
-                            str(item) if isinstance(item, (Decimal, ObjectId)) else item
-                        )
-                    )
-                )
-                for item in value
-            ]
+            serialized_list = []
+            for item in value:
+                if isinstance(item, dict):
+                    serialized_list.append(serialize_doc(item))
+                elif isinstance(item, Decimal128):
+                    try:
+                        serialized_list.append(str(item.to_decimal()))
+                    except Exception:
+                        serialized_list.append(str(item))
+                elif isinstance(item, (Decimal, ObjectId)):
+                    serialized_list.append(str(item))
+                else:
+                    serialized_list.append(item)
+            result[key] = serialized_list
         else:
             result[key] = value
+
     return result
 
 

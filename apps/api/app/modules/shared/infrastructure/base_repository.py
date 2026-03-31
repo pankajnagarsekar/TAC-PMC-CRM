@@ -117,14 +117,14 @@ class BaseRepository(Generic[T]):
         """
         if not doc:
             return None
-            
+
         from app.core.utils import serialize_doc
-        
+
         # 1. Authoritative serialization (ObjectId -> str, datetime -> isoformat)
         serialized = serialize_doc(doc)
-        
+
         # 2. Map _id to id for API parity
         if "_id" in serialized:
             serialized["id"] = serialized.pop("_id")
-            
+
         return serialized

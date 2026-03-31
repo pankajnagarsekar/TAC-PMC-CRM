@@ -363,12 +363,12 @@ class WorkOrderService:
             query["created_at"] = {"$lt": datetime.fromisoformat(cursor)}
 
         docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
-        
+
         # Fixed CR-23: Safe handling of empty list to prevent IndexError
         next_cursor = None
         if docs and len(docs) == limit:
             next_cursor = docs[-1]["created_at"].isoformat()
-            
+
         return {"items": docs, "next_cursor": next_cursor}
 
     async def get_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:

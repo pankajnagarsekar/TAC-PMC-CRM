@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 from app.core.dependencies import (
     get_authenticated_user,
@@ -17,7 +17,6 @@ from ..application.scheduler_service import SchedulerService
 from ..schemas.dto import (
     Client,
     ClientCreate,
-    ClientUpdate,
     Project,
     ProjectBudgetCreate,
     ProjectCreate,
@@ -41,7 +40,7 @@ async def list_projects(
     user: dict = Depends(get_authenticated_user),
     project_service: ProjectService = Depends(get_project_service),
 ):
-    """Fetch all projects for the user's organisation."""
+    """Fetch all projects accessible to the user (Point 17, 115)."""
     projects = await project_service.list_projects(user)
     return GenericResponse(data=projects)
 
@@ -58,9 +57,9 @@ async def create_project(
     project_service: ProjectService = Depends(get_project_service),
     nonce: str = Depends(verify_nonce),
 ):
-    """Initializes a new project within the user's organisation."""
+    """Authoritative project creation (Point 75)."""
     project = await project_service.create_project(user, project_data)
-    return GenericResponse(data=project, message="Project initialized successfully")
+    return GenericResponse(data=project, message="Project created successfully")
 
 
 @router.get(
@@ -81,48 +80,13 @@ async def get_project(
 )
 async def update_project(
     project_id: str,
-    project_data: ProjectUpdate,
+    project_update: ProjectUpdate,
     user: dict = Depends(get_authenticated_user),
     project_service: ProjectService = Depends(get_project_service),
-    nonce: str = Depends(verify_nonce),
 ):
-    """Update project details."""
-    project = await project_service.update_project(user, project_id, project_data)
+    """Update project metadata."""
+    project = await project_service.update_project(user, project_id, project_update)
     return GenericResponse(data=project, message="Project updated successfully")
-
-
-@router.get(
-    "/projects/{project_id}/budgets",
-    response_model=GenericResponse[List[Any]],
-    tags=["Projects"],
-)
-async def get_project_budgets(
-    project_id: str,
-    user: dict = Depends(get_authenticated_user),
-    project_service: ProjectService = Depends(get_project_service),
-):
-    """Get all budgets for a project."""
-    budgets = await project_service.get_project_budgets(user, project_id)
-    return GenericResponse(data=budgets)
-
-
-@router.post(
-    "/projects/{project_id}/budgets",
-    response_model=GenericResponse[Any],
-    tags=["Projects"],
-)
-async def create_or_update_project_budget(
-    project_id: str,
-    budget_data: ProjectBudgetCreate,
-    user: dict = Depends(get_authenticated_user),
-    project_service: ProjectService = Depends(get_project_service),
-    nonce: str = Depends(verify_nonce),
-):
-    """Create or update a budget allocation for a project category."""
-    result = await project_service.create_or_update_project_budget(
-        user, project_id, budget_data.dict()
-    )
-    return GenericResponse(data=result, message="Budget updated successfully")
 
 
 @router.delete(
@@ -133,12 +97,9 @@ async def delete_project(
     user: dict = Depends(get_authenticated_user),
     project_service: ProjectService = Depends(get_project_service),
 ):
-    """Soft delete project and cascade to related entities."""
-    await project_service.delete_project(user, project_id)
-    return GenericResponse(
-        data={"status": "deleted"},
-        message="Project and all related data soft-deleted successfully",
-    )
+    """Soft-delete a project (authoritative Point 87)."""
+    result = await project_service.delete_project(user, project_id)
+    return GenericResponse(data=result, message="Project deleted successfully")
 
 
 # --- CLIENT ENDPOINTS ---
@@ -146,12 +107,11 @@ async def delete_project(
 
 @router.get("/clients/", response_model=GenericResponse[List[Client]], tags=["Clients"])
 async def list_clients(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
     user: dict = Depends(get_authenticated_user),
     client_service: ClientService = Depends(get_client_service),
 ):
-    clients = await client_service.list_clients(user["organisation_id"], skip, limit)
+    """List all clients within the organisation."""
+    clients = await client_service.list_clients(user)
     return GenericResponse(data=clients)
 
 
@@ -166,48 +126,28 @@ async def create_client(
     user: dict = Depends(get_authenticated_user),
     client_service: ClientService = Depends(get_client_service),
 ):
+    """Add a new client to the organisation."""
     client = await client_service.create_client(user, client_data)
-    return GenericResponse(data=client, message="Client created successfully")
+    return GenericResponse(data=client, message="Client added successfully")
 
 
-@router.get(
-    "/clients/{client_id}", response_model=GenericResponse[Client], tags=["Clients"]
+# --- BUDGET ENDPOINTS ---
+
+
+@router.post(
+    "/projects/{project_id}/budgets",
+    response_model=GenericResponse[dict],
+    tags=["Budgets"],
 )
-async def get_client(
-    client_id: str,
+async def create_category_budget(
+    project_id: str,
+    budget_data: ProjectBudgetCreate,
     user: dict = Depends(get_authenticated_user),
-    client_service: ClientService = Depends(get_client_service),
+    project_service: ProjectService = Depends(get_project_service),
 ):
-    client = await client_service.get_client(client_id, user["organisation_id"])
-    return GenericResponse(data=client)
-
-
-@router.put(
-    "/clients/{client_id}", response_model=GenericResponse[Client], tags=["Clients"]
-)
-async def update_client(
-    client_id: str,
-    client_data: ClientUpdate,
-    user: dict = Depends(get_authenticated_user),
-    client_service: ClientService = Depends(get_client_service),
-):
-    client = await client_service.update_client(user, client_id, client_data)
-    return GenericResponse(data=client, message="Client updated successfully")
-
-
-@router.delete(
-    "/clients/{client_id}", response_model=GenericResponse[dict], tags=["Clients"]
-)
-async def delete_client(
-    client_id: str,
-    user: dict = Depends(get_authenticated_user),
-    client_service: ClientService = Depends(get_client_service),
-):
-    """Delete a client (Admin only)."""
-    await client_service.delete_client(user, client_id)
-    return GenericResponse(
-        data={"id": client_id}, message="Client deleted successfully"
-    )
+    """Define budget for a specific category within a project."""
+    budget = await project_service.create_category_budget(user, project_id, budget_data)
+    return GenericResponse(data=budget, message="Category budget created")
 
 
 # --- SCHEDULER ENDPOINTS ---
@@ -215,41 +155,42 @@ async def delete_client(
 
 @router.post(
     "/projects/{project_id}/calculate-schedule",
-    response_model=GenericResponse[Dict[str, Any]],
+    response_model=GenericResponse[ScheduleResponse],
     tags=["Scheduler"],
 )
 async def calculate_schedule(
     project_id: str,
-    data: Dict[str, Any],
+    request: ScheduleCalculateRequest,
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
     """Trigger schedule recalculation logic."""
+    task_dicts = [task.dict() for task in request.tasks]
     result = await service.calculate_schedule(
-        project_id, data.get("tasks", []), data.get("project_start")
+        project_id, task_dicts, request.project_start
     )
     return GenericResponse(data=result)
 
 
 @router.post(
     "/projects/{project_id}/save-schedule",
-    response_model=GenericResponse[Dict[str, Any]],
+    response_model=GenericResponse[dict],
     tags=["Scheduler"],
 )
 async def save_schedule(
     project_id: str,
-    data: Dict[str, Any],
+    request: ScheduleSaveRequest,
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
     """Persist calculated schedule to the database."""
     result = await service.save_schedule(
         project_id,
-        data.get("tasks", []),
-        data.get("project_start"),
-        data.get("total_cost", 0.0),
+        user["organisation_id"],
+        user["user_id"],
+        request.dict(),
     )
-    return GenericResponse(data=result)
+    return GenericResponse(data=result, message="Schedule saved successfully")
 
 
 @router.get(
@@ -263,5 +204,5 @@ async def load_schedule(
     service: SchedulerService = Depends(get_scheduler_service),
 ):
     """Retrieve the current project schedule."""
-    result = await service.get_schedule(project_id)
+    result = await service.load_schedule(project_id, user["organisation_id"])
     return GenericResponse(data=result)

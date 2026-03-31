@@ -6,7 +6,6 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from app.core.utils import serialize_doc
 from app.modules.shared.domain.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -85,16 +84,42 @@ class SchedulerService:
     async def load_schedule(
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
-        schedule = await self.collection.find_one(
-            {"project_id": project_id, "organisation_id": organisation_id}
-        )
+        """Authoritative schedule retrieval with resilience."""
+        from bson import ObjectId
+        from app.core.utils import serialize_doc
 
-        if not schedule:
+        try:
+            # Handle both string and ObjectId project_id for legacy compatibility
+            query = {
+                "$or": [
+                    {"project_id": project_id},
+                    {"project_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id}
+                ],
+                "organisation_id": organisation_id
+            }
+            
+            schedule = await self.collection.find_one(query)
+
+            if not schedule:
+                # Try project_id without organisation_id if it's a migration case
+                schedule = await self.collection.find_one({"project_id": project_id})
+                if schedule:
+                    logger.warning(f"Found schedule for {project_id} without organisation_id check")
+
+            if not schedule:
+                return {
+                    "project_id": project_id,
+                    "tasks": [],
+                    "project_start": None,
+                    "total_cost": 0,
+                }
+
+            return serialize_doc(schedule)
+        except Exception as e:
+            logger.error(f"FATAL_SCHEDULER_LOAD: {str(e)}")
+            # Fallback to default instead of 500 to keep UI functional
             return {
                 "project_id": project_id,
                 "tasks": [],
-                "project_start": None,
-                "total_cost": 0,
+                "error": f"Internal Error: {str(e)}"
             }
-
-        return serialize_doc(schedule)

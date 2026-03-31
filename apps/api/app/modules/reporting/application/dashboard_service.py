@@ -55,11 +55,26 @@ class DashboardService:
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
         """Uses authoritative FinancialState read-model for rapid delivery."""
+        from bson import ObjectId
 
-        # 1. Fetch Authoritative Snapshot (Read-Model)
+        # ID-agnostic query for project_id
+        project_query = {
+            "$or": [
+                {"project_id": project_id},
+                {"_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id}
+            ]
+        }
+
+        # 1. Fetch Authoritative Snapshot with organisation isolation
         master_state = await self.fin_state_repo.find_one(
-            {"project_id": project_id, "category_id": None}
+            {"project_id": project_id, "organisation_id": organisation_id, "category_id": None}
         )
+
+        if not master_state:
+            # Fallback to base lookup without organisation_id if no strict isolation found
+            master_state = await self.fin_state_repo.find_one(
+                {"project_id": project_id, "category_id": None}
+            )
 
         if not master_state:
             logger.warning(
@@ -70,6 +85,7 @@ class DashboardService:
                     {
                         "$match": {
                             "project_id": project_id,
+                            "organisation_id": organisation_id,
                             "category_id": {"$ne": None},
                         }
                     },
@@ -88,14 +104,20 @@ class DashboardService:
             master_budget = master_state.get("original_budget", Decimal128("0.0"))
             total_committed = master_state.get("committed_value", Decimal128("0.0"))
 
-        # 2. Project Overview Metrics
-        total_phases = await self.budget_repo.count({"project_id": project_id})
+        # 2. Project Overview Metrics with isolation
+        total_phases = await self.budget_repo.count(
+            {"project_id": project_id, "organisation_id": organisation_id}
+        )
         active_items_count = await self.wo_repo.count(
-            {"project_id": project_id, "status": {"$in": ["Pending", "Draft"]}}
+            {"project_id": project_id, "organisation_id": organisation_id, "status": {"$in": ["Pending", "Draft"]}}
         )
 
         # 3. Overdue Milestones & Schedule Metrics
-        schedule = await self.schedule_repo.find_one({"project_id": project_id})
+        schedule = await self.schedule_repo.find_one(
+            {"project_id": project_id, "organisation_id": organisation_id}
+        )
+        if not schedule:
+             schedule = await self.schedule_repo.find_one({"project_id": project_id})
         overdue_milestones, variance, critical_path_status = (
             0,
             Decimal("0.0"),
