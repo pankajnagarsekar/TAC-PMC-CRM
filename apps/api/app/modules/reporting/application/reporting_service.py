@@ -92,7 +92,7 @@ class ReportingService:
         financials = await self.fin_state_repo.list(
             {"project_id": project_id}, limit=500
         )
-        fin_map = {str(f.get("category_id")): f for f in financials}
+        fin_map = {str(f.get("code_id")): f for f in financials}
 
         master_budget = Decimal("0.0")
         total_committed = Decimal("0.0")
@@ -156,7 +156,7 @@ class ReportingService:
 
             # 1. Financial Stats
             master_state = await self.fin_state_repo.find_one(
-                {"project_id": p_id, "category_id": None}
+                {"project_id": p_id, "code_id": None}
             )
             # 2. DPR & Worker Stats
             dpr_total = await self.worker_log_repo.count({"project_id": p_id})

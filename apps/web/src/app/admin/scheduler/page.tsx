@@ -15,6 +15,7 @@ import KPICards from "@/components/dashboard/KPICards";
 import SCurveChart from "@/components/dashboard/SCurveChart";
 import CashFlowChart from "@/components/dashboard/CashFlowChart";
 import ResourceHeatmap from "@/components/dashboard/ResourceHeatmap";
+import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 import { Button } from "@/components/ui/button";
 
 export default function ProjectSchedulerPage() {
@@ -273,6 +274,7 @@ export default function ProjectSchedulerPage() {
 
         <div className="space-y-8">
           <TaskDrawer />
+          {activeProject?.project_id && <AISummaryCard projectId={activeProject.project_id} />}
           <SCurveChart />
         </div>
       </div>

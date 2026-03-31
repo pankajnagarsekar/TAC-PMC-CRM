@@ -67,13 +67,13 @@ class DashboardService:
 
         # 1. Fetch Authoritative Snapshot with organisation isolation
         master_state = await self.fin_state_repo.find_one(
-            {"project_id": project_id, "organisation_id": organisation_id, "category_id": None}
+            {"project_id": project_id, "organisation_id": organisation_id, "code_id": None}
         )
 
         if not master_state:
             # Fallback to base lookup without organisation_id if no strict isolation found
             master_state = await self.fin_state_repo.find_one(
-                {"project_id": project_id, "category_id": None}
+                {"project_id": project_id, "code_id": None}
             )
 
         if not master_state:
@@ -86,7 +86,7 @@ class DashboardService:
                         "$match": {
                             "project_id": project_id,
                             "organisation_id": organisation_id,
-                            "category_id": {"$ne": None},
+                            "code_id": {"$ne": None},
                         }
                     },
                     {
@@ -225,9 +225,9 @@ class DashboardService:
     async def get_financials(self, project_id: str) -> List[Dict[str, Any]]:
         """Fetch project category financials from authoritative read-model."""
         financials = await self.fin_state_repo.list(
-            {"project_id": project_id, "category_id": {"$ne": None}},
+            {"project_id": project_id, "code_id": {"$ne": None}},
             limit=500,
-            sort=[("category_id", 1)],
+            sort=[("code_id", 1)],
         )
         return financials
 

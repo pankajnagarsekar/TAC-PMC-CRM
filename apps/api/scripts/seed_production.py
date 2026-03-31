@@ -144,18 +144,22 @@ async def seed_production():
         else:
             client_id = str(client_doc["_id"])
             
-        vendor_doc = await db.vendors.find_one({"name": "Default Vendor"})
-        if not vendor_doc:
-            vendor_result = await db.vendors.insert_one({
-                "organisation_id": org_id,
-                "name": "Default Vendor",
-                "active_status": True,
-                "created_at": datetime.now(timezone.utc),
-                "updated_at": datetime.now(timezone.utc)
-            })
-            vendor_id = str(vendor_result.inserted_id)
-        else:
-            vendor_id = str(vendor_doc["_id"])
+        vendors_to_create = ["Default Vendor", "SS Construction", "Suraj Electrician", "Rajesh Construction", "CDSP Global"]
+        vendor_map = {}
+        for v_name in vendors_to_create:
+            v_doc = await db.vendors.find_one({"name": v_name})
+            if not v_doc:
+                result = await db.vendors.insert_one({
+                    "organisation_id": org_id,
+                    "name": v_name,
+                    "active_status": True,
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc)
+                })
+                vendor_map[v_name] = str(result.inserted_id)
+            else:
+                vendor_map[v_name] = str(v_doc["_id"])
+        vendor_id = vendor_map["Default Vendor"]
 
         code_map = {}
         for code in codes:
@@ -185,8 +189,8 @@ async def seed_production():
         project = await db.projects.find_one({"project_name": "Majorda Villa - Civil Works"})
         
         # Consistent realistic budget values from MIS
-        original_budget = 12000000 # ~12M Cr
-        remaining_budget = 7500000 # After ~4.5M expenditure
+        original_budget = 70000000 # 70M Cr
+        remaining_budget = 68465000 # Adjusted
         
         if project:
             project_id = str(project["_id"])
@@ -249,6 +253,7 @@ async def seed_production():
                 "actual_start": "2026-02-20",
                 "actual_finish": None,
                 "percent_complete": 18,
+                "task_status": "in_progress",
                 "dependencies": [],
                 "task_type": "summary",
                 "wo_value": 10107425.95,
@@ -265,6 +270,7 @@ async def seed_production():
                 "actual_start": "2026-02-20",
                 "actual_finish": "2026-02-20",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [],
                 "task_type": "milestone",
             },
@@ -280,6 +286,7 @@ async def seed_production():
                 "actual_start": "2026-02-20",
                 "actual_finish": "2026-02-20",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [1],
                 "task_type": "task",
             },
@@ -295,6 +302,7 @@ async def seed_production():
                 "actual_start": "2026-02-21",
                 "actual_finish": "2026-02-21",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [2],
                 "task_type": "task",
             },
@@ -310,6 +318,7 @@ async def seed_production():
                 "actual_start": "2026-02-23",
                 "actual_finish": "2026-03-09",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [3],
                 "task_type": "task",
             },
@@ -325,6 +334,7 @@ async def seed_production():
                 "actual_start": "2026-02-23",
                 "actual_finish": "2026-03-09",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [3],
                 "task_type": "task",
             },
@@ -340,6 +350,7 @@ async def seed_production():
                 "actual_start": "2026-02-21",
                 "actual_finish": "2026-03-10",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [3],
                 "task_type": "task",
                 "is_critical": True,
@@ -356,6 +367,7 @@ async def seed_production():
                 "actual_start": "2026-03-10",
                 "actual_finish": "2026-03-11",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [6],
                 "task_type": "task",
             },
@@ -371,6 +383,7 @@ async def seed_production():
                 "actual_start": "2026-03-11",
                 "actual_finish": "2026-03-12",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [7],
                 "task_type": "task",
             },
@@ -386,6 +399,7 @@ async def seed_production():
                 "actual_start": "2026-03-13",
                 "actual_finish": "2026-03-14",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [8],
                 "task_type": "task",
             },
@@ -401,6 +415,7 @@ async def seed_production():
                 "actual_start": "2026-03-13",
                 "actual_finish": "2026-03-13",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [9],
                 "task_type": "task",
             },
@@ -416,6 +431,7 @@ async def seed_production():
                 "actual_start": "2026-03-14",
                 "actual_finish": "2026-03-14",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [10],
                 "task_type": "task",
             },
@@ -431,6 +447,7 @@ async def seed_production():
                 "actual_start": "2026-03-17",
                 "actual_finish": "2026-03-24",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [11],
                 "task_type": "task",
                 "is_critical": True,
@@ -447,6 +464,7 @@ async def seed_production():
                 "actual_start": "2026-03-25",
                 "actual_finish": "2026-03-25",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [12],
                 "task_type": "task",
             },
@@ -462,6 +480,7 @@ async def seed_production():
                 "actual_start": "2026-03-27",
                 "actual_finish": "2026-03-27",
                 "percent_complete": 100,
+                "task_status": "completed",
                 "dependencies": [13],
                 "task_type": "task",
                 "is_critical": True,
@@ -478,6 +497,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [14],
                 "task_type": "task",
             },
@@ -493,6 +513,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [15],
                 "task_type": "task",
             },
@@ -508,6 +529,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [16],
                 "task_type": "task",
             },
@@ -523,6 +545,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [17],
                 "task_type": "task",
             },
@@ -538,6 +561,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [18],
                 "task_type": "task",
             },
@@ -553,6 +577,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [19],
                 "task_type": "task",
             },
@@ -568,6 +593,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [20],
                 "task_type": "task",
             },
@@ -583,6 +609,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [21],
                 "task_type": "task",
             },
@@ -598,6 +625,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [22],
                 "task_type": "task",
             },
@@ -613,6 +641,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [23],
                 "task_type": "task",
             },
@@ -628,6 +657,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [24],
                 "task_type": "task",
             },
@@ -643,6 +673,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [25],
                 "task_type": "task",
             },
@@ -658,6 +689,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [26],
                 "task_type": "task",
             },
@@ -673,6 +705,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [27],
                 "task_type": "task",
             },
@@ -688,6 +721,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [28],
                 "task_type": "task",
             },
@@ -703,6 +737,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [29],
                 "task_type": "task",
             },
@@ -718,6 +753,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [30],
                 "task_type": "milestone",
                 "is_critical": True,
@@ -734,6 +770,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [31],
                 "task_type": "task",
             },
@@ -749,6 +786,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [32],
                 "task_type": "task",
             },
@@ -764,6 +802,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [33],
                 "task_type": "task",
             },
@@ -779,6 +818,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [34],
                 "task_type": "task",
             },
@@ -794,6 +834,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [35],
                 "task_type": "task",
             },
@@ -809,6 +850,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [36],
                 "task_type": "task",
             },
@@ -824,6 +866,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [37],
                 "task_type": "task",
             },
@@ -839,6 +882,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [38],
                 "task_type": "milestone",
                 "is_critical": True,
@@ -855,6 +899,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [39],
                 "task_type": "task",
                 "is_critical": True,
@@ -871,6 +916,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [40],
                 "task_type": "task",
                 "is_critical": True,
@@ -887,6 +933,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [41],
                 "task_type": "task",
                 "is_critical": True,
@@ -903,6 +950,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [42],
                 "task_type": "task",
                 "is_critical": True,
@@ -919,6 +967,7 @@ async def seed_production():
                 "actual_start": None,
                 "actual_finish": None,
                 "percent_complete": 0,
+                "task_status": "draft",
                 "dependencies": [42],
                 "task_type": "task",
             },
@@ -961,11 +1010,11 @@ async def seed_production():
             pass
             
         financial_categories = [
-            {"category_id": "CIV", "original": 10072425, "committed": 10072425, "certified": 4500000},
-            {"category_id": "PLB", "original": 350000, "committed": 0, "certified": 0},
-            {"category_id": "ELC", "original": 500000, "committed": 13530, "certified": 0},
-            {"category_id": "PRF", "original": 200000, "committed": 14000, "certified": 14000},
-            {"category_id": "PTC", "original": 100000, "committed": 25000, "certified": 25000},
+            {"category_id": "CIV", "original": 15000000, "committed": 10072425, "certified": 1535000},
+            {"category_id": "PLB", "original": 5000000, "committed": 0, "certified": 0},
+            {"category_id": "ELC", "original": 5000000, "committed": 13530, "certified": 0},
+            {"category_id": "PRF", "original": 5000000, "committed": 14000, "certified": 14000},
+            {"category_id": "PTC", "original": 85000, "committed": 81300, "certified": 81300},
         ]
 
         for fc in financial_categories:
@@ -983,6 +1032,58 @@ async def seed_production():
                 upsert=True
             )
         print(f"  Projected financial states for {len(financial_categories)} categories")
+
+        print("\n[STEP 7] Seeding Missing WOs, PCs and Site Tasks...")
+        await db.work_orders.delete_many({"project_id": project_id})
+        await db.payment_certificates.delete_many({"project_id": project_id})
+        
+        await db.work_orders.insert_many([
+            {
+                "wo_ref": "TAC_WO_25_003",
+                "organisation_id": org_id,
+                "project_id": project_id,
+                "category_id": code_map.get("ELC"),
+                "vendor_id": vendor_map.get("Suraj Electrician"),
+                "subtotal": 13530,
+                "grand_total": 13530,
+                "status": "Completed"
+            },
+            {
+                "wo_ref": "TAC_WO_25_004",
+                "organisation_id": org_id,
+                "project_id": project_id,
+                "category_id": code_map.get("PRF"),
+                "vendor_id": vendor_map.get("CDSP Global"),
+                "subtotal": 14000,
+                "grand_total": 14000,
+                "status": "Completed"
+            }
+        ])
+        
+        await db.payment_certificates.insert_many([
+            {
+                "pc_ref": "TAC_PC_25_001",
+                "organisation_id": org_id,
+                "project_id": project_id,
+                "category_id": code_map.get("CIV"),
+                "vendor_id": vendor_map.get("SS Construction"),
+                "subtotal": 1000000,
+                "grand_total": 1000000,
+                "status": "Approved"
+            },
+            {
+                "pc_ref": "TAC_PC_25_002",
+                "organisation_id": org_id,
+                "project_id": project_id,
+                "category_id": code_map.get("CIV"),
+                "vendor_id": vendor_map.get("Rajesh Construction"),
+                "subtotal": 535000,
+                "grand_total": 535000,
+                "status": "Approved"
+            }
+        ])
+        
+        print("  Created missing entities.")
 
         print("\n" + "=" * 70)
         print("SEED COMPLETE - PRODUCTION READY")

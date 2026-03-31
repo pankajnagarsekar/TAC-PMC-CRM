@@ -81,7 +81,7 @@ class AISummaryService:
             {"project_id": project_id}, sort=[("created_at", -1)]
         )
         if not summary:
-            raise NotFoundError("AI summary", project_id)
+            return await self.refresh_summary(user, project_id)
         return summary
 
     async def refresh_summary(self, user: dict, project_id: str) -> Dict[str, Any]:
@@ -132,16 +132,35 @@ class AISummaryService:
         financials = await self.fin_state_repo.list(
             {"project_id": project_id}, limit=100
         )
-        fin_map = {str(f.get("category_id")): f for f in financials}
+        fin_map = {str(f.get("code_id")): f for f in financials}
 
         total_budget = sum(to_f(b.get("original_budget")) for b in budgets)
         total_committed = sum(
-            to_f(fin_map.get(str(b.get("category_id")), {}).get("committed_value"))
+            to_f(fin_map.get(str(b.get("code_id")), {}).get("committed_value"))
             for b in budgets
         )
+        
+        from app.modules.contracting.infrastructure.repository import WorkOrderRepository
+        from app.modules.financial.infrastructure.repository import PCRepository
+        
+        wo_repo = WorkOrderRepository(self.db)
+        pc_repo = PCRepository(self.db)
+        wo_open = await wo_repo.count({"project_id": project_id, "status": {"$in": ["Pending", "Draft"]}})
+        pc_closed = await pc_repo.count({"project_id": project_id, "status": "Closed"})
+        
+        over_budget_categories = []
+        for b in budgets:
+            cid = str(b.get("code_id"))
+            o_b = to_f(b.get("original_budget"))
+            committed_val = to_f(fin_map.get(cid, {}).get("committed_value"))
+            if committed_val > o_b and o_b > 0:
+                over_budget_categories.append(cid)
 
         return {
             "total_budget": total_budget,
             "total_committed": total_committed,
             "total_remaining": total_budget - total_committed,
+            "wo_open": wo_open,
+            "pc_closed": pc_closed,
+            "over_budget_categories": over_budget_categories
         }
