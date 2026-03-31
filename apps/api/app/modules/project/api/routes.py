@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.core.dependencies import (
     get_authenticated_user,
@@ -244,12 +244,14 @@ async def migrate_legacy_schedule(
     # Note: SchedulerService needs to implement migrate_legacy_data
     # For now, we stub it or point to a script if available
     if hasattr(service, "migrate_legacy_data"):
-        result = await service.migrate_legacy_data(project_id, user["organisation_id"], dry_run)
+        result = await service.migrate_legacy_data(
+            project_id, user["organisation_id"], dry_run
+        )
         return GenericResponse(data=result)
-    
+
     return GenericResponse(
-        success=False, 
-        message="Migration service not fully implemented in this context."
+        success=False,
+        message="Migration service not fully implemented in this context.",
     )
 
 
@@ -266,5 +268,7 @@ async def task_mom_extract(
     ai_service: AIService = Depends(get_ai_service),
 ):
     """Analyze meeting notes to extract action items and duration suggestions for a specific task."""
-    result = await ai_service.extract_mom(project_id, task_id, data.get("raw_notes", ""))
+    result = await ai_service.extract_mom(
+        project_id, task_id, data.get("raw_notes", "")
+    )
     return GenericResponse(data=result)

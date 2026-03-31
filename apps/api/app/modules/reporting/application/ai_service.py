@@ -59,7 +59,9 @@ class AIService:
             logger.error(f"AI_STT_FAIL: {e}")
             raise ValidationError(f"Transcription failed: {str(e)}")
 
-    async def extract_mom(self, project_id: str, task_id: str, raw_notes: str) -> Dict[str, Any]:
+    async def extract_mom(
+        self, project_id: str, task_id: str, raw_notes: str
+    ) -> Dict[str, Any]:
         """
         Extracts action items and duration suggestions from meeting notes.
         """
@@ -67,15 +69,24 @@ class AIService:
             logger.warning("AI_MOM: No API key found, returning mock extraction.")
             return {
                 "action_items": [
-                    {"task_name": "Review foundations", "assignee": "Architect", "deadline": "Next Friday"},
-                    {"task_name": "Order steel", "assignee": "Procurement", "deadline": "Monday"}
+                    {
+                        "task_name": "Review foundations",
+                        "assignee": "Architect",
+                        "deadline": "Next Friday",
+                    },
+                    {
+                        "task_name": "Order steel",
+                        "assignee": "Procurement",
+                        "deadline": "Monday",
+                    },
                 ],
                 "suggested_duration_days": 5,
-                "confidence_score": 0.85
+                "confidence_score": 0.85,
             }
 
         try:
             from openai import AsyncOpenAI
+
             client = AsyncOpenAI(api_key=self.openai_key)
 
             prompt = f"""
@@ -83,9 +94,9 @@ class AIService:
             Extract:
             1. Action items (task name, assignee, deadline).
             2. A suggested duration in working days for the next phase.
-            
+
             Return output as JSON only with keys: action_items (list), suggested_duration_days (int), confidence_score (float 0-1).
-            
+
             Notes:
             {raw_notes}
             """
@@ -93,10 +104,11 @@ class AIService:
             response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
-            
+
             import json
+
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             logger.error(f"AI_MOM_FAIL: {e}")
