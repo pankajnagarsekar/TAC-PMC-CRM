@@ -92,12 +92,16 @@ class ReportingService:
         financials = await self.fin_state_repo.list(
             {"project_id": project_id}, limit=500
         )
-        fin_map = {str(f.get("category_id")): f for f in financials}
+        fin_map = {str(f.get("category_id") or ""): f for f in financials if f.get("category_id")}
         master_budget = Decimal("0.0")
         total_committed = Decimal("0.0")
 
         for b in budgets:
-            cid = str(b.get("category_id"))
+            category_id = b.get("category_id")
+            if not category_id:
+                continue
+
+            cid = str(category_id)
             master_budget += FinancialEngine.to_decimal(b.get("original_budget"))
             total_committed += FinancialEngine.to_decimal(
                 fin_map.get(cid, {}).get("committed_value")

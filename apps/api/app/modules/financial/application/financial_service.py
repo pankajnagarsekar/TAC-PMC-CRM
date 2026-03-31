@@ -100,6 +100,7 @@ class FinancialService:
         serializable_doc = {
             "project_id": project_id,
             "category_id": category_id,
+            "code_id": category_id,
             "original_budget": FinancialEngine.to_d128(state.original_budget),
             "committed_value": FinancialEngine.to_d128(state.committed_value),
             "certified_value": FinancialEngine.to_d128(state.certified_value),

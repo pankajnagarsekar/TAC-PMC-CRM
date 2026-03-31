@@ -37,10 +37,14 @@ class DashboardService:
         self.dpr_repo = DPRRepository(db)
         self.pc_repo = PCRepository(db)
 
-    def _parse_date(self, date_str: str) -> datetime:
+    def _parse_date(self, date_str: Any) -> datetime:
         if not date_str:
             return datetime.max.replace(tzinfo=timezone.utc)
-        date_str = date_str.replace("/", "-")
+        if isinstance(date_str, datetime):
+            if date_str.tzinfo is None:
+                return date_str.replace(tzinfo=timezone.utc)
+            return date_str
+        date_str = str(date_str).replace("/", "-")
         for fmt in ("%d-%m-%y", "%d-%m-%Y", "%Y-%m-%d"):
             try:
                 return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
@@ -225,9 +229,9 @@ class DashboardService:
     async def get_financials(self, project_id: str) -> List[Dict[str, Any]]:
         """Fetch project category financials from authoritative read-model."""
         financials = await self.fin_state_repo.list(
-            {"project_id": project_id, "code_id": {"$ne": None}},
+            {"project_id": project_id, "category_id": {"$ne": None}},
             limit=500,
-            sort=[("code_id", 1)],
+            sort=[("category_id", 1)],
         )
         return financials
 

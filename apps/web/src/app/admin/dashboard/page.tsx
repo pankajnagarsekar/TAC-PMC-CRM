@@ -1,50 +1,32 @@
 "use client";
 import React from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import {
   TrendingUp,
-  Wallet,
-  FileText,
-  CheckCircle2,
   AlertTriangle,
-  ArrowUpRight,
-  TrendingDown,
   LayoutGrid,
-  ExternalLink,
-  Search,
   ChevronRight,
   Building2,
-  Loader2,
+  Search,
+  Camera,
+  Clock,
+  Calendar,
+  ListTodo,
+  History as HistoryIcon,
+  GanttChartSquare,
+  BarChart4,
   FolderOpen,
+  TrendingDown,
 } from "lucide-react";
 import { fetcher } from "@/lib/api";
 import { Project, DerivedFinancialState, VendorPayable, CashSummaryResponse, WorkOrder } from "@/types/api";
 import { useProjectStore } from "@/store/projectStore";
 import { useAuthStore } from "@/store/authStore";
 import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
-import { formatCurrencySafe, formatPercentSafe, normalizeFinancial } from "@/lib/formatters";
-import FinancialChart from "@/components/ui/FinancialChart";
 
+import { formatCurrencySafe, normalizeFinancial } from "@/lib/formatters";
+import FinancialChart from "@/components/ui/FinancialChart";
 import { GlassCard } from "@/components/ui/GlassCard";
-import {
-  Camera,
-  Clock,
-  Calendar,
-  ListTodo,
-  History,
-  GanttChartSquare,
-  BarChart4
-} from "lucide-react";
 
 interface DashboardStats {
   project_id: string;
@@ -122,7 +104,7 @@ export default function AdminDashboard() {
   const chartData = React.useMemo(() => {
     if (!financials) return [];
     return financials.slice(0, 8).map(f => ({
-      name: f.category_name || f.category_code || f.category_id.substring(0, 6),
+      name: f.category_name || f.category_code || (f.category_id ? f.category_id.substring(0, 6) : 'N/A'),
       budget: normalizeFinancial(f.original_budget),
       committed: normalizeFinancial(f.committed_value)
     }));
@@ -404,7 +386,7 @@ export default function AdminDashboard() {
           <GlassCard className="shadow-lg">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
-                <History size={20} />
+                <HistoryIcon size={20} />
               </div>
               <h2 className="text-sm font-bold tracking-tight uppercase">Project Wide Task Log</h2>
             </div>
@@ -447,7 +429,14 @@ export default function AdminDashboard() {
                 return (
                   <div key={f.category_id} className="space-y-2">
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                      <span className="text-zinc-500">{f.category_name || f.category_id.substring(0, 8)}</span>
+                      <div className="flex flex-col">
+                        <span className="text-zinc-500">
+                          {f.category_name || (f.category_id ? f.category_id.substring(0, 8) : 'N/A')}
+                        </span>
+                        <span className="text-[10px] text-zinc-600 font-mono">
+                          {f.category_code || '---'}
+                        </span>
+                      </div>
                       <span className="text-primary">{progress}%</span>
                     </div>
                     <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
@@ -472,8 +461,6 @@ export default function AdminDashboard() {
 
             <div className="space-y-6">
               {(financials ?? []).sort((a, b) => (normalizeFinancial(b.original_budget) - normalizeFinancial(a.original_budget))).slice(0, 3).map(f => {
-                const actual = normalizeFinancial(f.committed_value);
-                const budget = normalizeFinancial(f.original_budget);
                 const spentPercent = f.original_budget > 0
                   ? Math.round((normalizeFinancial(f.committed_value) / normalizeFinancial(f.original_budget)) * 100)
                   : 0;
