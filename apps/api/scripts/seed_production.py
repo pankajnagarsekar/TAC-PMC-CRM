@@ -143,7 +143,7 @@ async def seed_production():
 
         # 4. PROJECT: MAJORDA VILLA
         print("\n[STEP 4] Creating Majorda Villa Project...")
-        project = await db.projects.find_one({"name": "Majorda Villa - Civil Works"})
+        project = await db.projects.find_one({"project_name": "Majorda Villa - Civil Works"})
         if project:
             project_id = str(project["_id"])
             print(f"  Project exists: {project_id}")
@@ -153,9 +153,9 @@ async def seed_production():
                 {
                     "_id": project_oid,
                     "project_id": str(project_oid),
-                    "name": "Majorda Villa - Civil Works",
+                    "project_name": "Majorda Villa - Civil Works",
                     "client_name": "Mr. Sanjay Rao",
-                    "status": "Active",
+                    "status": "active",
                     "project_type": "Commercial Construction",
                     "start_date": datetime(2026, 2, 20, tzinfo=timezone.utc),
                     "end_date": None,
@@ -817,13 +817,14 @@ async def seed_production():
             },
         ]
 
-        existing_scheduler = await db.scheduler.find_one({"project_id": project_id})
+        existing_scheduler = await db.project_schedules.find_one({"project_id": project_id})
         if existing_scheduler:
-            await db.scheduler.delete_one({"project_id": project_id})
+            await db.project_schedules.delete_one({"project_id": project_id})
 
-        await db.scheduler.insert_one(
+        await db.project_schedules.insert_one(
             {
                 "project_id": project_id,
+                "organisation_id": org_id,
                 "project_name": "Majorda Villa - Civil Works",
                 "tasks": majorda_tasks,
                 "total_duration_days": 246,
