@@ -132,11 +132,10 @@ class AISummaryService:
         financials = await self.fin_state_repo.list(
             {"project_id": project_id}, limit=100
         )
-        fin_map = {str(f.get("code_id")): f for f in financials}
-
+        fin_map = {str(f.get("category_id")): f for f in financials}
         total_budget = sum(to_f(b.get("original_budget")) for b in budgets)
         total_committed = sum(
-            to_f(fin_map.get(str(b.get("code_id")), {}).get("committed_value"))
+            to_f(fin_map.get(str(b.get("category_id")), {}).get("committed_value"))
             for b in budgets
         )
         

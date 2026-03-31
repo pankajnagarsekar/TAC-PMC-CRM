@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  FolderOpen,
   FileText,
   CreditCard,
   Wallet,
@@ -14,8 +13,6 @@ import {
   Settings,
   LogOut,
   BarChart3,
-  ChevronRight,
-  Building2,
   Scan,
   Store,
   ShieldCheck,
@@ -37,85 +34,6 @@ interface NavItem {
   key: string;
   children?: NavItem[];
 }
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
-    label: "Dashboard",
-    key: "dashboard",
-  },
-  { href: "/admin/clients", icon: Users, label: "Clients", key: "clients" },
-  {
-    href: "/admin/scheduler",
-    icon: CalendarDays,
-    label: "Project Scheduler",
-    key: "scheduler",
-  },
-  {
-    href: "/admin/categories",
-    icon: LayoutDashboard,
-    label: "Categories",
-    key: "categories",
-  },
-  { href: "/admin/vendors", icon: Store, label: "Vendors", key: "vendors" },
-  {
-    href: "/admin/work-orders",
-    icon: FileText,
-    label: "Work Orders",
-    key: "work_orders",
-  },
-  {
-    href: "/admin/payment-certificates",
-    icon: CreditCard,
-    label: "Payment Certificate",
-    key: "payment_certificates",
-  },
-  { href: "/admin/ocr", icon: Scan, label: "AI OCR Scanner", key: "ocr" },
-  {
-    href: "/admin/site-operations",
-    icon: HardHat,
-    label: "Site Operations",
-    key: "site_operations",
-    children: [
-      { href: "/admin/site-operations?tab=dprs", label: "DPRs", key: "dprs" },
-      {
-        href: "/admin/site-operations?tab=attendance",
-        label: "Attendance",
-        key: "attendance",
-      },
-      {
-        href: "/admin/site-operations?tab=voice-logs",
-        label: "Voice Logs",
-        key: "voice_logs",
-      },
-      {
-        href: "/admin/site-operations?tab=funds",
-        label: "Site Funds",
-        key: "funds",
-      },
-    ],
-  },
-  { href: "/admin/reports", icon: BarChart2, label: "Reports", key: "reports" },
-  {
-    href: "/admin/audit-log",
-    icon: ShieldCheck,
-    label: "Audit Log",
-    key: "audit_log",
-  },
-  {
-    href: "/admin/users",
-    icon: Users,
-    label: "Team Management",
-    key: "users",
-  },
-  {
-    href: "/admin/settings",
-    icon: Settings,
-    label: "Settings",
-    key: "settings",
-  },
-];
 
 interface SidebarProps {
   onProjectSwitch?: () => void;
@@ -149,16 +67,102 @@ export default function Sidebar({
     router.replace("/login");
   }
 
-  const filteredNavItems = NAV_ITEMS.filter((item) => {
+  const items: NavItem[] = [
+    {
+      href: "/admin/dashboard",
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      key: "dashboard",
+    },
+    ...(activeProject ? [{
+      href: `/admin/projects/${activeProject._id || activeProject.project_id}`,
+      icon: Wallet,
+      label: "Project Financials",
+      key: "project_financials",
+    }] : []),
+    { href: "/admin/clients", icon: Users, label: "Clients", key: "clients" },
+    {
+      href: "/admin/scheduler",
+      icon: CalendarDays,
+      label: "Project Scheduler",
+      key: "scheduler",
+    },
+    {
+      href: "/admin/categories",
+      icon: LayoutDashboard,
+      label: "Categories",
+      key: "categories",
+    },
+    { href: "/admin/vendors", icon: Store, label: "Vendors", key: "vendors" },
+    {
+      href: "/admin/work-orders",
+      icon: FileText,
+      label: "Work Orders",
+      key: "work_orders",
+    },
+    {
+      href: "/admin/payment-certificates",
+      icon: CreditCard,
+      label: "Payment Certificate",
+      key: "payment_certificates",
+    },
+    { href: "/admin/ocr", icon: Scan, label: "AI OCR Scanner", key: "ocr" },
+    {
+      href: "/admin/site-operations",
+      icon: HardHat,
+      label: "Site Operations",
+      key: "site_operations",
+      children: [
+        { href: "/admin/site-operations?tab=dprs", label: "DPRs", key: "dprs" },
+        {
+          href: "/admin/site-operations?tab=attendance",
+          label: "Attendance",
+          key: "attendance",
+        },
+        {
+          href: "/admin/site-operations?tab=voice-logs",
+          label: "Voice Logs",
+          key: "voice_logs",
+        },
+        {
+          href: "/admin/site-operations?tab=funds",
+          label: "Site Funds",
+          key: "funds",
+        },
+      ],
+    },
+    { href: "/admin/reports", icon: BarChart2, label: "Reports", key: "reports" },
+    {
+      href: "/admin/audit-log",
+      icon: ShieldCheck,
+      label: "Audit Log",
+      key: "audit_log",
+    },
+    {
+      href: "/admin/users",
+      icon: Users,
+      label: "Team Management",
+      key: "users",
+    },
+    {
+      href: "/admin/settings",
+      icon: Settings,
+      label: "Settings",
+      key: "settings",
+    },
+  ];
+
+  const filteredNavItems = items.filter((item) => {
     if (user?.role === "Client") {
       const perms = settings?.client_permissions;
       if (!perms) {
-        return ["Dashboard", "Projects"].includes(item.label);
+        return ["Dashboard", "Projects", "Project Financials"].includes(item.label);
       }
 
       const mapping: Record<string, boolean | undefined> = {
         Dashboard: true,
         Projects: true,
+        "Project Financials": true,
         "Site Operations": perms.can_view_dpr,
         Reports: perms.can_view_reports,
       };

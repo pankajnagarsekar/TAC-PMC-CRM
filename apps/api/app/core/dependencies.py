@@ -219,8 +219,9 @@ async def get_dashboard_service(
 async def get_master_data_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
     audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker),
 ) -> MasterDataService:
-    return MasterDataService(db, audit)
+    return MasterDataService(db, audit, perm)
 
 
 async def get_notification_service(

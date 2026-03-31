@@ -316,6 +316,13 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
 
       const projectId =
         payload.project_id ?? previousTask.project_id ?? "";
+
+      if (!projectId) {
+        console.warn("SCHEDULER_STORE: Missing project_id for calculation. Aborting request.");
+        set({ pendingCalculation: false });
+        return;
+      }
+
       pendingRequest = {
         ...payload,
         project_id: projectId,
@@ -410,8 +417,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     },
 
     toggleParentCollapse: (taskId) => {
-      set((state) => {
-        const next = new Set(state.collapsedParents);
+      set((_state) => {
+        const next = new Set(get().collapsedParents);
         if (next.has(taskId)) {
           next.delete(taskId);
         } else {
@@ -431,7 +438,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
           selectedBaselineB: baselineB ?? null,
           pendingCalculation: false
         });
-      } catch (err: any) {
+      } catch (_err: any) {
         set({ pendingCalculation: false });
         toast.error("Failed to fetch baseline comparison.");
       }

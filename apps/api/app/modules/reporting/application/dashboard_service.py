@@ -157,7 +157,7 @@ class DashboardService:
         )
         yesterday = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
         # Using WorkerLogRepository instead of DPRRepo for consistency with site ops migration
-        dpr_recent = await self.db.workers_daily_logs.count_documents(
+        dpr_recent = await self.db.worker_logs.count_documents(
             {"project_id": project_id, "created_at": {"$gte": yesterday}}
         )
 

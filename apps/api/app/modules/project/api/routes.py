@@ -113,7 +113,7 @@ async def list_clients(
     client_service: ClientService = Depends(get_client_service),
 ):
     """List all clients within the organisation."""
-    clients = await client_service.list_clients(user)
+    clients = await client_service.list_clients(user["organisation_id"])
     return GenericResponse(data=clients)
 
 

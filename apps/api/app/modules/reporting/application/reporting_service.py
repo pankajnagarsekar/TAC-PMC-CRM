@@ -92,8 +92,7 @@ class ReportingService:
         financials = await self.fin_state_repo.list(
             {"project_id": project_id}, limit=500
         )
-        fin_map = {str(f.get("code_id")): f for f in financials}
-
+        fin_map = {str(f.get("category_id")): f for f in financials}
         master_budget = Decimal("0.0")
         total_committed = Decimal("0.0")
 
