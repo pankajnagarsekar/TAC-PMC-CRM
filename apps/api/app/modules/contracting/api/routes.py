@@ -157,8 +157,12 @@ async def update_work_order(
     # Fixed argument order bug from legacy routes
     result = await wo_service.update_work_order(user, wo_id, wo_data)
     return GenericResponse(data=result)
+
+
 @router.get(
-    "/work-orders/{wo_id}", response_model=GenericResponse[WorkOrder], tags=["Work Orders"]
+    "/work-orders/{wo_id}",
+    response_model=GenericResponse[WorkOrder],
+    tags=["Work Orders"],
 )
 async def get_work_order(
     wo_id: str,

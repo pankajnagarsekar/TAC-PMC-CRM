@@ -115,7 +115,7 @@ export default function ReportsPage() {
 
     try {
       setIsLoading(true);
-      let url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}`;
+      const url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}`;
       const params = new URLSearchParams();
 
       if (startDate) params.append("start_date", startDate);
@@ -143,7 +143,7 @@ export default function ReportsPage() {
 
     try {
       setIsExporting(format);
-      let url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}/export/${format}`;
+      const url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}/export/${format}`;
       const params = new URLSearchParams();
 
       if (startDate) params.append("start_date", startDate);

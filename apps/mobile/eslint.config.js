@@ -7,4 +7,10 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*', '.expo/*'],
   },
+  {
+    rules: {
+      'react/no-unescaped-entities': 'warn',
+      'react/display-name': 'off',
+    },
+  },
 ]);

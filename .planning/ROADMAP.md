@@ -19,3 +19,4 @@
 
 ## Milestone 5: DDD Hardening & Consolidation (Active)
 - [ ] Phase 9: Strategic Hardening & Consolidation (Remediating Verification Report Gaps)
+- [ ] Phase 10: ESLint Remediation & Hardening (apps/web)

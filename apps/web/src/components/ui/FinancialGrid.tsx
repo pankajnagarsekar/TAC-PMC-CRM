@@ -12,7 +12,7 @@ import type {
   CellPosition,
 } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
-import { features, isEnterprise } from "@/lib/features";
+import { isEnterprise } from "@/lib/features";
 
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -34,12 +34,6 @@ export function formatINR(value: number | string | null | undefined): string {
   }).format(num);
 }
 
-// ── Currency cell renderer ──────────────────────────────────────────────
-function CurrencyCellRenderer(params: { value: number }) {
-  return (
-    <span className="text-right w-full block">{formatINR(params.value)}</span>
-  );
-}
 
 // ── Validation result type ──────────────────────────────────────────────
 export interface RowValidation {
@@ -64,14 +58,14 @@ export interface FinancialGridProps<T> {
   /** Custom row validation function */
   validateRow?: (data: T, rowIndex: number) => RowValidation;
   className?: string;
-  getRowId?: (params: any) => string;
+  getRowId?: (params: { data: T }) => string;
   readOnly?: boolean;
   domLayout?: "normal" | "autoHeight" | "print";
   loading?: boolean;
   quickFilterText?: string;
 }
 
-export default function FinancialGrid<T extends any>({
+export default function FinancialGrid<T>({
   rowData,
   columnDefs,
   onCellValueChanged,
@@ -229,7 +223,7 @@ export default function FinancialGrid<T extends any>({
 
   // Get row class based on validation status
   const getRowClass = useCallback(
-    (params: any) => {
+    (params: { node: { rowIndex: number | null } | null }) => {
       const validation = rowValidations.get(params.node?.rowIndex ?? 0);
       if (validation) {
         if (!validation.valid) {

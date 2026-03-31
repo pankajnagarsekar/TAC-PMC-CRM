@@ -56,7 +56,7 @@ export default function WorkerLogScreen() {
   // Load vendors
   useEffect(() => {
     loadVendors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const loadVendors = async () => {

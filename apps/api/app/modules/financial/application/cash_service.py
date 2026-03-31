@@ -20,7 +20,6 @@ from ..infrastructure.repository import (
     FundAllocationRepository,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

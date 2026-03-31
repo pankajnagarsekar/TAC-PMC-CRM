@@ -6,6 +6,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+apps/api/Python/
 
 # JavaScript/Expo artifacts
 node_modules/

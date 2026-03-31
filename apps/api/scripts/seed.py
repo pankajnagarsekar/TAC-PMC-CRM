@@ -5,7 +5,6 @@ import asyncio
 import os
 from datetime import datetime, timezone
 
-from bson import Decimal128
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.services.auth_service import AuthService

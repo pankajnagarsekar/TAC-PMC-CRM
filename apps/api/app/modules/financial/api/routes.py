@@ -241,8 +241,12 @@ async def get_project_cash_summary(
     """Get comprehensive cash summary per category for a project."""
     summary = await cash_service.get_cash_summary(user, project_id)
     return GenericResponse(data=summary)
+
+
 @router.get(
-    "/payments/id/{pc_id}", response_model=GenericResponse[PaymentCertificate], tags=["Payments"]
+    "/payments/id/{pc_id}",
+    response_model=GenericResponse[PaymentCertificate],
+    tags=["Payments"],
 )
 async def get_payment_certificate(
     pc_id: str,

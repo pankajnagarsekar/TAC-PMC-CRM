@@ -131,14 +131,18 @@ class WorkOrderService:
                     "wo_ref": wo_ref,
                     "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
                     "discount": FinancialEngine.to_d128(fin["discount"]),
-                    "total_before_tax": FinancialEngine.to_d128(fin["total_before_tax"]),
+                    "total_before_tax": FinancialEngine.to_d128(
+                        fin["total_before_tax"]
+                    ),
                     "cgst": FinancialEngine.to_d128(fin["cgst"]),
                     "sgst": FinancialEngine.to_d128(fin["sgst"]),
                     "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
                     "retention_percent": FinancialEngine.to_d128(
                         Decimal(str(wo_data.retention_percent or 0))
                     ),
-                    "retention_amount": FinancialEngine.to_d128(fin["retention_amount"]),
+                    "retention_amount": FinancialEngine.to_d128(
+                        fin["retention_amount"]
+                    ),
                     "total_payable": FinancialEngine.to_d128(fin["total_payable"]),
                     "actual_payable": FinancialEngine.to_d128(fin["actual_payable"]),
                     "line_items": line_items_processed,
@@ -361,6 +365,7 @@ class WorkOrderService:
         docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
         next_cursor = docs[-1]["created_at"].isoformat() if len(docs) == limit else None
         return {"items": docs, "next_cursor": next_cursor}
+
     async def get_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
         wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
