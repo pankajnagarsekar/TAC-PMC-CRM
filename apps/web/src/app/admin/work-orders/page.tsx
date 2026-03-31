@@ -210,7 +210,7 @@ export default function WorkOrdersPage() {
               placeholder="Search references..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+              className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-foreground focus:outline-none focus:border-orange-500"
             />
           </div>
 

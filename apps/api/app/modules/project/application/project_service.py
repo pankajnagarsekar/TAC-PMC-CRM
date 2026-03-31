@@ -202,3 +202,57 @@ class ProjectService:
             )
 
         return True
+    async def initialize_project_budgets(self, user: dict, project_id: str) -> bool:
+        """Seed project budgets for all organization cost codes."""
+        await self.permission_checker.check_admin_role(user)
+        await self.permission_checker.check_project_access(
+            user, project_id, require_write=True
+        )
+
+        project = await self.get_project(user, project_id)
+        # Use generated project_id or fallback to ObjectId string
+        pid = project.get("project_id") or str(project.get("id") or project.get("_id"))
+        org_id = project.get("organisation_id") or user["organisation_id"]
+
+        # 1. Fetch all codes for the organisation
+        codes = await self.db.code_master.find(
+            {"organisation_id": org_id, "active_status": True}
+        ).to_list(1000)
+
+        if not codes:
+            logger.warning(f"INITIALIZE_BUDGETS: No active codes found for organisation {org_id}")
+            return True
+
+        # 2. Check existing budgets to avoid duplicates
+        existing_budgets = await self.budget_repo.list({"project_id": pid})
+        existing_cat_ids = {b["category_id"] for b in existing_budgets}
+
+        created_count = 0
+        for code in codes:
+            cat_id = str(code.get("id") or code.get("_id"))
+            if cat_id in existing_cat_ids:
+                continue
+
+            budget_doc = {
+                "project_id": pid,
+                "organisation_id": org_id,
+                "category_id": cat_id,
+                "category_code": code.get("code"),
+                "category_name": code.get("code_description") or code.get("name"),
+                "original_budget": FinancialEngine.to_d128(Decimal("0.0")),
+                "committed_amount": FinancialEngine.to_d128(Decimal("0.0")),
+                "remaining_budget": FinancialEngine.to_d128(Decimal("0.0")),
+                "version": 1,
+                "created_at": now(),
+                "updated_at": now(),
+            }
+            await self.budget_repo.create(budget_doc)
+            created_count += 1
+
+        # 3. Trigger recalculation to sync financial state
+        await self.financial_service.recalculate_master_budget(pid)
+
+        logger.info(
+            f"INITIALIZE_BUDGETS: Project {pid} initialized with {created_count} categories."
+        )
+        return True

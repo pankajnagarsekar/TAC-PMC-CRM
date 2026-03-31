@@ -77,14 +77,15 @@ const executeCalculationRequest = async (
       idempotencyKey
     );
     get().reconcileWithEngine(response);
-  } catch (error: any) {
-    const isConflict = error?.response?.status === 409;
-    const responseData = error?.response?.data;
+  } catch (error: unknown) {
+    const err = error as any;
+    const isConflict = err?.response?.status === 409;
+    const responseData = err?.response?.data;
 
     set({
       pendingCalculation: false,
       calculationError:
-        error?.response?.data?.detail?.message ?? error?.message ?? "Calculation failed",
+        err?.response?.data?.detail?.message ?? err?.message ?? "Calculation failed",
     });
 
     if (isConflict && responseData?.tasks) {
@@ -438,7 +439,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
           selectedBaselineB: baselineB ?? null,
           pendingCalculation: false
         });
-      } catch (_err: any) {
+      } catch {
         set({ pendingCalculation: false });
         toast.error("Failed to fetch baseline comparison.");
       }

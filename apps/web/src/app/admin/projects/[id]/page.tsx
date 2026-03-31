@@ -7,25 +7,21 @@ import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
 import {
   ArrowLeft,
-  TrendingUp,
-  Wallet,
-  FileText,
   AlertTriangle,
   Loader2,
   Save,
-  CheckCircle2,
-  ExternalLink,
   MapPin,
   Building2,
 } from "lucide-react";
 import api, { fetcher } from "@/lib/api";
 import { Project, DerivedFinancialState } from "@/types/api";
-import { formatCurrency, formatDate } from "@tac-pmc/ui";
+import { formatCurrency } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
 import LinkedWorkOrders from "@/components/work-orders/LinkedWorkOrders";
 import KPICard from "@/components/ui/KPICard";
+import type { ICellRendererParams, NewValueParams } from "ag-grid-community";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -63,21 +59,30 @@ export default function ProjectDetailPage() {
         headerName: "Category/Code",
         field: "category_name",
         flex: 1.5,
-        cellRenderer: (params: any) => (
-          <div className="flex flex-col justify-center py-1">
-            <span className="font-semibold text-zinc-900 dark:text-white">
-              {params.value || params.data.category_id}
-            </span>
-            <span className="text-[10px] text-zinc-400 font-mono">
-              {params.data.category_code}
-            </span>
-            {params.data.over_commit_flag && (
-              <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">
-                Budget Overrun
+        cellRenderer: (params: ICellRendererParams<DerivedFinancialState>) => {
+          if (!params.data) return null;
+          const isSaving = savingId === params.data._id;
+          return (
+            <div className="flex flex-col justify-center py-1 relative">
+              {isSaving && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-3 h-3 animate-spin text-orange-500" />
+                </div>
+              )}
+              <span className="font-semibold text-foreground">
+                {params.value || params.data.category_id}
               </span>
-            )}
-          </div>
-        ),
+              <span className="text-[10px] text-zinc-400 font-mono">
+                {params.data.category_code}
+              </span>
+              {params.data.over_commit_flag && (
+                <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">
+                  Budget Overrun
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         headerName: "Approved Budget",
@@ -90,26 +95,25 @@ export default function ProjectDetailPage() {
           precision: 2,
         },
         cellClass: "font-mono text-orange-600 dark:text-orange-400 bg-orange-600/5 dark:bg-orange-500/5",
-        valueFormatter: (params: any) => formatCurrency(params.value),
-        onCellValueChanged: async (params: any) => {
+        valueFormatter: (params) => formatCurrency(params.value),
+        onCellValueChanged: async (params: NewValueParams<DerivedFinancialState>) => {
           const { _id, original_budget, version } = params.data;
           if (!_id) return;
 
           setSavingId(_id);
           try {
-            // Note: In our current schema, _id in DerivedFinancialState refers to the ProjectBudget ID
             await api.put(`/api/v1/budgets/${_id}`, {
-              original_budget: parseFloat(original_budget),
+              original_budget: parseFloat(String(original_budget)),
               version: version,
             });
             mutateFinancials();
-          } catch (err: any) {
-            if (err.response?.status === 409) {
+          } catch (error: unknown) {
+            if ((error as any).response?.status === 409) {
               setIsConflictModalOpen(true);
             } else {
               alert("Failed to update budget. Please check permissions.");
             }
-            params.node.setDataValue("original_budget", params.oldValue);
+            params.node?.setDataValue("original_budget", params.oldValue);
           } finally {
             setSavingId(null);
           }
@@ -120,21 +124,21 @@ export default function ProjectDetailPage() {
         field: "committed_value",
         flex: 1.2,
         cellClass: "text-zinc-600 dark:text-slate-300 font-mono",
-        valueFormatter: (params: any) => formatCurrency(params.value),
+        valueFormatter: (params) => formatCurrency(params.value),
       },
       {
         headerName: "Certified (PCs)",
         field: "certified_value",
         flex: 1.2,
         cellClass: "text-zinc-400 dark:text-slate-400 font-mono",
-        valueFormatter: (params: any) => formatCurrency(params.value),
+        valueFormatter: (params) => formatCurrency(params.value),
       },
       {
         headerName: "Remaining",
         field: "balance_budget_remaining",
         flex: 1.2,
-        cellRenderer: (params: any) => {
-          const isNegative = params.value < 0;
+        cellRenderer: (params: ICellRendererParams<DerivedFinancialState>) => {
+          const isNegative = (params.value || 0) < 0;
           return (
             <span
               className={`font-mono font-bold ${isNegative ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-500"}`}
@@ -145,7 +149,7 @@ export default function ProjectDetailPage() {
         },
       },
     ],
-    [mutateFinancials],
+    [mutateFinancials, savingId],
   );
 
   if (projectError || financialsError) {
@@ -234,7 +238,7 @@ export default function ProjectDetailPage() {
                     mutateFinancials();
                     // also refresh project to get new master budgets
                     mutateProject();
-                  } catch (err) {
+                  } catch {
                     alert("Failed to initialize budgets.");
                   }
                 }}

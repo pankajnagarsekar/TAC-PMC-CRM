@@ -134,24 +134,28 @@ export const fetcher = (url: string) => api.get(url).then((r) => r.data);
 // Scheduler Service
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
-  calculate: (projectId: string, tasks: any[], projectStart: string) =>
+  calculate: (projectId: string, tasks: unknown[], projectStart: string) =>
     api.post(`/api/v1/projects/${projectId}/calculate-schedule`, { tasks, project_start: projectStart }).then(res => res.data),
 
   calculateChange: (
     projectId: string,
     changeRequest: ScheduleChangeRequest,
     idempotencyKey: string
-  ): Promise<ScheduleCalculationResponse> =>
-    api
+  ): Promise<ScheduleCalculationResponse> => {
+    if (!projectId) {
+      return Promise.reject(new Error("Project ID is required for schedule calculation"));
+    }
+    return api
       .post(`/api/v1/scheduler/${projectId}/calculate`, changeRequest, {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
       })
-      .then((res) => res.data),
+      .then((res) => res.data);
+  },
 
-  save: (projectId: string, tasks: any[], projectStart: string, totalCost: number) =>
+  save: (projectId: string, tasks: unknown[], projectStart: string, totalCost: number) =>
     api.post(`/api/v1/projects/${projectId}/save-schedule`, {
       tasks,
       project_start: projectStart,

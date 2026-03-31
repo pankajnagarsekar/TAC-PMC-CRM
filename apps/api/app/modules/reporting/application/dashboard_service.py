@@ -55,40 +55,47 @@ class DashboardService:
         except ValueError:
             return datetime.max.replace(tzinfo=timezone.utc)
 
+    async def _resolve_project(self, project_id: str) -> Dict[str, Any]:
+        """Resolves project by either ObjectId or project_id string."""
+        from bson import ObjectId
+        project = await self.project_repo.get_by_id(project_id)
+        if not project:
+            # Try searching by the domain project_id string
+            project = await self.project_repo.find_one({"project_id": project_id})
+        
+        if not project:
+            from app.modules.shared.domain.exceptions import NotFoundError
+            raise NotFoundError("Project", project_id)
+        return project
+
     async def get_project_dashboard_stats(
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
         """Uses authoritative FinancialState read-model for rapid delivery."""
-        from bson import ObjectId
-
-        # ID-agnostic query for project_id
-        project_query = {
-            "$or": [
-                {"project_id": project_id},
-                {"_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id}
-            ]
-        }
+        # Resolve canonical project details
+        project = await self._resolve_project(project_id)
+        canonical_id = project.get("project_id") or str(project.get("id"))
 
         # 1. Fetch Authoritative Snapshot with organisation isolation
         master_state = await self.fin_state_repo.find_one(
-            {"project_id": project_id, "organisation_id": organisation_id, "code_id": None}
+            {"project_id": canonical_id, "organisation_id": organisation_id, "code_id": None}
         )
 
         if not master_state:
-            # Fallback to base lookup without organisation_id if no strict isolation found
+            # Fallback to base lookup
             master_state = await self.fin_state_repo.find_one(
-                {"project_id": project_id, "code_id": None}
+                {"project_id": canonical_id, "code_id": None}
             )
 
         if not master_state:
             logger.warning(
-                f"DASHBOARD_CONSISTENCY: Master record missing for {project_id}. Recomputing."
+                f"DASHBOARD_CONSISTENCY: Master record missing for {canonical_id}. Recomputing."
             )
             agg = await self.fin_state_repo.aggregate(
                 [
                     {
                         "$match": {
-                            "project_id": project_id,
+                            "project_id": canonical_id,
                             "organisation_id": organisation_id,
                             "code_id": {"$ne": None},
                         }
@@ -108,20 +115,21 @@ class DashboardService:
             master_budget = master_state.get("original_budget", Decimal128("0.0"))
             total_committed = master_state.get("committed_value", Decimal128("0.0"))
 
-        # 2. Project Overview Metrics with isolation
+        # 2. Project Overview Metrics
         total_phases = await self.budget_repo.count(
-            {"project_id": project_id, "organisation_id": organisation_id}
+            {"project_id": canonical_id, "organisation_id": organisation_id}
         )
         active_items_count = await self.wo_repo.count(
-            {"project_id": project_id, "organisation_id": organisation_id, "status": {"$in": ["Pending", "Draft"]}}
+            {"project_id": canonical_id, "organisation_id": organisation_id, "status": {"$in": ["Pending", "Draft"]}}
         )
 
         # 3. Overdue Milestones & Schedule Metrics
         schedule = await self.schedule_repo.find_one(
-            {"project_id": project_id, "organisation_id": organisation_id}
+            {"project_id": canonical_id, "organisation_id": organisation_id}
         )
         if not schedule:
-             schedule = await self.schedule_repo.find_one({"project_id": project_id})
+             schedule = await self.schedule_repo.find_one({"project_id": canonical_id})
+        
         overdue_milestones, variance, critical_path_status = (
             0,
             Decimal("0.0"),
@@ -133,36 +141,33 @@ class DashboardService:
             tasks = schedule["tasks"]
             total_pv, total_ev = Decimal("0.0"), Decimal("0.0")
             for t in tasks:
-                is_m = (
-                    t.get("isMilestone")
-                    or t.get("is_milestone")
-                    or t.get("duration") == 0
-                )
-                finish = self._parse_date(t.get("finish"))
                 prog_pct = t.get("percentComplete") or t.get("progress") or 0
                 prog = Decimal(str(prog_pct)) / Decimal("100.0")
                 cost = FinancialEngine.to_decimal(t.get("cost"))
-                if is_m and finish < now_dt and prog_pct < 100:
-                    overdue_milestones += 1
                 total_pv += cost
                 total_ev += cost * prog
-                if (
-                    (t.get("is_critical") or t.get("isCritical"))
-                    and prog < 1
-                    and finish < now_dt
-                ):
-                    critical_path_status = "DELAYED"
+                
+                is_m = t.get("isMilestone") or t.get("is_milestone") or t.get("duration") == 0
+                if is_m:
+                    finish = self._parse_date(t.get("finish"))
+                    if finish < now_dt and prog_pct < 100:
+                        overdue_milestones += 1
+                
+                if (t.get("is_critical") or t.get("isCritical")) and prog < 1:
+                    finish = self._parse_date(t.get("finish"))
+                    if finish < now_dt:
+                        critical_path_status = "DELAYED"
+            
             if total_pv > 0:
                 variance = ((total_ev - total_pv) / total_pv) * 100
 
         # 4. Compliance & Efficiency
         resolved_tasks = await self.wo_repo.count(
-            {"project_id": project_id, "status": {"$in": ["Closed", "Completed"]}}
+            {"project_id": canonical_id, "status": {"$in": ["Closed", "Completed"]}}
         )
         yesterday = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        # Using WorkerLogRepository instead of DPRRepo for consistency with site ops migration
         dpr_recent = await self.db.worker_logs.count_documents(
-            {"project_id": project_id, "created_at": {"$gte": yesterday}}
+            {"project_id": canonical_id, "created_at": {"$gte": yesterday}}
         )
 
         total_log_tasks = active_items_count + resolved_tasks
@@ -172,9 +177,9 @@ class DashboardService:
         if dpr_recent == 0 and compliance > 10:
             compliance -= 5
 
-        # 5. Task Manager - Actionable Insights
+        # 5. Task Manager
         pending_wos = await self.wo_repo.list(
-            {"project_id": project_id, "status": {"$in": ["Pending", "Draft"]}},
+            {"project_id": canonical_id, "status": {"$in": ["Pending", "Draft"]}},
             sort=[("updated_at", -1)],
             limit=3,
         )
@@ -182,31 +187,16 @@ class DashboardService:
             {
                 "id": wo.get("wo_ref") or f"WO-{str(wo.get('id'))[:6]}",
                 "label": "Approve Work Order",
-                "priority": (
-                    "Financial"
-                    if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000
-                    else "Routine"
-                ),
-                "color": (
-                    "text-primary"
-                    if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000
-                    else "text-zinc-400"
-                ),
+                "priority": ("Financial" if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000 else "Routine"),
+                "color": ("text-primary" if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000 else "text-zinc-400"),
             }
             for wo in pending_wos
         ]
         if not task_manager_items:
-            task_manager_items.append(
-                {
-                    "id": "SYS",
-                    "label": "No urgent actions",
-                    "priority": "Low",
-                    "color": "text-zinc-500",
-                }
-            )
+            task_manager_items.append({"id": "SYS", "label": "No urgent actions", "priority": "Low", "color": "text-zinc-500"})
 
         return {
-            "project_id": project_id,
+            "project_id": canonical_id,
             "overview": {
                 "total_phases": total_phases,
                 "active_items": active_items_count,
@@ -228,8 +218,11 @@ class DashboardService:
 
     async def get_financials(self, project_id: str) -> List[Dict[str, Any]]:
         """Fetch project category financials from authoritative read-model."""
+        project = await self._resolve_project(project_id)
+        canonical_id = project.get("project_id") or str(project.get("id"))
+        
         financials = await self.fin_state_repo.list(
-            {"project_id": project_id, "category_id": {"$ne": None}},
+            {"project_id": canonical_id, "category_id": {"$ne": None}},
             limit=500,
             sort=[("category_id", 1)],
         )
@@ -237,8 +230,11 @@ class DashboardService:
 
     async def get_vendor_payables(self, project_id: str) -> List[Dict[str, Any]]:
         """Fetch pending payables per vendor for a project."""
+        project = await self._resolve_project(project_id)
+        canonical_id = project.get("project_id") or str(project.get("id"))
+
         pipeline = [
-            {"$match": {"project_id": project_id, "status": "Closed"}},
+            {"$match": {"project_id": canonical_id, "status": "Closed"}},
             {
                 "$group": {
                     "_id": "$vendor_id",

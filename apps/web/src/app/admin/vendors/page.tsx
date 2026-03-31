@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@tac-pmc/ui";
-import type { ColDef } from "ag-grid-community";
+import type { ColDef, ICellRendererParams } from "ag-grid-community";
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -37,12 +37,12 @@ export default function VendorsPage() {
   const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const { toast } = useToast();
 
-  const fetchVendors = async () => {
+  const fetchVendors = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await api.get("/api/v1/vendors/");
       setVendors(response.data);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to fetch vendors",
@@ -51,11 +51,11 @@ export default function VendorsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchVendors();
-  }, []);
+  }, [fetchVendors]);
 
   const filteredVendors = useMemo(() => {
     if (!searchTerm) return vendors;
@@ -86,15 +86,14 @@ export default function VendorsPage() {
   const confirmDelete = async () => {
     if (!vendorToDelete) return;
 
-    const vendorId = vendorToDelete._id || (vendorToDelete as any).id;
+    const vendorId = vendorToDelete._id;
 
     try {
       await api.delete(`/api/v1/vendors/${vendorId}`);
       toast({ title: "Success", description: "Vendor deleted successfully" });
       fetchVendors();
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.detail || "Failed to delete vendor";
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete vendor";
       toast({
         title: "Error",
         description: errorMessage,
@@ -106,55 +105,64 @@ export default function VendorsPage() {
     }
   };
 
-  const columnDefs: ColDef<Vendor>[] = [
-    {
-      field: "name",
-      headerName: "Vendor Profile",
-      flex: 2,
-      minWidth: 200,
-      cellRenderer: (params: any) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 font-bold text-[10px]">
-            {params.value.substring(0, 2).toUpperCase()}
+  const columnDefs = useMemo<ColDef<Vendor>[]>(
+    () => [
+      {
+        field: "name",
+        headerName: "Vendor Profile",
+        flex: 2,
+        minWidth: 200,
+        cellRenderer: (params: ICellRendererParams<Vendor>) => (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 font-bold text-[10px]">
+              {params.value?.substring(0, 2).toUpperCase() || "??"}
+            </div>
+            <span className="text-foreground font-bold">{params.value}</span>
           </div>
-          <span className="text-white font-bold">{params.value}</span>
-        </div>
-      )
-    },
-    { field: "gstin", headerName: "Tax Identifier", flex: 1, minWidth: 150 },
-    {
-      field: "contact_person",
-      headerName: "Primary Contact",
-      flex: 1.2,
-      minWidth: 150,
-      cellRenderer: (params: any) => (
-        <span className="text-slate-400 font-medium">{params.value || "—"}</span>
-      )
-    },
-    { field: "phone", headerName: "Contact Number", flex: 1, minWidth: 120 },
-    {
-      headerName: "Control",
-      width: 120,
-      pinned: "right",
-      cellClass: "admin-only",
-      cellRenderer: (params: { data: Vendor }) => (
-        <div className="flex items-center justify-end gap-1 h-full px-2">
-          <button
-            onClick={() => handleEdit(params.data)}
-            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-orange-500 transition-all active:scale-90"
-          >
-            <Edit2 size={15} />
-          </button>
-          <button
-            onClick={() => handleDeleteClick(params.data)}
-            className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-500 hover:text-rose-500 transition-all active:scale-90"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      ),
-    },
-  ];
+        ),
+      },
+      { field: "gstin", headerName: "Tax Identifier", flex: 1, minWidth: 150 },
+      {
+        field: "contact_person",
+        headerName: "Primary Contact",
+        flex: 1.2,
+        minWidth: 150,
+        cellRenderer: (params: ICellRendererParams<Vendor>) => (
+          <span className="text-slate-400 font-medium">
+            {params.value || "—"}
+          </span>
+        ),
+      },
+      { field: "phone", headerName: "Contact Number", flex: 1, minWidth: 120 },
+      {
+        headerName: "Control",
+        width: 120,
+        pinned: "right",
+        cellClass: "admin-only",
+        cellRenderer: (params: ICellRendererParams<Vendor>) => {
+          if (!params.data) return null;
+          const data = params.data;
+          return (
+            <div className="flex items-center justify-end gap-1 h-full px-2">
+              <button
+                onClick={() => handleEdit(data)}
+                className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-orange-500 transition-all active:scale-90"
+              >
+                <Edit2 size={15} />
+              </button>
+              <button
+                onClick={() => handleDeleteClick(data)}
+                className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-500 hover:text-rose-500 transition-all active:scale-90"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          );
+        },
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700">

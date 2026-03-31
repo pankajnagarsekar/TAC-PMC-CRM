@@ -103,7 +103,7 @@ export default function PaymentCertificatesPage() {
       width: 150,
       type: 'numericColumn',
       valueFormatter: (p: any) => formatCurrency(p.value || 0),
-      cellClass: 'font-mono font-medium text-white'
+      cellClass: 'font-mono font-medium text-foreground'
     },
     {
       field: 'status',

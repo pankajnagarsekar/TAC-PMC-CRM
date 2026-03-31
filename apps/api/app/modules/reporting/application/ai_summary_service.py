@@ -128,14 +128,24 @@ class AISummaryService:
                 return 0.0
             return float(FinancialEngine.to_decimal(v))
 
-        budgets = await self.budget_repo.list({"project_id": project_id}, limit=100)
+        from bson import ObjectId
+        resilient_id = {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]}
+
+        budgets = await self.budget_repo.list({"project_id": resilient_id}, limit=100)
         financials = await self.fin_state_repo.list(
-            {"project_id": project_id}, limit=100
+            {"project_id": resilient_id}, limit=100
         )
-        fin_map = {str(f.get("category_id")): f for f in financials}
+        # Create map using all possible ID keys for maximum resilience
+        fin_map = {}
+        for f in financials:
+            cid = str(f.get("category_id") or f.get("code_id") or "")
+            if cid:
+                fin_map[cid] = f
+
         total_budget = sum(to_f(b.get("original_budget")) for b in budgets)
         total_committed = sum(
-            to_f(fin_map.get(str(b.get("category_id")), {}).get("committed_value"))
+            to_f(fin_map.get(str(b.get("category_id") or b.get("code_id") or "")).get("committed_value"))
+            if str(b.get("category_id") or b.get("code_id") or "") in fin_map else 0.0
             for b in budgets
         )
         
@@ -149,7 +159,9 @@ class AISummaryService:
         
         over_budget_categories = []
         for b in budgets:
-            cid = str(b.get("code_id"))
+            cid = str(b.get("category_id") or b.get("code_id") or "")
+            if not cid:
+                continue
             o_b = to_f(b.get("original_budget"))
             committed_val = to_f(fin_map.get(cid, {}).get("committed_value"))
             if committed_val > o_b and o_b > 0:

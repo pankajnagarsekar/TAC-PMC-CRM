@@ -161,6 +161,7 @@ export interface DerivedFinancialState {
   certified_value: number;
   balance_budget_remaining: number;
   over_commit_flag: boolean;
+  version?: number;
   last_updated?: string;
 }
 

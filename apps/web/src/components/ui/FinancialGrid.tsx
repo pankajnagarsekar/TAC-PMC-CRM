@@ -88,8 +88,8 @@ export default function FinancialGrid<T>({
     Map<number, RowValidation>
   >(new Map());
 
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   // Auto-incrementing Sr No column
   const srNoCol: ColDef<T> = useMemo(
@@ -99,7 +99,7 @@ export default function FinancialGrid<T>({
       width: 60,
       pinned: "left",
       editable: false,
-      cellStyle: { textAlign: "center", fontWeight: 600, color: isDark ? "#94a3b8" : "#64748b" },
+      cellStyle: { textAlign: "center", fontWeight: 600, color: isDark ? "#94a3b8" : "#475569" },
     }),
     [isDark],
   );
@@ -255,7 +255,7 @@ export default function FinancialGrid<T>({
       )}
       <div
         style={{ height, width: "100%" }}
-        className={`${gridTheme} glass-panel-luxury dark:glass-panel-luxury rounded-xl overflow-hidden shadow-2xl transition-all duration-500`}
+        className={`${gridTheme} glass-panel-luxury rounded-[1.5rem] overflow-hidden shadow-2xl transition-all duration-500 border border-white/5`}
       >
         <AgGridReact<T>
           ref={gridRef}
@@ -287,13 +287,13 @@ export default function FinancialGrid<T>({
       </div>
       <style jsx global>{`
         .ag-theme-quartz-dark, .ag-theme-quartz {
-          --ag-background-color: ${isDark ? 'transparent' : '#ffffff'} !important;
-          --ag-header-background-color: ${isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(241, 245, 249, 0.6)'} !important;
-          --ag-header-foreground-color: ${isDark ? '#94a3b8' : '#64748b'} !important;
-          --ag-foreground-color: ${isDark ? '#e2e8f0' : '#1e293b'} !important;
-          --ag-border-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'} !important;
-          --ag-row-hover-color: ${isDark ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.05)'} !important;
-          --ag-selected-row-background-color: ${isDark ? 'rgba(249, 115, 22, 0.15)' : 'rgba(249, 115, 22, 0.1)'} !important;
+          --ag-background-color: transparent !important;
+          --ag-header-background-color: ${isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(248, 250, 252, 0.8)'} !important;
+          --ag-header-foreground-color: ${isDark ? '#cbd5e1' : '#1e293b'} !important;
+          --ag-foreground-color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
+          --ag-border-color: ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'} !important;
+          --ag-row-hover-color: ${isDark ? 'rgba(249, 115, 22, 0.1)' : 'rgba(249, 115, 22, 0.05)'} !important;
+          --ag-selected-row-background-color: ${isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)'} !important;
           --ag-range-selection-border-color: #f97316 !important;
           --ag-font-size: 13px !important;
           --ag-font-family: inherit !important;

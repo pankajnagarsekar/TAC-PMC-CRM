@@ -91,6 +91,21 @@ async def update_project(
     return GenericResponse(data=project, message="Project updated successfully")
 
 
+@router.post(
+    "/projects/{project_id}/initialize-budgets",
+    response_model=GenericResponse[dict],
+    tags=["Projects"],
+)
+async def initialize_project_budgets(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
+    """Seed project budgets from organization cost codes."""
+    await project_service.initialize_project_budgets(user, project_id)
+    return GenericResponse(data={}, message="Project budgets initialized")
+
+
 @router.delete(
     "/projects/{project_id}", response_model=GenericResponse[dict], tags=["Projects"]
 )
@@ -242,7 +257,9 @@ async def compare_baselines(
     service: SchedulerService = Depends(get_scheduler_service),
 ):
     """Compare two baselines."""
-    result = await service.compare_baselines(project_id, baseline_a, baseline_b)
+    result = await service.compare_baselines(
+        project_id, user["organisation_id"], baseline_a, baseline_b
+    )
     return GenericResponse(data=result)
 
 

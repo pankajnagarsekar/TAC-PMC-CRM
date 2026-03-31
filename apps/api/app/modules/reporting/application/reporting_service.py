@@ -83,16 +83,23 @@ class ReportingService:
         """High-level statistics for project dashboard."""
         await self.permission_checker.check_project_access(user, project_id)
 
-        total_phases = await self.budget_repo.count({"project_id": project_id})
+        from bson import ObjectId
+        resilient_id = {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]}
+
+        total_phases = await self.budget_repo.count({"project_id": resilient_id})
         active_items_count = await self.wo_repo.count(
-            {"project_id": project_id, "status": {"$in": ["Pending", "Draft"]}}
+            {"project_id": resilient_id, "status": {"$in": ["Pending", "Draft"]}}
         )
 
-        budgets = await self.budget_repo.list({"project_id": project_id}, limit=500)
+        budgets = await self.budget_repo.list({"project_id": resilient_id}, limit=500)
         financials = await self.fin_state_repo.list(
-            {"project_id": project_id}, limit=500
+            {"project_id": resilient_id}, limit=500
         )
-        fin_map = {str(f.get("category_id") or ""): f for f in financials if f.get("category_id")}
+        fin_map = {}
+        for f in financials:
+            cid = f.get("category_id") or f.get("code_id")
+            if cid:
+                fin_map[str(cid)] = f
         master_budget = Decimal("0.0")
         total_committed = Decimal("0.0")
 
@@ -108,13 +115,13 @@ class ReportingService:
             )
 
         resolved_tasks = await self.wo_repo.count(
-            {"project_id": project_id, "status": {"$in": ["Closed", "Completed"]}}
+            {"project_id": resilient_id, "status": {"$in": ["Closed", "Completed"]}}
         )
 
         ts_now = now()
         yesterday = ts_now.replace(hour=0, minute=0, second=0, microsecond=0)
         dpr_recent = await self.worker_log_repo.count(
-            {"project_id": project_id, "created_at": {"$gte": yesterday}}
+            {"project_id": resilient_id, "created_at": {"$gte": yesterday}}
         )
 
         total_log_tasks = active_items_count + resolved_tasks
@@ -157,24 +164,27 @@ class ReportingService:
         for proj in projects:
             p_id = proj["project_id"]
 
+            from bson import ObjectId
+            p_id_resilient = {"$in": [p_id, ObjectId(p_id) if ObjectId.is_valid(p_id) else p_id]}
+
             # 1. Financial Stats
             master_state = await self.fin_state_repo.find_one(
-                {"project_id": p_id, "code_id": None}
+                {"project_id": p_id_resilient, "code_id": None}
             )
             # 2. DPR & Worker Stats
-            dpr_total = await self.worker_log_repo.count({"project_id": p_id})
+            dpr_total = await self.worker_log_repo.count({"project_id": p_id_resilient})
             dpr_today = await self.worker_log_repo.count(
-                {"project_id": p_id, "created_at": {"$gte": today_start}}
+                {"project_id": p_id_resilient, "created_at": {"$gte": today_start}}
             )
             dpr_pending = await self.worker_log_repo.count(
-                {"project_id": p_id, "status": "Pending"}
+                {"project_id": p_id_resilient, "status": "Pending"}
             )
 
             worker_stats = await self.db.worker_logs.aggregate(
                 [
                     {
                         "$match": {
-                            "project_id": p_id,
+                            "project_id": p_id_resilient,
                             "created_at": {"$gte": today_start},
                         }
                     },
@@ -185,7 +195,7 @@ class ReportingService:
 
             # 3. Cash & Categories breakdown
             allocations = await self.db.fund_allocations.find(
-                {"project_id": p_id}
+                {"project_id": p_id_resilient}
             ).to_list(100)
             categories_data = []
             petty_cash_total = Decimal("0.0")

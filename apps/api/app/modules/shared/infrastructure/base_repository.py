@@ -98,6 +98,30 @@ class BaseRepository(Generic[T]):
         docs = await cursor.to_list(length=limit)
         return [self._format_id(doc) for doc in docs]
 
+    async def aggregate(
+        self, pipeline: List[Dict[str, Any]], session: Optional[AsyncIOMotorClientSession] = None
+    ):
+        """Authoritative aggregation hook (Point 118)."""
+        return self.collection.aggregate(pipeline, session=session)
+
+    async def count(
+        self, query: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None
+    ) -> int:
+        """Atomic document counting."""
+        return await self.collection.count_documents(query, session=session)
+
+    async def update_one(
+        self,
+        query: Dict[str, Any],
+        update: Dict[str, Any],
+        upsert: bool = False,
+        session: Optional[AsyncIOMotorClientSession] = None,
+    ):
+        """Atomic single document update."""
+        return await self.collection.update_one(
+            query, update, upsert=upsert, session=session
+        )
+
     async def delete(
         self, id: str, session: Optional[AsyncIOMotorClientSession] = None
     ) -> bool:

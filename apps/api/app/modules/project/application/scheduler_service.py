@@ -125,10 +125,10 @@ class SchedulerService:
             }
 
     async def compare_baselines(
-        self, project_id: str, baseline_a: int, baseline_b: int = None
+        self, project_id: str, organisation_id: str, baseline_a: int, baseline_b: int = None
     ) -> List[Dict[str, Any]]:
         # Fetch current schedule
-        schedule = await self.load_schedule(project_id, "")
+        schedule = await self.load_schedule(project_id, organisation_id)
         tasks = schedule.get("tasks", [])
         
         results = []

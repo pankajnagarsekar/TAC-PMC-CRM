@@ -27,6 +27,8 @@ import {
   DialogFooter,
 } from "@tac-pmc/ui";
 
+import type { ColDef, ICellRendererParams } from "ag-grid-community";
+
 export default function CategoriesPage() {
   const {
     data: codes,
@@ -48,13 +50,13 @@ export default function CategoriesPage() {
     description: "",
   });
 
-  const columnDefs: any[] = useMemo(
+  const columnDefs = useMemo<ColDef<CodeMaster>[]>(
     () => [
       {
         headerName: "Code",
         field: "code",
         width: 120,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<CodeMaster>) => (
           <code className="text-[11px] bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 text-orange-500 font-mono font-bold">
             {params.value}
           </code>
@@ -64,15 +66,15 @@ export default function CategoriesPage() {
         headerName: "Category Name",
         field: "category_name",
         flex: 2,
-        cellRenderer: (params: any) => (
-          <span className="font-semibold text-zinc-900 dark:text-white">{params.value}</span>
+        cellRenderer: (params: ICellRendererParams<CodeMaster>) => (
+          <span className="font-semibold text-foreground">{params.value}</span>
         ),
       },
       {
         headerName: "Description",
         field: "description",
         flex: 3,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<CodeMaster>) => (
           <span className="text-slate-400 text-xs truncate">
             {params.value || "No description"}
           </span>
@@ -82,7 +84,7 @@ export default function CategoriesPage() {
         headerName: "Status",
         field: "active_status",
         width: 120,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<CodeMaster>) => (
           <div className="flex items-center h-full">
             <span
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${params.value
@@ -104,24 +106,28 @@ export default function CategoriesPage() {
         headerName: "",
         field: "_id",
         width: 120,
-        cellRenderer: (params: any) => (
-          <div className="flex items-center justify-end h-full px-2 gap-1 admin-only">
-            <button
-              onClick={() => handleEdit(params.data)}
-              className="p-2 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
-              title="Edit Category"
-            >
-              <Edit2 size={16} />
-            </button>
-            <button
-              onClick={() => handleDelete(params.data)}
-              className="p-2 hover:bg-red-50 dark:hover:bg-red-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-              title="Delete Category"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ),
+        cellRenderer: (params: ICellRendererParams<CodeMaster>) => {
+          if (!params.data) return null;
+          const data = params.data;
+          return (
+            <div className="flex items-center justify-end h-full px-2 gap-1 admin-only">
+              <button
+                onClick={() => handleEdit(data)}
+                className="p-2 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                title="Edit Category"
+              >
+                <Edit2 size={16} />
+              </button>
+              <button
+                onClick={() => handleDelete(data)}
+                className="p-2 hover:bg-red-50 dark:hover:bg-red-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                title="Delete Category"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          );
+        },
       },
     ],
     [],
@@ -155,8 +161,8 @@ export default function CategoriesPage() {
       await axios.delete(`/api/v1/settings/codes/${deleteCode._id}`);
       mutate();
       setDeleteCode(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to delete category");
+    } catch (error: unknown) {
+      setError((error as any).response?.data?.detail || "Failed to delete category");
     }
   }
 
@@ -172,8 +178,8 @@ export default function CategoriesPage() {
       }
       mutate();
       setIsModalOpen(false);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to save category");
+    } catch (error: unknown) {
+      setError((error as any).response?.data?.detail || "Failed to save category");
     } finally {
       setLoading(false);
     }
