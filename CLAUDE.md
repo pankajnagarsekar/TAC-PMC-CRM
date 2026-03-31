@@ -127,11 +127,14 @@ pnpm dev
 # Build all apps
 pnpm build
 
-# Lint all apps
+# Lint all apps (Zero Error State)
 pnpm lint
 
 # Format code (Prettier)
 pnpm format
+
+# Verify Backend Logic
+pnpm -C apps/api exec python -m pytest
 ```
 
 ### API (Python FastAPI)
@@ -241,6 +244,8 @@ npx -y ruflo@latest hooks worker dispatch --trigger audit
 - **No Secrets in Code**: Never hardcode API keys, credentials, or sensitive data
 - **One Message = All Concurrent Operations**: Batch all related file reads/writes, bash commands, and agent spawns in a single message
 - **Run Tests After Changes**: Always verify tests pass before committing
+- **Platform Neutrality (CRITICAL)**: Never use backslashes (`\`) or `.exe` in scripts; always use `/` and `python -m` for cross-platform CI safety
+- **Zero Error Policy**: No merges allowed if `pnpm lint` or `pytest` returns any ERRORS (Warnings allowed but monitored)
 
 ### 4. **File Organization**
 

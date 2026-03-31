@@ -134,6 +134,9 @@ All code modifications **MUST** align with the following specifications. These a
 - [ ] Code runs without errors
 - [ ] All new functions have test coverage
 - [ ] Edge cases tested (null, undefined, empty, boundary values)
+- [ ] **Path Integrity**: No hardcoded Windows backslashes `\` or `.exe` in configs
+- [ ] **Zero Error State**: Full `pnpm lint` and `pytest` are Green
+- [ ] **Discovery Isolation**: `pytest.ini` correctly points to the `tests/` folder
 - [ ] Performance baseline met
 - [ ] No console warnings or errors
 - [ ] Accessibility checks passed (if UI change)
