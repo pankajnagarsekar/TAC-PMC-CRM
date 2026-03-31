@@ -35,7 +35,7 @@ export default function VoiceLogsTab() {
     try {
       setLoading(true);
       const response = await api.get(
-        `/api/projects/${activeProject.project_id}/voice-logs`,
+        `/api/v1/projects/${activeProject.project_id}/voice-logs`,
       );
       setLogs(response.data);
     } catch (error) {

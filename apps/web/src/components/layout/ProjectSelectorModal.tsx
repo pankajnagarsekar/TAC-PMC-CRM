@@ -16,7 +16,7 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
   const [search, setSearch] = useState('');
 
   const { data: projects, error, isLoading, mutate } = useSWR<Project[]>(
-    user ? '/api/projects' : null,
+    user ? '/api/v1/projects/' : null,
     fetcher,
     { revalidateOnFocus: true }
   );

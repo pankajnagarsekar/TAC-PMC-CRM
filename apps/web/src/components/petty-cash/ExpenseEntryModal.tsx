@@ -82,7 +82,7 @@ export default function ExpenseEntryModal({
     try {
       // Using the fund-allocations endpoint which already filters to fund_transfer categories
       const response = await api.get(
-        `/api/projects/${projectId}/fund-allocations`,
+        `/api/v1/cash/allocations?project_id=${projectId}`,
       );
       const allocations = response.data.items || [];
 
@@ -187,12 +187,14 @@ export default function ExpenseEntryModal({
 
     try {
       const response = await api.post(
-        `/api/projects/${projectId}/cash-transactions`,
+        `/api/v1/petty-cash/transaction`,
         {
-          ...formData,
+          project_id: projectId,
+          category_id: formData.category_id,
           amount: parseFloat(formData.amount),
           type: "DEBIT",
-          image_url: uploadedFile ? previewUrl : null, // 3.3.7/3.2.2: Wire image_url
+          description: `[${formData.bill_reference}] ${formData.purpose}`,
+          image_url: uploadedFile ? previewUrl : null,
         },
         {
           headers: {

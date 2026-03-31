@@ -36,8 +36,8 @@ export default function ProjectModal({
   onSuccess,
   project,
 }: ProjectModalProps) {
-  const { data: clients } = useSWR<Client[]>("/api/clients", fetcher);
-  const { data: codes } = useSWR<CodeMaster[]>("/api/codes", fetcher);
+  const { data: clients } = useSWR<Client[]>("/api/v1/clients/", fetcher);
+  const { data: codes } = useSWR<CodeMaster[]>("/api/v1/settings/codes", fetcher);
 
   const [formData, setFormData] = useState({
     project_name: "",
@@ -79,7 +79,7 @@ export default function ProjectModal({
 
       // Fetch existing budgets if editing
       if (project._id) {
-        axios.get(`/api/projects/${project._id}/budgets`).then((res) => {
+        axios.get(`/api/v1/projects/${project._id}/budgets`).then((res) => {
           const budgetMap: Record<string, number> = {};
           res.data.forEach((b: any) => {
             budgetMap[b.code_id] = b.original_budget;
@@ -116,9 +116,9 @@ export default function ProjectModal({
       let projectId = project?._id;
 
       if (project) {
-        await axios.put(`/api/projects/${project._id}`, formData);
+        await axios.put(`/api/v1/projects/${project._id}`, formData);
       } else {
-        const res = await axios.post("/api/projects", formData);
+        const res = await axios.post("/api/v1/projects/", formData);
         projectId = res.data._id;
       }
 
@@ -126,7 +126,7 @@ export default function ProjectModal({
       const budgetPromises = Object.entries(budgets).map(
         ([code_id, amount]) => {
           if (amount > 0) {
-            return axios.post(`/api/projects/${projectId}/budgets`, {
+            return axios.post(`/api/v1/projects/${projectId}/budgets`, {
               code_id,
               original_budget: amount,
             });

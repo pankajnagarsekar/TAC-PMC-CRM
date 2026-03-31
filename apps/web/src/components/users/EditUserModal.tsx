@@ -29,12 +29,12 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
   const isClient = user?.role === "Client";
 
   const { data: projects = [] } = useSWR<Project[]>(
-    user && isClient ? "/api/projects" : null,
+    user && isClient ? "/api/v1/projects/" : null,
     fetcher
   );
 
   const { data: clients = [] } = useSWR<Client[]>(
-    user && isClient ? "/api/clients" : null,
+    user && isClient ? "/api/v1/clients/" : null,
     fetcher
   );
 
@@ -106,7 +106,7 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
         updateData.screen_permissions = formData.screen_permissions;
       }
 
-      await api.put(`/api/users/${user.user_id}`, updateData);
+      await api.put(`/api/v1/users/${user.user_id}`, updateData);
 
       toast({
         title: "Success",

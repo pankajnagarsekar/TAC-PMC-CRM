@@ -86,7 +86,7 @@ export default function CategoryLedgerPage() {
   // Fetch Allocations to find the specific category details
   const { data: allocData } = useSWR<{ items: FundAllocation[] }>(
     activeProject
-      ? `/api/projects/${activeProject.project_id}/fund-allocations`
+      ? `/api/v1/cash/allocations?project_id=${activeProject.project_id}`
       : null,
     fetcher,
   );
@@ -103,7 +103,7 @@ export default function CategoryLedgerPage() {
     mutate: mutateTx,
   } = useSWR<{ items: CashTransaction[] }>(
     activeProject
-      ? `/api/projects/${activeProject.project_id}/cash-transactions?category_id=${categoryId}`
+      ? `/api/v1/cash/transactions?project_id=${activeProject.project_id}&category_id=${categoryId}`
       : null,
     fetcher,
   );
@@ -116,7 +116,7 @@ export default function CategoryLedgerPage() {
     setIsSubmitting(true);
     try {
       await api.post(
-        `/api/projects/${activeProject.project_id}/cash-transactions`,
+        `/api/v1/petty-cash/transaction`,
         {
           project_id: activeProject.project_id,
           category_id: categoryId,

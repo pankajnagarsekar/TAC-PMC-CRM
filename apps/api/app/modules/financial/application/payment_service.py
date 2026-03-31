@@ -257,3 +257,9 @@ class PaymentService:
                 session=uow.session,
             )
             return {"status": "success", "message": "PC closed and financials updated"}
+    async def get_payment_certificate(self, user: dict, pc_id: str) -> Dict[str, Any]:
+        organisation_id = user["organisation_id"]
+        pc = await self.pc_repo.get_by_id(pc_id, organisation_id=organisation_id)
+        if not pc:
+            raise NotFoundError("Payment Certificate", pc_id)
+        return pc

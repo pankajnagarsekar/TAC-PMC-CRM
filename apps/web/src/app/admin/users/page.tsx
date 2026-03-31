@@ -22,7 +22,7 @@ export default function TeamPage() {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/api/users");
+            const response = await api.get("/api/v1/users/");
             setUsers(response.data);
         } catch (error) {
             console.error("Failed to fetch users:", error);
@@ -43,7 +43,7 @@ export default function TeamPage() {
     const handleDeactivate = async (userId: string) => {
         setDeactivatingId(userId);
         try {
-            await api.delete(`/api/users/${userId}`);
+            await api.delete(`/api/v1/users/${userId}`);
             toast({
                 title: "Success",
                 description: "User deactivated successfully",
@@ -82,13 +82,12 @@ export default function TeamPage() {
             headerName: "Role",
             flex: 1,
             cellRenderer: (params: any) => (
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                    params.value === 'Admin'
-                        ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                        : params.value === 'Client'
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${params.value === 'Admin'
+                    ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                    : params.value === 'Client'
                         ? 'bg-orange-500/10 text-orange-500 border-orange-500/20'
                         : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                }`}>
+                    }`}>
                     {params.value}
                 </span>
             )

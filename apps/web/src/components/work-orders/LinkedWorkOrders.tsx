@@ -15,7 +15,7 @@ interface LinkedWorkOrdersProps {
 
 export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
     const { data: wosData, isLoading } = useSWR(
-        projectId ? `/api/projects/${projectId}/work-orders` : null,
+        projectId ? `/api/v1/work-orders/?project_id=${projectId}` : null,
         fetcher
     );
 

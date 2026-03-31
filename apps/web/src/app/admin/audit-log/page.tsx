@@ -100,7 +100,7 @@ export default function AuditLogPage() {
       if (filters.action_type)
         params.append("action_type", filters.action_type);
 
-      const response = await api.get(`/api/audit-logs?${params.toString()}`);
+      const response = await api.get(`/api/v1/audit/logs?${params.toString()}`);
       const data = response.data;
 
       setLogs(append ? [...logs, ...data] : data);

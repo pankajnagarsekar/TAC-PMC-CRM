@@ -41,8 +41,8 @@ export default function WorkOrdersPage() {
     const fetchLookups = async () => {
       try {
         const [catRes, venRes] = await Promise.all([
-          api.get("/api/codes"),
-          api.get("/api/vendors"),
+          api.get("/api/v1/settings/codes"),
+          api.get("/api/v1/vendors/"),
         ]);
         setCategories(catRes.data || []);
         setVendors(venRes.data || []);
@@ -81,7 +81,7 @@ export default function WorkOrdersPage() {
 
       try {
         const projectId = activeProject.project_id || activeProject._id;
-        const url = `/api/work-orders?project_id=${projectId}&limit=50${cursor ? `&cursor=${cursor}` : ""}`;
+        const url = `/api/v1/work-orders/?project_id=${projectId}&limit=50${cursor ? `&cursor=${cursor}` : ""}`;
         const res = await api.get<{
           items: WorkOrder[];
           next_cursor: string | null;

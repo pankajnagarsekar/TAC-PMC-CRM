@@ -17,6 +17,11 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file from apps/api/
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Add app directory to path
 app_dir = Path(__file__).parent.parent / "app"

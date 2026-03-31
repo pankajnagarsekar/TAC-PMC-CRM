@@ -63,9 +63,9 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
 
     try {
       if (client?._id) {
-        await api.put(`/api/clients/${client._id}`, formData);
+        await api.put(`/api/v1/clients/${client._id}`, formData);
       } else {
-        await api.post('/api/clients', formData);
+        await api.post('/api/v1/clients/', formData);
       }
       onSuccess();
       onClose();

@@ -34,7 +34,7 @@ export default function ProjectDetailPage() {
   const { setActiveProject, activeProject: storeActiveProject } = useProjectStore();
 
   const { data: project, error: projectError, mutate: mutateProject, isLoading: projectLoading } = useSWR<Project>(
-    `/api/projects/${projectId}`,
+    `/api/v1/projects/${projectId}`,
     fetcher,
   );
   const {

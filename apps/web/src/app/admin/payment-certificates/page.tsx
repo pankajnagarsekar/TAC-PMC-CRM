@@ -23,8 +23,8 @@ export default function PaymentCertificatesPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Need mappings for categories / vendors to render readable labels
-  const { data: categories } = useSWR<CodeMaster[]>('/api/codes?active_only=true', fetcher);
-  const { data: vendors } = useSWR<Vendor[]>('/api/vendors', fetcher);
+  const { data: categories } = useSWR<CodeMaster[]>('/api/v1/settings/codes?active_only=true', fetcher);
+  const { data: vendors } = useSWR<Vendor[]>('/api/v1/vendors/', fetcher);
 
   const getCategoryName = (id: string) => categories?.find(c => c._id === id)?.category_name || id;
   const getVendorName = (id: string) => vendors?.find(v => v._id === id)?.name || id;
@@ -37,7 +37,7 @@ export default function PaymentCertificatesPage() {
 
     try {
       const projectId = activeProject.project_id || (activeProject as any)._id;
-      const url = `/api/projects/${projectId}/payment-certificates?limit=50${cursor ? `&cursor=${cursor}` : ''}`;
+      const url = `/api/v1/payments/${projectId}?limit=50${cursor ? `&cursor=${cursor}` : ''}`;
       const res = await api.get<{ items: PaymentCertificate[], next_cursor: string | null }>(url);
 
       if (!cursor) {

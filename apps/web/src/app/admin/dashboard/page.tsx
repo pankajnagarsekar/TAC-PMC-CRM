@@ -78,7 +78,7 @@ export default function AdminDashboard() {
   const [projectSearch, setProjectSearch] = React.useState("");
 
   const { data: projects, error: projectsError, isLoading: projectsLoading } = useSWR<Project[]>(
-    user ? "/api/projects" : null,
+    user ? "/api/v1/projects/" : null,
     fetcher
   );
 
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
   );
 
   const { data: woResponse } = useSWR<{ items: WorkOrder[]; next_cursor: string | null }>(
-    activeProject ? `/api/v1/work-orders?project_id=${activeProject.project_id}&limit=500` : null,
+    activeProject ? `/api/v1/work-orders/?project_id=${activeProject.project_id}&limit=500` : null,
     fetcher
   );
 

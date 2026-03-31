@@ -35,7 +35,7 @@ export default function ClientsPage() {
     data: clients,
     mutate,
     isLoading,
-  } = useSWR<Client[]>("/api/clients", fetcher);
+  } = useSWR<Client[]>("/api/v1/clients/", fetcher);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | undefined>(
@@ -158,7 +158,7 @@ export default function ClientsPage() {
   async function confirmDelete() {
     if (!deleteClient) return;
     try {
-      await api.delete(`/api/clients/${deleteClient._id}`);
+      await api.delete(`/api/v1/clients/${deleteClient._id}`);
       mutate();
       setDeleteClient(null);
       toast({ title: "Success", description: "Client deleted successfully" });

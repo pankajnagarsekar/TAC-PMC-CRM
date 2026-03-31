@@ -39,7 +39,7 @@ export default function AttendanceTab() {
       if (endDate) params.append("end_date", endDate);
 
       const response = await api.get(
-        `/api/projects/${activeProject.project_id}/attendance?${params.toString()}`,
+        `/api/v1/projects/${activeProject.project_id}/attendance?${params.toString()}`,
       );
       setLogs(response.data);
     } catch (error) {
@@ -52,7 +52,7 @@ export default function AttendanceTab() {
 
   const handleVerify = async (logId: string) => {
     try {
-      await api.patch(`/api/attendance/${logId}/verify`);
+      await api.patch(`/api/v1/attendance/${logId}/verify`);
       toast({ title: "Success", description: "Attendance verified" });
       fetchAttendance();
     } catch (error) {

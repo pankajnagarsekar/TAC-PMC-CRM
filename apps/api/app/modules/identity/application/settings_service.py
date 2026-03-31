@@ -37,6 +37,11 @@ class SettingsService:
                     "registration_no": "",
                     "contact_email": "",
                 },
+                "client_permissions": {
+                    "can_view_dpr": True,
+                    "can_view_financials": False,
+                    "can_view_reports": True,
+                },
             }
         return settings
 

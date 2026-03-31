@@ -40,7 +40,7 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get("/api/vendors");
+      const response = await api.get("/api/v1/vendors/");
       setVendors(response.data);
     } catch (error) {
       toast({
@@ -89,7 +89,7 @@ export default function VendorsPage() {
     const vendorId = vendorToDelete._id || (vendorToDelete as any).id;
 
     try {
-      await api.delete(`/api/vendors/${vendorId}`);
+      await api.delete(`/api/v1/vendors/${vendorId}`);
       toast({ title: "Success", description: "Vendor deleted successfully" });
       fetchVendors();
     } catch (error: any) {

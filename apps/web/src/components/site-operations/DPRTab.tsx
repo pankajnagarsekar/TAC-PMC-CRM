@@ -38,7 +38,7 @@ export default function DPRTab() {
     try {
       setLoading(true);
       setError(null);
-      let url = `/api/projects/${activeProject.project_id}/dprs`;
+      let url = `/api/v1/projects/${activeProject.project_id}/dprs`;
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.append("status_filter", statusFilter);
       if (startDate) params.append("start_date", startDate);

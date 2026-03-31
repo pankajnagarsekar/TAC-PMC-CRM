@@ -130,7 +130,7 @@ export const fetcher = (url: string) => api.get(url).then((r) => r.data);
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
   calculate: (projectId: string, tasks: any[], projectStart: string) =>
-    api.post(`/api/v1/projects/${projectId}/calculate`, { tasks, project_start: projectStart }).then(res => res.data),
+    api.post(`/api/v1/projects/${projectId}/calculate-schedule`, { tasks, project_start: projectStart }).then(res => res.data),
 
   calculateChange: (
     projectId: string,
@@ -147,28 +147,28 @@ export const schedulerApi = {
       .then((res) => res.data),
 
   save: (projectId: string, tasks: any[], projectStart: string, totalCost: number) =>
-    api.post(`/api/v1/projects/${projectId}/save`, {
+    api.post(`/api/v1/projects/${projectId}/save-schedule`, {
       tasks,
       project_start: projectStart,
       total_cost: totalCost
     }).then(res => res.data),
 
   load: (projectId: string) =>
-    api.get(`/api/v1/projects/${projectId}/load`).then(res => res.data),
+    api.get(`/api/v1/projects/${projectId}/load-schedule`).then(res => res.data),
 
   exportPdf: (projectId: string) =>
     api.post(`/api/v1/projects/${projectId}/export/pdf`).then(res => res.data),
 
   downloadPdf: (projectId: string) =>
-    api.get(`/api/projects/${projectId}/export/download`, {
+    api.get(`/api/v1/projects/${projectId}/export/download`, {
       responseType: "blob"
     }),
 
   getExportStatus: (projectId: string) =>
-    api.get(`/api/projects/${projectId}/export/status`).then(res => res.data),
+    api.get(`/api/v1/projects/${projectId}/export/status`).then(res => res.data),
 
   importMpp: (projectId: string, formData: FormData) =>
-    api.post(`/api/projects/${projectId}/import`, formData, {
+    api.post(`/api/v1/projects/${projectId}/import`, formData, {
       headers: { "Content-Type": "multipart/form-data" }
     }).then(res => res.data),
 

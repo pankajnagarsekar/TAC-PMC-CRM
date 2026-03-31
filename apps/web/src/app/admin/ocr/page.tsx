@@ -106,7 +106,7 @@ export default function OCRScannerPage() {
 
     setLoading(true);
     try {
-      await api.post('/api/payment-certificates', {
+      await api.post('/api/v1/payments/', {
         project_id: activeProject.project_id,
         vendor_name: verifiedData.vendor_name,
         invoice_number: verifiedData.invoice_number,

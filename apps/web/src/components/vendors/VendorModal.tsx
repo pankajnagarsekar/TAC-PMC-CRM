@@ -97,12 +97,12 @@ export default function VendorModal({
     try {
       if (vendor) {
         await api.put(
-          `/api/vendors/${vendor._id || (vendor as any).id}`,
+          `/api/v1/vendors/${vendor._id || (vendor as any).id}`,
           formData,
         );
         toast({ title: "Success", description: "Vendor updated successfully" });
       } else {
-        await api.post("/api/vendors", formData);
+        await api.post("/api/v1/vendors/", formData);
         toast({ title: "Success", description: "Vendor created successfully" });
       }
       onSuccess();

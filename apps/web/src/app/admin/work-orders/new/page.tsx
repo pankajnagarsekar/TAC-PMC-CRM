@@ -70,9 +70,9 @@ export default function NewWorkOrderPage() {
     setIdempotencyKey(idempotency.get("WO_CREATE"));
   }, []);
 
-  const { data: vendors } = useSWR<Vendor[]>("/api/vendors", fetcher);
+  const { data: vendors } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
   const { data: categories } = useSWR<CodeMaster[]>(
-    "/api/codes?active_only=true",
+    "/api/v1/settings/codes?active_only=true",
     fetcher,
   );
 
@@ -213,7 +213,7 @@ export default function NewWorkOrderPage() {
 
       const response = await executeWorkOrderSaveWithLock(async () => {
         return await api.post<WorkOrder>(
-          `/api/projects/${activeProject._id || activeProject.project_id}/work-orders`,
+          `/api/v1/work-orders/${activeProject._id || activeProject.project_id}`,
           payload,
           {
             headers: { "Idempotency-Key": idempotencyKey },

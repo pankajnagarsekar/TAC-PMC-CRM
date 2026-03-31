@@ -58,7 +58,7 @@ export default function NewPaymentCertificatePage() {
   // SWR Hooks
   const { data: woResponse } = useSWR(
     activeProject
-      ? `/api/projects/${activeProject.project_id}/work-orders`
+      ? `/api/v1/work-orders/?project_id=${activeProject.project_id || activeProject._id}`
       : null,
     fetcher,
   );
@@ -67,7 +67,7 @@ export default function NewPaymentCertificatePage() {
     [];
 
   const { data: categories } = useSWR<CodeMaster[]>(
-    "/api/codes?active_only=true",
+    "/api/v1/settings/codes?active_only=true",
     fetcher,
   );
   const fundCategories =
@@ -132,9 +132,14 @@ export default function NewPaymentCertificatePage() {
       setError(null);
       setFieldErrors({});
 
+      const wo = isWoLinked ? workOrders.find(w => w._id === selectedWoId) : null;
+
       const payload = {
+        project_id: activeProject.project_id || activeProject._id,
         work_order_id: isWoLinked ? selectedWoId : null,
-        category_id: !isWoLinked ? selectedCategoryId : undefined,
+        category_id: !isWoLinked ? selectedCategoryId : (wo?.category_id || undefined),
+        vendor_id: wo?.vendor_id || null,
+        fund_request: !isWoLinked,
         retention_percent: retentionPercent,
         line_items: lineItems.map((item, index) => ({
           sr_no: index + 1,
@@ -147,7 +152,7 @@ export default function NewPaymentCertificatePage() {
 
       const res = await executePcCreateWithLock(async () => {
         return await api.post(
-          `/api/projects/${activeProject.project_id}/payment-certificates`,
+          `/api/v1/payments/`,
           payload,
           {
             headers: { "Idempotency-Key": idempotencyKey },

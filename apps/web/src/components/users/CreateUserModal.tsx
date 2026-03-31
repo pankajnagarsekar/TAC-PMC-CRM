@@ -31,12 +31,12 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
   const isClient = tempRole === "Client";
 
   const { data: projects = [] } = useSWR<Project[]>(
-    open && isClient ? "/api/projects" : null,
+    open && isClient ? "/api/v1/projects/" : null,
     fetcher
   );
 
   const { data: clients = [] } = useSWR<Client[]>(
-    open && isClient ? "/api/clients" : null,
+    open && isClient ? "/api/v1/clients/" : null,
     fetcher
   );
 
@@ -86,7 +86,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
 
     setLoading(true);
     try {
-      const response = await api.post<UserResponse>("/api/users", {
+      const response = await api.post<UserResponse>("/api/v1/users/admin-create", {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,

@@ -32,7 +32,7 @@ export default function CategoriesPage() {
     data: codes,
     mutate,
     isLoading,
-  } = useSWR<CodeMaster[]>("/api/codes", fetcher);
+  } = useSWR<CodeMaster[]>("/api/v1/settings/codes", fetcher);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCode, setSelectedCode] = useState<CodeMaster | undefined>(
@@ -152,7 +152,7 @@ export default function CategoriesPage() {
   async function confirmDelete() {
     if (!deleteCode) return;
     try {
-      await axios.delete(`/api/codes/${deleteCode._id}`);
+      await axios.delete(`/api/v1/settings/codes/${deleteCode._id}`);
       mutate();
       setDeleteCode(null);
     } catch (err: any) {
@@ -166,9 +166,9 @@ export default function CategoriesPage() {
     setError("");
     try {
       if (selectedCode) {
-        await axios.put(`/api/codes/${selectedCode._id}`, formData);
+        await axios.put(`/api/v1/settings/codes/${selectedCode._id}`, formData);
       } else {
-        await axios.post("/api/codes", formData);
+        await axios.post("/api/v1/settings/codes", formData);
       }
       mutate();
       setIsModalOpen(false);

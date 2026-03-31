@@ -63,7 +63,7 @@ export default function DPRDetailPage() {
   const fetchDPRDetail = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/dprs/${id}`);
+      const response = await api.get(`/api/v1/dprs/${id}`);
       setDpr(response.data);
     } catch (error) {
       toast({
@@ -79,7 +79,7 @@ export default function DPRDetailPage() {
 
   const handleApprove = async () => {
     try {
-      await api.patch(`/api/dprs/${id}/approve`);
+      await api.patch(`/api/v1/dprs/${id}/approve`);
       toast({ title: "Success", description: "DPR Approved" });
       fetchDPRDetail();
     } catch (error) {
@@ -102,7 +102,7 @@ export default function DPRDetailPage() {
     }
     try {
       await api.patch(
-        `/api/dprs/${id}/reject?reason=${encodeURIComponent(rejectionReason)}`,
+        `/api/v1/dprs/${id}/reject?reason=${encodeURIComponent(rejectionReason)}`,
       );
       toast({ title: "Success", description: "DPR Rejected" });
       setRejectDialogOpen(false);
@@ -167,13 +167,12 @@ export default function DPRDetailPage() {
                 Daily Progress Report
               </h1>
               <span
-                className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
-                  status === "APPROVED"
+                className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${status === "APPROVED"
                     ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                     : status === "REJECTED"
                       ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
                       : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                }`}
+                  }`}
               >
                 {status.replace(/_/g, " ")}
               </span>
@@ -211,11 +210,10 @@ export default function DPRDetailPage() {
       {/* Approval Metadata Badge */}
       {(status === "APPROVED" || status === "REJECTED") && (
         <div
-          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-            status === "APPROVED"
+          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${status === "APPROVED"
               ? "bg-emerald-500/5 border-emerald-500/20"
               : "bg-rose-500/5 border-rose-500/20"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3">
             <div
@@ -322,7 +320,7 @@ export default function DPRDetailPage() {
             <div className="p-6">
               <div className="space-y-3">
                 {dpr.activities_completed &&
-                dpr.activities_completed.length > 0 ? (
+                  dpr.activities_completed.length > 0 ? (
                   dpr.activities_completed.map(
                     (activity: string, i: number) => (
                       <div

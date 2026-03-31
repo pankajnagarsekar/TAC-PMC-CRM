@@ -15,7 +15,7 @@ export default function FundsTab() {
     const [showAddModal, setShowAddModal] = useState(false);
 
     const { data, error, isLoading, mutate } = useSWR(
-        activeProject ? `/api/projects/${activeProject.project_id || activeProject._id}/cash-transactions` : null,
+        activeProject ? `/api/v1/cash/transactions?project_id=${activeProject.project_id || activeProject._id}` : null,
         fetcher
     );
 

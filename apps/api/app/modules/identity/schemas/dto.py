@@ -116,6 +116,12 @@ class CompanyProfile(BaseModel):
     contact_email: str = ""
 
 
+class ClientPermissions(BaseModel):
+    can_view_dpr: bool = True
+    can_view_financials: bool = False
+    can_view_reports: bool = True
+
+
 class GlobalSettings(BaseModel):
     organisation_id: str
     cgst_percentage: float = 9.0
@@ -124,6 +130,7 @@ class GlobalSettings(BaseModel):
     currency: str = "INR"
     currency_symbol: str = "₹"
     company_profile: CompanyProfile = Field(default_factory=CompanyProfile)
+    client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
 
 
 Token.model_rebuild()

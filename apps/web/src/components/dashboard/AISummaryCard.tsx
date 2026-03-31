@@ -13,7 +13,7 @@ interface AISummaryCardProps {
 }
 
 export function AISummaryCard({ projectId }: AISummaryCardProps) {
-  const summaryKey = `/api/v1/ai/projects/${projectId}/ai-summary`;
+  const summaryKey = `/api/v1/reports/${projectId}/ai-summary`;
   const { data: summary, error, isLoading, mutate } = useSWR<AISummary>(
     projectId ? summaryKey : null,
     fetcher,
@@ -30,7 +30,7 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
     setIsRefreshing(true);
     setRefreshError(null);
     try {
-      await api.post(`/api/v1/ai/projects/${projectId}/ai-summary/refresh`);
+      await api.post(`/api/v1/reports/${projectId}/ai-summary/refresh`);
       await mutate();
     } catch (err: any) {
       setRefreshError(

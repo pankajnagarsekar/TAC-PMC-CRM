@@ -43,13 +43,14 @@ apps/api/app/
 ├── core/              # Shared kernel & dependency injection
 ├── db/                # Database manager (MongoDB initialization)
 └── modules/           # Sovereign Bounded Contexts
-    ├── identity/      # Auth, Users, Roles
+    ├── identity/      # Auth, Users, Roles, Settings
     ├── project/       # Projects, Clients, Timelines
-    ├── financial/     # Payments, Budgets, Cash Flow
+    ├── financial/     # Payments, Budgets, Cash Flow, Master Data
     ├── contracting/   # Work Orders, Vendors
-    ├── site_operations/ # DPRs, Attendance, Site Logs
-    ├── reporting/     # AI Summaries, Analytics
-    └── shared/        # Shared Kernel (Audit, Alerts, BaseRepo)
+    ├── site_operations/ # DPRs, Attendance, Worker Logs, Site Overheads, Voice Logs
+    ├── reporting/     # AI Summaries, Analytics, Dashboard
+    ├── scheduler/     # PPM/Gantt scheduling (standalone module)
+    └── shared/        # Shared Kernel (Audit, Alerts, Notifications, BaseRepo)
 ```
 
 **Module Anatomy:**
@@ -64,6 +65,18 @@ apps/api/app/
 - **Async/Await**: Motor (async MongoDB driver) throughout
 - **Event Sourcing**: State changes tracked for audit trails
 - **Rate Limiting & Resilience**: slowapi, circuit breakers, retry patterns
+- **Idempotency**: Duplicate-safe financial operations via `core/idempotency.py`
+- **Unit of Work**: Transactional consistency via `core/uow.py`
+
+**Core Services** (`apps/api/app/core/`):
+- `lifecycle.py`: App startup/shutdown, BackgroundGuardian
+- `middleware.py`: BackpressureMiddleware, StandardResponseMiddleware
+- `pdf_service.py`: PDF generation (WeasyPrint — requires system libs)
+- `ai_summary_service.py`: LLM integration (OpenAI)
+- `storage.py`: S3 file storage (boto3)
+- `resilience.py`: Circuit breakers, retry patterns
+- `concurrency.py`: Optimistic locking, version control
+- `financial_utils.py`: Monetary calculations (Decimal precision)
 
 ### Frontend Architecture (Next.js + React 19)
 
@@ -87,9 +100,15 @@ apps/web/src/
 
 ```
 apps/mobile/
-├── app/               # Expo Router navigation
-├── screens/           # Screen components
-└── components/        # Reusable components
+├── app/               # Expo Router (role-based navigation)
+│   ├── (admin)/       # Admin routes (DPR review, attendance view)
+│   ├── (client)/      # Client routes (project overview)
+│   ├── (supervisor)/  # Supervisor routes (attendance, worker logs)
+│   └── login.tsx      # Auth entry point
+├── components/        # Reusable components
+├── contexts/          # React Context providers
+├── services/          # API client & business logic
+└── types/             # TypeScript type definitions
 ```
 
 ---
@@ -183,9 +202,9 @@ npm run lint
 
 ## Important Project Directives
 
-### 1. **Skill-First Rule** (CLAUDE_Skills.md)
+### 1. **Skill-First Rule** (AwesomeGSD_Skills.md)
 
-**Every task MUST identify and document relevant skills before beginning work.** Skill files are in `.claude/skills/`. Stack skills strategically based on task type:
+**Every task MUST identify and document relevant skills before beginning work.** Stack skills strategically based on task type:
 
 - **Error Detection**: @error-detective + @debugging-toolkit + @software-architecture
 - **New Features**: @software-architecture + @[language]-pro + @database-design
@@ -259,6 +278,8 @@ Routes are organized within each Bounded Context in `apps/api/app/modules/[modul
 - `project/api/routes.py`: Projects and Timelines
 - `financial/api/routes.py`: Payments and Master Data
 - `contracting/api/routes.py`: Work Orders and Vendors
+- `site_operations/api/routes.py`: DPRs, Attendance, Worker Logs
+- `reporting/api/routes.py`: AI Summaries, Analytics
 
 **Aggregation**: The central `apps/api/app/api/router.py` imports and registers these modular routers.
 
@@ -267,7 +288,12 @@ Routes are organized within each Bounded Context in `apps/api/app/modules/[modul
 Business logic resides in the `application/` layer of each module:
 - `identity/application/auth_service.py`: Authentication logic
 - `financial/application/master_data_service.py`: Reference data management
+- `financial/application/cash_service.py`: Cash position tracking and reconciliation
+- `financial/application/payment_service.py`: Payment processing
 - `project/application/scheduler_service.py`: Critical path and scheduling
+- `site_operations/application/site_service.py`: DPR, attendance, site logs
+- `reporting/application/ai_summary_service.py`: LLM-powered summaries
+- `reporting/application/ai_service.py`: AI/LLM provider integration
 - `shared/application/alert_service.py`: Cross-context system alerts
 
 ### Validation & Error Handling
@@ -342,15 +368,17 @@ Each app requires `.env` file:
 
 **API (.env)**:
 ```
-MONGODB_URI=mongodb://...
-JWT_SECRET=...
+MONGO_URL=mongodb://...
+DB_NAME=tac_pmc_crm
+JWT_SECRET_KEY=...
+ENVIRONMENT=development
 AWS_ACCESS_KEY_ID=...
 REDIS_URL=...
 ```
 
 **Web (.env.local)**:
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 ```
 
 ### Build & Deployment
@@ -360,9 +388,17 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **Mobile**: Expo web on port 3001
 
 **Docker & CI/CD**:
-- Docker support: `Dockerfile` and `.dockerignore` configured in `apps/api/`
-- GitHub Actions CI/CD: `.github/workflows/ci.yml` automates testing, linting, and deployments
-- Container builds optimized for Python FastAPI with health checks and signal handling
+- Docker support: `Dockerfile` in both `apps/api/` (Python 3.11-slim) and `apps/web/` (Node 20 multi-stage)
+- GitHub Actions CI/CD: `.github/workflows/ci.yml` — 4 jobs: API lint+test, Web lint+typecheck, Docker build API, Docker build Web
+- API container includes WeasyPrint system libs (libcairo2, libpango) for PDF generation
+- Web container uses Next.js standalone output with `NEXT_PUBLIC_BACKEND_URL` build arg
+
+**Production Seed Script**:
+```bash
+cd apps/api
+MONGO_URL="mongodb+srv://..." DB_NAME="tac_pmc_crm_prod" python scripts/seed_production.py
+```
+Creates: 1 org (TAC-PMC), 3 users (admin/supervisor/client), 5 financial codes, 1 project (Majorda Villa) with 45 scheduler tasks.
 
 ---
 
@@ -391,13 +427,13 @@ If you see "module not found" errors:
 
 ## Key Files Reference
 
-- **CLAUDE_Skills.md**: Mandatory skill usage documentation
+- **AwesomeGSD_Skills.md**: Skill-first operating manual with GSD protocol
 - **Ruflo.md**: RuFlo V3 orchestration framework & CLI commands
-- **apps/api/CLAUDE.md**: API-specific RuFlo configuration
 - **turbo.json**: Monorepo task definitions
 - **pnpm-workspace.yaml**: Workspace configuration
-- **.github/workflows/ci.yml**: GitHub Actions CI/CD pipeline
-- **.planning/**: RuFlo memory and planning artifacts (added to .gitignore)
+- **.github/workflows/ci.yml**: GitHub Actions CI/CD pipeline (4 jobs)
+- **.planning/**: RuFlo memory and planning artifacts (gitignored)
+- **apps/api/scripts/seed_production.py**: Production database seeding
 
 ---
 
@@ -422,32 +458,32 @@ See Ruflo.md for complete CLI reference.
 
 ## Recent Implementations
 
-### Cash Management & Financial Services (v1.4+)
+### Supervisor Attendance & Site Operations (v1.5)
 
-The `financial/` module now includes:
+- **Supervisor Attendance**: Mobile attendance marking with GPS and photo capture
+- **Admin Attendance Dashboard**: View and manage attendance records across projects
+- **Worker Logs**: Track daily worker presence and hours
+- **Site Overheads**: Manage site-level overhead costs
+- **DPR Status Machine**: Daily Progress Reports with status transitions
+
+### Cash Management & Financial Services (v1.4)
+
 - **Cash Service**: Real-time cash position tracking and reconciliation
-- **Master Data Service**: Reference data management for financial codes
+- **Master Data Service**: Reference data management for financial codes (LABOR, MATERIAL, EQUIPMENT, OVERHEAD, CONTINGENCY)
 - **Payment Service**: Payment processing and transaction management
-- **Financial Engine**: Domain logic for budgets, payments, and cash flow
-
-### Work Order & Contracting Features
-
-- **Work Order Creation**: New page with financial grid and line-item management
-- **Budget Validation**: Real-time budget checks against project allocations
-- **Idempotency Support**: Duplicate-safe operations for financial transactions
-- **Vendor Management**: Vendor repository and service layer
+- **Work Order Creation**: Financial grid with line-item management and budget validation
+- **Idempotency**: Duplicate-safe financial operations
 
 ### Reporting & AI Insights
 
-- **AI Summary Service**: LLM-powered project and financial summaries
+- **AI Summary Service**: LLM-powered project and financial summaries (OpenAI integration)
 - **Analytics Dashboard**: Real-time project metrics and KPIs
-- **AI Service Layer**: Integration with LLM providers for intelligent reporting
 
 ### Infrastructure
 
-- **CI/CD Pipeline**: Automated testing and deployment via GitHub Actions
-- **Docker Containerization**: Production-ready Python containerization
-- **Health Checks**: Liveness and readiness probes for container orchestration
+- **CI/CD Pipeline**: GitHub Actions — API lint+test, Web lint+typecheck, Docker builds
+- **Docker**: Production containers for both API (Python 3.11-slim) and Web (Node 20 multi-stage)
+- **Production Seeding**: `seed_production.py` for initial database setup
 
 ---
 

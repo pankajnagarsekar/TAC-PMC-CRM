@@ -18,6 +18,7 @@ from ..schemas.dto import (
     CashTransactionCreate,
     CodeMaster,
     CodeMasterCreate,
+    CodeMasterUpdate,
     FundAllocationCreate,
     PaymentCertificate,
     PaymentCertificateCreate,
@@ -141,7 +142,9 @@ async def record_cash_transaction(
     cash_service: CashService = Depends(get_cash_service),
 ):
     """Record a petty cash or overhead transaction."""
-    result = await cash_service.record_transaction(user, txn_data)
+    result = await cash_service.create_cash_transaction(
+        user, txn_data.project_id, txn_data.dict(), None
+    )
     return GenericResponse(data=result)
 
 
@@ -179,6 +182,37 @@ async def create_category(
 
 
 @router.get(
+    "/settings/codes/{code_id}",
+    response_model=GenericResponse[CodeMaster],
+    tags=["Settings"],
+)
+async def get_category(
+    code_id: str,
+    user: dict = Depends(get_authenticated_user),
+    master_service: MasterDataService = Depends(get_master_data_service),
+):
+    """Get details for a specific category code."""
+    result = await master_service.get_code_by_id(user, code_id)
+    return GenericResponse(data=result)
+
+
+@router.put(
+    "/settings/codes/{code_id}",
+    response_model=GenericResponse[CodeMaster],
+    tags=["Settings"],
+)
+async def update_category(
+    code_id: str,
+    category_data: CodeMasterUpdate,
+    user: dict = Depends(get_authenticated_user),
+    master_service: MasterDataService = Depends(get_master_data_service),
+):
+    """Update a category code (Admin only)."""
+    result = await master_service.update_code(user, code_id, category_data)
+    return GenericResponse(data=result, message="Category code updated successfully")
+
+
+@router.get(
     "/cash/balance/{project_id}",
     response_model=GenericResponse[Dict[str, Any]],
     tags=["Cash Management"],
@@ -207,3 +241,14 @@ async def get_project_cash_summary(
     """Get comprehensive cash summary per category for a project."""
     summary = await cash_service.get_cash_summary(user, project_id)
     return GenericResponse(data=summary)
+@router.get(
+    "/payments/id/{pc_id}", response_model=GenericResponse[PaymentCertificate], tags=["Payments"]
+)
+async def get_payment_certificate(
+    pc_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Get a specific payment certificate by ID."""
+    pc = await payment_service.get_payment_certificate(user, pc_id)
+    return GenericResponse(data=pc)

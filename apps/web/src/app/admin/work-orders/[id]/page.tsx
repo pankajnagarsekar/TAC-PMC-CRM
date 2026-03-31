@@ -51,16 +51,16 @@ export default function WorkOrderDetailPage() {
     data: wo,
     mutate: mutateWO,
     isLoading,
-  } = useSWR<WorkOrder>(`/api/work-orders/${woId}`, fetcher);
+  } = useSWR<WorkOrder>(`/api/v1/work-orders/${woId}`, fetcher);
 
   const { data: project } = useSWR<Project>(
-    wo ? `/api/projects/${wo.project_id}` : null,
+    wo ? `/api/v1/projects/${wo.project_id}` : null,
     fetcher,
   );
 
-  const { data: vendors } = useSWR<Vendor[]>("/api/vendors", fetcher);
+  const { data: vendors } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
   const { data: categories } = useSWR<CodeMaster[]>(
-    "/api/codes?active_only=true",
+    "/api/v1/settings/codes?active_only=true",
     fetcher,
   );
 
@@ -157,7 +157,7 @@ export default function WorkOrderDetailPage() {
     if (!wo) return;
     setIsSaving(true);
     try {
-      await api.put(`/api/work-orders/${woId}`, {
+      await api.patch(`/api/v1/work-orders/${woId}`, {
         category_id: editState.category_id || undefined,
         vendor_id: editState.vendor_id || undefined,
         description: editState.description || undefined,
@@ -186,7 +186,7 @@ export default function WorkOrderDetailPage() {
   const handleStatusChange = async (newStatus: string) => {
     try {
       await api.patch(
-        `/api/work-orders/${woId}/status?status=${newStatus}&expected_version=${wo?.version || 1}`,
+        `/api/v1/work-orders/${woId}/status?status=${newStatus}&expected_version=${wo?.version || 1}`,
       );
       mutateWO();
     } catch (err: any) {
@@ -201,7 +201,7 @@ export default function WorkOrderDetailPage() {
   const handleExportPDF = async () => {
     if (!wo) return;
     try {
-      const response = await api.get(`/api/work-orders/${woId}/export`, {
+      const response = await api.get(`/api/v1/work-orders/${woId}/export`, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));

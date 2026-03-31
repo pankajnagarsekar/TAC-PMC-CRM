@@ -134,7 +134,7 @@ export default function Sidebar({
   const { user, clearAuth } = useAuthStore();
   const { activeProject } = useProjectStore();
   const { data: settings } = useSWR<GlobalSettings>(
-    "/api/v1/settings",
+    "/api/v1/settings/",
     fetcher
   );
 

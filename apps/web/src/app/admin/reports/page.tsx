@@ -115,7 +115,7 @@ export default function ReportsPage() {
 
     try {
       setIsLoading(true);
-      let url = `/api/projects/${activeProject.project_id}/reports/${selectedReport}`;
+      let url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}`;
       const params = new URLSearchParams();
 
       if (startDate) params.append("start_date", startDate);
@@ -143,7 +143,7 @@ export default function ReportsPage() {
 
     try {
       setIsExporting(format);
-      let url = `/api/projects/${activeProject.project_id}/reports/${selectedReport}/export/${format}`;
+      let url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}/export/${format}`;
       const params = new URLSearchParams();
 
       if (startDate) params.append("start_date", startDate);
@@ -162,7 +162,7 @@ export default function ReportsPage() {
           let attempts = 0;
           while (attempts < 60) {
             await new Promise((resolve) => setTimeout(resolve, 2000));
-            const statusRes = await api.get(`/api/jobs/${payload.job_id}`);
+            const statusRes = await api.get(`/api/v1/jobs/${payload.job_id}`);
             if (
               statusRes.data?.ready ||
               statusRes.data?.status === "SUCCESS" ||

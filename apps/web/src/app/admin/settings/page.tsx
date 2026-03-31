@@ -23,7 +23,7 @@ import CategoryModal from "@/components/categories/CategoryModal";
 
 export default function SettingsPage() {
   const { data: codes, mutate: mutateCodes } = useSWR<CodeMaster[]>(
-    "/api/codes",
+    "/api/v1/settings/codes",
     fetcher,
   );
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -62,19 +62,12 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const [settingsRes, permsRes] = await Promise.all([
-          api.get("/api/settings"),
-          api.get("/api/client-permissions"),
-        ]);
+        const settingsRes = await api.get("/api/v1/settings/");
 
         if (settingsRes.data) {
           setGlobalSettings({
             ...globalSettings,
             ...settingsRes.data,
-            client_permissions:
-              permsRes.data ||
-              settingsRes.data.client_permissions ||
-              globalSettings.client_permissions,
           });
         }
       } catch (err) {
@@ -90,13 +83,7 @@ export default function SettingsPage() {
     setSavingSettings(true);
     try {
       const payload = prepareSettingsPayload();
-      await Promise.all([
-        api.put("/api/settings", payload),
-        api.patch(
-          "/api/client-permissions",
-          payload.client_permissions || {},
-        ),
-      ]);
+      await api.put("/api/v1/settings/", payload);
       alert("Global settings saved successfully!");
     } catch (err) {
       console.error(err);

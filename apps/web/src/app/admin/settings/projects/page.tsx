@@ -30,7 +30,7 @@ export default function ProjectsSettingsPage() {
         mutate,
         isLoading,
         error
-    } = useSWR<Project[]>("/api/projects", fetcher);
+    } = useSWR<Project[]>("/api/v1/projects/", fetcher);
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);

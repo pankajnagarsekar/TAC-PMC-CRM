@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import {
   FileText,
   AlertTriangle,
   Download,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -49,56 +50,33 @@ export default function PaymentCertificateDetail({
     data: pc,
     isLoading,
     mutate,
-  } = useSWR<PaymentCertificate>(`/api/payment-certificates/${id}`, fetcher);
+  } = useSWR<PaymentCertificate>(`/api/v1/payments/id/${id}`, fetcher);
 
   const { data: categories } = useSWR<CodeMaster[]>(
-    "/api/codes?active_only=true",
+    "/api/v1/settings/codes?active_only=true",
     fetcher,
   );
-  const { data: vendors } = useSWR<Vendor[]>("/api/vendors", fetcher);
+  const { data: vendors } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
   const { data: woResponse } = useSWR(
     activeProject
-      ? `/api/projects/${activeProject.project_id}/work-orders`
+      ? `/api/v1/work-orders/?project_id=${activeProject.project_id || activeProject._id}`
       : null,
     fetcher,
   );
 
   const workOrders: WorkOrder[] = woResponse?.items || [];
 
-  if (isLoading)
-    return (
-      <div className="text-slate-400 p-8 text-center animate-pulse">
-        Loading Certificate Bounds...
-      </div>
-    );
-  if (!pc)
-    return (
-      <div className="text-red-400 p-8 text-center">
-        Certificate Definition Not Found
-      </div>
-    );
-
-  const getCategoryName = (cid: string) =>
-    categories?.find((c) => c._id === cid)?.category_name || cid;
-  const getVendorName = (vid: string) =>
-    vendors?.find((v) => v._id === vid)?.name || vid;
-  const getWoRef = (woid: string) =>
-    workOrders.find((w) => w._id === woid)?.wo_ref || woid;
-
   const handleClose = async () => {
     try {
       setIsClosing(true);
       setError(null);
-      const response = await api.patch(
-        `/api/payment-certificates/${id}/close?expected_version=${pc.version || 1}`,
-      );
+      const response = await api.post(`/api/v1/payments/${id}/close`);
 
-      // Capture financial summary from response
       if (response.data.financial_summary) {
         setCloseSuccessSummary(response.data.financial_summary);
       }
 
-      await mutate(); // Refresh the internal cache showing Closed status immediately
+      await mutate();
     } catch (err: any) {
       if (err.response?.status === 409) {
         setIsConflictOpen(true);
@@ -115,13 +93,13 @@ export default function PaymentCertificateDetail({
 
   const handleExportPDF = async () => {
     try {
-      const response = await api.get(`/api/payment-certificates/${id}/export`, {
+      const response = await api.get(`/api/v1/payments/${id}/export`, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `PC-${pc.pc_ref}.pdf`);
+      link.setAttribute("download", `PC-${pc?.pc_ref || "export"}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -130,7 +108,14 @@ export default function PaymentCertificateDetail({
     }
   };
 
-  const columnDefs: ColDef[] = [
+  const getCategoryName = (cid: string) =>
+    categories?.find((c) => c._id === cid)?.category_name || cid;
+  const getVendorName = (vid: string) =>
+    vendors?.find((v) => v._id === vid)?.name || vid;
+  const getWoRef = (woid: string) =>
+    workOrders.find((w) => w._id === woid)?.wo_ref || woid;
+
+  const columnDefs: ColDef[] = useMemo(() => [
     { field: "sr_no", headerName: "Sr No", width: 80, filter: false },
     {
       field: "scope_of_work",
@@ -164,11 +149,25 @@ export default function PaymentCertificateDetail({
       type: "numericColumn",
       valueFormatter: (p: any) => formatCurrency(p.value),
     },
-  ];
+  ], []);
+
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center h-64 p-8 text-center text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-500 mr-2" />
+        Loading Certificate Bounds...
+      </div>
+    );
+
+  if (!pc)
+    return (
+      <div className="text-red-400 p-8 text-center">
+        Certificate Definition Not Found
+      </div>
+    );
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in duration-500">
-      {/* Header Array */}
       <div className="flex justify-between items-start">
         <div className="flex gap-4">
           <Link
@@ -184,10 +183,10 @@ export default function PaymentCertificateDetail({
               </h1>
               <span
                 className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${pc.status === "Closed"
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                    : pc.status === "Draft"
-                      ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
-                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  : pc.status === "Draft"
+                    ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                    : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                   }`}
               >
                 {pc.status}
@@ -241,7 +240,6 @@ export default function PaymentCertificateDetail({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
-          {/* Linked Meta */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">
               Target Metadata
@@ -286,7 +284,6 @@ export default function PaymentCertificateDetail({
             </div>
           </div>
 
-          {/* Grid Block */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
             <div className="p-4 border-b border-slate-800/50 flex justify-between items-center bg-slate-950/50">
               <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
@@ -302,14 +299,13 @@ export default function PaymentCertificateDetail({
               <FinancialGrid
                 rowData={pc.line_items || []}
                 columnDefs={columnDefs}
-                readOnly={true} // Strictly read only post-commit
+                readOnly={true}
                 domLayout="normal"
               />
             </div>
           </div>
         </div>
 
-        {/* Financials Readout */}
         <div className="space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl sticky top-6">
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 border-b border-slate-800 pb-2">
@@ -371,13 +367,13 @@ export default function PaymentCertificateDetail({
           </div>
         </div>
       </div>
+
       <VersionConflictModal
         isOpen={isConflictOpen}
         setIsOpen={setIsConflictOpen}
         onReload={() => mutate()}
       />
 
-      {/* Close PC Confirmation Dialog */}
       <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
         <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
           <DialogHeader>
@@ -418,7 +414,6 @@ export default function PaymentCertificateDetail({
         </DialogContent>
       </Dialog>
 
-      {/* Close Success Summary Dialog */}
       <Dialog
         open={!!closeSuccessSummary}
         onOpenChange={() => setCloseSuccessSummary(null)}

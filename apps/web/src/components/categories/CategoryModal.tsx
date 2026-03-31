@@ -49,9 +49,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
     try {
       const activeId = category?.code_id || (category as any)?._id;
       if (activeId) {
-        await api.put(`/api/codes/${activeId}`, formData);
+        await api.put(`/api/v1/settings/codes/${activeId}`, formData);
       } else {
-        await api.post('/api/codes', formData);
+        await api.post('/api/v1/settings/codes', formData);
       }
       onSuccess();
       onClose();

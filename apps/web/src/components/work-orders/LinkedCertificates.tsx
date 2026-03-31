@@ -16,8 +16,8 @@ interface LinkedCertificatesProps {
 
 export default function LinkedCertificates({ projectId, workOrderId }: LinkedCertificatesProps) {
   const url = workOrderId
-    ? `/api/projects/${projectId}/payment-certificates?work_order_id=${workOrderId}`
-    : `/api/projects/${projectId}/payment-certificates`;
+    ? `/api/v1/payments/${projectId}?work_order_id=${workOrderId}`
+    : `/api/v1/payments/${projectId}`;
 
   const { data: pcsData, isLoading } = useSWR(projectId ? url : null, fetcher);
 

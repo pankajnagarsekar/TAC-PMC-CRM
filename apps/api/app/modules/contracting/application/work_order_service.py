@@ -361,3 +361,9 @@ class WorkOrderService:
         docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
         next_cursor = docs[-1]["created_at"].isoformat() if len(docs) == limit else None
         return {"items": docs, "next_cursor": next_cursor}
+    async def get_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
+        organisation_id = user["organisation_id"]
+        wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
+        if not wo:
+            raise NotFoundError("Work Order", wo_id)
+        return wo
