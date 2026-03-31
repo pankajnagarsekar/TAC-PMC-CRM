@@ -26,13 +26,18 @@ class BaseRepository(Generic[T]):
         pass
 
     async def get_by_id(
-        self, id: str, session: Optional[AsyncIOMotorClientSession] = None
+        self, id: str, session: Optional[AsyncIOMotorClientSession] = None, **filters
     ) -> Optional[Dict[str, Any]]:
-        """Retrieve a single document by its hex ID or string ID."""
+        """Retrieve a single document by its hex ID or string ID with optional filtering."""
         try:
             query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
         except Exception:
             query = {"_id": id}
+
+        # Enforce additional filters (e.g. organisation_id) for security (Point 115)
+        if filters:
+            query.update(filters)
+
         doc = await self.collection.find_one(query, session=session)
         return self._format_id(doc)
 
