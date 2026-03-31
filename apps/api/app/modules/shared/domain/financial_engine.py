@@ -40,14 +40,21 @@ class FinancialEngine:
             return Decimal("0.00")
 
     @classmethod
-    def round(cls, value: Any, precision: Decimal = None) -> Decimal:
-        """Standardized Round-Half-Up."""
+    def round(cls, value: Any, precision: Any = None) -> Decimal:
+        """Standardized Round-Half-Up with support for int or Decimal precision."""
         if value is None:
             return Decimal("0.00")
         if not isinstance(value, Decimal):
             value = Decimal(str(value))
 
-        target_precision = precision if precision is not None else cls.PRECISION
+        if precision is None:
+            target_precision = cls.PRECISION
+        elif isinstance(precision, int):
+            # Convert integer (e.g., 3) to Decimal scale (e.g., 0.001)
+            target_precision = Decimal(10) ** -precision
+        else:
+            target_precision = precision
+
         return value.quantize(target_precision, rounding=ROUND_HALF_UP)
 
     @classmethod

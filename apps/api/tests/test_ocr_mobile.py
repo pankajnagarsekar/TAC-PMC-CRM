@@ -1,6 +1,8 @@
 import asyncio
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_ocr():
     # url = "http://localhost:8000/api/v1/ai/ocr"
 

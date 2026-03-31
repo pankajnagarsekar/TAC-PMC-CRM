@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r apps/api/requirements.txt
       - name: Lint (flake8)
-        run: cd apps/api && flake8 app/ --max-line-length=120
+        run: cd apps/api && python -m flake8 .
       - name: Test (pytest)
         run: cd apps/api && pytest tests/ -v
         env:
@@ -40,7 +40,7 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
+      - run: pnpm lint --filter=!@tac-pmc/api
       - run: cd apps/web && npx tsc --noEmit
 
   docker-api:
