@@ -6,7 +6,7 @@ import unittest
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from decimal import Decimal  # noqa: E402
-from app.modules.financial.domain.financial_engine import FinancialEngine  # noqa: E402
+from app.modules.shared.domain.financial_engine import FinancialEngine  # noqa: E402
 
 
 class TestFinancialRounding(unittest.TestCase):

@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from server import app
+from app.main import app
 
 client = TestClient(app)
 
@@ -12,7 +12,7 @@ def test_rate_limiting_work_orders():
     # The actual limit is 5 per minute in the code.
 
     responses = []
-    for _ in range(10):
+    for _ in range(15):
         # We don't need a valid payload for the limiter to catch it
         # (the limiter runs before the body is fully validated by business logic usually)
         response = client.post("/api/work-orders/", json={"dummy": "data"})
@@ -28,7 +28,7 @@ def test_rate_limiting_cash_transactions():
     Test rate limiting on cash transactions.
     """
     responses = []
-    for _ in range(10):
+    for _ in range(15):
         response = client.post("/api/cash/transactions", json={"dummy": "data"})
         responses.append(response.status_code)
 

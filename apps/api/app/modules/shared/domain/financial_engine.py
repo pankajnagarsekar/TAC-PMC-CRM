@@ -40,13 +40,15 @@ class FinancialEngine:
             return Decimal("0.00")
 
     @classmethod
-    def round(cls, value: Any) -> Decimal:
+    def round(cls, value: Any, precision: Decimal = None) -> Decimal:
         """Standardized Round-Half-Up."""
         if value is None:
             return Decimal("0.00")
         if not isinstance(value, Decimal):
             value = Decimal(str(value))
-        return value.quantize(cls.PRECISION, rounding=ROUND_HALF_UP)
+
+        target_precision = precision if precision is not None else cls.PRECISION
+        return value.quantize(target_precision, rounding=ROUND_HALF_UP)
 
     @classmethod
     def calculate_tax(cls, amount: Decimal, tax_pct: Decimal) -> Decimal:
