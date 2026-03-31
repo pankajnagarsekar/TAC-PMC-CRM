@@ -130,9 +130,17 @@ export default function KanbanBoard() {
                           {task.percent_complete ?? 0}%
                         </span>
                       </div>
-                      <div className="mt-3 flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-white/50">
-                        <span>{task.task_mode ?? "Auto"}</span>
-                        <span>{task.scheduled_duration ?? 0}d</span>
+                      <div className="mt-3 flex flex-col gap-2">
+                        <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                          <div
+                            className="h-full bg-sky-400 transition-all duration-300"
+                            style={{ width: `${task.percent_complete ?? 0}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-white/50">
+                          <span>{task.task_mode ?? "Auto"}</span>
+                          <span>{task.scheduled_duration ?? 0}d</span>
+                        </div>
                       </div>
                     </article>
                   );

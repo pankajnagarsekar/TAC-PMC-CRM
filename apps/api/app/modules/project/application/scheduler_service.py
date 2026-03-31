@@ -123,3 +123,38 @@ class SchedulerService:
                 "tasks": [],
                 "error": f"Internal Error: {str(e)}"
             }
+
+    async def compare_baselines(
+        self, project_id: str, baseline_a: int, baseline_b: int = None
+    ) -> List[Dict[str, Any]]:
+        # Fetch current schedule
+        schedule = await self.load_schedule(project_id, "")
+        tasks = schedule.get("tasks", [])
+        
+        results = []
+        for t in tasks:
+            b_start = t.get("baseline_start") or t.get("scheduled_start")
+            b_finish = t.get("baseline_finish") or t.get("scheduled_finish")
+            s_start = t.get("scheduled_start")
+            s_finish = t.get("scheduled_finish")
+            
+            variance = 0
+            if b_finish and s_finish:
+                fmt = "%Y-%m-%d"
+                try:
+                    bf = datetime.strptime(b_finish[:10], fmt)
+                    sf = datetime.strptime(s_finish[:10], fmt)
+                    variance = (sf - bf).days
+                except:
+                    pass
+            
+            results.append({
+                "task_id": str(t.get("task_id", "")),
+                "baseline_a_start": b_start,
+                "baseline_a_finish": b_finish,
+                "baseline_b_start": s_start,
+                "baseline_b_finish": s_finish,
+                "schedule_variance_days": variance
+            })
+            
+        return results

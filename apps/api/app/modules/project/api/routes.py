@@ -229,6 +229,24 @@ async def load_schedule(
     return GenericResponse(data=result)
 
 
+@router.get(
+    "/projects/{project_id}/baseline/compare",
+    response_model=GenericResponse[List[Dict[str, Any]]],
+    tags=["Scheduler"],
+)
+async def compare_baselines(
+    project_id: str,
+    baseline_a: int = Query(1),
+    baseline_b: int = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    service: SchedulerService = Depends(get_scheduler_service),
+):
+    """Compare two baselines."""
+    result = await service.compare_baselines(project_id, baseline_a, baseline_b)
+    return GenericResponse(data=result)
+
+
+
 @router.post(
     "/scheduler/{project_id}/migrate",
     response_model=GenericResponse[Dict[str, Any]],

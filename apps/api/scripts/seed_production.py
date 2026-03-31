@@ -58,9 +58,7 @@ async def seed_production():
             org_result = await db.organisations.insert_one(
                 {
                     "name": "TAC-PMC",
-                    "description": "Third Angle Concepts - Project Management Consulting",
                     "created_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
                 }
             )
             org_id = str(org_result.inserted_id)
@@ -84,7 +82,7 @@ async def seed_production():
             {
                 "email": "client@tacpmc.com",
                 "name": "Client Representative",
-                "role": "Client",
+                "role": "Other",
                 "password": "Client@1234",
             },
         ]
@@ -130,33 +128,57 @@ async def seed_production():
             {"code": "CON", "description": "Contingency", "category": "Risk"},
         ]
 
+        print("\n[STEP 3.5] Creating Client & Vendor...")
+        client_doc = await db.clients.find_one({"name": "Mr. Sanjay Rao"})
+        if not client_doc:
+            client_result = await db.clients.insert_one({
+                "organisation_id": org_id,
+                "name": "Mr. Sanjay Rao",
+                "address": "Majorda",
+                "city": "South Goa",
+                "state": "Goa",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
+            })
+            client_id = str(client_result.inserted_id)
+        else:
+            client_id = str(client_doc["_id"])
+            
+        vendor_doc = await db.vendors.find_one({"name": "Default Vendor"})
+        if not vendor_doc:
+            vendor_result = await db.vendors.insert_one({
+                "organisation_id": org_id,
+                "name": "Default Vendor",
+                "active_status": True,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
+            })
+            vendor_id = str(vendor_result.inserted_id)
+        else:
+            vendor_id = str(vendor_doc["_id"])
+
+        code_map = {}
         for code in codes:
-            # Sync to financial_codes (legacy/internal)
-            existing = await db.financial_codes.find_one({"code": code["code"]})
-            if not existing:
-                await db.financial_codes.insert_one(
-                    {
-                        **code,
-                        "organisation_id": org_id,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
-            # Sync to code_master (DDD repository standard)
             existing_master = await db.code_master.find_one({"code": code["code"]})
             if not existing_master:
-                await db.code_master.insert_one(
+                result = await db.code_master.insert_one(
                     {
                         "code": code["code"],
                         "code_short": code["code"],
-                        "description": code["description"],
-                        "category": code["category"],
+                        "code_description": code["description"],
+                        "category_name": code["category"],
                         "organisation_id": org_id,
-                        "is_active": True,
+                        "active_status": True,
                         "created_at": datetime.now(timezone.utc),
                         "updated_at": datetime.now(timezone.utc),
                     }
                 )
-        print(f"  Created/verified {len(codes)} financial codes in both collections")
+                code_map[code["code"]] = str(result.inserted_id)
+            else:
+                code_map[code["code"]] = str(existing_master["_id"])
+                # update fields if exists
+                await db.code_master.update_one({"_id": existing_master["_id"]}, {"$set": {"code_description": code["description"], "category_name": code["category"], "active_status": True}})
+        print(f"  Created/verified {len(codes)} financial codes in code_master")
 
         # 4. PROJECT: MAJORDA VILLA
         print("\n[STEP 4] Creating Majorda Villa Project...")
@@ -176,8 +198,10 @@ async def seed_production():
                     "master_original_budget": original_budget, 
                     "master_remaining_budget": remaining_budget,
                     "completion_percentage": 18,
-                    "client_name": "Mr. Sanjay Rao",
-                    "location": "Majorda, South Goa"
+                    "client_id": client_id,
+                    "address": "Majorda",
+                    "city": "South Goa",
+                    "state": "Goa"
                 }}
             )
         else:
@@ -185,23 +209,24 @@ async def seed_production():
             await db.projects.insert_one(
                 {
                     "_id": project_oid,
-                    "project_id": str(project_oid),
+                    "project_code": "MV-01",
                     "project_name": "Majorda Villa - Civil Works",
-                    "client_name": "Mr. Sanjay Rao",
+                    "client_id": client_id,
                     "status": "active",
-                    "project_type": "Luxury Construction",
-                    "start_date": datetime(2026, 2, 20, tzinfo=timezone.utc),
-                    "end_date": datetime(2026, 12, 15, tzinfo=timezone.utc),
-                    "description": "Premium villa construction project in Majorda.",
-                    "location": "Majorda, South Goa",
-                    "owner": "TAC-PMC",
+                    "address": "Majorda",
+                    "city": "South Goa",
+                    "state": "Goa",
+                    "project_retention_percentage": 0.0,
+                    "project_cgst_percentage": 9.0,
+                    "project_sgst_percentage": 9.0,
                     "organisation_id": org_id,
-                    "created_by": user_map["Admin"],
                     "created_at": datetime.now(timezone.utc),
                     "updated_at": datetime.now(timezone.utc),
                     "master_original_budget": original_budget,
                     "master_remaining_budget": remaining_budget,
                     "completion_percentage": 18,
+                    "threshold_petty": 0.0,
+                    "threshold_ovh": 0.0,
                     "version": 1,
                 }
             )
@@ -922,6 +947,19 @@ async def seed_production():
 
         # 6. INITIAL FINANCIAL STATES
         print("\n[STEP 6] Seeding Financial States...")
+        await db.financial_state.delete_many({"project_id": project_id})
+        try:
+            await db.financial_state.drop_index("project_id_1_category_id_1")
+            print("  Dropped legacy index project_id_1_category_id_1")
+        except Exception:
+            pass
+        
+        try:
+            await db.financial_state.create_index([("project_id", 1), ("code_id", 1)], unique=True)
+        except Exception as e:
+            print(f"Skipping index creation: {e}")
+            pass
+            
         financial_categories = [
             {"category_id": "CIV", "original": 10072425, "committed": 10072425, "certified": 4500000},
             {"category_id": "PLB", "original": 350000, "committed": 0, "certified": 0},
@@ -931,14 +969,16 @@ async def seed_production():
         ]
 
         for fc in financial_categories:
+            code_id = code_map.get(fc["category_id"])
+            if not code_id: continue
             await db.financial_state.update_one(
-                {"project_id": project_id, "category_id": fc["category_id"]},
+                {"project_id": project_id, "code_id": code_id},
                 {"$set": {
                     "original_budget": fc["original"],
                     "committed_value": fc["committed"],
                     "certified_value": fc["certified"],
                     "balance_budget_remaining": fc["original"] - fc["committed"],
-                    "updated_at": datetime.now(timezone.utc)
+                    "last_updated": datetime.now(timezone.utc)
                 }},
                 upsert=True
             )

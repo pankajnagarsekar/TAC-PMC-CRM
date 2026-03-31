@@ -124,6 +124,8 @@ class AISummaryService:
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
         def to_f(v):
+            if v is None:
+                return 0.0
             return float(FinancialEngine.to_decimal(v))
 
         budgets = await self.budget_repo.list({"project_id": project_id}, limit=100)
