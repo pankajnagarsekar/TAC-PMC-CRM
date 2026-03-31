@@ -106,7 +106,20 @@ class BaseRepository(Generic[T]):
         return result.deleted_count > 0
 
     def _format_id(self, doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        """Move _id to id string for JSON parity."""
-        if doc and "_id" in doc:
-            doc["id"] = str(doc.pop("_id"))
-        return doc
+        """
+        Move _id to id string for JSON parity and recursively serialize.
+        Fixed CR-19/75: Uses authoritative serialize_doc for consistency.
+        """
+        if not doc:
+            return None
+            
+        from app.core.utils import serialize_doc
+        
+        # 1. Authoritative serialization (ObjectId -> str, datetime -> isoformat)
+        serialized = serialize_doc(doc)
+        
+        # 2. Map _id to id for API parity
+        if "_id" in serialized:
+            serialized["id"] = serialized.pop("_id")
+            
+        return serialized

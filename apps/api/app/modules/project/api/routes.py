@@ -214,44 +214,46 @@ async def delete_client(
 
 
 @router.post(
-    "/{project_id}/calculate-schedule",
-    response_model=GenericResponse[ScheduleResponse],
+    "/projects/{project_id}/calculate-schedule",
+    response_model=GenericResponse[Dict[str, Any]],
     tags=["Scheduler"],
 )
 async def calculate_schedule(
     project_id: str,
-    request: ScheduleCalculateRequest,
+    data: Dict[str, Any],
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
-    """Calculate project schedule using critical path method."""
-    task_dicts = [task.dict() for task in request.tasks]
-    results = await service.calculate_schedule(
-        project_id, task_dicts, request.project_start
+    """Trigger schedule recalculation logic."""
+    result = await service.calculate_schedule(
+        project_id, data.get("tasks", []), data.get("project_start")
     )
-    return GenericResponse(data=results)
+    return GenericResponse(data=result)
 
 
 @router.post(
-    "/{project_id}/save-schedule",
-    response_model=GenericResponse[dict],
+    "/projects/{project_id}/save-schedule",
+    response_model=GenericResponse[Dict[str, Any]],
     tags=["Scheduler"],
 )
 async def save_schedule(
     project_id: str,
-    request: ScheduleSaveRequest,
+    data: Dict[str, Any],
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
-    """Save calculated project schedule to database."""
+    """Persist calculated schedule to the database."""
     result = await service.save_schedule(
-        project_id, user["organisation_id"], user["user_id"], request.dict()
+        project_id,
+        data.get("tasks", []),
+        data.get("project_start"),
+        data.get("total_cost", 0.0),
     )
-    return GenericResponse(data=result, message="Schedule saved successfully")
+    return GenericResponse(data=result)
 
 
 @router.get(
-    "/{project_id}/load-schedule",
+    "/projects/{project_id}/load-schedule",
     response_model=GenericResponse[Dict[str, Any]],
     tags=["Scheduler"],
 )
@@ -260,6 +262,6 @@ async def load_schedule(
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
-    """Load previously saved project schedule."""
-    result = await service.load_schedule(project_id, user["organisation_id"])
+    """Retrieve the current project schedule."""
+    result = await service.get_schedule(project_id)
     return GenericResponse(data=result)

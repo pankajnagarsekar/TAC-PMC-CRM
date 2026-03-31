@@ -77,6 +77,11 @@ async def get_authenticated_user(
 
     # Authoritative active check via checker
     await PermissionChecker.validate_active_user(user)
+
+    # Ensure user_id is present in the dict for context downstream (Fixed CR-23)
+    if user and "user_id" not in user:
+        user["user_id"] = user.get("id") or user_id
+
     return user
 
 
