@@ -46,48 +46,59 @@ export default function ResourceHeatmap({ data }: { data: ResourceStats[] }) {
       </div>
 
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="sticky left-0 bg-slate-950 z-20 w-48 text-left py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                Resource
-              </th>
-              {days.map(d => (
-                <th key={d} className="min-w-[40px] px-1 py-2 text-center text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 border-l border-white/5">
-                  {format(parseISO(d), "dd")}
-                  <div className="text-[8px] font-normal">{format(parseISO(d), "MMM")}</div>
+        {!data.length ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <AlertCircle className="w-12 h-12 text-slate-700 mb-4" />
+            <h4 className="text-white font-bold text-sm tracking-widest uppercase">No Resource Data Available</h4>
+            <p className="text-slate-500 text-[10px] mt-1 max-w-xs uppercase tracking-widest leading-relaxed">
+              Global resource tracking is a Phase 4 feature. <br />
+              Individual project assignments will appear here once configured.
+            </p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-slate-950 z-20 w-48 text-left py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Resource
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {data.map(r => (
-              <tr key={r.resource_id} className="group">
-                <td className="sticky left-0 bg-slate-950 z-20 py-4 pr-4">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white group-hover:text-sky-400 transition-colors truncate">
-                      {r.resource_name}
-                    </span>
-                    <span className="text-[9px] font-mono text-slate-600">
-                      {r.resource_id.slice(-6)}
-                    </span>
-                  </div>
-                </td>
-                {r.daily_utilization.map(d => (
-                  <td key={d.date} className="px-0.5 py-2 border-l border-white/[0.03]">
-                    <div
-                      className={`h-8 rounded-lg border flex items-center justify-center text-[9px] font-bold transition-all duration-300 hover:scale-110 hover:z-10 ${getCellColor(d.utilization_percent)}`}
-                      title={`${d.date}: ${d.utilization_percent}% (${d.project_ids.length} projects)`}
-                    >
-                      {d.utilization_percent > 100 && <AlertCircle className="w-2 h-2 mr-0.5" />}
-                      {d.utilization_percent > 0 ? `${d.utilization_percent}%` : ""}
-                    </div>
-                  </td>
+                {days.map(d => (
+                  <th key={d} className="min-w-[40px] px-1 py-2 text-center text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 border-l border-white/5">
+                    {format(parseISO(d), "dd")}
+                    <div className="text-[8px] font-normal">{format(parseISO(d), "MMM")}</div>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {data.map(r => (
+                <tr key={r.resource_id} className="group">
+                  <td className="sticky left-0 bg-slate-950 z-20 py-4 pr-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-white group-hover:text-sky-400 transition-colors truncate">
+                        {r.resource_name}
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-600">
+                        {r.resource_id.slice(-6)}
+                      </span>
+                    </div>
+                  </td>
+                  {r.daily_utilization.map(d => (
+                    <td key={d.date} className="px-0.5 py-2 border-l border-white/[0.03]">
+                      <div
+                        className={`h-8 rounded-lg border flex items-center justify-center text-[9px] font-bold transition-all duration-300 hover:scale-110 hover:z-10 ${getCellColor(d.utilization_percent)}`}
+                        title={`${d.date}: ${d.utilization_percent}% (${d.project_ids.length} projects)`}
+                      >
+                        {d.utilization_percent > 100 && <AlertCircle className="w-2 h-2 mr-0.5" />}
+                        {d.utilization_percent > 0 ? `${d.utilization_percent}%` : ""}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Legend */}

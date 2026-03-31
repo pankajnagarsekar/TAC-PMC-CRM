@@ -2,13 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Link2, Wallet, Activity, UserRoundPen, MessageSquare, SendHorizontal } from "lucide-react";
+import { X, Link2, Wallet, Activity, UserRoundPen, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 import { useScheduleStore } from "@/store/useScheduleStore";
-import type { SchedulePredecessor, ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
+import type { SchedulePredecessor, ScheduleTask, ScheduleTaskStatus, MomResult, ActionItem } from "@/types/schedule.types";
 import { formatTaskDate, getTaskStatus, buildTaskStatusTransition } from "./scheduler-utils";
 
 function FieldRow({
@@ -52,14 +52,14 @@ export default function TaskDrawer() {
   // AI MoM State
   const [momNotes, setMomNotes] = useState("");
   const [isAnalyzingMom, setIsAnalyzingMom] = useState(false);
-  const [momResult, setMomResult] = useState<any>(null);
+  const [momResult, setMomResult] = useState<MomResult | null>(null);
 
   const handleAnalyzeMom = async () => {
     if (!selectedTask || !momNotes.trim()) return;
     setIsAnalyzingMom(true);
     try {
       const response = await api.post(
-        `/api/projects/${selectedTask.project_id}/tasks/${selectedTask.task_id}/mom-extract`,
+        `/api/v1/projects/${selectedTask.project_id}/tasks/${selectedTask.task_id}/mom-extract`,
         { raw_notes: momNotes }
       );
       setMomResult(response.data);
@@ -76,6 +76,8 @@ export default function TaskDrawer() {
     setDependencyTaskId("");
     setDependencyType("FS");
     setDependencyLag(0);
+    setMomNotes("");
+    setMomResult(null);
   }, [selectedTask?.task_id]);
 
   if (!selectedTask) {
@@ -213,7 +215,8 @@ export default function TaskDrawer() {
               <div className="grid grid-cols-2 gap-3">
                 <FieldRow label="Start">
                   <input
-                    value={selectedTask.scheduled_start ?? ""}
+                    type="date"
+                    value={selectedTask.scheduled_start?.split("T")[0] ?? ""}
                     onChange={(event) => commit({ scheduled_start: event.target.value || null })}
                     disabled={readOnly}
                     className={textInputClass()}
@@ -221,7 +224,8 @@ export default function TaskDrawer() {
                 </FieldRow>
                 <FieldRow label="Finish">
                   <input
-                    value={selectedTask.scheduled_finish ?? ""}
+                    type="date"
+                    value={selectedTask.scheduled_finish?.split("T")[0] ?? ""}
                     onChange={(event) => commit({ scheduled_finish: event.target.value || null })}
                     disabled={readOnly}
                     className={textInputClass()}
@@ -379,7 +383,7 @@ export default function TaskDrawer() {
               {momResult && (
                 <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
                   <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Extracted Action Items</p>
-                  {(momResult.action_items || []).map((item: any, idx: number) => (
+                  {(momResult.action_items || []).map((item: ActionItem, idx: number) => (
                     <div key={idx} className="bg-white/[0.02] border border-white/5 p-2 rounded-lg text-[10px]">
                       <p className="text-white font-medium">{item.task_name}</p>
                       <div className="mt-1 flex justify-between text-slate-500">

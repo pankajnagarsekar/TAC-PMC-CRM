@@ -9,6 +9,18 @@ export type ConstraintType =
   | "MSO"
   | "MFO";
 
+export type ActionItem = {
+  task_name: string;
+  assignee: string | null;
+  deadline: string | null;
+};
+
+export type MomResult = {
+  action_items: ActionItem[];
+  suggested_duration_days: number;
+  confidence_score: number;
+};
+
 export type ChangeSource =
   | "gantt_drag"
   | "kanban_drop"

@@ -127,6 +127,7 @@ const GridRow = memo(function GridRow({
             value={task.task_mode ?? "Auto"}
             onChange={(event) => onEdit(task.task_id, { task_mode: event.target.value as "Auto" | "Manual" })}
             className="w-full rounded-xl border border-white/5 bg-white/[0.03] px-2 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white outline-none focus:border-orange-400/40"
+            title="Auto: CPM calculated dates | Manual: User-defined dates"
           >
             <option value="Auto">Auto</option>
             <option value="Manual">Manual</option>

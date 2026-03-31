@@ -119,6 +119,7 @@ class FinancialEngine:
             "gst_amount": gst_amount,
             "grand_total": grand_total,
             "retention_amount": retention_amount,
+            "total_payable": grand_total,  # §3.3: total_payable = grand_total
             "actual_payable": actual_payable,
             "logic_version": cls.DOMAIN_LOGIC_VERSION,
         }

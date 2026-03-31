@@ -219,12 +219,17 @@ class PaymentService:
                     {"project_id": project_id}, session=uow.session
                 )
                 if fund_alloc:
+                    alloc_original = FinancialEngine.to_decimal(
+                        fund_alloc.get("allocation_original", 0)
+                    )
                     new_received = (
                         FinancialEngine.to_decimal(
                             fund_alloc.get("allocation_received", 0)
                         )
                         + grand_total
                     )
+                    # §5.2: allocation_remaining = allocation_original - allocation_received
+                    new_remaining = alloc_original - new_received
                     new_cash = (
                         FinancialEngine.to_decimal(fund_alloc.get("cash_in_hand", 0))
                         + grand_total
@@ -234,6 +239,9 @@ class PaymentService:
                         {
                             "allocation_received": FinancialEngine.to_d128(
                                 new_received
+                            ),
+                            "allocation_remaining": FinancialEngine.to_d128(
+                                new_remaining
                             ),
                             "cash_in_hand": FinancialEngine.to_d128(new_cash),
                             "last_pc_closed_date": datetime.now(timezone.utc),

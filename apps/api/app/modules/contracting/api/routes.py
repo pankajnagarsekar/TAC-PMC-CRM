@@ -113,7 +113,7 @@ async def get_vendor_ledger(
 )
 async def list_work_orders(
     project_id: Optional[str] = Query(None),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=1000),
     cursor: Optional[str] = Query(None),
     user: dict = Depends(get_authenticated_user),
     wo_service: WorkOrderService = Depends(get_work_order_service),

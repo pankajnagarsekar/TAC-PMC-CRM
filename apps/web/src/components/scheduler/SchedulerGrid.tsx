@@ -19,7 +19,7 @@ export default function SchedulerGrid() {
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const selectedTasks = useScheduleStore((state) => state.selectedTasks);
   const queueCalculation = useScheduleStore((state) => state.queueCalculation);
-  const selectTask = useScheduleStore((state) => state.selectTask);
+  const openTask = useScheduleStore((state) => state.openTask);
   const removeTask = useScheduleStore((state) => state.removeTask);
   const systemState = useScheduleStore((state) => state.systemState);
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
@@ -143,7 +143,7 @@ export default function SchedulerGrid() {
               readOnly={readOnly}
               rowHeight={ROW_HEIGHT}
               columnTemplate={COLUMN_TEMPLATE}
-              onSelect={selectTask}
+              onSelect={openTask}
               onEdit={handleEdit}
               onStatusChange={handleStatusChange}
               onRemove={handleRemove}

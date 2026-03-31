@@ -7,8 +7,10 @@ from app.core.dependencies import (
     get_client_service,
     get_project_service,
     get_scheduler_service,
+    get_ai_service,
     verify_nonce,
 )
+from app.modules.reporting.application.ai_service import AIService
 from app.modules.shared.domain.schemas import GenericResponse
 
 from ..application.client_service import ClientService
@@ -173,6 +175,25 @@ async def calculate_schedule(
 
 
 @router.post(
+    "/scheduler/{project_id}/calculate",
+    response_model=GenericResponse[ScheduleResponse],
+    tags=["Scheduler"],
+)
+async def calculate_schedule_legacy(
+    project_id: str,
+    request: ScheduleCalculateRequest,
+    user: dict = Depends(get_authenticated_user),
+    service: SchedulerService = Depends(get_scheduler_service),
+):
+    """Trigger schedule recalculation logic (legacy path)."""
+    task_dicts = [task.dict() for task in request.tasks]
+    result = await service.calculate_schedule(
+        project_id, task_dicts, request.project_start
+    )
+    return GenericResponse(data=result)
+
+
+@router.post(
     "/projects/{project_id}/save-schedule",
     response_model=GenericResponse[dict],
     tags=["Scheduler"],
@@ -205,4 +226,45 @@ async def load_schedule(
 ):
     """Retrieve the current project schedule."""
     result = await service.load_schedule(project_id, user["organisation_id"])
+    return GenericResponse(data=result)
+
+
+@router.post(
+    "/scheduler/{project_id}/migrate",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Scheduler"],
+)
+async def migrate_legacy_schedule(
+    project_id: str,
+    dry_run: bool = Query(True),
+    user: dict = Depends(get_authenticated_user),
+    service: SchedulerService = Depends(get_scheduler_service),
+):
+    """Migrate legacy payment schedule data to the new PPM scheduler (authoritative)."""
+    # Note: SchedulerService needs to implement migrate_legacy_data
+    # For now, we stub it or point to a script if available
+    if hasattr(service, "migrate_legacy_data"):
+        result = await service.migrate_legacy_data(project_id, user["organisation_id"], dry_run)
+        return GenericResponse(data=result)
+    
+    return GenericResponse(
+        success=False, 
+        message="Migration service not fully implemented in this context."
+    )
+
+
+@router.post(
+    "/projects/{project_id}/tasks/{task_id}/mom-extract",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Scheduler"],
+)
+async def task_mom_extract(
+    project_id: str,
+    task_id: str,
+    data: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    ai_service: AIService = Depends(get_ai_service),
+):
+    """Analyze meeting notes to extract action items and duration suggestions for a specific task."""
+    result = await ai_service.extract_mom(project_id, task_id, data.get("raw_notes", ""))
     return GenericResponse(data=result)
