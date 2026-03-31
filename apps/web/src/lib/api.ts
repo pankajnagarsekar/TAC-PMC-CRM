@@ -8,13 +8,18 @@ import type {
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
+// Determine timeout based on environment
+// Production (Render): 45s to account for cold starts
+// Development: 15s for faster feedback
+const TIMEOUT = process.env.NODE_ENV === "production" ? 45000 : 15000;
+
 // ──────────────────────────────────────────────────────────────────────────
 // Axios instance — all requests go through here
 // ──────────────────────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL: BACKEND_URL,
   headers: { "Content-Type": "application/json" },
-  timeout: 15000,
+  timeout: TIMEOUT,
 });
 
 // ──────────────────────────────────────────────────────────────────────────
