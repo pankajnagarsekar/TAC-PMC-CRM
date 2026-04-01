@@ -63,20 +63,22 @@ if settings.OPENAI_API_KEY:
 else:
     logger.warning("CONFIG: OpenAI API Key NOT FOUND in environment or .env file.")
 
-if (
-    settings.ENVIRONMENT != "development"
-    and "*" in settings.ALLOWED_ORIGINS
-):
-    logger.critical(
-        "SECURITY_BREACH: Wildcard CORS allowed in non-development environment. Application halted."
-    )
-    raise ValueError("INSECURE_CORS_CONFIGURATION")
-
-if (
-    settings.ENVIRONMENT != "development"
-    and settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME"
-):
-    logger.critical(
-        "SECURITY_BREACH: Default JWT secret found in production environment. Application halted."
-    )
-    raise ValueError("INSECURE_PRODUCTION_SECRET")
+# Fixed CR-06: Authoritative CORS and Secret Enforcement
+if settings.ENVIRONMENT.lower() in ["production", "prod"]:
+    if "*" in settings.ALLOWED_ORIGINS:
+        logger.critical(
+            f"SECURITY_BREACH: Wildcard CORS allowed in {settings.ENVIRONMENT} mode. "
+            f"Set ALLOWED_ORIGINS to specific domains. Current: {settings.ALLOWED_ORIGINS}"
+        )
+        raise ValueError("INSECURE_CORS_CONFIGURATION")
+    
+    if settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME":
+        logger.critical(
+            "SECURITY_BREACH: Default JWT secret found in production environment. Application halted."
+        )
+        raise ValueError("INSECURE_PRODUCTION_SECRET")
+else:
+    if "*" in settings.ALLOWED_ORIGINS:
+        logger.warning(
+            f"SECURITY_ADVISORY: Wildcard CORS enabled in {settings.ENVIRONMENT} environment."
+        )
