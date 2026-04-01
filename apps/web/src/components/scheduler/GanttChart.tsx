@@ -1,16 +1,14 @@
 "use client";
 
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { GripVertical, MoveHorizontal, Pencil } from "lucide-react";
-import { toast } from "sonner";
 import { addDays, format } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
-import type { ScheduleTask } from "@/types/schedule.types";
+import type { ScheduleTask, BaselineComparisonResult } from "@/types/schedule.types";
 import {
   buildCalendarColumns,
   calculateTimelineRange,
-  getBaselineBarPosition,
   getComparisonBarPosition,
   getTaskBarPosition,
   getTaskDurationDays,
@@ -123,9 +121,52 @@ export default function GanttChart() {
 
   // Baseline Comparison Store
   const comparisonData = useScheduleStore((state) => state.comparisonData);
-  const selectedBaselineA = useScheduleStore((state) => state.selectedBaselineA);
   const fetchBaselineComparison = useScheduleStore((state) => state.fetchBaselineComparison);
   const clearComparison = useScheduleStore((state) => state.clearComparison);
+
+  const readOnly = systemState === "locked";
+
+  const commitDrag = useCallback((task: ScheduleTask, mode: DragMode, deltaDays: number) => {
+    if (!mode || readOnly) return;
+
+    const originalStart = parseTaskDate(task.scheduled_start);
+    const originalFinish = parseTaskDate(task.scheduled_finish);
+    if (!originalStart || !originalFinish) return;
+
+    let nextStart = originalStart;
+    let nextFinish = originalFinish;
+
+    if (mode === "move") {
+      nextStart = addDays(originalStart, deltaDays);
+      nextFinish = addDays(originalFinish, deltaDays);
+    } else if (mode === "start") {
+      nextStart = addDays(originalStart, deltaDays);
+      if (nextStart > nextFinish) {
+        nextStart = nextFinish;
+      }
+    } else if (mode === "finish") {
+      nextFinish = addDays(originalFinish, deltaDays);
+      if (nextFinish < nextStart) {
+        nextFinish = nextStart;
+      }
+    }
+
+    queueCalculation({
+      task_id: task.task_id,
+      project_id: task.project_id,
+      version: task.version ?? 1,
+      changes: {
+        scheduled_start: format(nextStart, "yyyy-MM-dd"),
+        scheduled_finish: format(nextFinish, "yyyy-MM-dd"),
+        scheduled_duration: Math.max(0, getTaskDurationDays({
+          ...task,
+          scheduled_start: format(nextStart, "yyyy-MM-dd"),
+          scheduled_finish: format(nextFinish, "yyyy-MM-dd"),
+        })),
+      },
+      trigger_source: "gantt_drag",
+    });
+  }, [readOnly, queueCalculation]);
 
   const tasks = useMemo(
     () => normalizeTaskOrder(taskMap, taskOrder).filter((task) => task.scheduled_start || task.scheduled_finish),
@@ -133,13 +174,12 @@ export default function GanttChart() {
   );
 
   const comparisonMap = useMemo(() => {
-    if (!comparisonData) return new Map<string, any>();
-    const map = new Map<string, any>();
+    if (!comparisonData) return new Map<string, BaselineComparisonResult>();
+    const map = new Map<string, BaselineComparisonResult>();
     comparisonData.forEach(item => map.set(item.task_id, item));
     return map;
   }, [comparisonData]);
 
-  const readOnly = systemState === "locked";
   const { start: rangeStart, end: rangeEnd } = useMemo(() => calculateTimelineRange(tasks), [tasks]);
   const days = useMemo(() => buildCalendarColumns(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
 
@@ -181,7 +221,7 @@ export default function GanttChart() {
   const timelineWidth = days.length * TIMELINE_DAY_WIDTH;
   const visibleHeight = visibleTasks.length * ROW_HEIGHT;
 
-  const getPreviewTask = (task: ScheduleTask): ScheduleTask => {
+  const getPreviewTask = useCallback((task: ScheduleTask): ScheduleTask => {
     if (activeDragTaskId !== task.task_id || !dragStateRef.current || previewDeltaDays === 0) {
       return task;
     }
@@ -210,7 +250,7 @@ export default function GanttChart() {
       scheduled_start: format(nextStart, "yyyy-MM-dd"),
       scheduled_finish: format(nextFinish, "yyyy-MM-dd"),
     };
-  };
+  }, [activeDragTaskId, previewDeltaDays]);
 
   const dependencyNodes = useMemo(() => {
     const nodes = new Map<string, GanttDependencyNode>();
@@ -225,7 +265,7 @@ export default function GanttChart() {
       });
     });
     return nodes;
-  }, [rangeStart, visibleTasks, activeDragTaskId, previewDeltaDays]);
+  }, [rangeStart, visibleTasks, getPreviewTask]);
 
   const dependencyEdges = useMemo(() => {
     const edges: GanttDependencyEdge[] = [];
@@ -281,49 +321,7 @@ export default function GanttChart() {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [readOnly, taskMap]);
-
-  const commitDrag = (task: ScheduleTask, mode: DragMode, deltaDays: number) => {
-    if (!mode || readOnly) return;
-
-    const originalStart = parseTaskDate(task.scheduled_start);
-    const originalFinish = parseTaskDate(task.scheduled_finish);
-    if (!originalStart || !originalFinish) return;
-
-    let nextStart = originalStart;
-    let nextFinish = originalFinish;
-
-    if (mode === "move") {
-      nextStart = addDays(originalStart, deltaDays);
-      nextFinish = addDays(originalFinish, deltaDays);
-    } else if (mode === "start") {
-      nextStart = addDays(originalStart, deltaDays);
-      if (nextStart > nextFinish) {
-        nextStart = nextFinish;
-      }
-    } else if (mode === "finish") {
-      nextFinish = addDays(originalFinish, deltaDays);
-      if (nextFinish < nextStart) {
-        nextFinish = nextStart;
-      }
-    }
-
-    queueCalculation({
-      task_id: task.task_id,
-      project_id: task.project_id,
-      version: task.version ?? 1,
-      changes: {
-        scheduled_start: format(nextStart, "yyyy-MM-dd"),
-        scheduled_finish: format(nextFinish, "yyyy-MM-dd"),
-        scheduled_duration: Math.max(0, getTaskDurationDays({
-          ...task,
-          scheduled_start: format(nextStart, "yyyy-MM-dd"),
-          scheduled_finish: format(nextFinish, "yyyy-MM-dd"),
-        })),
-      },
-      trigger_source: "gantt_drag",
-    });
-  };
+  }, [readOnly, taskMap, commitDrag]);
 
   const startDrag = (task: ScheduleTask, mode: DragMode, startX: number) => {
     if (readOnly || !mode) return;

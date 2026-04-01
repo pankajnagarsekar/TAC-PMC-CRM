@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from "recharts";
-import { format, parse, startOfMonth, isBefore, isAfter } from "date-fns";
+import { format, startOfMonth, isBefore } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { normalizeTaskOrder, parseTaskDate } from "@/components/scheduler/scheduler-utils";
@@ -83,7 +83,7 @@ export default function CashFlowChart() {
                 fontSize: "12px",
               }}
               cursor={{ fill: "rgba(255,255,255,0.03)" }}
-              formatter={(value: any) => [formatCurrency(Number(value || 0)), "Projected"]}
+              formatter={(value: number | undefined) => [formatCurrency(Number(value || 0)), "Projected"]}
             />
             <Bar dataKey="value" radius={[6, 6, 0, 0]}>
               {chartData.map((entry, index) => (

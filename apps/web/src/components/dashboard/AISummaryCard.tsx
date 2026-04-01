@@ -32,9 +32,10 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
     try {
       await api.post(`/api/v1/reports/${projectId}/ai-summary/refresh`);
       await mutate();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
       setRefreshError(
-        err.response?.data?.detail || "Failed to generate summary. Check API connection."
+        error.response?.data?.detail || "Failed to generate summary. Check API connection."
       );
     } finally {
       setIsRefreshing(false);

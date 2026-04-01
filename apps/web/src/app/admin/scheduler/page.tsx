@@ -147,8 +147,9 @@ export default function ProjectSchedulerPage() {
         toast.success(`Successfully migrated ${finalReport.total_migrated} tasks.`);
         handleReload();
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Migration failed");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      toast.error(error.response?.data?.detail || "Migration failed");
     } finally {
       setMigrating(false);
     }

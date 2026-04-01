@@ -19,9 +19,9 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { Project, DerivedFinancialState, VendorPayable, CashSummaryResponse, WorkOrder } from "@/types/api";
+import { Project, DerivedFinancialState } from "@/types/api";
+import NextImage from "next/image";
 import { useProjectStore } from "@/store/projectStore";
-import { useAuthStore } from "@/store/authStore";
 import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 
 import { formatCurrencySafe, normalizeFinancial } from "@/lib/formatters";
@@ -56,11 +56,10 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const { activeProject, setActiveProject } = useProjectStore();
-  const { user } = useAuthStore();
   const [projectSearch, setProjectSearch] = React.useState("");
 
-  const { data: projects, error: projectsError, isLoading: projectsLoading } = useSWR<Project[]>(
-    user ? "/api/v1/projects/" : null,
+  const { data: projects, isLoading: projectsLoading } = useSWR<Project[]>(
+    "/api/v1/projects/",
     fetcher
   );
 
@@ -74,26 +73,11 @@ export default function AdminDashboard() {
     );
   }, [projectSearch, projects]);
 
-  const { data: financials, error: financialsError, isLoading, mutate: retryFinancials } = useSWR<DerivedFinancialState[]>(
+  const { data: financials, isLoading } = useSWR<DerivedFinancialState[]>(
     activeProject
       ? `/api/v1/projects/${activeProject.project_id}/financials`
       : null,
     fetcher,
-  );
-
-  const { data: vendorPayables } = useSWR<VendorPayable[]>(
-    activeProject ? `/api/v1/projects/${activeProject.project_id}/vendor-payables` : null,
-    fetcher
-  );
-
-  const { data: cashSummary } = useSWR<CashSummaryResponse>(
-    activeProject ? `/api/v1/cash/summary/${activeProject.project_id}` : null,
-    fetcher
-  );
-
-  const { data: woResponse } = useSWR<{ items: WorkOrder[]; next_cursor: string | null }>(
-    activeProject ? `/api/v1/work-orders/?project_id=${activeProject.project_id}&limit=500` : null,
-    fetcher
   );
 
   const { data: stats } = useSWR<DashboardStats>(
@@ -201,21 +185,6 @@ export default function AdminDashboard() {
     );
   }
 
-  const totalCommitted = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.committed_value)), 0) ?? 0;
-  const totalCertified = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.certified_value)), 0) ?? 0;
-  const totalRemaining = financials?.reduce((sum, f) => sum + (normalizeFinancial(f.balance_budget_remaining)), 0) ?? 0;
-
-  // Additional metrics for dashboard
-  const totalVendorPayable = vendorPayables?.reduce((s, v) => s + v.net_payable, 0) ?? 0;
-  const overBudgetCategories = financials?.filter(f => f.over_commit_flag) ?? [];
-  const pettyCash = cashSummary?.categories.find(c => c.category_name.toLowerCase().includes('petty'));
-  const ovhCash = cashSummary?.categories.find(c =>
-    c.category_name.toLowerCase().includes('ovh') || c.category_name.toLowerCase().includes('overhead')
-  );
-  const workOrders = woResponse?.items ?? [];
-  const woOpen = workOrders.filter(w => ['Pending', 'Draft'].includes(w.status)).length;
-  const woClosed = workOrders.filter(w => ['Closed', 'Completed'].includes(w.status)).length;
-
   return (
     <div className="space-y-8 pb-20">
       {/* Top Project Context Bar */}
@@ -289,11 +258,15 @@ export default function AdminDashboard() {
               <span className="w-1.5 h-1.5 rounded-full bg-white" />
               LIVE SITE FEED
             </div>
-            <img
-              src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000"
-              alt="Site Feed"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
+            <div className="relative w-full h-full">
+              <NextImage
+                src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000"
+                alt="Site Feed"
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-700"
+                unoptimized
+              />
+            </div>
             <div className="absolute bottom-4 left-4 right-4 z-20">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">Site Camera #04</h3>

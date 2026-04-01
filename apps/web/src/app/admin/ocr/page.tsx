@@ -22,6 +22,8 @@ import {
 import { formatCurrency } from '@tac-pmc/ui';
 import { useRouter } from 'next/navigation';
 
+import NextImage from 'next/image';
+
 interface OCRResult {
   ocr_id: string;
   extracted_vendor_name?: string;
@@ -94,8 +96,9 @@ export default function OCRScannerPage() {
         amount: result.extracted_amount || 0,
         gst_amount: 0, // AI might not extract this separately yet
       });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'AI OCR processing failed. Please try again.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'AI OCR processing failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -121,8 +124,9 @@ export default function OCRScannerPage() {
       setTimeout(() => {
         router.push('/admin/payment-certificates');
       }, 2000);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create payment certificate.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'Failed to create payment certificate.');
     } finally {
       setLoading(false);
     }
@@ -177,7 +181,9 @@ export default function OCRScannerPage() {
             </div>
           ) : (
             <div className="relative rounded-3xl overflow-hidden aspect-[3/4] border border-slate-800 shadow-2xl group">
-              <img src={preview} alt="Preview" className="w-full h-full object-cover opacity-80" />
+              <div className="relative w-full h-full">
+                <NextImage src={preview} alt="Preview" fill className="object-cover opacity-80" unoptimized />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent flex flex-col justify-end p-6">
                 <div className="flex items-center justify-between">
                   <button

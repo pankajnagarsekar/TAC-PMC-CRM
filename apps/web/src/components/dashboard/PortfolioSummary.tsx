@@ -2,11 +2,6 @@
 
 import React from "react";
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
     Tooltip,
     ResponsiveContainer,
     Cell,
@@ -175,7 +170,14 @@ export const PortfolioSummary: React.FC<{ data: PortfolioData }> = ({ data }) =>
     );
 };
 
-const KPICard = ({ title, value, icon, description }: any) => (
+interface KPICardProps {
+    title: string;
+    value: string;
+    icon: React.ReactNode;
+    description: string;
+}
+
+const KPICard = ({ title, value, icon, description }: KPICardProps) => (
     <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg group hover:border-slate-700 transition-all duration-300">
         <div className="flex justify-between items-start mb-2">
             <div className="p-2 bg-slate-800 rounded-lg group-hover:bg-slate-800 transition-colors">

@@ -376,6 +376,7 @@ export interface GlobalSettings {
   terms_and_conditions: string;
   currency: string;
   currency_symbol: string;
+  logo_base64?: string | null;
   // Client permission matrix
   client_permissions?: {
     can_view_dpr: boolean;

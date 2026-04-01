@@ -32,14 +32,25 @@ function formatINRShort(value: number): string {
 
 import { useTheme } from 'next-themes';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload) return null;
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    name: string;
+    value: number | string;
+    color: string;
+    payload: Record<string, unknown>;
+  }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (!active || !payload || !payload.length) return null;
   return (
     <div className="rounded-lg px-3 py-2 shadow-xl bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700">
       <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">{label}</p>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
-          {p.name}: {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.value)}
+          {p.name}: {typeof p.value === 'number' ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.value) : p.value}
         </p>
       ))}
     </div>

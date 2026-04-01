@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Reusable utility to export JSON data to CSV and trigger a download
  */
-export function exportToCSV(data: any[], fileName: string) {
+export function exportToCSV(data: Record<string, unknown>[], fileName: string) {
   if (!data?.length) return;
 
   const headers = Object.keys(data[0]);

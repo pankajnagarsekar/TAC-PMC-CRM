@@ -33,7 +33,7 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
     fetcher
   );
 
-  const { data: clients = [] } = useSWR<Client[]>(
+  useSWR<Client[]>(
     user && isClient ? "/api/v1/clients/" : null,
     fetcher
   );
@@ -68,7 +68,7 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
   const isClientRole = formData.role === "Client";
   const projectsRequired = isClientRole && formData.assigned_projects.length === 0;
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setHasChanges(true);
   };
@@ -92,7 +92,7 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
     setLoading(true);
     try {
       // Build update payload with only changed fields
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (formData.name !== user.name) updateData.name = formData.name;
       if (formData.role !== user.role) updateData.role = formData.role;
       if (formData.active_status !== user.active_status) updateData.active_status = formData.active_status;
@@ -110,14 +110,15 @@ export function EditUserModal({ user, onClose, onUpdated }: EditUserModalProps) 
 
       toast({
         title: "Success",
-        description: `User "${formData.name}" updated successfully`,
+        description: `User &quot;${formData.name}&quot; updated successfully`,
         variant: "default"
       });
 
       onUpdated();
       onClose();
-    } catch (err: any) {
-      const detail = err.response?.data?.detail || "Failed to update user";
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string | object } } };
+      const detail = error.response?.data?.detail || "Failed to update user";
       setError(typeof detail === "string" ? detail : JSON.stringify(detail));
       toast({
         title: "Error",

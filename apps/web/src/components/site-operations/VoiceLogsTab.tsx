@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Play, FileText, Mic, Clock, ChevronRight } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { FileText, Mic, Clock, ChevronRight } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import AudioPlayer from "./AudioPlayer";
@@ -24,13 +24,7 @@ export default function VoiceLogsTab() {
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<VoiceLog | null>(null);
 
-  useEffect(() => {
-    if (activeProject) {
-      fetchVoiceLogs();
-    }
-  }, [activeProject]);
-
-  const fetchVoiceLogs = async () => {
+  const fetchVoiceLogs = useCallback(async () => {
     if (!activeProject?.project_id) return;
     try {
       setLoading(true);
@@ -44,7 +38,13 @@ export default function VoiceLogsTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeProject]);
+
+  useEffect(() => {
+    if (activeProject) {
+      fetchVoiceLogs();
+    }
+  }, [activeProject, fetchVoiceLogs]);
 
   const formatDateTime = (dateStr: string) => {
     if (!dateStr) return "N/A";
@@ -100,7 +100,7 @@ export default function VoiceLogsTab() {
                     </span>
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-slate-500 mt-2 line-clamp-2 italic leading-relaxed font-medium">
-                    "{log.transcribed_text || "No transcription available..."}"
+                    &quot;{log.transcribed_text || "No transcription available..."}&quot;
                   </p>
                 </div>
                 <ChevronRight
@@ -165,11 +165,11 @@ export default function VoiceLogsTab() {
                 {selectedLog.transcribed_text ? (
                   <span className="relative">
                     <span className="text-orange-600/10 dark:text-orange-500/20 text-4xl font-serif absolute -top-4 -left-2">
-                      "
+                      &quot;
                     </span>
                     {selectedLog.transcribed_text}
                     <span className="text-orange-600/10 dark:text-orange-500/20 text-4xl font-serif absolute -bottom-8 -right-2">
-                      "
+                      &quot;
                     </span>
                   </span>
                 ) : (

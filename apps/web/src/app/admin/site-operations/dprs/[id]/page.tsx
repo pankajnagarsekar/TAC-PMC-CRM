@@ -1,20 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import Image from "next/image";
 import {
   Check,
   X,
   ArrowLeft,
   Image as ImageIcon,
-  MapPin,
   Cloudy,
   Users,
   Calendar,
-  ArrowRight,
   ShieldCheck,
-  MessageSquare,
   FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -56,16 +54,12 @@ export default function DPRDetailPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (id) fetchDPRDetail();
-  }, [id]);
-
-  const fetchDPRDetail = async () => {
+  const fetchDPRDetail = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/api/v1/dprs/${id}`);
       setDpr(response.data);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to load DPR detail",
@@ -75,14 +69,18 @@ export default function DPRDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router, toast]);
+
+  useEffect(() => {
+    if (id) fetchDPRDetail();
+  }, [id, fetchDPRDetail]);
 
   const handleApprove = async () => {
     try {
       await api.patch(`/api/v1/dprs/${id}/approve`);
       toast({ title: "Success", description: "DPR Approved" });
       fetchDPRDetail();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Approval failed",
@@ -107,7 +105,7 @@ export default function DPRDetailPage() {
       toast({ title: "Success", description: "DPR Rejected" });
       setRejectDialogOpen(false);
       fetchDPRDetail();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Rejection failed",
@@ -168,10 +166,10 @@ export default function DPRDetailPage() {
               </h1>
               <span
                 className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${status === "APPROVED"
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                    : status === "REJECTED"
-                      ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                      : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                  : status === "REJECTED"
+                    ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                    : "bg-amber-500/10 text-amber-500 border-amber-500/20"
                   }`}
               >
                 {status.replace(/_/g, " ")}
@@ -211,8 +209,8 @@ export default function DPRDetailPage() {
       {(status === "APPROVED" || status === "REJECTED") && (
         <div
           className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${status === "APPROVED"
-              ? "bg-emerald-500/5 border-emerald-500/20"
-              : "bg-rose-500/5 border-rose-500/20"
+            ? "bg-emerald-500/5 border-emerald-500/20"
+            : "bg-rose-500/5 border-rose-500/20"
             }`}
         >
           <div className="flex items-center gap-3">
@@ -242,7 +240,7 @@ export default function DPRDetailPage() {
           </div>
           {dpr.rejection_reason && (
             <div className="flex-1 max-w-md bg-slate-950/50 p-3 rounded-xl border border-rose-500/10 text-rose-500/80 text-xs italic">
-              "{dpr.rejection_reason}"
+              &quot;{dpr.rejection_reason}&quot;
             </div>
           )}
         </div>
@@ -355,7 +353,7 @@ export default function DPRDetailPage() {
                 </h3>
               </div>
               <div className="p-6 text-sm text-slate-300 italic leading-relaxed">
-                "{dpr.issues_encountered}"
+                &quot;{dpr.issues_encountered}&quot;
               </div>
             </div>
           )}
@@ -378,11 +376,15 @@ export default function DPRDetailPage() {
                 className="group relative aspect-[9/16] rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 cursor-zoom-in hover:border-orange-500/50 transition-all shadow-xl"
                 onClick={() => setSelectedImage(photo)}
               >
-                <img
-                  src={photo}
-                  alt={`Site view ${i + 1}`}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
+                <div className="relative h-full w-full">
+                  <Image
+                    src={photo}
+                    alt={`Site view ${i + 1}`}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    unoptimized
+                  />
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                   <span className="text-[10px] text-white font-bold uppercase tracking-[0.2em]">
                     View Portrait Detail
@@ -415,10 +417,12 @@ export default function DPRDetailPage() {
             className="relative max-h-[90vh] aspect-[9/16] bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={selectedImage}
               alt="Large Site View"
-              className="h-full w-full object-contain"
+              fill
+              className="object-contain"
+              unoptimized
             />
             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent text-center">
               <p className="text-white text-sm font-bold tracking-widest uppercase">

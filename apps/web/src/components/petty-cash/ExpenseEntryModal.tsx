@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Upload,
   Loader2,
-  ScanLine,
   CheckCircle,
   AlertCircle,
   AlertTriangle,
 } from "lucide-react";
 import api from "@/lib/api";
+import Image from "next/image";
 
 interface ExpenseEntryModalProps {
   isOpen: boolean;
@@ -58,26 +58,7 @@ export default function ExpenseEntryModal({
   // 3.3.9: Warning state from API response
   const [saveWarnings, setSaveWarnings] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (isOpen && projectId) {
-      // Generate UUID for idempotency key
-      setIdempotencyKey(crypto.randomUUID());
-
-      // Fetch fund transfer categories
-      fetchCategories();
-    }
-  }, [isOpen, projectId]);
-
-  // Cleanup preview URL on unmount
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setIsLoadingCategories(true);
     try {
       // Using the fund-allocations endpoint which already filters to fund_transfer categories
@@ -117,7 +98,17 @@ export default function ExpenseEntryModal({
     } finally {
       setIsLoadingCategories(false);
     }
-  };
+  }, [projectId, formData.category_id]);
+
+  useEffect(() => {
+    if (isOpen && projectId) {
+      // Generate UUID for idempotency key
+      setIdempotencyKey(crypto.randomUUID());
+
+      // Fetch fund transfer categories
+      fetchCategories();
+    }
+  }, [isOpen, projectId, fetchCategories]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -216,8 +207,9 @@ export default function ExpenseEntryModal({
       onSuccess();
       onClose();
       resetForm();
-    } catch (error: any) {
-      console.error("Failed to create expense:", error);
+    } catch (err: unknown) {
+      console.error("Failed to create expense:", err);
+      const error = err as { response?: { data?: { detail?: string } } };
       alert(error.response?.data?.detail || "Failed to create expense");
     } finally {
       setIsLoading(false);
@@ -351,11 +343,14 @@ export default function ExpenseEntryModal({
             ) : previewUrl ? (
               <div className="space-y-3">
                 <div className="relative border-2 border-zinc-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                  <img
-                    src={previewUrl}
-                    alt="Bill preview"
-                    className="w-full h-48 object-contain bg-zinc-50 dark:bg-slate-950"
-                  />
+                  <div className="relative w-full h-48 bg-zinc-50 dark:bg-slate-950">
+                    <Image
+                      src={previewUrl}
+                      alt="Bill preview"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => {

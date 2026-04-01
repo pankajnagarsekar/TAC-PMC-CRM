@@ -81,7 +81,7 @@ export default function ProjectModal({
       if (project._id) {
         axios.get(`/api/v1/projects/${project._id}/budgets`).then((res) => {
           const budgetMap: Record<string, number> = {};
-          res.data.forEach((b: any) => {
+          res.data.forEach((b: { code_id: string; original_budget: number }) => {
             budgetMap[b.code_id] = b.original_budget;
           });
           setBudgets(budgetMap);
@@ -139,8 +139,9 @@ export default function ProjectModal({
 
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to save project");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || "Failed to save project");
     } finally {
       setLoading(false);
     }

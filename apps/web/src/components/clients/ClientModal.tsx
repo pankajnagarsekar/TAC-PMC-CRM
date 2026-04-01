@@ -22,10 +22,19 @@ interface ClientModalProps {
   client?: Client; // If provided, we are in edit mode
 }
 
+interface ClientFormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  gstin: string;
+  active_status: boolean;
+}
+
 export default function ClientModal({ isOpen, onClose, onSuccess, client }: ClientModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<ClientFormData>({
     name: '',
     email: '',
     phone: '',
@@ -37,12 +46,12 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
   useEffect(() => {
     if (client) {
       setFormData({
-        name: (client as any).name || (client as any).client_name || '',
-        email: (client as any).email || (client as any).client_email || '',
-        phone: (client as any).phone || (client as any).client_phone || '',
-        address: (client as any).address || (client as any).client_address || '',
-        gstin: (client as any).gstin || (client as any).gst_number || '',
-        active_status: (client as any).active_status ?? true,
+        name: client.client_name || '',
+        email: client.client_email || '',
+        phone: client.client_phone || '',
+        address: client.client_address || '',
+        gstin: client.gst_number || '',
+        active_status: client.active_status ?? true,
       });
     } else {
       setFormData({
@@ -69,9 +78,10 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
       }
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorResponse = err as { response?: { data?: { detail?: string } } };
       console.error('Client submission error:', err);
-      setError(err.response?.data?.detail || 'Something went wrong. Please try again.');
+      setError(errorResponse.response?.data?.detail || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

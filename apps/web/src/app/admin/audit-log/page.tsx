@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  User,
   FileText,
   Calendar,
   Eye,
@@ -18,7 +17,7 @@ import {
 import api from "@/lib/api";
 import { exportToCSV } from "@/lib/utils";
 
-interface AuditLog {
+interface AuditLogEntry {
   log_id: string;
   organisation_id: string;
   module_name: string;
@@ -68,12 +67,11 @@ const ACTION_TYPES = [
 
 export default function AuditLogPage() {
   const searchParams = useSearchParams();
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
   const [filters, setFilters] = useState<AuditLogFilters>({
     entity_type: searchParams.get("entity_type") || "",
     entity_id: searchParams.get("entity_id") || "",
@@ -84,10 +82,9 @@ export default function AuditLogPage() {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const fetchLogs = async (pageNum: number = 1, append: boolean = false) => {
+  const fetchLogs = React.useCallback(async (pageNum: number = 1, append: boolean = false) => {
     try {
       setLoading(true);
-      setError(null);
 
       const params = new URLSearchParams();
       params.append("limit", "50");
@@ -105,21 +102,18 @@ export default function AuditLogPage() {
 
       setLogs(append ? [...logs, ...data] : data);
       setHasMore(data.length === 50);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+    } catch {
+      // Log error internally if needed
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, logs]);
 
   useEffect(() => {
     fetchLogs(page, false);
   }, [
     page,
-    filters.entity_type,
-    filters.entity_id,
-    filters.project_id,
-    filters.action_type,
+    fetchLogs
   ]);
 
   const handleFilterChange = (key: keyof AuditLogFilters, value: string) => {
@@ -169,7 +163,7 @@ export default function AuditLogPage() {
   };
 
   const exportLogs = () => {
-    exportToCSV(logs, "audit_ledger");
+    exportToCSV(logs as unknown as Record<string, unknown>[], "audit_ledger");
   };
 
   return (

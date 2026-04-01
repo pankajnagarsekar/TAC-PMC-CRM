@@ -9,11 +9,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend,
 } from "recharts";
 import {
   format,
-  addDays,
   differenceInCalendarDays,
   startOfDay,
   isBefore,
@@ -192,7 +190,7 @@ export default function SCurveChart() {
                 borderRadius: "12px",
                 fontSize: "12px",
               }}
-              formatter={(value: any) => [formatCurrency(Number(value || 0)), ""]}
+              formatter={(value: number | undefined) => [formatCurrency(Number(value || 0)), ""]}
             />
             <Line
               type="monotone"

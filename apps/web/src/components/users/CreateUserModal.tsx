@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { X, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -86,7 +86,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
 
     setLoading(true);
     try {
-      const response = await api.post<UserResponse>("/api/v1/users/admin-create", {
+      await api.post<UserResponse>("/api/v1/users/admin-create", {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
@@ -98,7 +98,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
 
       toast({
         title: "Success",
-        description: `User "${formData.name}" created successfully`,
+        description: `User &quot;${formData.name}&quot; created successfully`,
         variant: "default"
       });
 
@@ -118,8 +118,9 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
 
       onCreated();
       onClose();
-    } catch (err: any) {
-      const detail = err.response?.data?.detail || "Failed to create user";
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string | object } } };
+      const detail = error.response?.data?.detail || "Failed to create user";
       setError(typeof detail === "string" ? detail : JSON.stringify(detail));
       toast({
         title: "Error",

@@ -1,17 +1,29 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { useRouter } from "next/navigation";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import { Search, Calendar, Filter, ExternalLink } from "lucide-react";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams } from "ag-grid-community";
+
+interface DPR {
+  _id: string;
+  project_id: string;
+  date: string;
+  supervisor_id: string;
+  supervisor_name: string;
+  status: string;
+  progress_notes: string;
+  photos: string[];
+  [key: string]: unknown;
+}
 
 export default function DPRTab() {
   const router = useRouter();
   const { activeProject } = useProjectStore();
-  const [dprs, setDprs] = useState<any[]>([]);
+  const [dprs, setDprs] = useState<DPR[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,21 +31,8 @@ export default function DPRTab() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  useEffect(() => {
-    if (activeProject?.project_id) {
-      fetchDPRs();
-    }
-  }, [activeProject, statusFilter, startDate, endDate]);
-
-  const fetchDPRs = async () => {
+  const fetchDPRs = useCallback(async () => {
     if (!activeProject?.project_id) return;
-
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError("Report connection timed out. Please refresh.");
-      }
-    }, 10000);
 
     try {
       setLoading(true);
@@ -46,14 +45,20 @@ export default function DPRTab() {
 
       const response = await api.get(`${url}?${params.toString()}`);
       setDprs(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching DPRs:", err);
-      setError(err.response?.data?.detail || "Failed to retrieve project reports.");
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || "Failed to retrieve project reports.");
     } finally {
-      clearTimeout(timeoutId);
       setLoading(false);
     }
-  };
+  }, [activeProject, statusFilter, startDate, endDate]);
+
+  useEffect(() => {
+    if (activeProject?.project_id) {
+      fetchDPRs();
+    }
+  }, [activeProject, statusFilter, startDate, endDate, fetchDPRs]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "N/A";
@@ -70,7 +75,7 @@ export default function DPRTab() {
         headerName: "Date",
         field: "date",
         flex: 1,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams) => (
           <span className="text-zinc-900 dark:text-zinc-300 font-medium">
             {formatDate(params.value)}
           </span>
@@ -80,7 +85,7 @@ export default function DPRTab() {
         headerName: "Supervisor",
         field: "supervisor_name",
         flex: 1,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams) => (
           <span className="text-zinc-500 dark:text-slate-400">{params.value || "Unknown"}</span>
         ),
       },
@@ -88,8 +93,8 @@ export default function DPRTab() {
         headerName: "Status",
         field: "status",
         flex: 1,
-        cellRenderer: (params: any) => {
-          const val = (params.value || "DRAFT").toUpperCase();
+        cellRenderer: (params: ICellRendererParams) => {
+          const val = ((params.value as string) || "DRAFT").toUpperCase();
           const colors: Record<string, string> = {
             APPROVED:
               "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border-emerald-500/20",
@@ -111,7 +116,7 @@ export default function DPRTab() {
         headerName: "Notes Preview",
         field: "progress_notes",
         flex: 2,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams) => (
           <span className="text-xs text-zinc-500 dark:text-slate-500 truncate block">
             {params.value || "No notes recorded..."}
           </span>
@@ -121,7 +126,7 @@ export default function DPRTab() {
         headerName: "Media",
         field: "photos",
         flex: 0.5,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams) => (
           <span className={`text-xs font-mono ${params.value?.length ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-400 dark:text-slate-700'}`}>
             [{params.value?.length || 0}]
           </span>
@@ -130,7 +135,7 @@ export default function DPRTab() {
       {
         headerName: "Action",
         width: 100,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams) => (
           <button
             onClick={() =>
               router.push(`/admin/site-operations/dprs/${params.data._id}`)
@@ -206,7 +211,7 @@ export default function DPRTab() {
             </div>
           </div>
         )}
-        <FinancialGrid<any>
+        <FinancialGrid<DPR>
           columnDefs={columnDefs}
           rowData={dprs}
           loading={loading}

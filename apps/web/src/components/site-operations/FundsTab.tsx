@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import { Building2, Plus, AlertTriangle, Loader2 } from "lucide-react";
+import { Building2, Plus, AlertTriangle } from "lucide-react";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { fetcher } from "@/lib/api";
 import ExpenseEntryModal from "@/components/petty-cash/ExpenseEntryModal";
 import { formatCurrency } from "@tac-pmc/ui";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams } from "ag-grid-community";
 
 export default function FundsTab() {
     const { activeProject } = useProjectStore();
@@ -19,14 +19,14 @@ export default function FundsTab() {
         fetcher
     );
 
-    const transactions = data?.items || [];
+    const transactions = useMemo(() => data?.items || [], [data]);
 
     const columnDefs: ColDef[] = useMemo(() => [
         {
             headerName: "Entry Date",
             field: "created_at",
             flex: 1.2,
-            cellRenderer: (params: any) => (
+            cellRenderer: (params: ICellRendererParams) => (
                 <span className="text-slate-400 font-mono text-[11px] uppercase tracking-tighter">
                     {params.value ? new Date(params.value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                 </span>
@@ -48,7 +48,7 @@ export default function FundsTab() {
             headerName: "Disbursement",
             field: "amount",
             flex: 1,
-            cellRenderer: (params: any) => (
+            cellRenderer: (params: ICellRendererParams) => (
                 <span className="font-mono font-bold text-rose-500 dark:text-rose-400">
                     {formatCurrency(params.value || 0)}
                 </span>
@@ -58,7 +58,7 @@ export default function FundsTab() {
             headerName: "Originator",
             field: "created_by_name",
             flex: 1.2,
-            cellRenderer: (params: any) => (
+            cellRenderer: (params: ICellRendererParams) => (
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 flex items-center justify-center text-zinc-500 dark:text-slate-500 text-[9px] font-black uppercase">
                         {params.data.created_by_name?.[0] || 'U'}
@@ -70,7 +70,8 @@ export default function FundsTab() {
     ], []);
 
     const totalOverheads = useMemo(() => {
-        return (transactions as any[])?.reduce((sum: number, o: any) => sum + (parseFloat(o.amount) || 0), 0) || 0;
+        const trans = transactions as Record<string, unknown>[];
+        return trans?.reduce((sum: number, o: Record<string, unknown>) => sum + (parseFloat(o.amount as string) || 0), 0) || 0;
     }, [transactions]);
 
     if (!activeProject) {

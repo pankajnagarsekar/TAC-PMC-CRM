@@ -266,7 +266,7 @@ export const idempotency = {
   isInFlight: isRequestInFlight,
 };
 
-export default {
+const idempotencyUtils = {
   generateIdempotencyKey,
   getOrCreateIdempotencyKey,
   clearIdempotencyKey,
@@ -276,3 +276,5 @@ export default {
   RequestLock,
   globalRequestLock,
 };
+
+export default idempotencyUtils;

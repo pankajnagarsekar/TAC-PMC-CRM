@@ -11,7 +11,6 @@ import {
 import api from "@/lib/api";
 import {
   Loader2,
-  ShieldCheck,
   Mail,
   Phone,
   User,
@@ -97,7 +96,7 @@ export default function VendorModal({
     try {
       if (vendor) {
         await api.put(
-          `/api/v1/vendors/${vendor._id || (vendor as any).id}`,
+          `/api/v1/vendors/${vendor._id || (vendor as { _id?: string; id?: string }).id}`,
           formData,
         );
         toast({ title: "Success", description: "Vendor updated successfully" });
@@ -107,7 +106,8 @@ export default function VendorModal({
       }
       onSuccess();
       onClose();
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
       toast({
         title: "Error",
         description: error.response?.data?.detail || "Failed to save vendor",

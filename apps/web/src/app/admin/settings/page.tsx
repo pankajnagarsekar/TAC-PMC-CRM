@@ -18,8 +18,33 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { CodeMaster } from "@/types/api";
 import CategoryModal from "@/components/categories/CategoryModal";
+
+interface GlobalSettings {
+  name: string;
+  address: string;
+  email: string;
+  phone: string;
+  gst_number: string;
+  pan_number: string;
+  cgst_percentage: number;
+  sgst_percentage: number;
+  retention_percentage: number;
+  wo_prefix: string;
+  pc_prefix: string;
+  invoice_prefix: string;
+  currency: string;
+  currency_symbol: string;
+  terms_and_conditions: string;
+  logo_base64: string | null;
+  client_permissions: {
+    can_view_dpr: boolean;
+    can_view_financials: boolean;
+    can_view_reports: boolean;
+  };
+}
 
 export default function SettingsPage() {
   const { data: codes, mutate: mutateCodes } = useSWR<CodeMaster[]>(
@@ -32,7 +57,7 @@ export default function SettingsPage() {
   >(undefined);
 
   const [loading, setLoading] = useState(true);
-  const [globalSettings, setGlobalSettings] = useState<any>({
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     name: "TAC PMC",
     address: "",
     email: "",
@@ -65,12 +90,12 @@ export default function SettingsPage() {
         const settingsRes = await api.get("/api/v1/settings/");
 
         if (settingsRes.data) {
-          setGlobalSettings({
-            ...globalSettings,
+          setGlobalSettings((prev) => ({
+            ...prev,
             ...settingsRes.data,
-          });
+          }));
         }
-      } catch (err) {
+      } catch {
         console.log("Settings not initialized yet or endpoint missing.");
       } finally {
         setLoading(false);
@@ -98,7 +123,7 @@ export default function SettingsPage() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setGlobalSettings({ ...globalSettings, logo_base64: reader.result });
+        setGlobalSettings({ ...globalSettings, logo_base64: reader.result as string });
       };
       reader.readAsDataURL(file);
     }
@@ -171,11 +196,15 @@ export default function SettingsPage() {
             <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-zinc-200 dark:border-slate-800 rounded-xl bg-zinc-50/50 dark:bg-slate-950/50 group hover:border-orange-500/50 transition-colors">
               {globalSettings.logo_base64 ? (
                 <div className="relative group/img">
-                  <img
-                    src={globalSettings.logo_base64}
-                    alt="Company Logo"
-                    className="max-h-24 rounded-lg object-contain"
-                  />
+                  <div className="relative h-24 w-24">
+                    <NextImage
+                      src={globalSettings.logo_base64}
+                      alt="Company Logo"
+                      fill
+                      className="rounded-lg object-contain"
+                      unoptimized
+                    />
+                  </div>
                   <button
                     onClick={() =>
                       setGlobalSettings({
