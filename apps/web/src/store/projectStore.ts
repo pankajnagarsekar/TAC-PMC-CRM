@@ -28,9 +28,6 @@ export const useProjectStore = create<ProjectState>()(
       clearProject: () => {
         mutate(() => true, undefined, { revalidate: false });
         set({ activeProject: null });
-        if (typeof window !== 'undefined') {
-          window.location.reload();
-        }
       },
     }),
     {

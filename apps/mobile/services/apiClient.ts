@@ -21,26 +21,15 @@ import {
   CreateWorkOrderRequest,
   ReviseWorkOrderRequest,
   PaymentCertificate,
-  CreatePaymentCertificateRequest,
   RevisePaymentCertificateRequest,
   Payment,
   CreatePaymentRequest,
   RetentionRelease,
   CreateRetentionReleaseRequest,
-  ProgressEntry,
-  CreateProgressRequest,
-  PlannedProgress,
-  CreatePlannedProgressRequest,
-  DelayAnalysis,
   Attendance,
   CreateAttendanceRequest,
-  Issue,
-  CreateIssueRequest,
-  UpdateIssueRequest,
   VoiceLog,
   CreateVoiceLogRequest,
-  PettyCash,
-  CreatePettyCashRequest,
   CSA,
   CreateCSARequest,
   DPR,
@@ -72,7 +61,7 @@ const TOKEN_KEYS = {
   USER: 'user_data',
 } as const;
 
-let SecureStore: any = null;
+let SecureStore: typeof import('expo-secure-store') | null = null;
 if (Platform.OS !== 'web') {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -180,46 +169,59 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(url, { ...options, headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-  // Handle 401 - attempt token refresh
-  if (response.status === 401 && requiresAuth) {
-    const refreshed = await attemptTokenRefresh();
-    if (refreshed) {
-      const newToken = await storage.get(TOKEN_KEYS.ACCESS);
-      headers['Authorization'] = `Bearer ${newToken}`;
-      const retryResponse = await fetch(url, { ...options, headers });
+  try {
+    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
 
-      if (!retryResponse.ok) {
-        const error = await retryResponse.json().catch(() => ({ detail: 'Request failed' }));
-        throw new ApiError(error.detail, retryResponse.status, error);
+    // Handle 401 - attempt token refresh
+    if (response.status === 401 && requiresAuth) {
+      const refreshed = await attemptTokenRefresh();
+      if (refreshed) {
+        const newToken = await storage.get(TOKEN_KEYS.ACCESS);
+        headers['Authorization'] = `Bearer ${newToken}`;
+        const retryResponse = await fetch(url, { ...options, headers });
+
+        if (!retryResponse.ok) {
+          const error = await retryResponse.json().catch(() => ({ detail: 'Request failed' }));
+          throw new ApiError(error.detail, retryResponse.status, error);
+        }
+        const retryData = await retryResponse.json();
+        if (retryData && retryData.data !== undefined && 'success' in retryData) {
+          return retryData.data as T;
+        }
+        return retryData;
+      } else {
+        await clearTokens();
+        throw new ApiError('Session expired', 401);
       }
-      const retryData = await retryResponse.json();
-      if (retryData && retryData.data !== undefined && 'success' in retryData) {
-        return retryData.data as T;
-      }
-      return retryData;
-    } else {
-      await clearTokens();
-      throw new ApiError('Session expired', 401);
     }
-  }
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new ApiError(error.detail || 'Request failed', response.status, error);
-  }
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+      throw new ApiError(error.detail || 'Request failed', response.status, error);
+    }
 
-  if (response.status === 204) {
-    return {} as T;
-  }
+    if (response.status === 204) {
+      return {} as T;
+    }
 
-  const data = await response.json();
-  // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
-  if (data && data.data !== undefined && 'success' in data) {
-    return data.data as T;
+    const data = await response.json();
+    // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
+    if (data && data.data !== undefined && 'success' in data) {
+      return data.data as T;
+    }
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('Request timed out — check your connection', 0);
+    }
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Network error — are you online?', 0);
   }
-  return data;
 }
 
 // ============================================
@@ -258,7 +260,8 @@ async function attemptTokenRefresh(): Promise<boolean> {
 
       if (!response.ok) return false;
 
-      const data: LoginResponse = await response.json();
+      const raw = await response.json();
+      const data: LoginResponse = raw.data || raw; // Handle GenericResponse envelope
       await storage.set(TOKEN_KEYS.ACCESS, data.access_token);
       await storage.set(TOKEN_KEYS.REFRESH, data.refresh_token);
       await storage.set(TOKEN_KEYS.USER, JSON.stringify(data.user));
@@ -402,13 +405,9 @@ export const workOrdersApi = {
 // PAYMENT CERTIFICATES API
 // ============================================
 export const paymentCertificatesApi = {
-  getAll: (projectId: string, status?: string): Promise<PaymentCertificate[]> => {
-    const params = new URLSearchParams();
-    if (status) params.append('status_filter', status);
-    return request(`/api/v1/payments/${projectId}?${params}`);
-  },
-  getById: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}`),
-  create: (data: CreatePaymentCertificateRequest): Promise<PaymentCertificate> => request('/api/v1/payments/', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string): Promise<PaymentCertificate[]> => request(`/api/v1/payments/${projectId}`),
+  getById: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/id/${id}`),
+  create: (data: Partial<PaymentCertificate>): Promise<PaymentCertificate> => request('/api/v1/payments/', { method: 'POST', body: JSON.stringify(data) }),
   certify: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/close`, { method: 'POST' }),
   revise: (id: string, data: RevisePaymentCertificateRequest): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
 };
@@ -436,14 +435,17 @@ export const attendanceApi = {
   getAll: (projectId: string): Promise<Attendance[]> => {
     return request(`/api/v1/projects/${projectId}/attendance`);
   },
-  adminGetAll: (projectId: string, filters: any = {}): Promise<{ attendance: Attendance[] }> => {
+  adminGetAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<{ attendance: Attendance[] }> => {
     const params = new URLSearchParams({ project_id: projectId, ...filters });
     return request(`/api/v1/attendance/admin/all?${params}`);
   },
   logWorkers: (data: CreateAttendanceRequest): Promise<Attendance> =>
     request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
-  checkIn: (data: { project_id: string; location?: any }): Promise<Attendance> =>
-    request('/api/v1/attendance/check-in/', { method: 'POST', body: JSON.stringify(data) }),
+  checkIn: (data: { project_id: string; location?: { latitude: number; longitude: number; address?: string } }): Promise<Attendance> => {
+    return request('/api/v1/attendance/check-in', { method: 'POST', body: JSON.stringify(data) });
+  },
+  checkOut: (projectId: string, data: Record<string, unknown> = {}): Promise<Attendance> =>
+    request('/api/v1/attendance/check-out', { method: 'POST', body: JSON.stringify({ ...data, project_id: projectId }) }),
   getToday: (projectId: string): Promise<Attendance | null> =>
     request(`/api/v1/attendance/today?project_id=${projectId}`),
   getHistory: (projectId: string, limit: number = 10): Promise<{ attendance: Attendance[] }> =>
@@ -470,10 +472,10 @@ export const voiceLogsApi = {
 // WORKER LOGS API
 // ============================================
 export const workerLogsApi = {
-  create: (data: any): Promise<any> =>
+  create: (data: Record<string, unknown>): Promise<unknown> =>
     request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
-  getAll: (projectId: string, filters: any = {}): Promise<any[]> => {
-    const params = new URLSearchParams({ project_id: projectId, ...filters });
+  getAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<unknown[]> => {
+    const params = new URLSearchParams({ project_id: projectId, ...filters as Record<string, string> });
     return request(`/api/v1/worker-logs/?${params}`);
   },
 };
@@ -482,20 +484,20 @@ export const workerLogsApi = {
 // DPR API
 // ============================================
 export const dprApi = {
-  getAll: (projectId: string, filters: any = {}): Promise<DPR[]> => {
-    const params = new URLSearchParams({ ...filters });
+  getAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<DPR[]> => {
+    const params = new URLSearchParams({ ...filters as Record<string, string> });
     return request(`/api/v1/projects/${projectId}/dprs?${params}`);
   },
-  create: (data: any): Promise<DPR & { exists?: boolean }> =>
+  create: (data: Record<string, unknown>): Promise<DPR & { exists?: boolean }> =>
     request('/api/v1/dprs/', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
     request(`/api/v1/dprs/${id}`, { method: 'DELETE' }),
-  uploadImage: (dprId: string, data: any): Promise<any> =>
+  uploadImage: (dprId: string, data: Record<string, unknown>): Promise<unknown> =>
     request(`/api/v1/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
-  submit: (id: string): Promise<any> =>
+  submit: (id: string): Promise<unknown> =>
     request(`/api/v1/dprs/${id}/submit`, { method: 'POST' }),
   generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/dpr/generate/', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: any): Promise<DPR> =>
+  update: (id: string, data: Record<string, unknown>): Promise<DPR> =>
     request(`/api/v1/dprs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   getById: (id: string): Promise<DPR> => request(`/api/v1/dprs/${id}`),
   approve: (id: string): Promise<DPR> => request(`/api/v1/dprs/${id}/approve`, { method: 'PATCH' }),
@@ -506,7 +508,7 @@ export const dprApi = {
 // DASHBOARD API
 // ============================================
 export const dashboardApi = {
-  getAdminDashboard: (): Promise<{ projects: any[] }> =>
+  getAdminDashboard: (): Promise<{ projects: unknown[] }> =>
     request(`/api/v1/admin/projects-overview`),
   getProjectDashboard: (projectId: string): Promise<AdminDashboardData> =>
     request(`/api/v1/reports/${projectId}/dashboard-stats`),
@@ -562,7 +564,7 @@ export const cashApi = {
     if (params?.cursor) url += `&cursor=${params.cursor}`;
     return request(url);
   },
-  createTransaction: (projectId: string, data: any, idempotencyKey?: string): Promise<any> =>
+  createTransaction: (projectId: string, data: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> =>
     request('/api/v1/petty-cash/transaction', {
       method: 'POST',
       body: JSON.stringify({ ...data, project_id: projectId }),

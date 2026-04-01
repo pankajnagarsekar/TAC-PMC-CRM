@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
 
     # CORS (Fixed CR-06)
-    ALLOWED_ORIGINS: list[str] = ["*"]
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
 
     model_config = SettingsConfigDict(
         case_sensitive=True, env_file=".env", extra="ignore"
@@ -62,6 +62,15 @@ if settings.OPENAI_API_KEY:
     )
 else:
     logger.warning("CONFIG: OpenAI API Key NOT FOUND in environment or .env file.")
+
+if (
+    settings.ENVIRONMENT != "development"
+    and "*" in settings.ALLOWED_ORIGINS
+):
+    logger.critical(
+        "SECURITY_BREACH: Wildcard CORS allowed in non-development environment. Application halted."
+    )
+    raise ValueError("INSECURE_CORS_CONFIGURATION")
 
 if (
     settings.ENVIRONMENT != "development"

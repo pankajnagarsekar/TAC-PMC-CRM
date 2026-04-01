@@ -8,10 +8,9 @@ import type {
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-// Determine timeout based on environment
-// Production (Render): 45s to account for cold starts
+// Production (Render): 25s to account for cold starts
 // Development: 15s for faster feedback
-const TIMEOUT = process.env.NODE_ENV === "production" ? 45000 : 15000;
+const TIMEOUT = process.env.NODE_ENV === "production" ? 25000 : 15000;
 
 // ──────────────────────────────────────────────────────────────────────────
 // Axios instance — all requests go through here
@@ -97,7 +96,9 @@ api.interceptors.response.use(
 
         // Update session cookie for middleware (30 days max-age)
         if (typeof window !== 'undefined') {
-          document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax`;
+          // Use Secure flag in production/https
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `crm_token=${access_token}; path=/; max-age=2592000; SameSite=Lax${secure}`;
         }
 
         if (originalRequest.headers) {
@@ -125,10 +126,23 @@ function clearTokens() {
 
 export default api;
 
-// ──────────────────────────────────────────────────────────────────────────
 // SWR Fetcher — used across all useSWR hooks
-// ──────────────────────────────────────────────────────────────────────────
-export const fetcher = (url: string) => api.get(url).then((r) => r.data);
+// Fixed CR-19: Extends error object with status code for UI logic
+interface ApiError extends Error {
+  status?: number;
+  info?: unknown;
+}
+
+export const fetcher = (url: string) =>
+  api.get(url).then((r) => r.data).catch((err) => {
+    if (err.response) {
+      const error: ApiError = new Error(err.response.data?.message || 'API Error');
+      error.status = err.response.status;
+      error.info = err.response.data;
+      throw error;
+    }
+    throw err;
+  });
 
 // ──────────────────────────────────────────────────────────────────────────
 // Scheduler Service

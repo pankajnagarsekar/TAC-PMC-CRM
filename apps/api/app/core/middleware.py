@@ -23,7 +23,9 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid.uuid4())
 
         # 1. RATE LIMIT ENFORCEMENT (Point 5, 116)
-        identity = request.headers.get("Authorization", request.client.host)
+        identity = request.headers.get(
+            "Authorization", request.client.host if request.client else "anonymous"
+        )
         if request.url.path not in ["/docs", "/redoc", "/openapi.json"]:
             try:
                 # Custom tiering could be added based on route
@@ -78,20 +80,19 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
         )
 
 
+import asyncio
+
 class BackpressureMiddleware(BaseHTTPMiddleware):
     """
     Saturation Guard (Point 105).
     Immediate rejection when system concurrency limit is reached.
     """
 
-    active_requests = 0
     MAX_CONCURRENT = 100
+    _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
     async def dispatch(self, request: Request, call_next):
-        if (
-            BackpressureMiddleware.active_requests
-            >= BackpressureMiddleware.MAX_CONCURRENT
-        ):
+        if self._semaphore.locked():
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={
@@ -103,8 +104,5 @@ class BackpressureMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        BackpressureMiddleware.active_requests += 1
-        try:
+        async with self._semaphore:
             return await call_next(request)
-        finally:
-            BackpressureMiddleware.active_requests -= 1

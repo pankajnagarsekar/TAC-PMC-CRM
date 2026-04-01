@@ -17,7 +17,7 @@ class RateLimiter:
 
         # TIERS (Point 5)
         self.TIERS = {
-            "Standard": {"rate": 10, "window": 1.0},
+            "Standard": {"rate": 60, "window": 1.0},
             "Heavy": {"rate": 1, "window": 5.0},  # For exports/reports
             "Admin": {"rate": 100, "window": 1.0},
         }

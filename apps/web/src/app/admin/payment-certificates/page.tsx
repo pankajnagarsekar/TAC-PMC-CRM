@@ -9,7 +9,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { PaymentCertificate, CodeMaster, Vendor } from '@/types/api';
 import { formatCurrency, formatDate } from '@tac-pmc/ui';
 import FinancialGrid from '@/components/ui/FinancialGrid';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import NetworkErrorRetry from '@/components/ui/NetworkErrorRetry';
 
 export default function PaymentCertificatesPage() {
@@ -36,7 +36,7 @@ export default function PaymentCertificatesPage() {
     else setIsMoreLoading(true);
 
     try {
-      const projectId = activeProject.project_id || (activeProject as any)._id;
+      const projectId = activeProject.project_id || (activeProject as { _id?: string })._id;
       const url = `/api/v1/payments/${projectId}?limit=50${cursor ? `&cursor=${cursor}` : ''}`;
       const res = await api.get<{ items: PaymentCertificate[], next_cursor: string | null }>(url);
 
@@ -64,8 +64,8 @@ export default function PaymentCertificatesPage() {
       field: 'pc_ref',
       headerName: 'Ref ID',
       width: 150,
-      cellRenderer: (p: any) => (
-        <Link href={`/admin/payment-certificates/${p.data._id}`} className="font-mono text-emerald-400 font-bold hover:underline">
+      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => (
+        <Link href={`/admin/payment-certificates/${p.data?._id}`} className="font-mono text-emerald-400 font-bold hover:underline">
           {p.value}
         </Link>
       )
@@ -74,7 +74,7 @@ export default function PaymentCertificatesPage() {
       field: 'fund_request',
       headerName: 'Type',
       width: 130,
-      cellRenderer: (p: any) => p.value ? (
+      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => p.value ? (
         <span className="text-[10px] uppercase tracking-widest font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Fund Request</span>
       ) : (
         <span className="text-[10px] uppercase tracking-widest font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">WO Linked</span>
@@ -84,14 +84,14 @@ export default function PaymentCertificatesPage() {
       field: 'category_id',
       headerName: 'Category',
       width: 180,
-      valueFormatter: (p: any) => getCategoryName(p.value)
+      valueFormatter: (p: { value: string }) => getCategoryName(p.value)
     },
     {
       field: 'vendor_id',
       headerName: 'Payee / Target',
       flex: 1,
       minWidth: 200,
-      cellRenderer: (p: any) => p.data.fund_request ? (
+      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => p.data?.fund_request ? (
         <span className="text-slate-500 italic">Internal Trx</span>
       ) : (
         <span className="text-slate-300">{getVendorName(p.value!)}</span>
@@ -102,14 +102,14 @@ export default function PaymentCertificatesPage() {
       headerName: 'Grand Total',
       width: 150,
       type: 'numericColumn',
-      valueFormatter: (p: any) => formatCurrency(p.value || 0),
+      valueFormatter: (p: { value: number }) => formatCurrency(p.value || 0),
       cellClass: 'font-mono font-medium text-foreground'
     },
     {
       field: 'status',
       headerName: 'Status',
       width: 120,
-      cellRenderer: (p: any) => {
+      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => {
         const status = p.value;
         const colors: Record<string, string> = {
           'Draft': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
@@ -120,7 +120,7 @@ export default function PaymentCertificatesPage() {
         };
         return (
           <div className="flex items-center h-full">
-            <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] uppercase border ${colors[p.value] || colors['Draft']}`}>
+            <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] uppercase border ${colors[status] || colors['Draft']}`}>
               {status}
             </span>
           </div>
@@ -131,7 +131,7 @@ export default function PaymentCertificatesPage() {
       field: 'created_at',
       headerName: 'Date',
       width: 150,
-      valueFormatter: (p: any) => p.value ? formatDate(p.value) : '-'
+      valueFormatter: (p: { value: string }) => p.value ? formatDate(p.value) : '-'
     }
   ];
 

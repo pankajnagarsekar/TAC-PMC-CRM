@@ -40,10 +40,10 @@ class ProjectRepository(BaseRepository[Project]):
         return await super().create(data, session=session)
 
     async def update(
-        self, id: str, data: Dict[str, Any], session=None
+        self, id: str, data: Dict[str, Any], session=None, **filters
     ) -> Optional[Dict[str, Any]]:
         data = self._normalize(data)
-        return await super().update(id, data, session=session)
+        return await super().update(id, data, session=session, **filters)
 
     async def get_by_project_id(self, project_id: str) -> Optional[Dict[str, Any]]:
         return await self.find_one({"project_id": str(project_id)})

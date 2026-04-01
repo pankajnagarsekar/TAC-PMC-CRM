@@ -13,6 +13,7 @@ from app.modules.financial.infrastructure.repository import (
 
 # Repositories from other contexts
 from app.modules.project.infrastructure.repository import (
+    ProjectRepository,
     BudgetRepository,
     ScheduleRepository,
 )
@@ -30,6 +31,7 @@ class DashboardService:
 
     def __init__(self, db):
         self.db = db
+        self.project_repo = ProjectRepository(db)
         self.budget_repo = BudgetRepository(db)
         self.wo_repo = WorkOrderRepository(db)
         self.fin_state_repo = FinancialStateRepository(db)

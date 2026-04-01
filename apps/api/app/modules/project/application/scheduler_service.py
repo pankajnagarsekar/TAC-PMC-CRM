@@ -21,32 +21,37 @@ class SchedulerService:
         self.db = db
         self.collection = db["project_schedules"]
 
-    def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
-        """Orchestrate calls to standalone, deterministic Python scripts."""
-        # Adjusted for movement to app/modules/project/application/
+    import asyncio
+
+    async def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
+        """Orchestrate calls to standalone, deterministic Python scripts (Async)."""
         base_dir = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         )  # apps/api/app
         script_path = os.path.join(base_dir, "modules", "scheduler", script_name)
 
         try:
-            process = subprocess.Popen(
-                [sys.executable, script_path],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, script_path,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = process.communicate(input=json.dumps(input_data))
+            
+            input_json = json.dumps(input_data).encode()
+            stdout, stderr = await process.communicate(input=input_json)
+            
+            stdout_str = stdout.decode()
+            stderr_str = stderr.decode()
 
             if process.returncode != 0:
                 error_msg = (
-                    f"Scheduler execution error for {script_name}: {stderr or stdout}"
+                    f"Scheduler execution error for {script_name}: {stderr_str or stdout_str}"
                 )
                 logger.error(error_msg)
                 raise Exception(error_msg)
 
-            return json.loads(stdout)
+            return json.loads(stdout_str)
         except Exception as e:
             raise ValidationError(str(e))
 
@@ -54,7 +59,7 @@ class SchedulerService:
         self, project_id: str, tasks: List[Dict[str, Any]], project_start: str
     ) -> Dict[str, Any]:
         input_payload = {"tasks": tasks, "project_start": project_start}
-        results = self.run_scheduler_script("calculate_critical_path.py", input_payload)
+        results = await self.run_scheduler_script("calculate_critical_path.py", input_payload)
 
         if "error" in results:
             raise ValidationError(results["error"])

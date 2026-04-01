@@ -1,7 +1,8 @@
 import logging
 import time
 
-from fastapi import FastAPI, Request
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
@@ -71,41 +72,67 @@ def create_app() -> FastAPI:
             },
         )
 
-    # State for background tasks
-    state = {"guardian": None}
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.error(f"SYSTEM_FAULT: {exc}", exc_info=True)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "status": "error",
+                "message": "An internal system error occurred.",
+                "error_type": "InternalError",
+            },
+        )
 
-    @app.on_event("startup")
-    async def startup_event():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
         """Lifecycle: Hard Ping DB & Boot Guardian (Point 6, 7, 103)"""
         logger.info("LIFECYCLE: Starting Supreme CRM Backend...")
         try:
             await db_manager.connect(settings.MONGO_URL, settings.DB_NAME)
 
             # Start Background Guardian (Point 103, 122)
-            state["guardian"] = BackgroundGuardian(db_manager.get_db())
-            await state["guardian"].start()
+            guardian = BackgroundGuardian(db_manager.get_db())
+            await guardian.start()
 
             if settings.OPENAI_API_KEY:
                 logger.info("LIFECYCLE: AI engine active (key detected)")
             else:
                 logger.warning("LIFECYCLE: AI engine in MOCK mode (key missing)")
 
+            yield
+            
+            # Shutdown
+            logger.info("LIFECYCLE: Initiating clean shutdown...")
+            await guardian.stop()
+            db_manager.close()
+
         except Exception as e:
             logger.critical(f"LIFECYCLE_FATAL: Core systems failed to bootstrap: {e}")
             raise
 
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        """Lifecycle: Graceful shutdown (Point 118)"""
-        logger.info("LIFECYCLE: Initiating clean shutdown...")
-        if state["guardian"]:
-            await state["guardian"].stop()
-        db_manager.close()
+    app.router.lifespan_context = lifespan
 
     @app.get("/system/health", tags=["System"])
     async def health_check():
+        db_status = "connected"
+        try:
+            # Ping MongoDB
+            await db_manager.client.admin.command("ping")
+        except Exception:
+            db_status = "disconnected"
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "status": "degraded",
+                    "db": db_status,
+                    "environment": settings.ENVIRONMENT,
+                },
+            )
+
         return {
             "status": "online",
+            "db": db_status,
             "environment": settings.ENVIRONMENT,
             "version": "2.2.0-hardened",
             "timestamp": time.time(),

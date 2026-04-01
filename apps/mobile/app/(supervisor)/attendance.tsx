@@ -23,31 +23,6 @@ import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 import { attendanceApi, dprApi } from '../../services/apiClient';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getToken();
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
-  }
-  return response.json();
-};
-
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') window.alert(`${title}: ${message}`);
   else Alert.alert(title, message);
@@ -245,12 +220,15 @@ export default function SupervisorAttendance() {
 
       // Step 2: Get location
       const loc = await getCurrentLocation();
-      if (loc) {
-        setLocation(loc);
+      if (!loc) {
+        showAlert('Location Required', 'Unable to verify your location. Please ensure GPS is enabled and try again.');
+        setCheckingIn(false);
+        return;
       }
+      setLocation(loc);
 
       // Step 3: Submit attendance
-      const projectId = (selectedProject as any).project_id || (selectedProject as any)._id;
+      const projectId = (selectedProject as any).project_id || (selectedProject as any).id || (selectedProject as any)._id;
 
       await attendanceApi.checkIn({
         project_id: projectId,
@@ -272,8 +250,9 @@ export default function SupervisorAttendance() {
       });
 
       showAlert('Success', 'Check-in successful! You can now submit your DPR.');
-    } catch (error: any) {
-      if (error.message?.includes('already marked')) {
+    } catch (error: unknown) {
+      const err = error as any;
+      if (err.message?.includes('already marked')) {
         showAlert('Already Checked In', 'You have already marked attendance for today');
         setTodayAttendance({
           id: 'today',
@@ -283,7 +262,7 @@ export default function SupervisorAttendance() {
           hasDPR: false,
         });
       } else {
-        showAlert('Error', error.message || 'Failed to check in');
+        showAlert('Error', err.message || 'Failed to check in');
       }
     } finally {
       setCheckingIn(false);
@@ -298,7 +277,9 @@ export default function SupervisorAttendance() {
 
     setCheckingOut(true);
     try {
-      // In a real app, this would call a checkout API
+      const projectId = (selectedProject as any).project_id || (selectedProject as any).id || (selectedProject as any)._id;
+      await attendanceApi.checkOut(projectId);
+
       setTodayAttendance(prev => prev ? {
         ...prev,
         checkOutTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -306,8 +287,9 @@ export default function SupervisorAttendance() {
       } : null);
 
       showAlert('Success', 'Check-out successful! Have a great day.');
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to check out');
+    } catch (error: unknown) {
+      const err = error as any;
+      showAlert('Error', err.message || 'Failed to check out');
     } finally {
       setCheckingOut(false);
     }

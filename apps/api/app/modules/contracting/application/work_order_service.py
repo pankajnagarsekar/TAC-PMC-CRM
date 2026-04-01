@@ -155,8 +155,8 @@ class WorkOrderService:
 
             new_wo = await uow.work_orders.create(wo_dict, session=uow.session)
 
-            await uow.budgets.update(
-                budget["id"],
+            await uow.budgets.update_one(
+                {"_id": ObjectId(budget["id"]) if ObjectId.is_valid(budget["id"]) else budget["id"]},
                 {
                     "$inc": {
                         "remaining_budget": FinancialEngine.to_d128(-grand_total),

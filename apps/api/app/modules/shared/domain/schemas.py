@@ -101,3 +101,5 @@ class GenericResponse(BaseModel, Generic[T]):
     success: bool = True
     message: Optional[str] = None
     data: Optional[T] = None
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

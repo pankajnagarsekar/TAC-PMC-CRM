@@ -126,6 +126,18 @@ class UpdateImageCaptionRequest(BaseModel):
     caption: str
 
 
+class RejectDPRRequest(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=500)
+
+
+class DPRCreate(BaseModel):
+    project_id: str
+    dpr_date: Optional[datetime] = None
+    progress_notes: Optional[str] = None
+    weather_conditions: Optional[str] = "Normal"
+    # Note: Images are uploaded separately via /dprs/{id}/images
+
+
 class DPR(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: str

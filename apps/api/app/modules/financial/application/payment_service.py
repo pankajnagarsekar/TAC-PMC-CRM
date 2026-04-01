@@ -201,7 +201,7 @@ class PaymentService:
             )
 
             if pc_type == "WO_LINKED" and pc.get("vendor_id"):
-                await uow.db.vendors.update_one(
+                await uow.vendors.update_one(
                     {"_id": ObjectId(pc["vendor_id"])},
                     {
                         "$inc": {

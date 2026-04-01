@@ -108,7 +108,8 @@ export default function ProjectDetailPage() {
             });
             mutateFinancials();
           } catch (error: unknown) {
-            if ((error as any).response?.status === 409) {
+            const err = error as { response?: { status?: number } };
+            if (err.response?.status === 409) {
               setIsConflictModalOpen(true);
             } else {
               alert("Failed to update budget. Please check permissions.");

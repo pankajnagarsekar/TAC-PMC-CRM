@@ -18,9 +18,8 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if isinstance(value, ObjectId):
             result[key] = str(value)
         elif isinstance(value, Decimal128):
-            # FIXED: Handle possible to_decimal() failures
             try:
-                result[key] = str(value.to_decimal())
+                result[key] = float(value.to_decimal())
             except Exception:
                 result[key] = str(value)
         elif isinstance(value, datetime):
@@ -37,10 +36,12 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
                     serialized_list.append(serialize_doc(item))
                 elif isinstance(item, Decimal128):
                     try:
-                        serialized_list.append(str(item.to_decimal()))
+                        serialized_list.append(float(item.to_decimal()))
                     except Exception:
                         serialized_list.append(str(item))
-                elif isinstance(item, (Decimal, ObjectId)):
+                elif isinstance(item, Decimal):
+                    serialized_list.append(float(item))
+                elif isinstance(item, ObjectId):
                     serialized_list.append(str(item))
                 else:
                     serialized_list.append(item)

@@ -162,7 +162,8 @@ export default function CategoriesPage() {
       mutate();
       setDeleteCode(null);
     } catch (error: unknown) {
-      setError((error as any).response?.data?.detail || "Failed to delete category");
+      const err = error as { response?: { data?: { detail?: string } } };
+      setError(err.response?.data?.detail || "Failed to delete category");
     }
   }
 
@@ -179,7 +180,8 @@ export default function CategoriesPage() {
       mutate();
       setIsModalOpen(false);
     } catch (error: unknown) {
-      setError((error as any).response?.data?.detail || "Failed to save category");
+      const err = error as { response?: { data?: { detail?: string } } };
+      setError(err.response?.data?.detail || "Failed to save category");
     } finally {
       setLoading(false);
     }

@@ -7,7 +7,6 @@ from app.core.dependencies import (
     get_cash_service,
     get_master_data_service,
     get_payment_service,
-    verify_nonce,
 )
 from app.modules.shared.domain.schemas import GenericResponse
 
@@ -55,11 +54,14 @@ async def list_payment_certificates(
     tags=["Payments"],
 )
 async def create_payment_certificate(
+    request: Request,
     pc_data: PaymentCertificateCreate,
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     """Create a new payment certificate."""
+    idempotency_key = request.headers.get("X-Idempotency-Key") or pc_data.idempotency_key
+    pc_data.idempotency_key = idempotency_key
     new_pc = await payment_service.create_payment_certificate(user, pc_data)
     return GenericResponse(
         data=new_pc, message="Payment certificate created successfully"
@@ -105,13 +107,14 @@ async def list_fund_allocations(
     "/cash/allocations", response_model=GenericResponse[Any], tags=["Cash Management"]
 )
 async def create_fund_allocation(
+    request: Request,
     allocation_data: FundAllocationCreate,
     user: dict = Depends(get_authenticated_user),
     cash_service: CashService = Depends(get_cash_service),
-    nonce: str = Depends(verify_nonce),
 ):
     """Allocate funds to a project category."""
-    # Note: Service method name might vary slightly based on implementation
+    idempotency_key = request.headers.get("X-Idempotency-Key") or allocation_data.idempotency_key
+    allocation_data.idempotency_key = idempotency_key
     result = await cash_service.create_fund_allocation(user, allocation_data)
     return GenericResponse(data=result, message="Funds allocated successfully")
 
@@ -137,13 +140,15 @@ async def list_cash_transactions(
 
 @router.post("/petty-cash/transaction", response_model=GenericResponse[dict])
 async def record_cash_transaction(
+    request: Request,
     txn_data: CashTransactionCreate,
     user: dict = Depends(get_authenticated_user),
     cash_service: CashService = Depends(get_cash_service),
 ):
     """Record a petty cash or overhead transaction."""
+    idempotency_key = request.headers.get("X-Idempotency-Key") or txn_data.idempotency_key
     result = await cash_service.create_cash_transaction(
-        user, txn_data.project_id, txn_data.dict(), None
+        user, txn_data.project_id, txn_data.dict(), idempotency_key
     )
     return GenericResponse(data=result)
 

@@ -29,7 +29,7 @@ import { GlobalSettings } from "@/types/api";
 
 interface NavItem {
   href: string;
-  icon?: any;
+  icon?: React.ElementType;
   label: string;
   key: string;
   children?: NavItem[];

@@ -2,13 +2,12 @@ import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 
 import { schedulerApi } from "@/lib/api";
-import type {
+import {
   ScheduleCalculationResponse,
   ScheduleChangeRequest,
   ScheduleStoreState,
   ScheduleTask,
   ScheduleTaskMap,
-  UndoStackEntry,
 } from "@/types/schedule.types";
 
 const CALCULATION_DEBOUNCE_MS = 300;
@@ -66,7 +65,7 @@ import { toast } from "sonner";
 
 const executeCalculationRequest = async (
   request: ScheduleChangeRequest,
-  set: any,
+  set: (state: Partial<ScheduleStoreState>) => void,
   get: () => ScheduleStoreState
 ) => {
   const idempotencyKey = uuidv4();
@@ -78,7 +77,13 @@ const executeCalculationRequest = async (
     );
     get().reconcileWithEngine(response);
   } catch (error: unknown) {
-    const err = error as any;
+    const err = error as {
+      response?: {
+        status?: number;
+        data?: ScheduleCalculationResponse & { detail?: { message?: string } }
+      };
+      message?: string
+    };
     const isConflict = err?.response?.status === 409;
     const responseData = err?.response?.data;
 
@@ -118,7 +123,7 @@ const buildChanges = (changes: ScheduleChangeRequest["changes"]) => {
 
   return allowedFields.reduce((acc, field) => {
     if (Object.prototype.hasOwnProperty.call(changes, field)) {
-      (acc as any)[field] = changes[field];
+      (acc as Record<string, unknown>)[field] = changes[field];
     }
     return acc;
   }, {} as ScheduleChangeRequest["changes"]);
@@ -257,7 +262,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       get().queueCalculation({
         project_id: projectId,
         task_id: task_id,
-        changes: { ...draftTask } as any,
+        changes: { ...draftTask } as ScheduleChangeRequest["changes"],
         version: 1,
         trigger_source: "api",
       });
@@ -411,7 +416,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     },
 
     openTask: (taskId) => {
-      set((state) => {
+      set(() => {
         const selected = taskId ? new Set([taskId]) : new Set<string>();
         return { selectedTasks: selected };
       });

@@ -8,6 +8,13 @@ module.exports = defineConfig([
     ignores: ['dist/*', '.expo/*'],
   },
   {
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: process.cwd(),
+      },
+    },
+  },
+  {
     rules: {
       'react/no-unescaped-entities': 'warn',
       'react/display-name': 'off',

@@ -8,6 +8,7 @@ import { getAuthToken, projectsApi } from '../services/apiClient';
 
 interface ProjectContextType {
   selectedProject: Project | null;
+  projectId: string; // BU-16: Standardized getter
   setSelectedProject: (project: Project | null) => Promise<void>; // CM-07: correct async signature
   clearProject: () => Promise<void>;
   isProjectSelected: boolean;
@@ -20,26 +21,7 @@ const STORAGE_KEY = 'supervisor_selected_project';
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [selectedProject, setSelectedProjectState] = useState<Project | null>(null);
 
-  // Load persisted project on mount
-  useEffect(() => {
-    loadPersistedProject();
-  }, []);
-
-  const loadPersistedProject = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSelectedProjectState(JSON.parse(stored));
-      } else {
-        // Only auto-select if we have a valid auth token (CR-06)
-        await autoSelectFirstProject();
-      }
-    } catch (error) {
-      console.error('Failed to load persisted project:', error);
-    }
-  };
-
-  const autoSelectFirstProject = async () => {
+  const autoSelectFirstProject = React.useCallback(async () => {
     try {
       // CR-06: Guard against unauthenticated API calls on cold start
       const token = await getAuthToken();
@@ -52,7 +34,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to auto-select first project:', error);
     }
-  };
+  }, []);
+
+  const loadPersistedProject = React.useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setSelectedProjectState(JSON.parse(stored));
+      } else {
+        // Only auto-select if we have a valid auth token (CR-06)
+        await autoSelectFirstProject();
+      }
+    } catch (error) {
+      console.error('Failed to load persisted project:', error);
+    }
+  }, [autoSelectFirstProject]);
+
+  // Load persisted project on mount
+  useEffect(() => {
+    loadPersistedProject();
+  }, [loadPersistedProject]);
 
   const setSelectedProject = async (project: Project | null): Promise<void> => {
     setSelectedProjectState(project);
@@ -80,6 +81,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     <ProjectContext.Provider
       value={{
         selectedProject,
+        projectId: (selectedProject as any)?.project_id || (selectedProject as any)?._id || (selectedProject as any)?.id || '',
         setSelectedProject,
         clearProject,
         isProjectSelected: selectedProject !== null,

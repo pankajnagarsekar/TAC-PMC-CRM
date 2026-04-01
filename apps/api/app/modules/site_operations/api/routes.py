@@ -8,6 +8,8 @@ from app.modules.shared.domain.schemas import GenericResponse
 from ..application.site_service import SiteService
 from ..schemas.dto import (
     DPRImage,
+    DPRCreate,
+    RejectDPRRequest,
     SiteOverhead,
     SiteOverheadCreate,
     SiteOverheadUpdate,
@@ -92,17 +94,12 @@ async def list_project_dprs(
     tags=["Site Operations"],
 )
 async def create_dpr(
-    dpr_data: Dict[str, Any],
+    dpr_data: DPRCreate,
     user: dict = Depends(get_authenticated_user),
     site_service: SiteService = Depends(get_site_service),
 ):
     """Creates a new DPR draft."""
-    project_id = dpr_data.get("project_id")
-    if not project_id:
-        from app.modules.shared.domain.exceptions import ValidationError
-
-        raise ValidationError("project_id is required")
-    result = await site_service.create_dpr(user, project_id, dpr_data)
+    result = await site_service.create_dpr(user, dpr_data.project_id, dpr_data.dict())
     return GenericResponse(data=result)
 
 
@@ -151,11 +148,11 @@ async def approve_dpr(
 )
 async def reject_dpr(
     dpr_id: str,
-    reason: str = Query("", min_length=1, max_length=500),
+    body: RejectDPRRequest,
     user: dict = Depends(get_authenticated_user),
     site_service: SiteService = Depends(get_site_service),
 ):
-    result = await site_service.reject_dpr(user, dpr_id, reason)
+    result = await site_service.reject_dpr(user, dpr_id, body.reason)
     return GenericResponse(data=result, message="DPR rejected successfully")
 
 
@@ -285,6 +282,26 @@ async def check_in(
 
     result = await site_service.check_in(user, project_id, data)
     return GenericResponse(data=result, message="Checked in successfully")
+
+
+@router.post(
+    "/attendance/check-out",
+    response_model=GenericResponse[Any],
+    tags=["Site Operations"],
+)
+async def check_out(
+    data: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    project_id = data.get("project_id")
+    if not project_id:
+        from app.modules.shared.domain.exceptions import ValidationError
+
+        raise ValidationError("project_id is required")
+
+    result = await site_service.check_out(user, project_id, data)
+    return GenericResponse(data=result, message="Checked out successfully")
 
 
 @router.patch(

@@ -3,7 +3,11 @@ from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
-from app.modules.contracting.infrastructure.repository import WorkOrderRepository
+from app.modules.contracting.infrastructure.repository import (
+    LedgerRepository,
+    VendorRepository,
+    WorkOrderRepository,
+)
 from app.modules.financial.infrastructure.repository import (
     CashTransactionRepository,
     FundAllocationRepository,
@@ -13,6 +17,7 @@ from app.modules.project.infrastructure.repository import (
     BudgetRepository,
     ProjectRepository,
 )
+from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
 from app.modules.site_operations.infrastructure.repository import DPRRepository
 
 logger = logging.getLogger(__name__)
@@ -37,6 +42,9 @@ class UnitOfWork:
         self.cash_transactions = CashTransactionRepository(db)
         self.fund_allocations = FundAllocationRepository(db)
         self.dprs = DPRRepository(db)
+        self.vendors = VendorRepository(db)
+        self.ledger = LedgerRepository(db)
+        self.sequences = SequenceRepository(db)
 
     async def __aenter__(self):
         """Start transaction session."""

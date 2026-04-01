@@ -70,14 +70,18 @@ class BaseRepository(Generic[T]):
         id: str,
         data: Dict[str, Any],
         session: Optional[AsyncIOMotorClientSession] = None,
+        **filters,
     ) -> Optional[Dict[str, Any]]:
-        """Update a document and return the new version."""
+        """Update a document and return the new version with optional filtering."""
         data["updated_at"] = datetime.now(timezone.utc)
 
         try:
             query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
         except Exception:
             query = {"_id": id}
+
+        if filters:
+            query.update(filters)
 
         result = await self.collection.find_one_and_update(
             query, {"$set": data}, return_document=True, session=session
@@ -98,8 +102,10 @@ class BaseRepository(Generic[T]):
         docs = await cursor.to_list(length=limit)
         return [self._format_id(doc) for doc in docs]
 
-    async def aggregate(
-        self, pipeline: List[Dict[str, Any]], session: Optional[AsyncIOMotorClientSession] = None
+    def aggregate(
+        self,
+        pipeline: List[Dict[str, Any]],
+        session: Optional[AsyncIOMotorClientSession] = None,
     ):
         """Authoritative aggregation hook (Point 118)."""
         return self.collection.aggregate(pipeline, session=session)

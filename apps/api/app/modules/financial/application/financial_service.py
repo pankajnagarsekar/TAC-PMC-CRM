@@ -20,6 +20,7 @@ from ..infrastructure.repository import (
     FinancialStateRepository,
     PCRepository,
 )
+from app.modules.shared.domain.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class FinancialService:
         ]
         committed_result = await self.wo_repo.aggregate(
             committed_pipeline, session=session
-        )
+        ).to_list(length=1)
         committed_value = FinancialEngine.to_decimal(
             committed_result[0].get("total") if committed_result else None
         )
@@ -81,7 +82,7 @@ class FinancialService:
         ]
         certified_result = await self.pc_repo.aggregate(
             certified_pipeline, session=session
-        )
+        ).to_list(length=1)
         certified_value = FinancialEngine.to_decimal(
             certified_result[0].get("total") if certified_result else None
         )
@@ -213,3 +214,14 @@ class FinancialService:
             return state.is_threshold_breached(cash_in_hand, threshold)
 
         return False
+
+    async def validate_financial_document(self, doc_type: str, data: dict, project_id: str):
+        """Validate financial document data before creation (BUG-29)."""
+        if doc_type == "WORK_ORDER":
+            if not data.get("line_items"):
+                raise ValidationError("Work order requires at least one line item")
+            if not data.get("vendor_id"):
+                raise ValidationError("Work order requires a vendor")
+            if not data.get("category_id"):
+                raise ValidationError("Work order requires a category")
+        # Add more doc_type validations as needed

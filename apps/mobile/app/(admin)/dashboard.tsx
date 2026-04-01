@@ -5,14 +5,12 @@ import {
     StyleSheet,
     ScrollView,
     Pressable,
-    ActivityIndicator,
     RefreshControl,
-    Dimensions,
     Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,13 +18,13 @@ import api from '../../services/apiClient';
 import { Button, Card, BlueprintGrid } from '../../components/ui';
 import { DerivedFinancialState } from '../../types/api';
 
-const { width } = Dimensions.get('window');
+// Removed width Dimensions get
 
 const formatCurrency = (amount: number): string => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
-    return `₹${amount.toLocaleString('en-IN')}`;
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+    if (amount >= 1000) return `₹${(amount / 1000).toFixed(0)}K`;
+    return `₹${amount.toFixed(0)}`;
 };
 
 export default function ProjectDashboard() {
@@ -36,12 +34,10 @@ export default function ProjectDashboard() {
     const { user } = useAuth();
 
     const [financials, setFinancials] = useState<DerivedFinancialState[]>([]);
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchFinancials = useCallback(async () => {
         if (!selectedProject?.project_id) {
-            setLoading(false);
             setRefreshing(false);
             return;
         }
@@ -49,10 +45,9 @@ export default function ProjectDashboard() {
         try {
             const data = await api.financial.getProjectFinancials(selectedProject.project_id);
             setFinancials(data || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching financials:', err);
         } finally {
-            setLoading(false);
             setRefreshing(false);
         }
     }, [selectedProject?.project_id]);
@@ -233,10 +228,10 @@ const styles = StyleSheet.create({
     switchChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 4 },
     switchText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
 
-    summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-    summaryCard: { flex: 1 },
-    cardLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-    cardValue: { fontSize: 24, marginVertical: 4 },
+    summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    summaryCard: { flex: 1, padding: 12 },
+    cardLabel: { fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
+    cardValue: { fontSize: 20, marginVertical: 4 },
     cardTrend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     trendText: { fontSize: 11, fontWeight: '700' },
     statusChip: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginTop: 8 },

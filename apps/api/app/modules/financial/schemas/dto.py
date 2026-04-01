@@ -125,6 +125,7 @@ class FundAllocationCreate(BaseModel):
     category_id: str
     amount: Decimal = Field(..., ge=0)
     description: Optional[str] = None
+    idempotency_key: Optional[str] = None
 
 
 # CASH TRANSACTION DTOs
@@ -152,6 +153,7 @@ class CashTransactionCreate(BaseModel):
     transaction_date: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+    idempotency_key: Optional[str] = None
 
 
 # LEDGER DTOs

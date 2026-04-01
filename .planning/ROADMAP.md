@@ -18,5 +18,7 @@
 - [x] Phase 8: Final end-to-end verification
 
 ## Milestone 5: DDD Hardening & Consolidation (Active)
-- [ ] Phase 9: Strategic Hardening & Consolidation (Remediating Verification Report Gaps)
-- [ ] Phase 10: ESLint Remediation & Hardening (apps/web)
+- [x] Phase 9: Strategic Hardening & Consolidation (Remediating Verification Report Gaps)
+- [x] Phase 10: ESLint Remediation & Hardening (apps/web)
+- [x] Phase 11: Dashboard API Stabilization
+- [/] Phase 12: Production Readiness Hardening (Emergency Audit Fixes)
