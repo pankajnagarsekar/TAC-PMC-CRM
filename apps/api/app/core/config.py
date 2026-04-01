@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # BREAK GLASS: Allow insecure config if explicitly set (Fixed CR-06)
+    ALLOW_INSECURE_CORS: bool = False
 
     # STORAGE & AI (Point 21, 73, 110)
     STORAGE_PATH: str = "storage"
@@ -65,14 +68,14 @@ else:
 
 # Fixed CR-06: Authoritative CORS and Secret Enforcement
 if settings.ENVIRONMENT.lower() in ["production", "prod"]:
-    if "*" in settings.ALLOWED_ORIGINS:
+    if "*" in settings.ALLOWED_ORIGINS and not settings.ALLOW_INSECURE_CORS:
         logger.critical(
             f"SECURITY_BREACH: Wildcard CORS allowed in {settings.ENVIRONMENT} mode. "
-            f"Set ALLOWED_ORIGINS to specific domains. Current: {settings.ALLOWED_ORIGINS}"
+            f"Set ALLOWED_ORIGINS to specific domains or set ALLOW_INSECURE_CORS=True to bypass."
         )
         raise ValueError("INSECURE_CORS_CONFIGURATION")
     
-    if settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME":
+    if settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME" and not settings.ALLOW_INSECURE_CORS:
         logger.critical(
             "SECURITY_BREACH: Default JWT secret found in production environment. Application halted."
         )
