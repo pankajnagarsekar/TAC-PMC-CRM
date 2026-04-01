@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
 
     # CORS (Fixed CR-06)
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: list[str] = ["*"]
 
     model_config = SettingsConfigDict(
         case_sensitive=True, env_file=".env", extra="ignore"
@@ -49,9 +49,6 @@ class Settings(BaseSettings):
     @field_validator("JWT_SECRET_KEY")
     @classmethod
     def validate_secret_safety(cls, v: str, info) -> str:
-        # Note: 'ENVIRONMENT' might not be in info.data yet if it's defined after
-        # But BaseSettings processes them in order.
-        # Actually, it's better to check after creation or use a root validator.
         return v
 
 
@@ -66,22 +63,15 @@ if settings.OPENAI_API_KEY:
 else:
     logger.warning("CONFIG: OpenAI API Key NOT FOUND in environment or .env file.")
 
-# Fixed CR-06: Authoritative CORS and Secret Enforcement
-if settings.ENVIRONMENT.lower() in ["production", "prod"]:
-    if "*" in settings.ALLOWED_ORIGINS and not settings.ALLOW_INSECURE_CORS:
-        logger.critical(
-            f"SECURITY_BREACH: Wildcard CORS allowed in {settings.ENVIRONMENT} mode. "
-            f"Set ALLOWED_ORIGINS to specific domains or set ALLOW_INSECURE_CORS=True to bypass."
-        )
-        raise ValueError("INSECURE_CORS_CONFIGURATION")
-    
-    if settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME" and not settings.ALLOW_INSECURE_CORS:
-        logger.critical(
-            "SECURITY_BREACH: Default JWT secret found in production environment. Application halted."
-        )
-        raise ValueError("INSECURE_PRODUCTION_SECRET")
-else:
-    if "*" in settings.ALLOWED_ORIGINS:
-        logger.warning(
-            f"SECURITY_ADVISORY: Wildcard CORS enabled in {settings.ENVIRONMENT} environment."
-        )
+# Fixed CR-06: Authoritative CORS Warning (Reverted Hard Stop as per user request)
+if "*" in settings.ALLOWED_ORIGINS:
+    logger.warning(
+        f"SECURITY_ADVISORY: Wildcard CORS enabled in {settings.ENVIRONMENT} mode."
+    )
+if (
+    settings.ENVIRONMENT.lower() in ["production", "prod"]
+    and settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME"
+):
+    logger.warning(
+        "SECURITY_ADVISORY: Default JWT secret found in production environment."
+    )
