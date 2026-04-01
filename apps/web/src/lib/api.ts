@@ -46,6 +46,11 @@ api.interceptors.request.use(
       } catch (e) {
         errorLogger.error("Failed to parse project storage", { error: e });
       }
+
+      // Inject Nonce for write operations (Point 102)
+      if (['post', 'put', 'delete'].includes(config.method?.toLowerCase() || '')) {
+        config.headers["X-Request-Nonce"] = `nonce-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      }
     }
     return config;
   },

@@ -62,8 +62,8 @@ class BaseRepository(Generic[T]):
         data["updated_at"] = data["created_at"]
 
         result = await self.collection.insert_one(data, session=session)
-        data["id"] = str(result.inserted_id)
-        return data
+        data["_id"] = result.inserted_id
+        return self._format_id(data)
 
     async def update(
         self,
@@ -92,11 +92,12 @@ class BaseRepository(Generic[T]):
         self,
         query: Dict[str, Any],
         limit: int = 100,
+        skip: int = 0,
         sort: List = None,
         session: Optional[AsyncIOMotorClientSession] = None,
     ) -> List[Dict[str, Any]]:
-        """Retrieve multiple documents with optional sorting."""
-        cursor = self.collection.find(query, session=session).limit(limit)
+        """Retrieve multiple documents with optional sorting and pagination."""
+        cursor = self.collection.find(query, session=session).skip(skip).limit(limit)
         if sort:
             cursor = cursor.sort(sort)
         docs = await cursor.to_list(length=limit)
