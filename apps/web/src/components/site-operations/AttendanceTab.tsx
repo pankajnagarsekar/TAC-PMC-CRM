@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
@@ -8,29 +8,32 @@ import {
   ExternalLink,
   Calendar,
   MapPin,
-  Search,
   X,
   CheckCircle2,
 } from "lucide-react";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams } from "ag-grid-community";
+import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
+
+interface AttendanceLog {
+  _id: string;
+  user_name?: string;
+  check_in_time: string;
+  selfie?: string;
+  location?: { latitude: number; longitude: number; lat?: number; lng?: number };
+  verified_by_admin: boolean;
+}
 
 export default function AttendanceTab() {
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (activeProject?.project_id) {
-      fetchAttendance();
-    }
-  }, [activeProject, startDate, endDate]);
-
-  const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
     if (!activeProject?.project_id) return;
     try {
       setLoading(true);
@@ -48,32 +51,38 @@ export default function AttendanceTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeProject, startDate, endDate]);
 
-  const handleVerify = async (logId: string) => {
+  useEffect(() => {
+    if (activeProject?.project_id) {
+      fetchAttendance();
+    }
+  }, [activeProject, fetchAttendance]);
+
+  const handleVerify = useCallback(async (logId: string) => {
     try {
       await api.patch(`/api/v1/attendance/${logId}/verify`);
       toast({ title: "Success", description: "Attendance verified" });
       fetchAttendance();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Verification failed",
         variant: "destructive",
       });
     }
-  };
+  }, [fetchAttendance, toast]);
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = useCallback((dateStr: string) => {
     if (!dateStr) return "N/A";
     return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     }).format(new Date(dateStr));
-  };
+  }, []);
 
-  const formatTime = (dateStr: string) => {
+  const formatTime = useCallback((dateStr: string) => {
     if (!dateStr) return "--:--";
     return new Intl.DateTimeFormat("en-GB", {
       hour: "2-digit",
@@ -81,7 +90,7 @@ export default function AttendanceTab() {
       second: "2-digit",
       hour12: false,
     }).format(new Date(dateStr));
-  };
+  }, []);
 
   const columnDefs: ColDef[] = useMemo(
     () => [
@@ -89,7 +98,7 @@ export default function AttendanceTab() {
         headerName: "Worker Name",
         field: "user_name",
         flex: 1.2,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<AttendanceLog>) => (
           <span className="font-semibold text-zinc-900 dark:text-white">
             {params.value || "Field Staff"}
           </span>
@@ -99,7 +108,7 @@ export default function AttendanceTab() {
         headerName: "Date",
         field: "check_in_time",
         flex: 1,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<AttendanceLog>) => (
           <span className="text-zinc-500 dark:text-slate-400">{formatDate(params.value)}</span>
         ),
       },
@@ -107,7 +116,7 @@ export default function AttendanceTab() {
         headerName: "Check-in Time",
         field: "check_in_time",
         flex: 1,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<AttendanceLog>) => (
           <span className="text-zinc-400 dark:text-slate-500 font-mono text-xs">
             {formatTime(params.value)}
           </span>
@@ -117,12 +126,15 @@ export default function AttendanceTab() {
         headerName: "Selfie",
         field: "selfie",
         width: 80,
-        cellRenderer: (params: any) =>
+        cellRenderer: (params: ICellRendererParams<AttendanceLog>) =>
           params.value ? (
             <div className="flex items-center justify-center h-full">
-              <img
+              <Image
                 src={params.value}
                 alt="Selfie"
+                width={32}
+                height={32}
+                unoptimized
                 className="h-8 w-8 rounded-full border border-zinc-200 dark:border-slate-700 cursor-pointer hover:scale-110 transition-transform object-cover"
                 onClick={() => setSelectedImage(params.value)}
               />
@@ -135,8 +147,8 @@ export default function AttendanceTab() {
         headerName: "GPS",
         field: "location",
         flex: 0.8,
-        cellRenderer: (params: any) => {
-          const loc = params.value;
+        cellRenderer: (params: ICellRendererParams<AttendanceLog>) => {
+          const loc = params.value as AttendanceLog["location"];
           const lat = loc?.latitude || loc?.lat;
           const lng = loc?.longitude || loc?.lng;
           return (
@@ -161,7 +173,7 @@ export default function AttendanceTab() {
         headerName: "Verified",
         field: "verified_by_admin",
         width: 100,
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<AttendanceLog>) => (
           <div className="flex justify-center items-center h-full">
             {params.value ? (
               <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500 text-[10px] font-bold uppercase">
@@ -169,7 +181,7 @@ export default function AttendanceTab() {
               </div>
             ) : (
               <button
-                onClick={() => handleVerify(params.data._id)}
+                onClick={() => params.data?._id && handleVerify(params.data._id)}
                 className="text-[10px] bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-600 dark:text-slate-300 px-2 py-1 rounded-md border border-zinc-200 dark:border-slate-700 transition-colors uppercase font-bold"
               >
                 Verify Now
@@ -179,7 +191,7 @@ export default function AttendanceTab() {
         ),
       },
     ],
-    [],
+    [formatDate, formatTime, handleVerify],
   );
 
   return (
@@ -208,7 +220,7 @@ export default function AttendanceTab() {
       </div>
 
       <div className="h-[500px]">
-        <FinancialGrid<any>
+        <FinancialGrid<AttendanceLog>
           columnDefs={columnDefs}
           rowData={logs}
           loading={loading}
@@ -228,9 +240,12 @@ export default function AttendanceTab() {
             className="relative max-w-2xl w-full bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={selectedImage}
               alt="Large View"
+              width={800}
+              height={600}
+              unoptimized
               className="w-full h-auto max-h-[80vh] object-contain"
             />
             <div className="p-4 bg-zinc-50 dark:bg-slate-950 border-t border-zinc-200 dark:border-slate-800 text-center">
