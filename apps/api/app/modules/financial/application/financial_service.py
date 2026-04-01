@@ -53,11 +53,15 @@ class FinancialService:
 
         approved_budget = FinancialEngine.to_decimal(budget.get("original_budget", "0"))
 
+        from bson import ObjectId
+        p_id_obj = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+        c_id_obj = ObjectId(category_id) if ObjectId.is_valid(category_id) else category_id
+
         committed_pipeline = [
             {
                 "$match": {
-                    "project_id": project_id,
-                    "category_id": category_id,
+                    "project_id": {"$in": [project_id, p_id_obj]},
+                    "category_id": {"$in": [category_id, c_id_obj]},
                     "status": {"$nin": ["Cancelled"]},
                 }
             },
@@ -73,8 +77,8 @@ class FinancialService:
         certified_pipeline = [
             {
                 "$match": {
-                    "project_id": project_id,
-                    "category_id": category_id,
+                    "project_id": {"$in": [project_id, p_id_obj]},
+                    "category_id": {"$in": [category_id, c_id_obj]},
                     "status": "Closed",
                 }
             },

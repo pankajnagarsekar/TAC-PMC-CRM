@@ -144,6 +144,7 @@ class BaseRepository(Generic[T]):
         """
         Move _id to id string for JSON parity and recursively serialize.
         Fixed CR-19/75: Uses authoritative serialize_doc for consistency.
+        RE-FIX: Preserves _id for frontend compatibility (Point 226).
         """
         if not doc:
             return None
@@ -153,8 +154,13 @@ class BaseRepository(Generic[T]):
         # 1. Authoritative serialization (ObjectId -> str, datetime -> isoformat)
         serialized = serialize_doc(doc)
 
-        # 2. Map _id to id for API parity
+        # 2. Add 'id' and preserve '_id' for frontend parity
         if "_id" in serialized:
-            serialized["id"] = serialized.pop("_id")
+            oid = serialized["_id"]
+            serialized["id"] = oid
+            # We keep _id as well because the React frontend uses it extensively
+        elif "id" in serialized:
+            # If it already has 'id' but no '_id', provide both
+            serialized["_id"] = serialized["id"]
 
         return serialized

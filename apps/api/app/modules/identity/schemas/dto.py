@@ -60,7 +60,7 @@ class UserCreateAdmin(BaseModel):
 
 
 class UserResponse(BaseModel):
-    user_id: str
+    user_id: str = Field(validation_alias="id")
     organisation_id: str
     name: str
     email: str

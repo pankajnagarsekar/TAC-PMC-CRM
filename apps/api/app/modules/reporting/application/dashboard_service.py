@@ -219,7 +219,7 @@ class DashboardService:
         }
 
     async def get_financials(self, project_id: str) -> List[Dict[str, Any]]:
-        """Fetch project category financials from authoritative read-model."""
+        """Fetch project category financials from authoritative read-model with name enrichment."""
         project = await self._resolve_project(project_id)
         canonical_id = project.get("project_id") or str(project.get("id"))
         
@@ -228,6 +228,27 @@ class DashboardService:
             limit=500,
             sort=[("category_id", 1)],
         )
+
+        # Authoritative Name Enrichment (Fixed CR-22)
+        if financials:
+            categories = await self.db.code_master.find(
+                {"organisation_id": project.get("organisation_id")}
+            ).to_list(1000)
+            
+            cat_map = {str(c.get("_id") or c.get("id")): c for c in categories}
+            
+            for f in financials:
+                cid = str(f.get("category_id"))
+                if cid in cat_map:
+                    f["category_name"] = cat_map[cid].get("category_name")
+                    f["category_code"] = cat_map[cid].get("code_short")
+                else:
+                    # Fallback to direct lookup if map fails (e.g. multi-tenant edge case)
+                    cat = await self.db.code_master.find_one({"code": cid})
+                    if cat:
+                        f["category_name"] = cat.get("category_name")
+                        f["category_code"] = cat.get("code_short")
+
         return financials
 
     async def get_vendor_payables(self, project_id: str) -> List[Dict[str, Any]]:
