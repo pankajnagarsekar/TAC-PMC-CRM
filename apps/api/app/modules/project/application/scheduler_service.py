@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -21,7 +22,6 @@ class SchedulerService:
         self.db = db
         self.collection = db["project_schedules"]
 
-    import asyncio
 
     async def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
         """Orchestrate calls to standalone, deterministic Python scripts (Async)."""

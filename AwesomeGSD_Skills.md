@@ -1,6 +1,6 @@
-# CLAUDE.md — Project Operating Manual
+# AwesomeGSD_Skills.md — Project Operating Manual
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-04-01
 **Project:** TAC-PMC-CRM
 **Tech Stack:** React.js (Frontend) | Node.js (Backend) | Python (API Server) | MongoDB (Database)
 **Design Language:** Luxury Industrial
@@ -11,7 +11,7 @@
 
 **MANDATORY:** For **EVERY** task (analysis, bug fixing, feature creation, UI adjustment, database changes, or refactoring), you MUST:
 
-1. **Identify the most relevant skills** by searching the `.claude/skills` directory for applicable skill files
+1. **Identify the most relevant skills** by searching the `.agents/skills` or `~/.gemini/antigravity/skills` directories for applicable skill files
 2. **Document which skills are being used** in your response before beginning work
 3. **Stack skills strategically** (see section 2 below) for complex tasks
 4. **Verify alignment** with project specifications before writing any code
@@ -31,46 +31,42 @@ Stack skills based on task type. Always include the base skill(s) plus context-s
 ### Error Detection & Debugging
 ```
 Primary: @error-detective + @debugging-toolkit + @software-architecture
+Secondary: @gsd-debug + @error-diagnostics-smart-debug + @bug-hunter
 Example: When fixing a database query failure, also check data integrity patterns
 ```
 
 ### New Feature Implementation
 ```
 Primary: @software-architecture + @concise-planning + @[language]-pro
+Secondary: @gsd-plan-phase + @gsd-execute-phase + @pydantic-ai + @ai-engineer
 Example: Adding a new CRM field requires @react-best-practices (frontend) + @python-pro (backend) + @database-design (schema)
 ```
 
 ### Complex Orchestration & Governance
 ```
-Primary: @gsd-manager + @gsd-new-project + @gsd-plan-phase
-Secondary: @antigravity-skill-orchestrator + @concise-planning
-Usage: EVERY major task must be initialized as a GSD milestone or phase.
+Primary: @gsd-manager + @gsd-new-project + @gsd-plan-phase + @gsd-execute-phase
+Secondary: @antigravity-skill-orchestrator + @gsd-verify-work + @gsd-ship + @loki-mode
+Usage: EVERY major task must be initialized as a GSD milestone or phase. Use @gsd-sdk for automation.
 ```
 
 ### UI/UX Adjustments & Components
 ```
 Primary: @antigravity-design-expert + @tailwind-design-system + @react-best-practices
-Secondary: @accessibility-compliance + @performance-optimizer
+Secondary: @accessibility-compliance + @performance-optimizer + @magic-ui-generator + @threejs-skills + @scroll-experience + @design-spells
 Example: Any design change must maintain the Luxury Industrial aesthetic using @antigravity-design-expert principles
 ```
 
 ### Database Schema & Data Changes
 ```
-Primary: @database-design + @data-integrity-patterns + @sql-pro
-Secondary: @backend-architect + @testing-patterns
+Primary: @database-design + @data-integrity-patterns + @prisma-expert + @drizzle-orm-expert
+Secondary: @neon-postgres + @supabase-automation + @sql-pro + @database-architect
 Example: Schema modifications must preserve financial integrity and include migration tests
 ```
 
 ### API Development & Integration
 ```
 Primary: @api-design-principles + @[language]-pro + @security-best-practices
-Secondary: @testing-patterns + @error-handling-patterns
-```
-
-### Performance Optimization
-```
-Primary: @performance-profiling + @performance-optimizer + @[language]-patterns
-Secondary: @monitoring + @observability-engineer
+Secondary: @trpc-fullstack + @hono + @error-handling-patterns + @api-endpoint-builder
 ```
 
 ---
@@ -143,71 +139,45 @@ All code modifications **MUST** align with the following specifications. These a
 - [ ] Specification alignment verified
 ```
 
-### When to Skip Verification
-Only skip if:
-- The change is documentation-only (comments, CLAUDE.md updates)
-- The change is configuration-only (env vars, non-code files)
-- Explicitly instructed by the user
-
 ---
 
 ## 5. Project Tech Stack & Architecture 🏗️
 
 ### Frontend
-- **Framework:** React 18+
-- **Styling:** Tailwind CSS
-- **Design System:** Luxury Industrial aesthetic
-- **State Management:** React Context API / Redux (as needed)
+- **Framework:** React 18+ / Next.js 14+
+- **Styling:** Tailwind CSS (Luxury Industrial aesthetic)
+- **State Management:** React Context API / Zustand / TanStack Query
 - **Testing:** Jest, React Testing Library, Playwright
-- **Build Tool:** Turbo (monorepo), Vite/Next.js
 
 ### Backend
-- **Runtime:** Node.js (Express/Fastify patterns)
-- **API Server:** Python (FastAPI) for heavy computation
-- **Language:** TypeScript (frontend), JavaScript (backend), Python (API/ML)
+- **Runtime:** Node.js (Express/Fastify) / Hono
+- **API Server:** Python (FastAPI) for heavy computation / ML
+- **Agent Framework:** PydanticAI / LangGraph
 - **Testing:** Jest, pytest, Vitest
-
-### Database
-- **Primary:** MongoDB
-- **ORM/ODM:** Mongoose / Prisma
-- **Querying:** Aggregation pipelines for complex financial queries
-- **Backups:** Regular automated backups required
-
-### Financial Logic
-- All monetary calculations use **fixed-point arithmetic** (no floating-point)
-- All transactions logged to audit trail
-- No direct database mutations—always use validated business logic layers
-- Reconciliation and variance tracking required
 
 ---
 
 ## 6. Code Modification Workflow 📝
 
-Management of all work follows the **GSD (Get Shit Done)** protocol combined with specific technical skills.
+Management of all work follows the **GSD (Get Shit Done)** protocol combined with the `gsd-sdk`.
 
 ### Phase 1: GSD Initialization
 - **Brownfield/Start**: Use `/gsd-map-codebase` to refresh the agent's map.
-- **New Task**: Use `/gsd-plan-phase "[Task Title]"` to create a structured implementation plan in `.planning/`.
+- **New Task**: Use `/gsd-plan-phase "[Task Title]"` or `gsd-sdk run "<prompt>"` to initialize.
 - **Review**: The user must approve the `PLAN.md` before execution.
 
 ### Phase 2: Skill Identification & Stacking
 - Once the GSD phase is active:
 - "I will use @[skill1] + @[skill2] + @[skill3] for the implementation of this phase because..."
-- Note: Use @antigravity-skill-orchestrator for complex, multi-domain tasks within the phase.
 
-### Phase 3: Specification Review
-- Read relevant specifications (Frontend/Backend) as defined in the GSD plan.
-- Identify constraints and mandatory patterns.
+### Phase 3: Implementation
+- Execute the task using `/gsd-execute-phase` or `gsd-sdk auto`.
+- Commit incrementally following the GSD commit tool standards (using `@commit`).
 
-### Phase 4: Implementation
-- Execute the task using `/gsd-execute-phase` or manual step-by-step logic.
-- Include inline documentation for complex logic.
-- Commit incrementally following the GSD commit tool standards.
-
-### Phase 5: Verification & Completion
-- Run verification tests as specified in Section 4.
-- Output the mandatory Verification Step checklist.
-- Mark phase as complete via `/gsd-verify-work`.
+### Phase 4: Verification & Shipping
+- Run verification tests and output the mandatory Verification Step checklist.
+- Use `/gsd-verify-work` to validate the phase.
+- Use `/gsd-ship` to prepare the PR and merge.
 
 ---
 
@@ -270,19 +240,27 @@ The project uses a "Luxury Industrial" aesthetic:
 - **Architecture Questions:** Use `@software-architect` skill
 - **Design Questions:** Use `@antigravity-design-expert` skill
 - **Data Integrity Questions:** Use `@database-architect` skill
+- **Autonomous Operations:** Use `@loki-mode` or `@gsd-manager`
 
 ---
 
-## Summary: The Three Mandatory Rules
+## 11. GSD SDK Usage (gsd-sdk) 🛠️
 
-1. **Skill-First:** Always identify and stack relevant skills before starting work
-2. **Specification-Aligned:** All code must conform to the Frontend or Backend specification
-3. **Verification-Required:** Output a Verification Step after every code modification
+The project is integrated with `gsd-sdk` for autonomous lifecycle management.
 
-**These rules are non-negotiable.** Deviation requires explicit user approval and documentation.
+### Core Commands
+- `gsd-sdk run "<prompt>"`: Execute a full milestone from a text prompt.
+- `gsd-sdk auto`: Run the full autonomous lifecycle (discover → execute → advance).
+- `gsd-sdk init [input]`: Bootstrap a new project from a PRD or description.
+
+### Global Options
+- `--project-dir <dir>`: Set target project directory (default: cwd).
+- `--ws-port <port>`: Enable WebSocket transport for remote management.
+- `--model <model>`: Override the default LLM model.
+- `--max-budget <n>`: Set maximum budget per step in USD.
 
 ---
 
 **Document Owners:** TAC-PMC-CRM Development Team
 **Review Frequency:** Quarterly or as needed
-**Last Review:** 2026-03-21
+**Last Review:** 2026-04-01
