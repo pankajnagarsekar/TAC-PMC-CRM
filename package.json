@@ -1,21 +1,24 @@
 {
-    "name": "tac-pmc-crm",
-    "private": true,
-    "scripts": {
-        "build": "turbo build",
-        "dev": "turbo dev",
-        "start-all": "concurrently --kill-others \"pnpm -C apps/api exec python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\" \"pnpm -C apps/web dev\" \"pnpm -C apps/mobile start\"",
-        "lint": "turbo lint",
-        "format": "prettier --write \"**/*.{ts,tsx,md}\""
-    },
-    "devDependencies": {
-        "concurrently": "^8.2.0",
-        "prettier": "latest",
-        "turbo": "latest"
-    },
-    "packageManager": "pnpm@10.30.3",
-    "dependencies": {
-        "@types/date-fns": "^2.6.3",
-        "date-fns": "^4.1.0"
-    }
+  "name": "tac-pmc-crm",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "start-all": "concurrently --kill-others \"pnpm -C apps/api exec python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\" \"pnpm -C apps/web dev\" \"pnpm -C apps/mobile start\"",
+    "lint": "turbo lint",
+    "test:e2e": "playwright test",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.0",
+    "@types/node": "^20.19.35",
+    "concurrently": "^8.2.0",
+    "prettier": "latest",
+    "turbo": "latest"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "dependencies": {
+    "@types/date-fns": "^2.6.3",
+    "date-fns": "^4.1.0"
+  }
 }
