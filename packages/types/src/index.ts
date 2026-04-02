@@ -229,7 +229,7 @@ export interface PaymentCertificate {
   cgst: number;
   sgst: number;
   grand_total: number;
-  status: "Draft" | "Pending" | "Completed" | "Closed" | "Cancelled";
+  status: "Draft" | "Pending" | "Approved" | "Completed" | "Closed" | "Cancelled";
   fund_request?: boolean;
   line_items: PCLineItem[];
   idempotency_key?: string;

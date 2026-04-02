@@ -403,7 +403,7 @@ export default function GanttChart() {
             <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
               Task Stream
             </div>
-            <div className="flex-1 relative overflow-hidden">
+            <div className="relative" style={{ width: timelineWidth }}>
               {/* Header: Months & Days */}
               <div className="flex flex-col">
                 {/* Month Row */}
@@ -411,27 +411,32 @@ export default function GanttChart() {
                   {useMemo(() => {
                     const months: { label: string; width: number }[] = [];
                     if (days.length === 0) return null;
-                    let currentMonth = format(days[0], "MMMM yyyy");
-                    let width = 0;
-                    days.forEach((day, i) => {
-                      const m = format(day, "MMMM yyyy");
-                      if (m !== currentMonth) {
-                        months.push({ label: currentMonth, width });
-                        currentMonth = m;
-                        width = TIMELINE_DAY_WIDTH;
-                      } else {
-                        width += TIMELINE_DAY_WIDTH;
-                      }
-                      if (i === days.length - 1) {
-                        months.push({ label: currentMonth, width });
+
+                    let currentMonth = "";
+                    let lastMonthObj: { label: string, width: number } | null = null;
+
+                    days.forEach((day) => {
+                      const label = format(day, "MMMM yyyy");
+                      if (label !== currentMonth) {
+                        currentMonth = label;
+                        lastMonthObj = { label, width: TIMELINE_DAY_WIDTH };
+                        months.push(lastMonthObj);
+                      } else if (lastMonthObj) {
+                        lastMonthObj.width += TIMELINE_DAY_WIDTH;
                       }
                     });
+
                     return months.map((m, i) => (
-                      <div key={i} className="h-9 flex items-center justify-center border-r border-slate-200 dark:border-white/10 text-[11px] font-black uppercase tracking-[0.25em] text-slate-950 dark:text-white whitespace-nowrap overflow-hidden px-4 bg-slate-100/50 dark:bg-white/[0.02]" style={{ width: m.width }}>
+                      <div
+                        key={i}
+                        className="h-9 flex items-center justify-center border-r border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 whitespace-nowrap overflow-hidden px-2 bg-slate-50/50 dark:bg-white/[0.02]"
+                        style={{ width: m.width }}
+                      >
                         {m.label}
                       </div>
                     ));
                   }, [days])}
+
                 </div>
                 {/* Day Row */}
                 <div className="flex">
@@ -458,6 +463,13 @@ export default function GanttChart() {
           >
             <div style={{ height: topSpacer }} />
             <div className="relative" style={{ height: visibleHeight }}>
+              {/* Background Grid Lines */}
+              <div className="pointer-events-none absolute left-[280px] top-0 z-0 h-full flex">
+                {days.map((_, i) => (
+                  <div key={i} className={`h-full border-r ${days[i].getDay() === 0 || days[i].getDay() === 6 ? 'bg-slate-50/50 dark:bg-white/[0.01]' : ''} border-slate-200/40 dark:border-white/[0.03]`} style={{ width: TIMELINE_DAY_WIDTH }} />
+                ))}
+              </div>
+
               <div className="pointer-events-none absolute left-[280px] right-0 top-0 z-10 h-full overflow-hidden">
                 <div style={{ width: timelineWidth, height: visibleHeight }}>
                   <GanttDependencyOverlay

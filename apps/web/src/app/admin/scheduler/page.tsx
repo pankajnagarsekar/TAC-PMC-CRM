@@ -218,7 +218,7 @@ export default function ProjectSchedulerPage() {
       }
 
       <Tabs.Root value={currentTab} onValueChange={handleTabChange} className="space-y-8">
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(currentTab) ? 'xl:grid-cols-[minmax(0,1fr)_420px]' : 'xl:grid-cols-1'}`}>
           <div className="min-w-0 space-y-8">
             <Tabs.Content value="grid" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
               <SchedulerGrid />

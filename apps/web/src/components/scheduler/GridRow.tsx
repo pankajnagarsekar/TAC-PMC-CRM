@@ -135,14 +135,14 @@ const GridRow = memo(function GridRow({
         )}
       </div>
 
-      <div className="flex items-center px-3 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-white/5">{formatTaskDate(task.scheduled_start)}</div>
-      <div className="flex items-center px-3 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-white/5">{formatTaskDate(task.scheduled_finish)}</div>
+      <div className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium">{formatTaskDate(task.scheduled_start)}</div>
+      <div className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium">{formatTaskDate(task.scheduled_finish)}</div>
 
-      <div className="flex items-center justify-center px-3 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold uppercase text-[10px]">{task.scheduled_duration ?? "--"} d</div>
+      <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold uppercase text-[10px] tracking-widest">{task.scheduled_duration ?? "--"} d</div>
 
       <div className="flex items-center justify-center px-3 border-r border-slate-200 dark:border-white/5">
         {readOnly ? (
-          <span className="text-slate-600 dark:text-slate-300 font-bold">{task.percent_complete ?? 0}%</span>
+          <span className="text-slate-800 dark:text-slate-300 font-black">{task.percent_complete ?? 0}%</span>
         ) : (
           <div className="w-16">
             <EditableCell
@@ -152,17 +152,19 @@ const GridRow = memo(function GridRow({
                 if (typeof nextValue !== "number") return;
                 onEdit(task.task_id, { percent_complete: nextValue });
               }}
-              className="text-center"
+              className="text-center font-black"
             />
           </div>
         )}
       </div>
 
-      <div className="flex items-center px-3 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold text-[10px] uppercase tracking-wider">{statusMeta.label}</div>
+      <div className="flex items-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-black text-[9px] uppercase tracking-[0.18em]">
+        {statusMeta.label}
+      </div>
 
-      <div className="flex items-center justify-center px-3 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold">{task.assigned_resources?.length ?? 0}</div>
+      <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-black italic">{task.assigned_resources?.length ?? 0}</div>
 
-      <div className="flex items-center px-3 text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium">{formatTaskDate(task.deadline)}</div>
+      <div className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold text-[10px]">{formatTaskDate(task.deadline)}</div>
 
       <div className="flex items-center justify-end gap-2 px-3">
         {!readOnly && (

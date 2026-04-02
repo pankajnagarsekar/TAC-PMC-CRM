@@ -90,13 +90,20 @@ class AISummaryService:
             organisation_id = user.get("organisation_id")
             if not organisation_id:
                 # Fallback: check if we can get it from the project directly
-                project = await self.project_repo.get_by_id(project_id)
+                from bson import ObjectId
+                resilient_query = {"$or": [{"_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id}, {"project_id": project_id}]}
+                if ObjectId.is_valid(project_id):
+                    resilient_query["$or"].append({"project_id": ObjectId(project_id)})
+                    
+                project = await self.project_repo.find_one(resilient_query)
                 if not project:
-                    project = await self.project_repo.find_one({"project_id": project_id})
+                    # Final attempt with direct field match
+                    project = await self.db.projects.find_one(resilient_query)
+                
                 organisation_id = project.get("organisation_id") if project else None
 
             if not organisation_id:
-                raise ValidationError("Organisation ID missing from user context and project.")
+                raise ValidationError(f"Organisation ID missing for project {project_id}. User: {user.get('email')}")
 
             return await self.generate_and_store(
                 project_id=project_id,
@@ -112,9 +119,15 @@ class AISummaryService:
     ) -> Dict[str, Any]:
         report_data = await self._aggregate_report_data(project_id, organisation_id)
 
-        project = await self.project_repo.get_by_id(project_id)
+        from bson import ObjectId
+        resilient_query = {"$or": [{"_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id}, {"project_id": project_id}]}
+        if ObjectId.is_valid(project_id):
+            resilient_query["$or"].append({"project_id": ObjectId(project_id)})
+
+        project = await self.project_repo.find_one(resilient_query)
         if not project:
-            project = await self.project_repo.find_one({"project_id": project_id})
+            project = await self.db.projects.find_one(resilient_query)
+        
         project_name = (
             project.get("project_name", project_id) if project else project_id
         )
@@ -141,11 +154,11 @@ class AISummaryService:
 
         from bson import ObjectId
         resilient_id = {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]}
+        
+        query = {"project_id": resilient_id, "organisation_id": organisation_id}
 
-        budgets = await self.budget_repo.list({"project_id": resilient_id}, limit=100)
-        financials = await self.fin_state_repo.list(
-            {"project_id": resilient_id}, limit=100
-        )
+        budgets = await self.budget_repo.list(query, limit=100)
+        financials = await self.fin_state_repo.list(query, limit=100)
         # Create map using all possible ID keys for maximum resilience
         fin_map = {}
         for f in financials:
@@ -165,8 +178,8 @@ class AISummaryService:
         
         wo_repo = WorkOrderRepository(self.db)
         pc_repo = PCRepository(self.db)
-        wo_open = await wo_repo.count({"project_id": resilient_id, "status": {"$in": ["Pending", "Draft"]}})
-        pc_closed = await pc_repo.count({"project_id": resilient_id, "status": "Closed"})
+        wo_open = await wo_repo.count({"project_id": resilient_id, "organisation_id": organisation_id, "status": {"$in": ["Pending", "Draft"]}})
+        pc_closed = await pc_repo.count({"project_id": resilient_id, "organisation_id": organisation_id, "status": "Closed"})
         
         over_budget_categories = []
         for b in budgets:

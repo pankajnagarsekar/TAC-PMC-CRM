@@ -9,6 +9,10 @@ from app.modules.shared.api.routes import router as shared_router
 from app.modules.site_operations.api.routes import router as site_operations_router
 from app.api.v1.jobs import router as jobs_router
 
+api_router = APIRouter()
+v1_router = APIRouter()
+
+
 # ... (HAS_V2 logic)
 v1_router.include_router(jobs_router)
 v1_router.include_router(identity_router)  # Handles /auth, /users, /settings

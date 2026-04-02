@@ -138,6 +138,7 @@ class PaymentService:
                     "cgst": FinancialEngine.to_d128(fin["cgst"]),
                     "sgst": FinancialEngine.to_d128(fin["sgst"]),
                     "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
+                    "total_payable": FinancialEngine.to_d128(fin["grand_total"]),
                     "status": "Draft",
                     "line_items": line_items_processed,
                     "version": 1,
@@ -271,4 +272,9 @@ class PaymentService:
         pc = await self.pc_repo.get_by_id(pc_id, organisation_id=organisation_id)
         if not pc:
             raise NotFoundError("Payment Certificate", pc_id)
+        
+        # Ensure total_payable is populated for frontend (Point 3.3/75 consistency)
+        if "total_payable" not in pc:
+            pc["total_payable"] = pc.get("grand_total") or pc.get("total_after_retention", 0)
+            
         return pc

@@ -41,7 +41,11 @@ export default function PaymentCertificateDetail({
   const [error, setError] = useState<string | null>(null);
   const [isConflictOpen, setIsConflictOpen] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
-  const [closeSuccessSummary, setCloseSuccessSummary] = useState<any>(null);
+  const [closeSuccessSummary, setCloseSuccessSummary] = useState<{
+    cash_in_hand?: number;
+    allocation_remaining?: number;
+    master_remaining_budget?: number;
+  } | null>(null);
 
   // Fetchers
   const {
@@ -75,12 +79,13 @@ export default function PaymentCertificateDetail({
       }
 
       await mutate();
-    } catch (err: any) {
-      if (err.response?.status === 409) {
+    } catch (err: unknown) {
+      const axiosError = err as any; // Cast for now until better error type identified matching project patterns
+      if (axiosError.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
         setError(
-          err.response?.data?.detail || err.message || "Failed to Close PC.",
+          axiosError.response?.data?.detail || axiosError.message || "Failed to Close PC.",
         );
       }
     } finally {
@@ -137,7 +142,7 @@ export default function PaymentCertificateDetail({
       width: 150,
       filter: false,
       type: "numericColumn",
-      valueFormatter: (p: any) => formatCurrency(p.value),
+      valueFormatter: (p: { value: number }) => formatCurrency(p.value),
     },
     {
       field: "total",
@@ -145,7 +150,7 @@ export default function PaymentCertificateDetail({
       width: 150,
       filter: false,
       type: "numericColumn",
-      valueFormatter: (p: any) => formatCurrency(p.value),
+      valueFormatter: (p: { value: number }) => formatCurrency(p.value),
     },
   ], []);
 
@@ -182,9 +187,11 @@ export default function PaymentCertificateDetail({
               <span
                 className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${pc.status === "Closed"
                   ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                  : pc.status === "Draft"
-                    ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
-                    : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                  : pc.status === "Approved" || pc.status === "Completed"
+                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                    : pc.status === "Draft"
+                      ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                   }`}
               >
                 {pc.status}

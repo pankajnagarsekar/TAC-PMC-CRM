@@ -1,38 +1,4 @@
-# V1 API Routes - Central Import Hub
-from . import (
-    ai_summary_routes,
-    audit_routes,
-    auth_routes,
-    cash_routes,
-    client_routes,
-    dashboard_routes,
-    notification_routes,
-    payment_routes,
-    project_routes,
-    reporting_routes,
-    scheduler_routes,
-    settings_routes,
-    site_routes,
-    user_routes,
-    vendor_routes,
-    work_order_routes,
-)
+# V1 API Routes
+from . import jobs
 
-__all__ = [
-    "auth_routes",
-    "user_routes",
-    "project_routes",
-    "client_routes",
-    "payment_routes",
-    "site_routes",
-    "notification_routes",
-    "work_order_routes",
-    "vendor_routes",
-    "settings_routes",
-    "ai_summary_routes",
-    "reporting_routes",
-    "scheduler_routes",
-    "cash_routes",
-    "audit_routes",
-    "dashboard_routes",
-]
+__all__ = ["jobs"]

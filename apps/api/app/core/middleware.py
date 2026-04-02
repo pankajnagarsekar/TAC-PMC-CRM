@@ -58,13 +58,25 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
             )
 
         except Exception as exc:
-            logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
+            from app.modules.shared.domain.exceptions import DomainError
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            error_msg = "A critical system fault occurred."
+            
+            if isinstance(exc, DomainError):
+                status_code = status.HTTP_400_BAD_REQUEST
+                error_msg = str(exc)
+            elif isinstance(exc, HTTPException):
+                status_code = exc.status_code
+                error_msg = exc.detail
+            else:
+                logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
+                
             return self._standard_error(
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "A critical system fault occurred.",
+                status_code,
+                error_msg,
                 request_id,
                 start_time,
-            )
+             )
 
     def _standard_error(
         self, code: int, message: Any, request_id: str, start_time: float

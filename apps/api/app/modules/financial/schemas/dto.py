@@ -62,7 +62,8 @@ class PaymentCertificate(BaseModel):
     cgst: Decimal = Field(Decimal("0.0"), ge=0)
     sgst: Decimal = Field(Decimal("0.0"), ge=0)
     grand_total: Decimal = Field(Decimal("0.0"), ge=0)
-    status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
+    status: Literal["Draft", "Pending", "Approved", "Completed", "Closed", "Cancelled"] = "Draft"
+    total_payable: Decimal = Field(Decimal("0.0"), ge=0)
     fund_request: bool = False
     line_items: List[PCLineItem] = Field(default_factory=list)
     idempotency_key: Optional[str] = None

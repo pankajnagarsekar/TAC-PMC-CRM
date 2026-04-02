@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from app.modules.shared.domain.exceptions import ValidationError
+from app.core.utils import serialize_doc
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,9 @@ class SchedulerService:
                 error_msg = (
                     f"Scheduler execution error for {script_name}: {stderr_str or stdout_str}"
                 )
-                logger.error(error_msg)
+                logger.error(f"SCHEDULER_SUBPROCESS_FAIL: {error_msg}")
+                logger.error(f"STDOUT: {stdout_str}")
+                logger.error(f"STDERR: {stderr_str}")
                 raise ValidationError(error_msg)
 
             return json.loads(stdout_str)
@@ -58,14 +61,42 @@ class SchedulerService:
     async def calculate_schedule(
         self, project_id: str, tasks: List[Dict[str, Any]], project_start: str
     ) -> Dict[str, Any]:
+        if not project_id:
+             raise ValidationError("CRITICAL: Calculation aborted - project_id is None or empty")
+
         input_payload = {"tasks": tasks, "project_start": project_start}
-        logger.info(f"SCHEDULER: Calculating for project {project_id} with {len(tasks)} tasks starting at {project_start}")
-        results = await self.run_scheduler_script("calculate_critical_path.py", input_payload)
+        
+        # DEBUG: Save payload to file to inspect what's being sent
+        try:
+            with open("last_scheduler_payload.json", "w") as f:
+                json.dump(serialize_doc(input_payload), f)
+        except:
+            pass
+
+        task_count = len(tasks) if tasks is not None else 0
+        logger.info(f"SCHEDULER: Calculating for project {project_id} with {task_count} tasks starting at {project_start}")
+        
+        if task_count == 0:
+            return {
+                "tasks": [],
+                "critical_path": [],
+                "total_duration_days": 0,
+                "status": "success",
+                "calculation_version": f"empty_{int(datetime.now().timestamp())}",
+                "system_state": "active",
+                "schedule_version": 1
+            }
+
+        # DIRECT CALL: Avoid subprocess overhead and Windows pipe issues
+        from app.modules.scheduler.calculate_critical_path import run_calculation
+        # Serialize first to strip ObjectId/datetime from MongoDB task documents
+        clean_payload = serialize_doc(input_payload)
+        results = run_calculation(clean_payload)
 
         if "error" in results:
             raise ValidationError(results["error"])
 
-        return results
+        return serialize_doc(results)
 
     async def save_schedule(
         self, project_id: str, organisation_id: str, user_id: str, data: Dict[str, Any]
@@ -92,7 +123,6 @@ class SchedulerService:
     ) -> Dict[str, Any]:
         """Authoritative schedule retrieval with resilience."""
         from bson import ObjectId
-        from app.core.utils import serialize_doc
 
         try:
             # Handle both string and ObjectId project_id for legacy compatibility

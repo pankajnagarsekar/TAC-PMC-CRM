@@ -28,6 +28,54 @@ router = APIRouter()
 # --- PAYMENT CERTIFICATE ENDPOINTS ---
 
 
+# --- PAYMENT CERTIFICATE ENDPOINTS ---
+
+
+@router.get(
+    "/payments/id/{pc_id}",
+    response_model=GenericResponse[PaymentCertificate],
+    tags=["Payments"],
+)
+async def get_payment_certificate(
+    pc_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Get a specific payment certificate by ID."""
+    pc = await payment_service.get_payment_certificate(user, pc_id)
+    return GenericResponse(data=pc)
+
+
+@router.get(
+    "/payments/{pc_id}/export/pdf",
+    tags=["Payments"],
+)
+async def export_payment_certificate_pdf(
+    pc_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.export_service import ExportService
+
+    pc = await payment_service.get_payment_certificate(user, pc_id)
+    # Prepare data for generic template
+    report_data = {
+        "title": f"Payment Certificate: {pc.get('pc_ref')}",
+        "rows": [[k, str(v)] for k, v in pc.items() if not isinstance(v, (list, dict))],
+        "totals": {"grand_total": str(pc.get("grand_total"))}
+    }
+    
+    pdf_bytes = ExportService.export_to_pdf_service("payment_certificate_tracker", report_data)
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=PC_{pc_id}.pdf"}
+    )
+
+
 @router.get(
     "/payments/{project_id}",
     response_model=GenericResponse[Dict[str, Any]],
@@ -246,48 +294,3 @@ async def get_project_cash_summary(
     """Get comprehensive cash summary per category for a project."""
     summary = await cash_service.get_cash_summary(user, project_id)
     return GenericResponse(data=summary)
-
-
-@router.get(
-    "/payments/id/{pc_id}",
-    response_model=GenericResponse[PaymentCertificate],
-    tags=["Payments"],
-)
-async def get_payment_certificate(
-    pc_id: str,
-    user: dict = Depends(get_authenticated_user),
-    payment_service: PaymentService = Depends(get_payment_service),
-):
-    """Get a specific payment certificate by ID."""
-    pc = await payment_service.get_payment_certificate(user, pc_id)
-    return GenericResponse(data=pc)
-
-
-@router.get(
-    "/payments/{pc_id}/export/pdf",
-    tags=["Payments"],
-)
-async def export_payment_certificate_pdf(
-    pc_id: str,
-    user: dict = Depends(get_authenticated_user),
-    payment_service: PaymentService = Depends(get_payment_service),
-):
-    from fastapi.responses import StreamingResponse
-    import io
-    from app.core.export_service import ExportService
-
-    pc = await payment_service.get_payment_certificate(user, pc_id)
-    # Prepare data for generic template
-    report_data = {
-        "title": f"Payment Certificate: {pc.get('pc_ref')}",
-        "rows": [[k, str(v)] for k, v in pc.items() if not isinstance(v, (list, dict))],
-        "totals": {"grand_total": str(pc.get("grand_total"))}
-    }
-    
-    pdf_bytes = ExportService.export_to_pdf_service("payment_certificate_tracker", report_data)
-    
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=PC_{pc_id}.pdf"}
-    )

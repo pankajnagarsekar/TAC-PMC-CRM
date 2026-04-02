@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Users, Plus, Search, UserX, Pencil } from "lucide-react";
-import api from "@/lib/api";
+import useSWR from "swr";
+import api, { fetcher } from "@/lib/api";
 import { UserResponse } from "@tac-pmc/types";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { useToast } from "@/hooks/use-toast";
@@ -11,34 +12,17 @@ import { CreateUserModal } from "@/components/users/CreateUserModal";
 import { EditUserModal } from "@/components/users/EditUserModal";
 
 export default function TeamPage() {
-    const [users, setUsers] = useState<UserResponse[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [editUser, setEditUser] = useState<UserResponse | null>(null);
     const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const fetchUsers = useCallback(async () => {
-        try {
-            setLoading(true);
-            const response = await api.get("/api/v1/users/");
-            setUsers(response.data);
-        } catch (error) {
-            console.error("Failed to fetch users:", error);
-            toast({
-                title: "Error",
-                description: "Failed to load team members",
-                variant: "destructive",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [toast]);
-
-    useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
+    const { data: usersData, error: usersError, mutate: mutateUsers, isLoading } = useSWR<UserResponse[]>(
+        "/api/v1/users/",
+        fetcher
+    );
+    const users = usersData || [];
 
     const handleDeactivate = useCallback(async (userId: string) => {
         setDeactivatingId(userId);
@@ -49,7 +33,7 @@ export default function TeamPage() {
                 description: "User deactivated successfully",
                 variant: "default"
             });
-            fetchUsers();
+            mutateUsers();
         } catch (error) {
             console.error("Failed to deactivate user:", error);
             toast({
@@ -60,7 +44,11 @@ export default function TeamPage() {
         } finally {
             setDeactivatingId(null);
         }
-    }, [fetchUsers, toast]);
+    }, [mutateUsers, toast]);
+
+    const handleRefresh = useCallback(() => {
+        mutateUsers();
+    }, [mutateUsers]);
 
     const columnDefs = useMemo<ColDef<UserResponse>[]>(
         () => [
@@ -172,7 +160,7 @@ export default function TeamPage() {
                 <FinancialGrid
                     columnDefs={columnDefs}
                     rowData={users}
-                    loading={loading}
+                    loading={isLoading}
                     height="calc(100vh - 350px)"
                     quickFilterText={searchTerm}
                 />
@@ -181,13 +169,13 @@ export default function TeamPage() {
             <CreateUserModal
                 open={createOpen}
                 onClose={() => setCreateOpen(false)}
-                onCreated={fetchUsers}
+                onCreated={() => mutateUsers()}
             />
 
             <EditUserModal
                 user={editUser}
                 onClose={() => setEditUser(null)}
-                onUpdated={fetchUsers}
+                onUpdated={() => mutateUsers()}
             />
         </div>
     );

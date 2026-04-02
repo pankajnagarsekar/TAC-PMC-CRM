@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class ScheduleCalculateRequest(BaseModel):
     tasks: List[Dict[str, Any]]
-    project_start: str
+    project_start: Optional[str] = None
 
 
 class ScheduleSaveRequest(BaseModel):
@@ -18,3 +18,7 @@ class ScheduleResponse(BaseModel):
     tasks: List[Dict[str, Any]]
     critical_path: Optional[List[str]] = None
     total_duration_days: Optional[int] = None
+    status: Optional[str] = None
+    calculation_version: Optional[str] = None
+    system_state: Optional[str] = None
+    schedule_version: Optional[int] = None

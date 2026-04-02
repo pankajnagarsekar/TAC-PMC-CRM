@@ -13,7 +13,8 @@ import GridRow from "./GridRow";
 import { useVirtualizedGrid } from "./useVirtualizedGrid";
 
 const COLUMN_TEMPLATE =
-  "80px minmax(220px, 2.2fr) 110px 120px 120px 120px 120px 120px 120px 120px 90px";
+  "80px minmax(250px, 3fr) 90px 110px 110px 90px 80px 100px 100px 110px 90px";
+
 
 export default function SchedulerGrid() {
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -125,14 +126,14 @@ export default function SchedulerGrid() {
       </div>
 
       <div className="overflow-hidden rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
-        <GridHeader columnTemplate={COLUMN_TEMPLATE} />
-
         <div
           ref={viewportRef}
           onScroll={onScroll}
           className="custom-scrollbar max-h-[72vh] overflow-y-auto overflow-x-auto"
         >
-          <div style={{ minWidth: 1600 }}>
+          <div style={{ minWidth: 1400 }}>
+
+            <GridHeader columnTemplate={COLUMN_TEMPLATE} />
             <div style={{ height: topSpacer }} />
             {visibleTasks.map((task) => (
               <GridRow

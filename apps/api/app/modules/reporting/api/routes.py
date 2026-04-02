@@ -36,6 +36,37 @@ async def project_speech_to_text(
     return GenericResponse(data={"text": text})
 
 
+# --- AI SUMMARY ENDPOINTS ---
+
+
+@router.get(
+    "/reports/{project_id}/ai-summary",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Reporting"],
+)
+async def get_latest_ai_summary(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    ai_service: AISummaryService = Depends(get_ai_summary_service),
+):
+    result = await ai_service.get_latest(user, project_id)
+    return GenericResponse(data=result)
+
+
+@router.post(
+    "/reports/{project_id}/ai-summary/refresh",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Reporting"],
+)
+async def refresh_ai_summary(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    ai_service: AISummaryService = Depends(get_ai_summary_service),
+):
+    result = await ai_service.refresh_summary(user, project_id)
+    return GenericResponse(data=result, message="AI Summary refreshed successfully")
+
+
 # --- PROJECT REPORTING ENDPOINTS ---
 
 

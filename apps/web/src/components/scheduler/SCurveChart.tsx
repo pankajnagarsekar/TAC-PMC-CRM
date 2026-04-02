@@ -73,7 +73,8 @@ export default function SCurveChart() {
       tasks.forEach((task) => {
         const bStart = parseTaskDate(task.baseline_start || task.scheduled_start);
         const bFinish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
-        const baselineCost = Number(task.baseline_cost ?? task.cost ?? 0);
+        // Fallback to wo_value if costs are not explicitly set in the scheduler
+        const baselineCost = Number(task.wo_value ?? task.baseline_cost ?? task.cost ?? 0);
 
         if (!bStart || !bFinish || baselineCost <= 0) return;
 

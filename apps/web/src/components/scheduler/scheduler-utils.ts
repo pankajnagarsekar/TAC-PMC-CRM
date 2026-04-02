@@ -103,18 +103,21 @@ export function calculateTimelineRange(tasks: ScheduleTask[]) {
   const parsedDates = tasks.flatMap((task) => [
     parseTaskDate(task.scheduled_start),
     parseTaskDate(task.scheduled_finish),
+    parseTaskDate(task.baseline_start),
+    parseTaskDate(task.baseline_finish),
   ]).filter((date): date is Date => Boolean(date));
 
   if (parsedDates.length === 0) {
     const base = startOfDay(new Date());
-    return { start: base, end: addDays(base, 30) };
+    return { start: base, end: addDays(base, 60) };
   }
 
   const min = parsedDates.reduce((acc, date) => (date < acc ? date : acc), parsedDates[0]);
   const max = parsedDates.reduce((acc, date) => (date > acc ? date : acc), parsedDates[0]);
+
   return {
-    start: addDays(startOfDay(min), -3),
-    end: addDays(startOfDay(max), 7),
+    start: addDays(startOfDay(min), -30),
+    end: addDays(startOfDay(max), 60),
   };
 }
 

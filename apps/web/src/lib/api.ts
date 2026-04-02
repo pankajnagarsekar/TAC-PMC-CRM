@@ -166,9 +166,9 @@ export const fetcher = (url: string) =>
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
   calculate: (projectId: string, tasks: unknown[], projectStart: string) => {
-    if (!projectId) {
-      console.error("SCHEDULER_API: projectId is required for calculation");
-      return Promise.reject(new Error("Project ID is missing"));
+    if (!projectId || projectId === "" || projectId === "undefined") {
+      console.error("SCHEDULER_API: Invalid projectId for calculation", { projectId });
+      return Promise.reject(new Error("Valid Project ID is required for calculation"));
     }
     return api.post(`/api/v1/projects/${projectId}/calculate-schedule`, { tasks, project_start: projectStart }).then(res => res.data);
   },

@@ -68,8 +68,17 @@ const executeCalculationRequest = async (
 ) => {
   try {
     const tasks = Object.values(get().taskMap);
-    const starts = tasks.map((t) => t.scheduled_start).filter(Boolean).sort();
-    const projectStart = starts.length > 0 && starts[0] ? starts[0].split("T")[0] : new Date().toISOString().split("T")[0];
+    const toISODate = (dateStr: string | null | undefined): string | null => {
+      if (!dateStr) return null;
+      // Already ISO format YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split("T")[0];
+      // Try parsing any other format via Date constructor
+      const parsed = new Date(dateStr);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
+      return null;
+    };
+    const starts = tasks.map((t) => toISODate(t.scheduled_start)).filter(Boolean).sort() as string[];
+    const projectStart = starts.length > 0 ? starts[0] : new Date().toISOString().split("T")[0];
 
     const response = await schedulerApi.calculate(
       request.project_id,
@@ -97,8 +106,12 @@ const executeCalculationRequest = async (
 
     set({
       pendingCalculation: false,
-      calculationError:
-        err?.response?.data?.detail?.message ?? err?.message ?? "Calculation failed",
+      calculationError: (() => {
+        const detail = err?.response?.data?.detail;
+        if (typeof detail === "string") return detail;
+        if (typeof detail === "object" && detail?.message) return detail.message;
+        return err?.message ?? "Calculation failed";
+      })(),
     });
 
     if (isConflict && responseData?.tasks) {
