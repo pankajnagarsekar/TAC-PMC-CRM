@@ -32,9 +32,18 @@ def calculate_cpm():
         for t in tasks_input:
             tid = str(t["task_id"])
             # Default missing fields
+            # Robust Duration Parsing (Point 88 resilience)
+            raw_dur = t.get("duration") or t.get("scheduled_duration") or 0
+            if isinstance(raw_dur, str):
+                import re
+                nums = re.findall(r'\d+', raw_dur)
+                duration = int(nums[0]) if nums else 0
+            else:
+                duration = int(raw_dur)
+
             task_map[tid] = {
                 "task_id": tid,
-                "duration": int(t.get("duration") or t.get("scheduled_duration") or 0),
+                "duration": duration,
                 "dependencies": [str(d) for d in t.get("dependencies", [])],
                 "predecessors": [
                     str(p.get("task_id") if isinstance(p, dict) else p)

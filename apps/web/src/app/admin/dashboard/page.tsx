@@ -2,31 +2,36 @@
 import React from "react";
 import useSWR from "swr";
 import {
-  TrendingUp,
   AlertTriangle,
   LayoutGrid,
   ChevronRight,
   Building2,
   Search,
-  Camera,
-  Clock,
   Calendar,
   ListTodo,
   History as HistoryIcon,
   GanttChartSquare,
   BarChart4,
   FolderOpen,
-  TrendingDown,
+  ArrowRight,
+  TrendingUp,
 } from "lucide-react";
-import { fetcher } from "@/lib/api";
+import Link from "next/link";
+import { fetcher, schedulerApi } from "@/lib/api";
+import { Info, ChevronUp, ChevronDown } from "lucide-react";
 import { Project, DerivedFinancialState } from "@/types/api";
 import NextImage from "next/image";
 import { useProjectStore } from "@/store/projectStore";
+import { useScheduleStore } from "@/store/useScheduleStore";
 import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
+import KPICards from "@/components/dashboard/KPICards";
+import ProjectMiniGantt from "@/components/dashboard/ProjectMiniGantt";
+import SCurveChart from "@/components/scheduler/SCurveChart";
 
 import { formatCurrencySafe, normalizeFinancial } from "@/lib/formatters";
-import FinancialChart from "@/components/ui/FinancialChart";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { normalizeTaskOrder, parseTaskDate } from "@/components/scheduler/scheduler-utils";
+import { addDays, startOfDay, isBefore } from "date-fns";
 
 interface DashboardStats {
   project_id: string;
@@ -57,11 +62,23 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const { activeProject, setActiveProject } = useProjectStore();
   const [projectSearch, setProjectSearch] = React.useState("");
+  const loadSchedule = useScheduleStore((state) => state.loadSchedule);
+  const taskMap = useScheduleStore((state) => state.taskMap);
+  const taskOrder = useScheduleStore((state) => state.taskOrder);
+
+  const tasks = React.useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
 
   const { data: projects, isLoading: projectsLoading } = useSWR<Project[]>(
     "/api/v1/projects/",
     fetcher
   );
+
+  // Hydrate schedule store for widgets if project is active
+  React.useEffect(() => {
+    if (activeProject?.project_id) {
+      schedulerApi.load(activeProject.project_id).then(loadSchedule);
+    }
+  }, [activeProject?.project_id, loadSchedule]);
 
   const filteredProjects = React.useMemo(() => {
     if (!projects) return [];
@@ -85,14 +102,26 @@ export default function AdminDashboard() {
     fetcher
   );
 
-  const chartData = React.useMemo(() => {
-    if (!financials) return [];
-    return financials.slice(0, 8).map(f => ({
-      name: f.category_name || f.category_code || (f.category_id ? f.category_id.substring(0, 6) : 'N/A'),
-      budget: normalizeFinancial(f.original_budget),
-      committed: normalizeFinancial(f.committed_value)
-    }));
-  }, [financials]);
+  const urgentTasks = React.useMemo(() => {
+    const today = startOfDay(new Date());
+    const threeDaysLater = addDays(today, 3);
+
+    return tasks.filter(t => {
+      const finish = parseTaskDate(t.scheduled_finish);
+      if (!finish) return false;
+
+      // Include if:
+      // 1. Not completed AND (Overdue OR Finishing soon)
+      const isComplete = Number(t.percent_complete ?? 0) >= 100;
+      if (isComplete) return false; // Usually don't show completed in "Urgent"
+
+      return isBefore(finish, threeDaysLater);
+    }).sort((a, b) => {
+      const da = parseTaskDate(a.scheduled_finish)?.getTime() || 0;
+      const db = parseTaskDate(b.scheduled_finish)?.getTime() || 0;
+      return da - db;
+    }).slice(0, 5);
+  }, [tasks]);
 
   const totalBudget = React.useMemo(() => {
     if (stats?.overview.master_budget) return stats.overview.master_budget;
@@ -100,11 +129,289 @@ export default function AdminDashboard() {
     return (financials ?? []).reduce((sum, f) => sum + normalizeFinancial(f.original_budget), 0);
   }, [financials, activeProject, stats]);
 
+  // --- REARRANGE DRIVEN LAYOUT ---
+  const DEFAULT_LAYOUT = ['timeline', 'tasks', 'analytics', 'log', 'scheduler', 'budget'];
+  const [layout, setLayout] = React.useState<string[]>(DEFAULT_LAYOUT);
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem(`dashboard_layout_${activeProject?.project_id}`);
+    if (saved) setLayout(JSON.parse(saved));
+  }, [activeProject?.project_id]);
+
+  const moveWidget = (id: string, dir: 'up' | 'down') => {
+    const idx = layout.indexOf(id);
+    if (idx === -1) return;
+    const newIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= layout.length) return;
+
+    const newLayout = [...layout];
+    [newLayout[idx], newLayout[newIdx]] = [newLayout[newIdx], newLayout[idx]];
+    setLayout(newLayout);
+    localStorage.setItem(`dashboard_layout_${activeProject?.project_id}`, JSON.stringify(newLayout));
+  };
+
+  const widgets: Record<string, React.ReactNode> = {
+    timeline: (
+      <GlassCard key="timeline" className="border-indigo-500/5 shadow-xl !p-0 overflow-hidden col-span-1 md:col-span-2 h-[600px]">
+        <div className="p-8 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-6 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/5 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
+                <Calendar size={16} />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
+                  Project Schedule & Gantt
+                  <Info size={10} className="text-zinc-500" />
+                </h2>
+                <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Execution Horizon</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+                <button onClick={() => moveWidget('timeline', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+                <button onClick={() => moveWidget('timeline', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+              </div>
+              <Link
+                href="/admin/scheduler?tab=gantt"
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+              >
+                Full Planner <ArrowRight size={12} />
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 border border-white/5 rounded-2xl overflow-hidden">
+            <ProjectMiniGantt tasks={tasks} />
+          </div>
+        </div>
+      </GlassCard>
+    ),
+    tasks: (
+      <GlassCard key="tasks" className="shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/5 flex items-center justify-center text-orange-400 border border-orange-500/10">
+              <ListTodo size={16} />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold tracking-tight uppercase text-slate-900 dark:text-white">Task Manager</h2>
+              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Urgent Tactical Actions</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+              <button onClick={() => moveWidget('tasks', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+              <button onClick={() => moveWidget('tasks', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+            </div>
+            <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[8px] font-black uppercase text-zinc-500">
+              {tasks.filter(t => (t.percent_complete ?? 0) < 100).length} Pending
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {urgentTasks.length > 0 ? urgentTasks.map(task => (
+            <div key={task.task_id} className="p-2.5 rounded-xl bg-muted/30 border border-white/40 dark:border-white/5 hover:border-primary/20 transition-all flex items-center justify-between group">
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[9px] font-black text-zinc-400 tracking-tighter uppercase">{task.wbs_code || String(task.task_id).substring(0, 4)}</span>
+                <span className="text-xs font-bold group-hover:text-primary transition-colors truncate">{task.task_name}</span>
+              </div>
+              <div className="text-right shrink-0 ml-4">
+                <span className={`text-[9px] font-bold uppercase tracking-tight ${isBefore(parseTaskDate(task.scheduled_finish) || new Date(), startOfDay(new Date())) ? 'text-rose-500' : 'text-amber-500'
+                  }`}>
+                  {isBefore(parseTaskDate(task.scheduled_finish) || new Date(), startOfDay(new Date())) ? 'OVERDUE' : 'URGENT'}
+                </span>
+                <p className="text-[8px] text-zinc-500 mt-0.5">{task.scheduled_finish}</p>
+              </div>
+            </div>
+          )) : (
+            <div className="py-8 text-center text-zinc-600 text-xs font-medium italic">No immediate tactical actions required.</div>
+          )}
+        </div>
+
+        <Link href="/admin/scheduler?tab=kanban" className="block w-full mt-4 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+          View All Action Items
+        </Link>
+      </GlassCard>
+    ),
+    analytics: (
+      <GlassCard key="analytics" className="shadow-lg flex flex-col h-[500px]">
+        <div className="flex items-center justify-between mb-6 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-sky-500/5 flex items-center justify-center text-sky-400 border border-sky-500/10">
+              <TrendingUp size={16} />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold tracking-tight uppercase text-slate-900 dark:text-white">Execution Analytics</h2>
+              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">S-Curve Variance</p>
+            </div>
+          </div>
+          <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+            <button onClick={() => moveWidget('analytics', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+            <button onClick={() => moveWidget('analytics', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0">
+          <SCurveChart />
+        </div>
+        <Link href="/admin/scheduler?tab=analytics" className="block w-full mt-4 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+          View Full Analysis
+        </Link>
+      </GlassCard>
+    ),
+    log: (
+      <GlassCard key="log" className="shadow-lg">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
+              <HistoryIcon size={20} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
+                Task Analytics
+                <Info size={10} className="text-zinc-500" />
+              </h2>
+              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Project Wide Log</p>
+            </div>
+          </div>
+          <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+            <button onClick={() => moveWidget('log', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+            <button onClick={() => moveWidget('log', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+          </div>
+        </div>
+
+        <div className="flex items-end gap-10 mb-6 pb-6 border-b border-muted">
+          <div>
+            <p className="text-4xl font-black leading-none tracking-tighter">{stats?.task_log.open_tasks ?? 0}</p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">Open Tasks</p>
+          </div>
+          <div className="pb-1">
+            <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{stats?.task_log.resolved_tasks ?? 0}</p>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Resolved</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+            <span className="text-zinc-500">Compliance Rate</span>
+            <span className="text-emerald-500">{stats?.task_log.compliance_rate ?? 0}%</span>
+          </div>
+          <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
+            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000" style={{ width: `${stats?.task_log.compliance_rate ?? 0}%` }} />
+          </div>
+        </div>
+        <Link href="/admin/scheduler?tab=analytics" className="block w-full mt-6 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+          Operational Intelligence Registry
+        </Link>
+      </GlassCard>
+    ),
+    scheduler: (
+      <GlassCard key="scheduler" className="border-indigo-500/5 shadow-xl flex flex-col h-[500px]">
+        <div className="flex items-center justify-between mb-6 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/5 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
+              <GanttChartSquare size={20} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
+                Production Progress
+                <Info size={10} className="text-zinc-500" />
+              </h2>
+              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Task Status Matrix</p>
+            </div>
+          </div>
+          <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+            <button onClick={() => moveWidget('scheduler', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+            <button onClick={() => moveWidget('scheduler', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+          {tasks.filter(t => t.percent_complete !== undefined).map((task, idx) => {
+            const progress = Number(task.percent_complete ?? 0);
+            return (
+              <div key={task.task_id || `task-${idx}`} className="space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-zinc-500 truncate pr-2">
+                      {task.task_name}
+                    </span>
+                    <span className="text-[10px] text-zinc-600 font-mono">
+                      {task.wbs_code || '---'}
+                    </span>
+                  </div>
+                  <span className="text-primary shrink-0">{progress}%</span>
+                </div>
+                <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
+                  <div
+                    className="h-full bg-primary transition-all duration-500"
+                    style={{ width: `${Math.max(1, progress)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          {tasks.length === 0 && (
+            <p className="text-center text-xs text-zinc-600 italic py-4">No tasks found in planner.</p>
+          )}
+        </div>
+        <Link href="/admin/scheduler?tab=grid" className="block w-full mt-4 py-2 shrink-0 rounded-lg border border-muted text-center text-[10px] font-bold uppercase tracking-widest hover:bg-muted/50 transition-all">
+          More Details
+        </Link>
+      </GlassCard>
+    ),
+    budget: (
+      <GlassCard key="budget" className="border-primary/5 shadow-xl flex flex-col h-[500px]">
+        <div className="flex items-center justify-between mb-6 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10">
+              <BarChart4 size={20} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
+                Budget Utilization
+                <Info size={10} className="text-zinc-500" />
+              </h2>
+              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Financial Absorption</p>
+            </div>
+          </div>
+          <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+            <button onClick={() => moveWidget('budget', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+            <button onClick={() => moveWidget('budget', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+          {(financials ?? []).sort((a, b) => (normalizeFinancial(b.original_budget) - normalizeFinancial(a.original_budget))).map((f, idx) => {
+            const progress = f.original_budget > 0
+              ? Math.min(100, Math.round((normalizeFinancial(f.certified_value) / normalizeFinancial(f.original_budget)) * 100))
+              : 0;
+            return (
+              <div key={f.category_id || `util-${idx}`} className="space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-500 truncate max-w-[200px]">{f.category_name || f.category_id}</span>
+                  <span className="text-primary shrink-0">{progress}% Progress</span>
+                </div>
+                <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
+                  <div className="h-full bg-primary transition-all duration-700" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <Link href={`/admin/projects/${activeProject?.project_id}`} className="block w-full mt-4 py-2 shrink-0 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+          Full Financials
+        </Link>
+      </GlassCard>
+    )
+  };
+
   if (!activeProject) {
     return (
       <div className="space-y-8 animate-in fade-in duration-700">
         <div className="max-w-4xl mx-auto text-center space-y-4">
-          <h1 className="text-4xl font-black tracking-tight text-white uppercase">
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white uppercase transition-colors">
             Operational Intelligence
           </h1>
           <p className="text-zinc-500 font-medium">
@@ -188,14 +495,14 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 pb-20">
       {/* Top Project Context Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 border border-white/5 p-4 rounded-[2rem] backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 p-4 rounded-[2rem] backdrop-blur-md transition-colors">
         <div className="flex items-center gap-4 pl-2">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
             <FolderOpen size={24} />
           </div>
           <div>
             <h3 className="text-sm font-black text-primary uppercase tracking-widest leading-none mb-1">Active Context</h3>
-            <p className="text-xl font-bold text-white tracking-tight">{activeProject.project_name}</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{activeProject.project_name}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 pr-2">
@@ -205,15 +512,21 @@ export default function AdminDashboard() {
           </div>
           <button
             onClick={() => useProjectStore.getState().clearProject()}
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all active:scale-95"
+            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white transition-all active:scale-95"
           >
             Switch Project
           </button>
         </div>
       </div>
 
+      {activeProject && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-1000">
+          <KPICards />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Column 1: Overview & Vision */}
+        {/* Column 1: Static / Always First (Overview & Feed) */}
         <div className="space-y-6">
           <GlassCard className="border-primary/20">
             <div className="flex items-center gap-3 mb-6">
@@ -222,7 +535,7 @@ export default function AdminDashboard() {
               </div>
               <h2 className="text-lg font-bold tracking-tight uppercase">Project Overview</h2>
             </div>
-
+            {/* Same Overview Content */}
             <div className="space-y-6">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Portfolio Value</p>
@@ -255,203 +568,21 @@ export default function AdminDashboard() {
           <GlassCard className="group overflow-hidden p-0 h-[450px] border-none shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
             <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-rose-600/90 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-white" />
               LIVE SITE FEED
             </div>
-            <div className="relative w-full h-full">
-              <NextImage
-                src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000"
-                alt="Site Feed"
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-700"
-                unoptimized
-              />
-            </div>
-            <div className="absolute bottom-4 left-4 right-4 z-20">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Site Camera #04</h3>
-                <Camera size={14} className="text-white/60" />
-              </div>
-              <div className="h-0.5 w-full bg-white/20 rounded-full mb-2">
-                <div className="h-full bg-primary w-2/3 rounded-full" />
-              </div>
-              <div className="flex items-center justify-center gap-3 text-white/70">
-                <Clock size={12} />
-                <span className="text-[9px] font-mono">REC: 12:45:12</span>
-              </div>
-            </div>
+            <NextImage
+              src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000"
+              alt="Site Feed"
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-700"
+              unoptimized
+            />
           </GlassCard>
         </div>
 
-        {/* Column 2: Operations & Tasks */}
-        <div className="space-y-6">
-          <GlassCard className="border-indigo-500/5 shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/5 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
-                  <Calendar size={16} />
-                </div>
-                <h2 className="text-xs font-bold tracking-tight uppercase">Construction Schedule</h2>
-              </div>
-              <TrendingUp size={16} className="text-emerald-500/80" />
-            </div>
-
-            <div className="h-[240px] w-full">
-              <FinancialChart
-                title=""
-                data={chartData}
-                dataKeys={[{ key: 'budget', color: '#775a19', label: 'Planned' }, { key: 'committed', color: '#505f7a', label: 'Actual' }]}
-                height={240}
-              />
-            </div>
-            <div className="mt-4 pt-4 border-t border-muted flex gap-8">
-              <div>
-                <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">S-Curve Variance</p>
-                <div className="flex items-center gap-1.5">
-                  {(stats?.schedule_status.variance ?? 0) >= 0 ? (
-                    <TrendingUp size={12} className="text-emerald-500" />
-                  ) : (
-                    <TrendingDown size={12} className="text-rose-500" />
-                  )}
-                  <span className="text-xs font-black">{stats?.schedule_status.variance ?? 0}%</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Critical Path</p>
-                <span className={`text-xs font-black ${stats?.schedule_status.critical_path_status === 'DELAYED' ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {stats?.schedule_status.critical_path_status ?? 'ON TRACK'}
-                </span>
-              </div>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/5 flex items-center justify-center text-orange-400 border border-orange-500/10">
-                  <ListTodo size={16} />
-                </div>
-                <h2 className="text-xs font-bold tracking-tight uppercase">Task Manager</h2>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[8px] font-black uppercase text-zinc-500">{stats?.task_log.open_tasks ?? 0} Pending</span>
-            </div>
-
-            <div className="space-y-2">
-              {(stats?.task_manager ?? []).map(task => (
-                <div key={task.id} className="p-2.5 rounded-xl bg-muted/30 border border-white/40 dark:border-white/5 hover:border-primary/20 transition-all flex items-center justify-between group">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black text-zinc-400 tracking-tighter uppercase">{task.id}</span>
-                    <span className="text-xs font-bold group-hover:text-primary transition-colors">{task.label}</span>
-                  </div>
-                  <span className={`text-[9px] font-bold uppercase tracking-tight ${task.color}`}>{task.priority}</span>
-                </div>
-              ))}
-            </div>
-
-            <button className="w-full mt-4 py-2 rounded-lg border border-muted text-[10px] font-bold uppercase tracking-widest hover:bg-muted/50 transition-all">
-              View All Action Items
-            </button>
-          </GlassCard>
-        </div>
-
-        {/* Column 3: Logistics & Finance */}
-        <div className="space-y-6">
-          <GlassCard className="shadow-lg">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 border border-emerald-500/10">
-                <HistoryIcon size={20} />
-              </div>
-              <h2 className="text-sm font-bold tracking-tight uppercase">Project Wide Task Log</h2>
-            </div>
-
-            <div className="flex items-end gap-10 mb-6 pb-6 border-b border-muted">
-              <div>
-                <p className="text-4xl font-black leading-none tracking-tighter">{stats?.task_log.open_tasks ?? 0}</p>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">Open Tasks</p>
-              </div>
-              <div className="pb-1">
-                <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{stats?.task_log.resolved_tasks ?? 0}</p>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Resolved</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
-                <span className="text-zinc-500">Compliance Rate</span>
-                <span className="text-emerald-500">{stats?.task_log.compliance_rate ?? 0}%</span>
-              </div>
-              <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-                <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000" style={{ width: `${stats?.task_log.compliance_rate ?? 0}%` }} />
-              </div>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="border-indigo-500/5 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/5 flex items-center justify-center text-indigo-400 border border-indigo-500/10">
-                <GanttChartSquare size={20} />
-              </div>
-              <h2 className="text-sm font-bold tracking-tight uppercase">Project Schedule & Gantt</h2>
-            </div>
-
-            <div className="space-y-6">
-              {(financials ?? []).slice(0, 3).map((f, idx) => {
-                const progress = f.original_budget >
-                  0 ? Math.min(100, Math.round((normalizeFinancial(f.certified_value) / normalizeFinancial(f.original_budget)) * 100))
-                  : 0;
-                return (
-                  <div key={f.category_id || `fin-${idx}`} className="space-y-2">
-                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                      <div className="flex flex-col">
-                        <span className="text-zinc-500">
-                          {f.category_name || (f.category_id ? f.category_id.substring(0, 8) : 'N/A')}
-                        </span>
-                        <span className="text-[10px] text-zinc-600 font-mono">
-                          {f.category_code || '---'}
-                        </span>
-                      </div>
-                      <span className="text-primary">{progress}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-                      <div
-                        className="h-full bg-primary transition-all duration-500"
-                        style={{ width: `${Math.max(1, progress)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </GlassCard>
-
-          <GlassCard className="border-primary/5 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10">
-                <BarChart4 size={20} />
-              </div>
-              <h2 className="text-sm font-bold tracking-tight uppercase">Project Budget & Utilization</h2>
-            </div>
-
-            <div className="space-y-6">
-              {(financials ?? []).sort((a, b) => (normalizeFinancial(b.original_budget) - normalizeFinancial(a.original_budget))).slice(0, 3).map((f, idx) => {
-                const spentPercent = f.original_budget > 0
-                  ? Math.round((normalizeFinancial(f.committed_value) / normalizeFinancial(f.original_budget)) * 100)
-                  : 0;
-                return (
-                  <div key={f.category_id || `util-${idx}`} className="space-y-2">
-                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                      <span className="text-zinc-500">{f.category_name || f.category_id}</span>
-                      <span className="text-zinc-400 italic">{spentPercent}% Spent</span>
-                    </div>
-                    <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30 flex">
-                      <div className="h-full bg-primary" style={{ width: `${spentPercent}%` }} />
-                      <div className="h-full bg-muted/40" style={{ width: `${100 - spentPercent}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </GlassCard>
+        {/* Column 2 & 3: Dynamic Rearrangeable Grid */}
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-start content-start">
+          {layout.map(widgetId => widgets[widgetId])}
         </div>
       </div>
     </div>

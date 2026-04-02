@@ -146,30 +146,30 @@ export default function SCurveChart() {
     }).format(value);
 
   return (
-    <div className="rounded-[24px] border border-white/5 bg-slate-950/60 p-5 shadow-2xl backdrop-blur-xl">
+    <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 p-5 shadow-2xl backdrop-blur-xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/45">S-Curve Analysis</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">S-Curve Analysis</h3>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
             Cumulative Planned vs Earned Value
           </p>
         </div>
         <div className="flex gap-4">
           <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-3 rounded-full bg-[#f59e0b]" />
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">PV</span>
+            <div className="h-1.5 w-3 rounded-full bg-amber-500" />
+            <span className="text-[10px] font-bold text-slate-500 dark:text-white/30 uppercase tracking-wider">PV</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-3 rounded-full bg-[#38bdf8]" />
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">EV</span>
+            <div className="h-1.5 w-3 rounded-full bg-sky-500" />
+            <span className="text-[10px] font-bold text-slate-500 dark:text-white/30 uppercase tracking-wider">EV</span>
           </div>
         </div>
       </div>
 
-      <div className="h-[300px] w-full">
+      <div className="h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-white/[0.03]" vertical={false} />
             <XAxis
               dataKey="name"
               tick={{ fill: "#64748b", fontSize: 10, fontWeight: 600 }}
@@ -185,8 +185,9 @@ export default function SCurveChart() {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "#020617",
-                border: "1px solid rgba(255,255,255,0.1)",
+                backgroundColor: "var(--tw-bg-opacity, #fff)",
+                background: "bg-white dark:bg-slate-950",
+                border: "1px solid rgba(0,0,0,0.1)",
                 borderRadius: "12px",
                 fontSize: "12px",
               }}

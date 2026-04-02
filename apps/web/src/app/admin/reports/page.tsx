@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import {
-  Download,
   Calendar,
   Filter,
   RotateCcw,
@@ -27,7 +25,9 @@ type ReportType =
   | "csa_report"
   | "weekly_progress"
   | "15_days_progress"
-  | "monthly_progress";
+  | "monthly_progress"
+  | "attendance"
+  | "dpr_report";
 
 const REPORT_OPTIONS: {
   value: ReportType;
@@ -74,10 +74,19 @@ const REPORT_OPTIONS: {
       label: "Monthly Progress",
       description: "Last 30 days activity summary",
     },
+    {
+      value: "attendance",
+      label: "Attendance Report",
+      description: "Project personnel attendance and GPS records",
+    },
+    {
+      value: "dpr_report",
+      label: "DPR Tracker",
+      description: "Summary of all Daily Progress Reports",
+    },
   ];
 
 export default function ReportsPage() {
-  const router = useRouter();
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
 
@@ -88,7 +97,6 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<"excel" | "pdf" | null>(null);
-
   // Removed redirect - using conditional render instead
   /*
   useEffect(() => {

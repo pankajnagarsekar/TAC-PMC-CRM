@@ -25,6 +25,7 @@ export type ChangeSource =
   | "gantt_drag"
   | "kanban_drop"
   | "grid_edit"
+  | "drawer_edit"
   | "import"
   | "api"
   | "ai_suggestion";

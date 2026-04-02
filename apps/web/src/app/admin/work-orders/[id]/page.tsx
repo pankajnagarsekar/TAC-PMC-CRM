@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
@@ -201,7 +201,7 @@ export default function WorkOrderDetailPage() {
   const handleExportPDF = async () => {
     if (!wo) return;
     try {
-      const response = await api.get(`/api/v1/work-orders/${woId}/export`, {
+      const response = await api.get(`/api/v1/work-orders/${woId}/export/pdf`, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -211,7 +211,7 @@ export default function WorkOrderDetailPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err) {
+    } catch {
       alert("Failed to export PDF");
     }
   };

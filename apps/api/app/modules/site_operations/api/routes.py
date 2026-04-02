@@ -264,6 +264,87 @@ async def list_all_attendance(
     return GenericResponse(data={"attendance": records})
 
 
+@router.get(
+    "/attendance/export",
+    tags=["Site Operations"],
+)
+async def export_attendance_excel(
+    project_id: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.export_service import ExportService
+
+    filters = {"project_id": project_id}
+    if start_date and end_date:
+        filters["date_range"] = (start_date, end_date)
+
+    records = await site_service.list_project_attendance(user, project_id, filters=filters)
+    # Map records to rows for ExportService
+    rows = [
+        [
+            r.get("date"),
+            r.get("worker_name"),
+            r.get("category"),
+            r.get("check_in"),
+            r.get("check_out")
+        ]
+        for r in records
+    ]
+    
+    excel_bytes = ExportService.export_to_excel("attendance", {"rows": rows})
+    
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=attendance.xlsx"}
+    )
+
+
+@router.get(
+    "/attendance/export-pdf",
+    tags=["Site Operations"],
+)
+async def export_attendance_pdf(
+    project_id: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.export_service import ExportService
+
+    filters = {"project_id": project_id}
+    if start_date and end_date:
+        filters["date_range"] = (start_date, end_date)
+
+    records = await site_service.list_project_attendance(user, project_id, filters=filters)
+    rows = [
+        [
+            r.get("date"),
+            r.get("worker_name"),
+            r.get("category"),
+            r.get("check_in"),
+            r.get("check_out")
+        ]
+        for r in records
+    ]
+    
+    pdf_bytes = ExportService.export_to_pdf_service("attendance", {"rows": rows, "title": "Attendance Report"})
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=attendance.pdf"}
+    )
+
+
 @router.post(
     "/attendance/check-in",
     response_model=GenericResponse[Any],

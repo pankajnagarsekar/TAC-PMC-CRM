@@ -194,6 +194,32 @@ export default function AttendanceTab() {
     [formatDate, formatTime, handleVerify],
   );
 
+  const handleExport = async (format: "excel" | "pdf") => {
+    if (!activeProject?.project_id) return;
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      params.append("project_id", activeProject.project_id);
+
+      const endpoint = format === "excel" ? "export" : "export-pdf";
+      const response = await api.get(`/api/v1/attendance/${endpoint}?${params.toString()}`, {
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Attendance-${activeProject.project_id}.${format === "excel" ? "xlsx" : "pdf"}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast({ title: "Success", description: "Export downloaded" });
+    } catch {
+      toast({ title: "Error", description: "Export failed", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -214,7 +240,23 @@ export default function AttendanceTab() {
             onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
-        <p className="text-xs text-zinc-500 dark:text-slate-500 flex items-center italic">
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleExport("excel")}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/20 transition-colors"
+          >
+            Excel
+          </button>
+          <button
+            onClick={() => handleExport("pdf")}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold hover:bg-rose-500/20 transition-colors"
+          >
+            PDF
+          </button>
+        </div>
+
+        <p className="text-xs text-zinc-500 dark:text-slate-500 flex items-center italic md:ml-auto">
           <MapPin size={12} className="mr-1 text-orange-500" /> All data is GPS verified from mobile app.
         </p>
       </div>

@@ -7,7 +7,7 @@ import type {
 } from "@/types/schedule.types";
 
 export const ROW_HEIGHT = 54;
-export const TIMELINE_DAY_WIDTH = 26;
+export const TIMELINE_DAY_WIDTH = 40;
 export const GRID_HEADER_HEIGHT = 44;
 
 export const KANBAN_STATUSES: ScheduleTaskStatus[] = [

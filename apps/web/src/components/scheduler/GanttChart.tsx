@@ -66,17 +66,17 @@ const Bar = memo(function Bar({
       >
         <div className="flex h-full items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-white">
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-slate-900 dark:text-white">
               {task.task_name}
             </p>
-            <p className="text-[9px] text-white/50">
+            <p className="text-[9px] text-slate-600 dark:text-white/50">
               {formatTaskDurationLabel(task)}
             </p>
           </div>
-          <div className="flex items-center gap-1 text-white/60">
+          <div className="flex items-center gap-1 text-slate-500 dark:text-white/60">
             <button
               type="button"
-              className="rounded-md p-1 hover:bg-white/10"
+              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
               onPointerDown={beginDrag("move")}
               title="Move task"
             >
@@ -84,7 +84,7 @@ const Bar = memo(function Bar({
             </button>
             <button
               type="button"
-              className="rounded-md p-1 hover:bg-white/10"
+              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
               onPointerDown={beginDrag("start")}
               title="Adjust start"
             >
@@ -92,7 +92,7 @@ const Bar = memo(function Bar({
             </button>
             <button
               type="button"
-              className="rounded-md p-1 hover:bg-white/10"
+              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
               onPointerDown={beginDrag("finish")}
               title="Adjust finish"
             >
@@ -339,16 +339,12 @@ export default function GanttChart() {
     openTask(taskId);
   };
 
-  const headerLabels = useMemo(
-    () => days.map((day) => format(day, "dd MMM")),
-    [days],
-  );
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">
             Store-Driven Gantt Canvas
           </h3>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
@@ -357,7 +353,7 @@ export default function GanttChart() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-          <span className="rounded-full border border-white/5 bg-white/[0.03] px-2 py-1">
+          <span className="rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-1">
             {tasks.length.toLocaleString("en-US")} visible tasks
           </span>
           {selectedTasks.size > 0 && (
@@ -365,10 +361,10 @@ export default function GanttChart() {
               {selectedTasks.size} selected
             </span>
           )}
-          <div className="flex items-center gap-1.5 rounded-full border border-white/5 bg-white/[0.03] p-0.5">
+          <div className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] p-0.5">
             <button
               type="button"
-              className={`rounded-full px-2 py-0.5 transition-colors ${showBaseline ? "bg-white/[0.08] text-white" : "text-slate-400 hover:text-slate-200"}`}
+              className={`rounded-full px-2 py-0.5 transition-colors ${showBaseline ? "bg-slate-200 dark:bg-white/[0.08] text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"}`}
               aria-pressed={showBaseline}
               onClick={handleBaselineToggle}
               title="Toggle baseline overlay"
@@ -391,7 +387,7 @@ export default function GanttChart() {
           </div>
           <button
             type="button"
-            className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/25 bg-rose-500/10 text-rose-200" : "border-white/5 bg-white/[0.03] text-slate-400 hover:border-white/10 hover:bg-white/[0.05]"}`}
+            className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/50 bg-rose-500/10 text-rose-700 dark:text-rose-200" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05]"}`}
             aria-pressed={highlightCritical}
             onClick={() => setHighlightCritical((value) => !value)}
             title="Toggle critical path highlighting"
@@ -401,121 +397,161 @@ export default function GanttChart() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-white/5 bg-slate-950/60 shadow-2xl">
-        <div className="flex border-b border-white/5 bg-white/[0.03]">
-          <div className="w-[280px] shrink-0 border-r border-white/5 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-            Task
-          </div>
-          <div className="relative overflow-hidden" style={{ width: `calc(100% - 280px)` }}>
-            <div className="flex" style={{ width: timelineWidth }}>
-              {headerLabels.map((label, index) => (
-                <div
-                  key={`${label}-${index}`}
-                  className="flex h-11 items-center justify-center border-r border-white/5 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400"
-                  style={{ width: TIMELINE_DAY_WIDTH }}
-                >
-                  {label}
-                </div>
-              ))}
+      <div className="overflow-x-auto overflow-y-hidden rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
+        <div style={{ minWidth: 280 + timelineWidth }}>
+          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-40">
+            <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              Task Stream
             </div>
-          </div>
-        </div>
-
-        <div
-          onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-          className="custom-scrollbar max-h-[72vh] overflow-y-auto"
-        >
-          <div style={{ height: topSpacer }} />
-          <div className="relative" style={{ height: visibleHeight }}>
-            <div className="pointer-events-none absolute left-[280px] right-0 top-0 z-10 h-full overflow-hidden">
-              <div style={{ width: timelineWidth, height: visibleHeight }}>
-                <GanttDependencyOverlay
-                  nodes={dependencyNodes}
-                  edges={dependencyEdges}
-                  rowHeight={ROW_HEIGHT}
-                  width={timelineWidth}
-                  height={visibleHeight}
-                />
+            <div className="flex-1 relative overflow-hidden">
+              {/* Header: Months & Days */}
+              <div className="flex flex-col">
+                {/* Month Row */}
+                <div className="flex border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.05]">
+                  {useMemo(() => {
+                    const months: { label: string; width: number }[] = [];
+                    if (days.length === 0) return null;
+                    let currentMonth = format(days[0], "MMMM yyyy");
+                    let width = 0;
+                    days.forEach((day, i) => {
+                      const m = format(day, "MMMM yyyy");
+                      if (m !== currentMonth) {
+                        months.push({ label: currentMonth, width });
+                        currentMonth = m;
+                        width = TIMELINE_DAY_WIDTH;
+                      } else {
+                        width += TIMELINE_DAY_WIDTH;
+                      }
+                      if (i === days.length - 1) {
+                        months.push({ label: currentMonth, width });
+                      }
+                    });
+                    return months.map((m, i) => (
+                      <div key={i} className="h-9 flex items-center justify-center border-r border-slate-200 dark:border-white/10 text-[11px] font-black uppercase tracking-[0.25em] text-slate-950 dark:text-white whitespace-nowrap overflow-hidden px-4 bg-slate-100/50 dark:bg-white/[0.02]" style={{ width: m.width }}>
+                        {m.label}
+                      </div>
+                    ));
+                  }, [days])}
+                </div>
+                {/* Day Row */}
+                <div className="flex">
+                  {days.map((day, index) => {
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                    return (
+                      <div
+                        key={index}
+                        className={`flex h-10 items-center justify-center border-r border-slate-200 dark:border-white/5 px-2 text-[10px] font-black tracking-tight ${isWeekend ? 'text-rose-500/60 dark:text-rose-400/40 bg-slate-50 dark:bg-white/[0.01]' : 'text-slate-600 dark:text-slate-300'}`}
+                        style={{ width: TIMELINE_DAY_WIDTH }}
+                      >
+                        {format(day, "dd")}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-
-            {visibleTasks.map((task) => {
-              const previewTask = getPreviewTask(task);
-              const { left, width } = getTaskBarPosition(previewTask, rangeStart);
-
-              // Multi-Baseline Logic
-              const comparison = comparisonMap.get(task.task_id);
-              const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, true) : null;
-
-              const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
-              const variance = comparison?.schedule_variance_days ?? 0;
-
-              return (
-                <div
-                  key={task.task_id}
-                  className="flex border-b border-white/5"
-                  style={{ height: ROW_HEIGHT }}
-                  onClick={() => handleSelect(task.task_id)}
-                >
-                  <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-white/5 px-4">
-                    <div
-                      className={`h-2.5 w-2.5 rounded-full ${emphasizeCritical ? "bg-rose-400" : "bg-sky-400"}`}
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-white">{task.task_name}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                          {task.wbs_code || task.task_id}
-                        </p>
-                        {showBaseline && variance !== 0 && (
-                          <span className={`text-[9px] font-bold ${variance > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                            {variance > 0 ? `+${variance}d` : `${variance}d`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="relative flex-1 overflow-hidden">
-                    <div className="absolute inset-0 flex" style={{ width: timelineWidth }}>
-                      {days.map((day) => (
-                        <div
-                          key={`${task.task_id}-${day.toISOString()}`}
-                          className="border-r border-white/[0.02]"
-                          style={{ width: TIMELINE_DAY_WIDTH }}
-                        />
-                      ))}
-                    </div>
-
-                    {baselinePos && (
-                      <div
-                        className="absolute top-1/2 z-10 -translate-y-1/2 opacity-40 shadow-[0_0_8px_rgba(255,255,255,0.1)]"
-                        style={{ left: Math.max(0, baselinePos.left), width: baselinePos.width }}
-                      >
-                        <div className="h-2.5 rounded-full border border-white/20 bg-slate-400/20" />
-                      </div>
-                    )}
-
-                    <Bar
-                      task={previewTask}
-                      left={left}
-                      width={width}
-                      emphasizeCritical={highlightCritical}
-                      onSelect={handleSelect}
-                      onStartDrag={startDrag}
-                    />
-                  </div>
-                </div>
-              );
-            })}
           </div>
-          <div style={{ height: bottomSpacer }} />
+
+          <div
+            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            className="custom-scrollbar max-h-[72vh] overflow-y-auto"
+          >
+            <div style={{ height: topSpacer }} />
+            <div className="relative" style={{ height: visibleHeight }}>
+              <div className="pointer-events-none absolute left-[280px] right-0 top-0 z-10 h-full overflow-hidden">
+                <div style={{ width: timelineWidth, height: visibleHeight }}>
+                  <GanttDependencyOverlay
+                    nodes={dependencyNodes}
+                    edges={dependencyEdges}
+                    rowHeight={ROW_HEIGHT}
+                    width={timelineWidth}
+                    height={visibleHeight}
+                  />
+                </div>
+              </div>
+
+              {visibleTasks.map((task) => {
+                const previewTask = getPreviewTask(task);
+                const { left, width } = getTaskBarPosition(previewTask, rangeStart);
+
+                // Multi-Baseline Logic
+                const comparison = comparisonMap.get(task.task_id);
+                const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, true) : null;
+
+                const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
+                const variance = comparison?.schedule_variance_days ?? 0;
+
+                return (
+                  <div
+                    key={task.task_id}
+                    className={`flex border-b border-slate-200 dark:border-white/5 transition-colors ${task.is_summary ? 'bg-slate-50/30 dark:bg-white/[0.01]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'}`}
+                    style={{ height: ROW_HEIGHT }}
+                    onClick={() => handleSelect(task.task_id)}
+                  >
+                    <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-slate-200 dark:border-white/5 px-4">
+                      <div
+                        className={`h-2.5 w-2.5 rounded-full ${emphasizeCritical ? "bg-rose-500 dark:bg-rose-400" : "bg-sky-500 dark:bg-sky-400"}`}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold text-slate-900 dark:text-white leading-tight">{task.task_name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-bold">
+                            {task.wbs_code || task.task_id}
+                          </p>
+                          {showBaseline && variance !== 0 && (
+                            <span className={`text-[9px] font-bold ${variance > 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                              {variance > 0 ? `+${variance}d` : `${variance}d`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="relative flex-1 overflow-hidden">
+                      <div className="absolute inset-0 flex" style={{ width: timelineWidth }}>
+                        {days.map((day) => {
+                          const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                          return (
+                            <div
+                              key={`${task.task_id}-${day.toISOString()}`}
+                              className={`border-r border-slate-200 dark:border-white/[0.05] ${isWeekend ? 'bg-slate-100/50 dark:bg-white/[0.01]' : ''}`}
+                              style={{ width: TIMELINE_DAY_WIDTH }}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {baselinePos && (
+                        <div
+                          className="absolute top-1/2 z-10 -translate-y-1/2 opacity-40 shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                          style={{ left: Math.max(0, baselinePos.left), width: baselinePos.width }}
+                        >
+                          <div className="h-2.5 rounded-full border border-white/20 bg-slate-400/20" />
+                        </div>
+                      )}
+
+                      <Bar
+                        task={previewTask}
+                        left={left}
+                        width={width}
+                        emphasizeCritical={highlightCritical}
+                        onSelect={handleSelect}
+                        onStartDrag={startDrag}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ height: bottomSpacer }} />
+          </div>
         </div>
       </div>
 
-      <p className="px-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+      <p className="px-2 pt-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
         Dragging is optimistic. The bar updates locally first, then the store debounces the recalculation request by 300ms.
       </p>
     </div>
   );
 }
+

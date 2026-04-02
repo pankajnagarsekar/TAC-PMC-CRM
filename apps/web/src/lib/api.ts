@@ -38,7 +38,19 @@ api.interceptors.request.use(
         if (storedProjectJson) {
           const { state } = JSON.parse(storedProjectJson);
           if (state?.activeProject?._id) {
-            config.headers["X-Project-Id"] = state.activeProject._id;
+            config.headers["X-Project-Id"] = typeof state.activeProject._id === 'string'
+              ? state.activeProject._id
+              : String(state.activeProject._id);
+          } else if (typeof window !== "undefined") {
+            // Fallback: extract project ID from URL if on a project-specific page
+            const pathParts = window.location.pathname.split("/");
+            const projectsIdx = pathParts.indexOf("projects");
+            if (projectsIdx !== -1 && pathParts[projectsIdx + 1]) {
+              const urlProjectId = pathParts[projectsIdx + 1];
+              if (urlProjectId.length >= 24) { // Basic MongoDB ObjectId length check
+                config.headers["X-Project-Id"] = urlProjectId;
+              }
+            }
           } else if (state?.activeProject?.project_id) {
             config.headers["X-Project-Id"] = state.activeProject.project_id;
           }
@@ -153,8 +165,13 @@ export const fetcher = (url: string) =>
 // Scheduler Service
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
-  calculate: (projectId: string, tasks: unknown[], projectStart: string) =>
-    api.post(`/api/v1/projects/${projectId}/calculate-schedule`, { tasks, project_start: projectStart }).then(res => res.data),
+  calculate: (projectId: string, tasks: unknown[], projectStart: string) => {
+    if (!projectId) {
+      console.error("SCHEDULER_API: projectId is required for calculation");
+      return Promise.reject(new Error("Project ID is missing"));
+    }
+    return api.post(`/api/v1/projects/${projectId}/calculate-schedule`, { tasks, project_start: projectStart }).then(res => res.data);
+  },
 
   calculateChange: (
     projectId: string,

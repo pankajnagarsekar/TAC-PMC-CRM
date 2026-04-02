@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
+
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
 import { ROW_HEIGHT, buildTaskStatusTransition, normalizeTaskOrder } from "./scheduler-utils";
@@ -100,7 +101,7 @@ export default function SchedulerGrid() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/45">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">
             Master Scheduler Grid
           </h3>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
@@ -117,39 +118,41 @@ export default function SchedulerGrid() {
           ) : (
             <>Synced</>
           )}
-          <span className="rounded-full border border-white/5 bg-white/[0.03] px-2 py-1 text-white/70">
+          <span className="rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-0.5 text-slate-600 dark:text-white/70 font-bold">
             {filteredTasks.length.toLocaleString("en-US")} / {tasks.length.toLocaleString("en-US")} tasks
           </span>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-white/5 bg-slate-950/60 shadow-2xl">
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
         <GridHeader columnTemplate={COLUMN_TEMPLATE} />
 
         <div
           ref={viewportRef}
           onScroll={onScroll}
-          className="custom-scrollbar max-h-[72vh] overflow-y-auto"
+          className="custom-scrollbar max-h-[72vh] overflow-y-auto overflow-x-auto"
         >
-          <div style={{ height: topSpacer }} />
-          {visibleTasks.map((task) => (
-            <GridRow
-              key={task.task_id}
-              task={task}
-              depth={getTaskDepth(task)}
-              isSelected={selectedTasks.has(task.task_id)}
-              isCollapsed={collapsedParents.has(task.task_id)}
-              onToggleCollapse={toggleParentCollapse}
-              readOnly={readOnly}
-              rowHeight={ROW_HEIGHT}
-              columnTemplate={COLUMN_TEMPLATE}
-              onSelect={openTask}
-              onEdit={handleEdit}
-              onStatusChange={handleStatusChange}
-              onRemove={handleRemove}
-            />
-          ))}
-          <div style={{ height: bottomSpacer }} />
+          <div style={{ minWidth: 1600 }}>
+            <div style={{ height: topSpacer }} />
+            {visibleTasks.map((task) => (
+              <GridRow
+                key={task.task_id}
+                task={task}
+                depth={getTaskDepth(task)}
+                isSelected={selectedTasks.has(task.task_id)}
+                isCollapsed={collapsedParents.has(task.task_id)}
+                onToggleCollapse={toggleParentCollapse}
+                readOnly={readOnly}
+                rowHeight={ROW_HEIGHT}
+                columnTemplate={COLUMN_TEMPLATE}
+                onSelect={openTask}
+                onEdit={handleEdit}
+                onStatusChange={handleStatusChange}
+                onRemove={handleRemove}
+              />
+            ))}
+            <div style={{ height: bottomSpacer }} />
+          </div>
         </div>
       </div>
     </div>

@@ -24,3 +24,6 @@
 - [/] Phase 12: Production Readiness Hardening (Emergency Audit Fixes)
 25: - [x] Phase 13: Playwright Testing Automation Setup
 26: - [ ] Phase 14: Comprehensive E2E Testing Scenarios Implementation
+
+## Milestone 6: Project Scheduler UI Redesign
+- [ ] Phase 15: Implement Tabbed Architecture & Dashboard KPI Enhancements

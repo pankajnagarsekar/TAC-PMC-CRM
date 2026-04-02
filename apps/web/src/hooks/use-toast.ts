@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import { toast as sonnerToast } from "sonner";
 
 export interface ToastProps {
@@ -7,20 +8,20 @@ export interface ToastProps {
 }
 
 export function useToast() {
-  return {
-    toast: (props: ToastProps) => {
-      console.log(`[Toast] ${props.title}: ${props.description}`);
+  const toast = useCallback((props: ToastProps) => {
+    console.log(`[Toast] ${props.title}: ${props.description}`);
 
-      const options = {
-        description: props.description,
-        duration: 5000,
-      };
+    const options = {
+      description: props.description,
+      duration: 5000,
+    };
 
-      if (props.variant === 'destructive') {
-        sonnerToast.error(props.title || "Error", options);
-      } else {
-        sonnerToast.success(props.title || "Success", options);
-      }
+    if (props.variant === 'destructive') {
+      sonnerToast.error(props.title || "Error", options);
+    } else {
+      sonnerToast.success(props.title || "Success", options);
     }
-  };
+  }, []);
+
+  return useMemo(() => ({ toast }), [toast]);
 }

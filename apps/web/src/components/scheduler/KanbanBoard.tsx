@@ -68,7 +68,7 @@ export default function KanbanBoard() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 px-2">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/45">Kanban Board</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">Kanban Board</h3>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
             Status transitions respect the scheduler state machine
           </p>
@@ -86,7 +86,7 @@ export default function KanbanBoard() {
           return (
             <div
               key={status}
-              className={`rounded-[24px] border bg-slate-950/60 p-3 shadow-xl ${meta.tone}`}
+              className={`rounded-[24px] border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/60 p-3 shadow-xl ${meta.tone}`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -96,10 +96,10 @@ export default function KanbanBoard() {
             >
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-white">{meta.label}</h4>
-                  <p className="mt-1 text-[10px] leading-4 text-white/55">{meta.description}</p>
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-900 dark:text-white">{meta.label}</h4>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-white/55">{meta.description}</p>
                 </div>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-black text-white/80">
+                <span className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-[10px] font-black text-slate-700 dark:text-white/80">
                   {columnTasks.length}
                 </span>
               </div>
@@ -117,27 +117,27 @@ export default function KanbanBoard() {
                         selectTask(task.task_id);
                         openTask(task.task_id);
                       }}
-                      className={`cursor-pointer rounded-2xl border px-3 py-3 transition hover:-translate-y-0.5 hover:border-white/20 ${isSelected ? "border-sky-400/40 bg-sky-500/15" : "border-white/5 bg-white/[0.03]"}`}
+                      className={`cursor-pointer rounded-2xl border px-3 py-3 transition hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-white/20 ${isSelected ? "border-sky-400/40 bg-sky-500/10 dark:bg-sky-500/15" : "border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03]"}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-white">{task.task_name}</p>
-                          <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/45">
+                          <p className="truncate text-xs font-semibold text-slate-900 dark:text-white">{task.task_name}</p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-500 dark:text-white/45">
                             {task.wbs_code || task.task_id}
                           </p>
                         </div>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-black uppercase text-white/70">
+                        <span className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-2 py-1 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">
                           {task.percent_complete ?? 0}%
                         </span>
                       </div>
                       <div className="mt-3 flex flex-col gap-2">
-                        <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
                           <div
-                            className="h-full bg-sky-400 transition-all duration-300"
+                            className="h-full bg-sky-500 dark:bg-sky-400 transition-all duration-300"
                             style={{ width: `${task.percent_complete ?? 0}%` }}
                           />
                         </div>
-                        <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-white/50">
+                        <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-500 dark:text-white/50">
                           <span>{task.task_mode ?? "Auto"}</span>
                           <span>{task.scheduled_duration ?? 0}d</span>
                         </div>

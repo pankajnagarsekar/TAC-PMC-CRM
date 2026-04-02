@@ -382,6 +382,7 @@ export interface GlobalSettings {
     can_view_dpr: boolean;
     can_view_financials: boolean;
     can_view_reports: boolean;
+    can_view_scheduler: boolean;
   };
   updated_at?: string;
 }

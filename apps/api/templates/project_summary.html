@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Inter', 'Helvetica', sans-serif;
+            color: #1e293b;
+            margin: 40px;
+            background-color: #ffffff;
+        }
+
+        .header {
+            border-left: 10px solid #f59e0b;
+            padding-left: 20px;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: -0.025em;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+        }
+
+        th {
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 14px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        td {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        tr:nth-child(even) td {
+            background-color: #fafafa;
+        }
+
+        .totals-box {
+            margin-top: 40px;
+            background-color: #0f172a;
+            padding: 24px;
+            border-radius: 12px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .total-item {
+            text-align: center;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0 20px;
+            flex: 1;
+        }
+
+        .total-item:last-child {
+            border-right: none;
+        }
+
+        .total-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .total-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            left: 40px;
+            right: 40px;
+            font-size: 9px;
+            color: #94a3b8;
+            text-align: center;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="title">Project Financial Intelligence</div>
+        <div class="subtitle">Sovereign Financial Summary • {{ now }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                {% for col in columns %}
+                <th>{{ col[0] }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals-box">
+        {% for key, value in totals.items() %}
+        <div class="total-item">
+            <span class="total-label">{{ key|replace('_', ' ')|title }}</span>
+            <span class="total-value">{{ value }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="footer">
+        © 2026 TAC PMC CRM • Confidential Asset Intelligence • Page 1 of 1
+    </div>
+</body>
+
+</html>

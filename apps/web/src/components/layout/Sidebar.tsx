@@ -84,8 +84,16 @@ export default function Sidebar({
     {
       href: "/admin/scheduler",
       icon: CalendarDays,
-      label: "Project Scheduler",
+      label: "Project Planner",
       key: "scheduler",
+      children: [
+        { href: "/admin/scheduler?tab=grid", label: "Grid", key: "planner_grid" },
+        { href: "/admin/scheduler?tab=gantt", label: "Gantt", key: "planner_gantt" },
+        { href: "/admin/scheduler?tab=kanban", label: "Kanban", key: "planner_kanban" },
+        { href: "/admin/scheduler?tab=analytics", label: "Analytics", key: "planner_analytics" },
+        { href: "/admin/scheduler?tab=budget", label: "Budget", key: "planner_budget" },
+        { href: "/admin/scheduler?tab=export", label: "Export", key: "planner_export" },
+      ]
     },
     {
       href: "/admin/categories",
@@ -165,6 +173,7 @@ export default function Sidebar({
         "Project Financials": true,
         "Site Operations": perms.can_view_dpr,
         Reports: perms.can_view_reports,
+        "Project Planner": perms.can_view_scheduler,
       };
 
       return !!mapping[item.label];

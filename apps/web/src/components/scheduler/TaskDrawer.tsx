@@ -29,7 +29,7 @@ function FieldRow({
 }
 
 function textInputClass() {
-  return "w-full rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-xs font-medium text-white outline-none focus:border-orange-400/40";
+  return "w-full rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-orange-400/40 transition-all";
 }
 
 export default function TaskDrawer() {
@@ -82,15 +82,15 @@ export default function TaskDrawer() {
 
   if (!selectedTask) {
     return (
-      <aside className="sticky top-6 rounded-[28px] border border-white/5 bg-slate-950/70 p-5 shadow-2xl">
+      <aside className="sticky top-6 rounded-[28px] border border-slate-200 dark:border-white/5 bg-slate-50/70 dark:bg-slate-950/70 p-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/45">Task Drawer</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">Task Drawer</h3>
             <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
               Select a row or card to inspect task details
             </p>
           </div>
-          <UserRoundPen size={18} className="text-white/30" />
+          <UserRoundPen size={18} className="text-slate-400 dark:text-white/30" />
         </div>
       </aside>
     );
@@ -103,7 +103,7 @@ export default function TaskDrawer() {
       project_id: selectedTask.project_id,
       version: selectedTask.version ?? 1,
       changes,
-      trigger_source: "grid_edit",
+      trigger_source: "drawer_edit",
     });
   };
 
@@ -138,10 +138,10 @@ export default function TaskDrawer() {
   };
 
   return (
-    <aside className="sticky top-6 rounded-[28px] border border-white/5 bg-slate-950/70 p-5 shadow-2xl">
+    <aside className="sticky top-6 rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-950/70 p-5 shadow-2xl backdrop-blur-xl">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/45">Task Drawer</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">Task Drawer</h3>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
             {selectedTask.wbs_code || selectedTask.task_id}
           </p>
@@ -150,7 +150,7 @@ export default function TaskDrawer() {
           type="button"
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-xl text-white/60 hover:text-white"
+          className="h-9 w-9 rounded-xl text-slate-500 hover:text-slate-900 dark:text-white/60 dark:hover:text-white"
           onClick={() => openTask(null)}
         >
           <X size={16} />
@@ -158,7 +158,7 @@ export default function TaskDrawer() {
       </div>
 
       <Tabs.Root defaultValue="details" className="space-y-4">
-        <Tabs.List className="grid grid-cols-5 gap-1.5 rounded-2xl border border-white/5 bg-white/[0.02] p-1">
+        <Tabs.List className="grid grid-cols-5 gap-1.5 rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.02] p-1">
           {[
             { value: "details", label: "Details", icon: Activity },
             { value: "deps", label: "Deps", icon: Link2 },
@@ -171,7 +171,7 @@ export default function TaskDrawer() {
               <Tabs.Trigger
                 key={item.value}
                 value={item.value}
-                className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 transition data-[state=active]:bg-white/10 data-[state=active]:text-white sm:flex-row sm:text-[10px] sm:tracking-[0.16em]"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 transition data-[state=active]:bg-slate-200 dark:data-[state=active]:bg-white/10 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white sm:flex-row sm:text-[10px] sm:tracking-[0.16em]"
               >
                 <Icon size={12} />
                 <span className="truncate">{item.label}</span>
@@ -181,10 +181,10 @@ export default function TaskDrawer() {
         </Tabs.List>
 
         <Tabs.Content value="details" className="space-y-4">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03] p-4">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-white">{selectedTask.task_name}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedTask.task_name}</p>
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                   Status: {getTaskStatus(selectedTask)}
                 </p>
@@ -193,7 +193,7 @@ export default function TaskDrawer() {
                 value={getTaskStatus(selectedTask)}
                 onChange={(event) => statusChange(event.target.value as ScheduleTaskStatus)}
                 disabled={readOnly}
-                className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white outline-none"
+                className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-900 dark:text-white outline-none"
               >
                 <option value="draft">Draft</option>
                 <option value="not_started">Not Started</option>

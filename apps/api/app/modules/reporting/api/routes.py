@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, BackgroundTasks
 
 from app.core.dependencies import (
     PermissionChecker,
@@ -70,6 +70,102 @@ async def get_report(
         user, project_id, report_type, start_date, end_date
     )
     return GenericResponse(data=report)
+
+
+@router.get(
+    "/reports/{project_id}/{report_type}/export/excel",
+    tags=["Reporting"],
+)
+async def export_report_excel(
+    project_id: str,
+    report_type: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    sync: bool = Query(True),
+    user: dict = Depends(get_authenticated_user),
+    reporting_service: ReportingService = Depends(get_reporting_service),
+    background_tasks: BackgroundTasks = None,
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.export_service import ExportService
+    from app.core.jobs import JobTracker
+
+    if not sync:
+        job_id = JobTracker.create_job(f"excel_{report_type}")
+        async def run_task():
+            try:
+                report_data = await reporting_service.get_report(
+                    user, project_id, report_type, start_date, end_date
+                )
+                ExportService.export_to_excel(report_type, report_data)
+                JobTracker.update_job(job_id, "SUCCESS")
+            except Exception as e:
+                JobTracker.update_job(job_id, "FAILED", error=str(e))
+
+        from fastapi import BackgroundTasks
+        if isinstance(background_tasks, BackgroundTasks):
+            background_tasks.add_task(run_task)
+        return {"job_id": job_id}
+
+    report_data = await reporting_service.get_report(
+        user, project_id, report_type, start_date, end_date
+    )
+    excel_bytes = ExportService.export_to_excel(report_type, report_data)
+    
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={report_type}.xlsx"}
+    )
+
+
+@router.get(
+    "/reports/{project_id}/{report_type}/export/pdf",
+    tags=["Reporting"],
+)
+async def export_report_pdf(
+    project_id: str,
+    report_type: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    sync: bool = Query(True),
+    user: dict = Depends(get_authenticated_user),
+    reporting_service: ReportingService = Depends(get_reporting_service),
+    background_tasks: BackgroundTasks = None,
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.export_service import ExportService
+    from app.core.jobs import JobTracker
+
+    if not sync:
+        job_id = JobTracker.create_job(f"pdf_{report_type}")
+        async def run_task():
+            try:
+                report_data = await reporting_service.get_report(
+                    user, project_id, report_type, start_date, end_date
+                )
+                ExportService.export_to_pdf_service(report_type, report_data)
+                JobTracker.update_job(job_id, "SUCCESS")
+            except Exception as e:
+                JobTracker.update_job(job_id, "FAILED", error=str(e))
+
+        from fastapi import BackgroundTasks
+        if isinstance(background_tasks, BackgroundTasks):
+            background_tasks.add_task(run_task)
+        return {"job_id": job_id}
+
+    report_data = await reporting_service.get_report(
+        user, project_id, report_type, start_date, end_date
+    )
+    pdf_bytes = ExportService.export_to_pdf_service(report_type, report_data)
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={report_type}.pdf"}
+    )
 
 
 @router.get(

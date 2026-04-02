@@ -49,7 +49,7 @@ class SchedulerService:
                     f"Scheduler execution error for {script_name}: {stderr_str or stdout_str}"
                 )
                 logger.error(error_msg)
-                raise Exception(error_msg)
+                raise ValidationError(error_msg)
 
             return json.loads(stdout_str)
         except Exception as e:
@@ -59,6 +59,7 @@ class SchedulerService:
         self, project_id: str, tasks: List[Dict[str, Any]], project_start: str
     ) -> Dict[str, Any]:
         input_payload = {"tasks": tasks, "project_start": project_start}
+        logger.info(f"SCHEDULER: Calculating for project {project_id} with {len(tasks)} tasks starting at {project_start}")
         results = await self.run_scheduler_script("calculate_critical_path.py", input_payload)
 
         if "error" in results:

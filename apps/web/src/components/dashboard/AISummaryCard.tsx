@@ -20,6 +20,7 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
     {
       revalidateOnFocus: false,
       revalidateIfStale: false,
+      shouldRetryOnError: false, // Prevent request storms on API errors
     }
   );
 

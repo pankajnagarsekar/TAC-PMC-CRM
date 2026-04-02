@@ -87,9 +87,20 @@ class AISummaryService:
     async def refresh_summary(self, user: dict, project_id: str) -> Dict[str, Any]:
         await self.permission_checker.check_project_access(user, project_id)
         try:
+            organisation_id = user.get("organisation_id")
+            if not organisation_id:
+                # Fallback: check if we can get it from the project directly
+                project = await self.project_repo.get_by_id(project_id)
+                if not project:
+                    project = await self.project_repo.find_one({"project_id": project_id})
+                organisation_id = project.get("organisation_id") if project else None
+
+            if not organisation_id:
+                raise ValidationError("Organisation ID missing from user context and project.")
+
             return await self.generate_and_store(
                 project_id=project_id,
-                organisation_id=user["organisation_id"],
+                organisation_id=organisation_id,
                 triggered_by="manual",
             )
         except Exception as e:
@@ -154,8 +165,8 @@ class AISummaryService:
         
         wo_repo = WorkOrderRepository(self.db)
         pc_repo = PCRepository(self.db)
-        wo_open = await wo_repo.count({"project_id": project_id, "status": {"$in": ["Pending", "Draft"]}})
-        pc_closed = await pc_repo.count({"project_id": project_id, "status": "Closed"})
+        wo_open = await wo_repo.count({"project_id": resilient_id, "status": {"$in": ["Pending", "Draft"]}})
+        pc_closed = await pc_repo.count({"project_id": resilient_id, "status": "Closed"})
         
         over_budget_categories = []
         for b in budgets:

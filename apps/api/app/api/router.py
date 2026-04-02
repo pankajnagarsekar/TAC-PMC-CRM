@@ -7,14 +7,10 @@ from app.modules.project.api.routes import router as project_router
 from app.modules.reporting.api.routes import router as reporting_router
 from app.modules.shared.api.routes import router as shared_router
 from app.modules.site_operations.api.routes import router as site_operations_router
+from app.api.v1.jobs import router as jobs_router
 
 # ... (HAS_V2 logic)
-
-# Central API Router (Point 21)
-api_router = APIRouter()
-
-# Registry: Version 1
-v1_router = APIRouter()
+v1_router.include_router(jobs_router)
 v1_router.include_router(identity_router)  # Handles /auth, /users, /settings
 v1_router.include_router(contracting_router)  # Handles /vendors, /work-orders
 v1_router.include_router(project_router)  # Handles /projects, /clients, /scheduler

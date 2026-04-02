@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Helvetica', sans-serif;
+            color: #2d3748;
+            margin: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #1a365d;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a365d;
+            text-transform: uppercase;
+        }
+
+        .company-info {
+            text-align: right;
+            font-size: 10px;
+            color: #718096;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #4a5568;
+        }
+
+        td {
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            font-size: 11px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .totals {
+            margin-top: 30px;
+            float: right;
+            width: 300px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .total-label {
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .total-value {
+            font-size: 12px;
+            color: #2d3748;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            left: 40px;
+            right: 40px;
+            font-size: 8px;
+            color: #a0aec0;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div>
+            <div class="title">{{ report_title }}</div>
+            <div style="font-size: 12px; color: #4a5568; margin-top: 5px;">Generated on {{ now }}</div>
+        </div>
+        <div class="company-info">
+            <div style="font-weight: bold; font-size: 14px; color: #1a365d;">{{ company.name }}</div>
+            <div>{{ company.address }}</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                {% for col in columns %}
+                <th>{{ col[0] }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if totals %}
+    <div class="totals">
+        {% for key, value in totals.items() %}
+        <div class="total-row">
+            <span class="total-label">{{ key|replace('_', ' ')|title }}</span>
+            <span class="total-value">{{ value }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        TAC-PMC-CRM Supreme Hardened Backend - Private & Confidential
+    </div>
+</body>
+
+</html>

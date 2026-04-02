@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import {
@@ -35,7 +34,6 @@ export default function PaymentCertificateDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const router = useRouter();
   const { id } = use(params);
   const { activeProject } = useProjectStore();
 
@@ -93,7 +91,7 @@ export default function PaymentCertificateDetail({
 
   const handleExportPDF = async () => {
     try {
-      const response = await api.get(`/api/v1/payments/${id}/export`, {
+      const response = await api.get(`/api/v1/payments/${id}/export/pdf`, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -103,7 +101,7 @@ export default function PaymentCertificateDetail({
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err) {
+    } catch {
       alert("Failed to export PDF");
     }
   };

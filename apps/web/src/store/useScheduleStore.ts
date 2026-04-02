@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
 
 import { schedulerApi } from "@/lib/api";
 import {
@@ -61,21 +61,29 @@ const buildOptimisticPatch = (
   return patch;
 };
 
-import { toast } from "sonner";
-
 const executeCalculationRequest = async (
   request: ScheduleChangeRequest,
   set: (state: Partial<ScheduleStoreState>) => void,
   get: () => ScheduleStoreState
 ) => {
-  const idempotencyKey = uuidv4();
   try {
-    const response: ScheduleCalculationResponse = await schedulerApi.calculateChange(
+    const tasks = Object.values(get().taskMap);
+    const starts = tasks.map((t) => t.scheduled_start).filter(Boolean).sort();
+    const projectStart = starts.length > 0 && starts[0] ? starts[0].split("T")[0] : new Date().toISOString().split("T")[0];
+
+    const response = await schedulerApi.calculate(
       request.project_id,
-      request,
-      idempotencyKey
+      tasks,
+      projectStart
     );
-    get().reconcileWithEngine(response);
+
+    get().reconcileWithEngine({
+      ...response,
+      project_id: request.project_id,
+      calculation_version: response.calculation_version || "fallback_version",
+      system_state: response.system_state || "active",
+      schedule_version: response.schedule_version || 1
+    });
   } catch (error: unknown) {
     const err = error as {
       response?: {
@@ -168,10 +176,15 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
 
     loadSchedule: (response) => {
       clearPendingCalculation();
+      const decoratedTasks = (response.tasks || []).map(t => ({
+        ...t,
+        project_id: t.project_id || response.project_id
+      }));
+
       set({
-        taskMap: buildTaskMap(response.tasks),
-        taskOrder: buildTaskOrder(response.tasks),
-        dependencyGraph: buildDependencyGraph(response.tasks),
+        taskMap: buildTaskMap(decoratedTasks),
+        taskOrder: buildTaskOrder(decoratedTasks),
+        dependencyGraph: buildDependencyGraph(decoratedTasks),
         systemState: response.system_state,
         lastConfirmedVersion: response.calculation_version,
         pendingCalculation: false,
@@ -184,16 +197,21 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     reconcileWithEngine: (response) => {
       clearPendingCalculation();
 
-      const nextTaskMap = buildTaskMap(response.tasks);
-      const nextTaskOrder = buildTaskOrder(response.tasks);
-      const nextGraph = buildDependencyGraph(response.tasks);
+      const decoratedTasks = (response.tasks || []).map(t => ({
+        ...t,
+        project_id: t.project_id || response.project_id
+      }));
+
+      const nextTaskMap = buildTaskMap(decoratedTasks);
+      const nextTaskOrder = buildTaskOrder(decoratedTasks);
+      const nextGraph = buildDependencyGraph(decoratedTasks);
 
       // Handle ID mapping for selections (e.g. task-1 -> mongo_id)
       const nextSelectedTasks = new Set<string>();
       const currentTaskMap = get().taskMap;
       const idMap = new Map<string, string>(); // external_ref_id -> new_task_id
 
-      response.tasks.forEach((task) => {
+      decoratedTasks.forEach((task) => {
         if (task.external_ref_id) {
           idMap.set(task.external_ref_id, task.task_id);
         }
@@ -297,12 +315,12 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     },
 
     queueCalculation: (payload) => {
-      const previousTask = get().taskMap[payload.task_id];
-      if (!previousTask) {
+      const currentTask = get().taskMap[payload.task_id];
+      if (!currentTask) {
         return;
       }
 
-      const previousClone = { ...previousTask };
+      const previousClone = { ...currentTask };
       const optimistic = { ...previousClone, ...buildOptimisticPatch(payload.changes) };
 
       set((state) => ({
@@ -320,11 +338,9 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         calculationError: null,
       }));
 
-      const projectId =
-        payload.project_id ?? previousTask.project_id ?? "";
-
+      const projectId = payload.project_id || currentTask.project_id;
       if (!projectId) {
-        console.warn("SCHEDULER_STORE: Missing project_id for calculation. Aborting request.");
+        console.warn("SCHEDULER_STORE: Missing project_id for calculation. Aborting request.", payload);
         set({ pendingCalculation: false });
         return;
       }
@@ -332,13 +348,14 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       pendingRequest = {
         ...payload,
         project_id: projectId,
-        version: payload.version ?? previousTask.version ?? 0,
+        version: payload.version ?? currentTask.version ?? 0,
         changes: buildChanges(payload.changes),
       };
+
       if (calculationTimer) {
         clearTimeout(calculationTimer);
       }
-      calculationTimer = setTimeout(dispatchCalculation, CALCULATION_DEBOUNCE_MS);
+      calculationTimer = setTimeout(() => dispatchCalculation(), CALCULATION_DEBOUNCE_MS);
     },
 
     rollbackToUndo: () => {
@@ -369,13 +386,18 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       const entry = get().undoStack[0];
       if (!entry) return;
 
+      const currentItem = get().taskMap[entry.taskIds[0]];
+      if (!currentItem) return;
+
       set((state) => {
         const updatedMap = { ...state.taskMap };
         entry.taskIds.forEach((taskId, idx) => {
-          updatedMap[taskId] = {
-            ...updatedMap[taskId],
-            ...entry.previousValues[idx],
-          };
+          if (updatedMap[taskId]) {
+            updatedMap[taskId] = {
+              ...updatedMap[taskId],
+              ...entry.previousValues[idx],
+            };
+          }
         });
 
         return {
@@ -387,11 +409,12 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
 
       const changeRequest: ScheduleChangeRequest = {
         task_id: entry.taskIds[0],
-        project_id: get().taskMap[entry.taskIds[0]]?.project_id ?? "",
-        version: get().taskMap[entry.taskIds[0]]?.version ?? 0,
+        project_id: currentItem.project_id || "",
+        version: currentItem.version ?? 0,
         changes: buildChanges(entry.previousValues[0] ?? {}),
         trigger_source: "grid_edit",
       };
+
       if (Object.keys(changeRequest.changes).length > 0 && changeRequest.project_id) {
         executeCalculationRequest(changeRequest, set, get);
       } else {
@@ -457,6 +480,5 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         selectedBaselineB: null
       });
     },
-
   };
 });
