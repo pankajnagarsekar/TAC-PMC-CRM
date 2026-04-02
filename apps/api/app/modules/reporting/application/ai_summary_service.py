@@ -93,8 +93,8 @@ class AISummaryService:
                 triggered_by="manual",
             )
         except Exception as e:
-            logger.error(f"AI Summary failed: {e}")
-            raise ValidationError("Generation failed.")
+            logger.error(f"AI Summary failed for project {project_id}: {str(e)}", exc_info=True)
+            raise ValidationError(f"Generation failed: {str(e)}")
 
     async def generate_and_store(
         self, project_id: str, organisation_id: str, triggered_by: str = "scheduler"

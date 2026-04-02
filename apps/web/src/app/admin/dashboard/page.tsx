@@ -395,12 +395,12 @@ export default function AdminDashboard() {
             </div>
 
             <div className="space-y-6">
-              {(financials ?? []).slice(0, 3).map(f => {
+              {(financials ?? []).slice(0, 3).map((f, idx) => {
                 const progress = f.original_budget >
                   0 ? Math.min(100, Math.round((normalizeFinancial(f.certified_value) / normalizeFinancial(f.original_budget)) * 100))
                   : 0;
                 return (
-                  <div key={f.category_id} className="space-y-2">
+                  <div key={f.category_id || `fin-${idx}`} className="space-y-2">
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                       <div className="flex flex-col">
                         <span className="text-zinc-500">
@@ -433,12 +433,12 @@ export default function AdminDashboard() {
             </div>
 
             <div className="space-y-6">
-              {(financials ?? []).sort((a, b) => (normalizeFinancial(b.original_budget) - normalizeFinancial(a.original_budget))).slice(0, 3).map(f => {
+              {(financials ?? []).sort((a, b) => (normalizeFinancial(b.original_budget) - normalizeFinancial(a.original_budget))).slice(0, 3).map((f, idx) => {
                 const spentPercent = f.original_budget > 0
                   ? Math.round((normalizeFinancial(f.committed_value) / normalizeFinancial(f.original_budget)) * 100)
                   : 0;
                 return (
-                  <div key={f.category_id} className="space-y-2">
+                  <div key={f.category_id || `util-${idx}`} className="space-y-2">
                     <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                       <span className="text-zinc-500">{f.category_name || f.category_id}</span>
                       <span className="text-zinc-400 italic">{spentPercent}% Spent</span>

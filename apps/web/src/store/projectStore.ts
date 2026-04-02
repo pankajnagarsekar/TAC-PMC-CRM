@@ -15,13 +15,18 @@ interface ProjectState {
 
 export const useProjectStore = create<ProjectState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       activeProject: null,
 
       setActiveProject: (project: Project) => {
-        // CRITICAL: Purge all SWR caches on project switch
-        // This prevents cross-project data bleeding
-        mutate(() => true, undefined, { revalidate: false });
+        const currentActive = get().activeProject;
+        const currentId = currentActive?._id || currentActive?.project_id;
+        const newId = project._id || project.project_id;
+
+        if (currentId !== newId) {
+          // CRITICAL: Purge all SWR caches on project switch
+          mutate(() => true, undefined, { revalidate: false });
+        }
         set({ activeProject: project });
       },
 

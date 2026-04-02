@@ -68,6 +68,12 @@ async def seed_production():
         print("\n[STEP 2] Creating Users (3: admin, supervisor, client)...")
         users_config = [
             {
+                "email": "amit@thirdangleconcept.com",
+                "name": "Amit (Third Angle)",
+                "role": "Admin",
+                "password": "Admin@1234",
+            },
+            {
                 "email": "admin@tacpmc.com",
                 "name": "Administrator",
                 "role": "Admin",
@@ -998,13 +1004,13 @@ async def seed_production():
         print("\n[STEP 6] Seeding Financial States...")
         await db.financial_state.delete_many({"project_id": project_id})
         try:
-            await db.financial_state.drop_index("project_id_1_category_id_1")
-            print("  Dropped legacy index project_id_1_category_id_1")
+            await db.financial_state.drop_index("project_id_1_code_id_1")
+            print("  Dropped temporary index project_id_1_code_id_1")
         except Exception:
             pass
-        
+
         try:
-            await db.financial_state.create_index([("project_id", 1), ("code_id", 1)], unique=True)
+            await db.financial_state.create_index([("project_id", 1), ("category_id", 1)], unique=True)
         except Exception as e:
             print(f"Skipping index creation: {e}")
             pass
@@ -1021,8 +1027,10 @@ async def seed_production():
             code_id = code_map.get(fc["category_id"])
             if not code_id: continue
             await db.financial_state.update_one(
-                {"project_id": project_id, "code_id": code_id},
+                {"project_id": project_id, "category_id": code_id},
                 {"$set": {
+                    "code_id": code_id,
+                    "category_id": code_id,
                     "original_budget": fc["original"],
                     "committed_value": fc["committed"],
                     "certified_value": fc["certified"],
