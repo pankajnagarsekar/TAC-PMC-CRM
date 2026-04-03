@@ -350,7 +350,7 @@ async def download_scheduler_export_pdf(
     
     # We generate on-the-fly for now
     report_data = await reporting_service.get_report(
-        user, project_id, "project_summary"
+        user, project_id, "project_summary", None, None
     )
     pdf_bytes = ExportService.export_to_pdf_service("project_summary", report_data)
     

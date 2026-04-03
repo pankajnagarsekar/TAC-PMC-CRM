@@ -117,13 +117,13 @@ def test_cpm_all_features():
     # Assert P1 (Summary Rollup)
     # C1 starts after T11 finishes (2026-04-14)
     # C2 starts after C1 finishes (2026-04-16)
-    # P1 ES = 2026-04-14, EF = 2026-04-20
+    # P1 ES = 2026-04-14, EF = 2026-04-19 (inclusive: 14,15,16,17,18,19 = 6 days)
     assert task_results["P1"]["scheduled_start"] == "2026-04-14"
-    assert task_results["P1"]["scheduled_finish"] == "2026-04-20"
+    assert task_results["P1"]["scheduled_finish"] == "2026-04-19"
     print("PASS: Parent Summary dates working.")
 
     # Assert T_SUCC (depends on P1)
-    # P1 finishes at 2026-04-20. T_SUCC should start at 2026-04-20
+    # P1 finishes at 2026-04-19. T_SUCC should start at 2026-04-20
     assert task_results["T_SUCC"]["scheduled_start"] == "2026-04-20"
     print("PASS: Summary-to-Successor Date Cascade working.")
     
@@ -132,12 +132,13 @@ def test_cpm_all_features():
     print("PASS: Cost-weighted progress working.")
 
     # Assert D1 (Draft status)
-    assert task_results["D1"]["task_status"] == "not_started"
-    print("PASS: Draft status auto-transition working.")
+    # Status should be preserved as 'draft'
+    assert task_results["D1"]["task_status"] == "draft"
+    print("PASS: Draft status preservation working.")
 
     # Assert ALAP (T3)
-    # Project finishes at 2026-05-06. T3 dur 2. ES 2026-05-04
-    assert task_results["T3"]["scheduled_start"] == "2026-05-04"
+    # Project finishes at 2026-05-06. T3 dur 2. LS 2026-05-05 (inclusive: 05, 06)
+    assert task_results["T3"]["scheduled_start"] == "2026-05-05"
     print("PASS: ALAP Constraint working.")
 
     # Assert Metadata

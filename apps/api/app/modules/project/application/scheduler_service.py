@@ -142,6 +142,10 @@ class SchedulerService:
             }
         )
         return {"message": "Task deleted successfully", "count": len(schedule["tasks"])}
+
+    async def load_schedule(
+        self, project_id: str, organisation_id: str
+    ) -> Dict[str, Any]:
         """Authoritative schedule retrieval with resilience."""
         from bson import ObjectId
 
