@@ -81,12 +81,12 @@
             border: 0.5pt solid #eee;
             padding: 3pt 4pt;
             height: 14pt;
-            /* Fixed row height to sync with Gantt */
             line-height: 1;
         }
 
         .wbs-indent {
             display: inline-block;
+            width: var(--indent-width);
         }
 
         /* Gantt Styles */
@@ -96,67 +96,68 @@
             height: 30pt;
             position: relative;
             white-space: nowrap;
+            width: var(--total-width);
+        }
+
+        .qtr-label,
+        .month-label {
+            position: absolute;
+            border-right: 0.5pt solid #ccc;
+            height: 15pt;
+            padding: 2pt 4pt;
+            text-align: center;
+            left: var(--label-left);
+            width: var(--label-width);
         }
 
         .qtr-label {
-            position: absolute;
-            border-right: 0.5pt solid #ccc;
-            height: 15pt;
-            padding: 2pt 4pt;
             font-weight: bold;
-            text-align: center;
         }
 
         .month-label {
-            position: absolute;
             top: 15pt;
-            border-right: 0.5pt solid #ccc;
-            height: 15pt;
-            padding: 2pt 4pt;
-            text-align: center;
         }
 
         .gantt-body {
             position: relative;
             background-image: linear-gradient(to right, #f1f1f1 1px, transparent 1px);
-
-            background-size: {
-                    {
-                    day_width_px
-                }
-            }
-
-            px 100%;
+            background-size: var(--day-width) 100%;
+            width: var(--total-width);
         }
 
         .gantt-row {
             height: 20pt;
-            /* Matches table row height with padding */
             border-bottom: 0.5pt solid #f1f1f1;
             position: relative;
             padding: 0;
             margin: 0;
         }
 
-        .task-bar {
+        .task-bar,
+        .summary-bar,
+        .milestone-diamond,
+        .summary-bracket {
             position: absolute;
+            z-index: 10;
+            left: var(--task-left);
+        }
+
+        .task-bar {
             top: 6pt;
             height: 8pt;
             background-color: #3b82f6;
             border-radius: 1pt;
-            z-index: 10;
+            width: var(--task-width);
         }
 
         .summary-bar {
-            position: absolute;
             top: 7pt;
             height: 4pt;
             background-color: #000;
-            z-index: 10;
+            width: var(--task-width);
         }
 
         .summary-bracket {
-            position: absolute;
             top: 5pt;
             height: 8pt;
             width: 4pt;
@@ -165,7 +166,6 @@
         }
 
         .milestone-diamond {
-            position: absolute;
             top: 6pt;
             width: 8pt;
             height: 8pt;
@@ -210,7 +210,7 @@
 </head>
 
 <body>
-    <div class="container">
+    <div class="container" style="--day-width: {{ day_width_px }}px; --total-width: {{ total_timeline_width }}px;">
         <div class="header">
             <div class="header-left">Project: {{ project_name }}</div>
             <div class="header-right">Date: {{ now }} | Baseline: {{ baseline_name }}</div>
@@ -237,7 +237,7 @@
                             <td>{{ loop.index }}</td>
                             <td>{% if task.task_mode == 'Manual' %}📌{% else %}⚙️{% endif %}</td>
                             <td>
-                                <span class="wbs-indent" style="width: {{ task.depth * 12 }}pt"></span>
+                                <span class="wbs-indent" style="--indent-width: {{ task.depth * 12 }}pt"></span>
                                 {{ task.task_name }}
                             </td>
                             <td>{{ task.scheduled_duration }} days</td>
@@ -252,34 +252,35 @@
             </div>
 
             <div class="gantt-side">
-                <div class="timeline-header" style="width: {{ total_timeline_width }}px">
+                <div class="timeline-header">
                     {% for q in quarters %}
-                    <div class="qtr-label" style="left: {{ q.offset }}px; width: {{ q.width }}px">
+                    <div class="qtr-label" style="--label-left: {{ q.offset }}px; --label-width: {{ q.width }}px">
                         {{ q.label }}
                     </div>
                     {% endfor %}
                     {% for m in months %}
-                    <div class="month-label" style="left: {{ m.offset }}px; width: {{ m.width }}px">
+                    <div class="month-label" style="--label-left: {{ m.offset }}px; --label-width: {{ m.width }}px">
                         {{ m.label }}
                     </div>
                     {% endfor %}
                 </div>
 
-                <div class="gantt-body" style="width: {{ total_timeline_width }}px">
+                <div class="gantt-body">
                     {% for task in tasks %}
                     <div class="gantt-row">
                         {% if task.is_milestone %}
-                        <div class="milestone-diamond" style="left: {{ task.start_offset_px }}px"></div>
+                        <div class="milestone-diamond" style="--task-left: {{ task.start_offset_px }}px"></div>
                         {% elif task.is_summary %}
                         <div class="summary-bar"
-                            style="left: {{ task.start_offset_px }}px; width: {{ task.width_px }}px"></div>
-                        <!-- Bracket ends -->
-                        <div class="summary-bracket" style="left: {{ task.start_offset_px }}px"></div>
-                        <div class="summary-bracket" style="left: {{ task.start_offset_px + task.width_px - 4 }}px">
+                            style="--task-left: {{ task.start_offset_px }}px; --task-width: {{ task.width_px }}px">
                         </div>
+                        <div class="summary-bracket" style="--task-left: {{ task.start_offset_px }}px"></div>
+                        <div class="summary-bracket"
+                            style="--task-left: {{ task.start_offset_px + task.width_px - 4 }}px"></div>
                         {% else %}
                         <div class="task-bar {{ 'critical' if task.is_critical }}"
-                            style="left: {{ task.start_offset_px }}px; width: {{ task.width_px }}px"></div>
+                            style="--task-left: {{ task.start_offset_px }}px; --task-width: {{ task.width_px }}px">
+                        </div>
                         {% endif %}
                     </div>
                     {% endfor %}
