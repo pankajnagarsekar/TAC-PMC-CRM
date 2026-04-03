@@ -87,15 +87,17 @@ class SchedulerService:
                 "schedule_version": 1
             }
 
-        # DIRECT CALL: Avoid subprocess overhead and Windows pipe issues
+        # SECURE OFF-THREAD CALL: Prevent event loop blocking for CPU-bound engine
+        import asyncio
         from app.modules.scheduler.calculate_critical_path import run_calculation
+        
         # Serialize first to strip ObjectId/datetime from MongoDB task documents
         clean_payload = serialize_doc(input_payload)
-        results = run_calculation(clean_payload)
-
+        results = await asyncio.to_thread(run_calculation, clean_payload)
+ 
         if "error" in results:
             raise ValidationError(results["error"])
-
+ 
         return serialize_doc(results)
 
     async def save_schedule(

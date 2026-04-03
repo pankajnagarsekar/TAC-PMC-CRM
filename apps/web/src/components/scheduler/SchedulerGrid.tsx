@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
+import { schedulerApi } from "@/lib/api";
 import { ROW_HEIGHT, buildTaskStatusTransition, normalizeTaskOrder } from "./scheduler-utils";
 import GridHeader from "./GridHeader";
 import GridRow from "./GridRow";
@@ -122,6 +122,23 @@ export default function SchedulerGrid() {
           <span className="rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-0.5 text-slate-600 dark:text-white/70 font-bold">
             {filteredTasks.length.toLocaleString("en-US")} / {tasks.length.toLocaleString("en-US")} tasks
           </span>
+          <button
+            onClick={async () => {
+              const { taskMap, systemState } = useScheduleStore.getState();
+              if (systemState === "locked") return;
+              const tasks = Object.values(taskMap);
+              if (tasks.length === 0) return;
+              try {
+                await schedulerApi.save(tasks[0].project_id, tasks, (tasks[0] as any).project_scheduled_start || "", 0);
+                toast.success("Schedule committed to database.");
+              } catch {
+                toast.error("Failed to commit schedule.");
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+          >
+            Commit to DB
+          </button>
         </div>
       </div>
 

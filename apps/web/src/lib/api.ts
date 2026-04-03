@@ -10,7 +10,7 @@ const BACKEND_URL =
 
 // Production (Render): 25s to account for cold starts
 // Development: 15s for faster feedback
-const TIMEOUT = process.env.NODE_ENV === "production" ? 25000 : 15000;
+const TIMEOUT = 60000; // Increased to 60s for Cloud DB resilience
 
 // ──────────────────────────────────────────────────────────────────────────
 // Axios instance — all requests go through here

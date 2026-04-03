@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Query, status
+from datetime import datetime
 import logging
 
 
@@ -213,17 +214,45 @@ async def calculate_schedule(
     response_model=GenericResponse[ScheduleResponse],
     tags=["Scheduler"],
 )
-async def calculate_schedule_legacy(
+async def calculate_granular_schedule(
     project_id: str,
-    request: ScheduleCalculateRequest,
+    request: ScheduleChangeRequest,
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
-    """Trigger schedule recalculation logic (legacy path)."""
-    task_dicts = request.tasks
+    """Trigger schedule recalculation for a specific task change (Point 103)."""
+    start_time = time.time()
+    # 1. Load current schedule state
+    schedule = await service.load_schedule(project_id, user["organisation_id"])
+    load_time = time.time() - start_time
+    tasks = schedule.get("tasks", [])
+    project_start = schedule.get("project_start") or datetime.now().strftime("%Y-%m-%d")
+ 
+    # 2. Apply change to the specific task
+    found = False
+    for t in tasks:
+        if t.get("task_id") == request.task_id:
+            t.update(request.changes)
+            found = True
+            break
+    
+    if not found:
+        # If it's a new task (draft), add it to the list
+        new_task = request.changes
+        if "task_id" not in new_task:
+            new_task["task_id"] = request.task_id
+        tasks.append(new_task)
+ 
+    apply_time = time.time() - (start_time + load_time)
+    
+    # 3. Recalculate
     result = await service.calculate_schedule(
-        project_id, task_dicts, request.project_start
+        project_id, tasks, project_start
     )
+    total_time = time.time() - start_time
+    
+    logger.info(f"PERF: scheduler_calculate | total={total_time:.3f}s | load={load_time:.3f}s | apply={apply_time:.3f}s")
+    
     return GenericResponse(data=result)
 
 

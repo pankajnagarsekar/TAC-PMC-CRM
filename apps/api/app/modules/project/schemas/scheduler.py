@@ -14,6 +14,14 @@ class ScheduleSaveRequest(BaseModel):
     total_cost: Optional[float] = 0.0
 
 
+class ScheduleChangeRequest(BaseModel):
+    project_id: str
+    task_id: str
+    changes: Dict[str, Any]
+    version: int
+    trigger_source: str
+
+
 class ScheduleResponse(BaseModel):
     tasks: List[Dict[str, Any]]
     critical_path: Optional[List[str]] = None

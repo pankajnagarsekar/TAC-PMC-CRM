@@ -66,13 +66,15 @@ export default function TaskDrawer() {
   const [localTaskName, setLocalTaskName] = useState(selectedTask?.task_name || "");
   const [localDuration, setLocalDuration] = useState<number>(selectedTask?.scheduled_duration ?? 0);
   const [localPercent, setLocalPercent] = useState<number>(selectedTask?.percent_complete ?? 0);
+  const [localParentId, setLocalParentId] = useState(selectedTask?.parent_id || "");
 
   useEffect(() => {
     if (!selectedTask) return;
     setLocalTaskName(selectedTask.task_name);
     setLocalDuration(selectedTask.scheduled_duration ?? 0);
     setLocalPercent(selectedTask.percent_complete ?? 0);
-  }, [selectedTask, selectedTask?.task_id, selectedTask?.task_name, selectedTask?.scheduled_duration, selectedTask?.percent_complete]);
+    setLocalParentId(selectedTask.parent_id || "");
+  }, [selectedTask, selectedTask?.task_id, selectedTask?.task_name, selectedTask?.scheduled_duration, selectedTask?.percent_complete, selectedTask?.parent_id]);
 
   const handleAnalyzeMom = async () => {
     if (!selectedTask || !momNotes.trim()) return;
@@ -285,6 +287,29 @@ export default function TaskDrawer() {
                     disabled={readOnly}
                     className={textInputClass()}
                   />
+                </FieldRow>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldRow label="Parent Unit ID">
+                  <input
+                    placeholder="example: task-42"
+                    value={localParentId}
+                    onChange={(e) => setLocalParentId(e.target.value)}
+                    onBlur={() => commit({ parent_id: localParentId || null })}
+                    disabled={readOnly}
+                    className={textInputClass()}
+                  />
+                </FieldRow>
+                <FieldRow label="Node Type">
+                  <select
+                    value={selectedTask.is_summary ? "summary" : "task"}
+                    onChange={(e) => commit({ is_summary: e.target.value === "summary" })}
+                    className={textInputClass()}
+                    disabled={readOnly}
+                  >
+                    <option value="task">Sub-Task</option>
+                    <option value="summary">Summary Group</option>
+                  </select>
                 </FieldRow>
               </div>
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">

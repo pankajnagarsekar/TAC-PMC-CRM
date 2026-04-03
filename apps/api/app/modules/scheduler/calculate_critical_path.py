@@ -399,10 +399,20 @@ def run_calculation(input_data: dict) -> dict:
                 else:
                     task["slack"] = (task["ls"] - task["es"]).days
                     task["is_critical"] = task["slack"] <= 0
-            else:
-                # Re-calculate slack for non-summaries in case ALAP/MSO shifted ES but not LS
-                task["slack"] = (task["ls"] - task["es"]).days
                 task["is_critical"] = task["slack"] <= 0
+ 
+        # Step 7.5: WBS Generation (Hierarchical numbering)
+        def assign_wbs(parent_tid, prefix=""):
+            # Find children and sort by early start to ensure logical numbering
+            siblings = [tid for tid in topo_order if task_map[tid]["parent_id"] == parent_tid]
+            siblings.sort(key=lambda tid: (task_map[tid]["es"] or datetime.max, tid))
+            
+            for idx, tid in enumerate(siblings, 1):
+                wbs = f"{prefix}{idx}"
+                task_map[tid]["wbs"] = wbs
+                assign_wbs(tid, f"{wbs}.")
+
+        assign_wbs(None)
 
         # Step 8: Output assembly
         output_tasks = []
@@ -442,6 +452,11 @@ def run_calculation(input_data: dict) -> dict:
                 "calculated_at": calc_at,
                 "calc_reason": t.get("calc_reason"),
             })
+            
+            # Add WBS Code if generated
+            if "wbs" in t:
+                node["wbs_code"] = t["wbs"]
+                
             output_tasks.append(node)
 
         return {

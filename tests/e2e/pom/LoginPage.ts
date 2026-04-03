@@ -32,7 +32,7 @@ export class LoginPage {
 
         // Wait for either dashboard URL or error visibility
         try {
-            await this.page.waitForURL(/.*dashboard/, { timeout: 8000 });
+            await this.page.waitForURL(/.*dashboard/, { timeout: 30000 });
         } catch (e) {
             // Check if error message is visible
             const isErrorVisible = await this.errorMessage.isVisible();

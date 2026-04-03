@@ -98,9 +98,13 @@ const executeCalculationRequest = async (
       // (2) the earliest non-null scheduled_start across all tasks (legacy fallback).
       // The project start is stored on tasks as project.scheduled_start via the load response.
       const firstTask = tasks[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projectRecord = (firstTask as any)?.project;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const stableStart =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         toISODate((projectRecord as any)?.scheduled_start) ||
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         toISODate((firstTask as any)?.project_scheduled_start);
 
       let projectStart: string;
@@ -141,6 +145,25 @@ const executeCalculationRequest = async (
       system_state: response.system_state || "active",
       schedule_version: response.schedule_version || 1
     });
+
+    // AUTO-SAVE: Persist changes to DB immediately after engine reconciliation
+    try {
+      const { taskMap } = get();
+      const updatedTasks = Object.values(taskMap);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const projectStart = response.project_start || (updatedTasks[0] as any)?.project_scheduled_start;
+
+      await schedulerApi.save(
+        request.project_id,
+        updatedTasks,
+        projectStart || "",
+        0 // totalCost placeholder
+      );
+      console.log("SCHEDULER_STORE: Auto-save successful");
+    } catch (saveError) {
+      console.error("SCHEDULER_STORE: Auto-save failed", saveError);
+      // We don't toast here to avoid UI noise, the calculation result is already reconciled
+    }
   } catch (error: unknown) {
     const err = error as {
       response?: {
@@ -386,6 +409,14 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         // Trigger a recalculation of the remaining schedule to fix dependencies
         const { taskMap } = get();
         const tasks = Object.values(taskMap);
+        if (tasks.length === 0) return;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await schedulerApi.save(tasks[0].project_id, tasks, (tasks[0] as any).project_scheduled_start || "", 0);
+          toast.success("Schedule committed to database.");
+        } catch (e) {
+          console.error("Failed to commit schedule after delete", e);
+        }
 
         get().queueCalculation({
           project_id: projectId,
