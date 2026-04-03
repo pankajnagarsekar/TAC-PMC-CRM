@@ -100,11 +100,12 @@ class BackpressureMiddleware(BaseHTTPMiddleware):
     Immediate rejection when system concurrency limit is reached.
     """
 
-    MAX_CONCURRENT = 100
+    MAX_CONCURRENT = 200
     _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
-
+ 
     async def dispatch(self, request: Request, call_next):
         if self._semaphore.locked():
+            logger.warning(f"BACKPRESSURE_REJECTION: System saturated at {self.MAX_CONCURRENT} concurrent requests. Path: {request.url.path}")
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={

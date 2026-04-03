@@ -32,6 +32,7 @@ from ..schemas.dto import (
 )
 from ..schemas.scheduler import (
     ScheduleCalculateRequest,
+    ScheduleChangeRequest,
     ScheduleResponse,
     ScheduleSaveRequest,
 )

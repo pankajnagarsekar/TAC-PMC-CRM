@@ -112,19 +112,19 @@ function ProjectSchedulerContent() {
     if (!activeProject) return;
     setExporting(true);
     try {
-      await schedulerApi.exportPdf(activeProject.project_id);
-      const response = await schedulerApi.downloadPdf(activeProject.project_id);
+      const response = await schedulerApi.exportGanttPdf(activeProject.project_id);
       const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Schedule_${activeProject.project_id}_${new Date().toISOString()}.pdf`;
+      a.download = `Gantt_Report_${activeProject.project_code || activeProject.project_id}_${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      toast.success("Schedule export generated.");
-    } catch {
-      toast.error("Export failed. Please try again.");
+      toast.success("High-fidelity Gantt export generated.");
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Export failed. Please ensure the backend is running.");
     } finally {
       setExporting(false);
     }

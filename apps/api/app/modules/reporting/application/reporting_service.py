@@ -69,15 +69,137 @@ class ReportingService:
             )
         elif report_type == "petty_cash_tracker":
             return await self._petty_cash_tracker_report(project_id, start_dt, end_dt)
-        elif report_type == "csa_report":
-            return await self._csa_report(project_id, start_dt, end_dt)
-
+        elif report_type == "scheduler_gantt":
+            return await self._scheduler_gantt_report(project_id)
+ 
         window = "weekly"
         if "15_days" in report_type:
             window = "15days"
         elif "monthly" in report_type:
             window = "monthly"
         return await self._progress_report(project_id, window, start_dt, end_dt)
+ 
+    async def _scheduler_gantt_report(self, project_id: str) -> Dict[str, Any]:
+        """Prepares hierarchical Gantt data with pixel offsets for PDF rendering."""
+        from app.modules.project.application.scheduler_service import SchedulerService
+        from datetime import timedelta
+        import math
+ 
+        sched_service = SchedulerService(self.db)
+        # Pull latest schedule
+        # Note: organisation_id is required by repo but we might need to bypass for internal report
+        # For now we'll assume we can get it from projects collection
+        project = await self.db.projects.find_one({"project_id": project_id})
+        org_id = project.get("organisation_id") if project else None
+        
+        schedule = await sched_service.load_schedule(project_id, org_id)
+        tasks_raw = schedule.get("tasks", [])
+        
+        if not tasks_raw:
+            return {"tasks": [], "months": [], "quarters": [], "day_width_px": 5}
+ 
+        # 1. Timeline bounds
+        fmt = "%Y-%m-%d"
+        starts = []
+        finishes = []
+        for t in tasks_raw:
+            if t.get("scheduled_start"):
+                starts.append(datetime.strptime(t["scheduled_start"][:10], fmt))
+            if t.get("scheduled_finish"):
+                finishes.append(datetime.strptime(t["scheduled_finish"][:10], fmt))
+        
+        project_start = min(starts) if starts else datetime.now()
+        # Round project start to beginning of month for cleaner timeline
+        timeline_start = project_start.replace(day=1)
+        project_finish = max(finishes) if finishes else project_start + timedelta(days=30)
+ 
+        day_width = 4 # pixels per day
+        
+        # 2. task processing
+        processed_tasks = []
+        task_map = {t["task_id"]: t for t in tasks_raw}
+        
+        def get_depth(t_id, depth=0):
+            task = task_map.get(t_id)
+            if not task or not task.get("parent_id"):
+                return depth
+            return get_depth(task["parent_id"], depth + 1)
+ 
+        for t in tasks_raw:
+            t_start = datetime.strptime(t["scheduled_start"][:10], fmt) if t.get("scheduled_start") else timeline_start
+            t_finish = datetime.strptime(t["scheduled_finish"][:10], fmt) if t.get("scheduled_finish") else t_start
+            
+            offset_days = (t_start - timeline_start).days
+            duration_days = (t_finish - t_start).days + 1
+            
+            # Predecessors CSV
+            preds = t.get("predecessors", [])
+            pred_ids = [p.get("task_id") if isinstance(p, dict) else str(p) for p in preds]
+            # Convert internal task IDs to row numbers (1-indexed matching PDF)
+            pred_rows = []
+            for pid in pred_ids:
+                for idx, r_t in enumerate(tasks_raw):
+                    if r_t["task_id"] == pid:
+                        pred_rows.append(str(idx + 1))
+                        break
+ 
+            pt = t.copy()
+            pt["depth"] = get_depth(t["task_id"])
+            pt["start_offset_px"] = offset_days * day_width
+            pt["width_px"] = max(duration_days * day_width, 1)
+            pt["predecessors_csv"] = ", ".join(pred_rows)
+            pt["cost_formatted"] = ExportService.format_currency(t.get("wo_value") or 0)
+            pt["is_summary"] = bool(t.get("is_summary"))
+            processed_tasks.append(pt)
+ 
+        # 3. Timeline Markers (Months & Quarters)
+        months = []
+        quarters = []
+        curr = timeline_start
+        total_days = (project_finish - timeline_start).days + 60 # buffer
+        
+        last_q = -1
+        while (curr - timeline_start).days < total_days:
+            # Month
+            m_label = curr.strftime("%b '%y")
+            m_offset = (curr - timeline_start).days * day_width
+            
+            # Determine days in this month
+            import calendar
+            days_in_m = calendar.monthrange(curr.year, curr.month)[1]
+            m_width = days_in_m * day_width
+            
+            months.append({"label": m_label, "offset": m_offset, "width": m_width})
+            
+            # Quarter
+            q_num = (curr.month - 1) // 3 + 1
+            if q_num != last_q:
+                q_label = f"Qtr {q_num}, {curr.year}"
+                quarters.append({"label": q_label, "offset": m_offset, "width": 0}) # Width updated later
+                if len(quarters) > 1:
+                    quarters[-2]["width"] = m_offset - quarters[-2]["offset"]
+                last_q = q_num
+            
+            # Move to next month
+            if curr.month == 12:
+                curr = curr.replace(year=curr.year + 1, month=1)
+            else:
+                curr = curr.replace(month=curr.month + 1)
+        
+        # Last quarter width
+        if quarters:
+            quarters[-1]["width"] = (curr - timeline_start).days * day_width - quarters[-1]["offset"]
+ 
+        return {
+            "project_name": project.get("name") if project else "Project",
+            "now": now().strftime("%d-%m-%y"),
+            "baseline_name": "R0 (Current)",
+            "tasks": processed_tasks,
+            "months": months,
+            "quarters": quarters,
+            "day_width_px": day_width,
+            "total_timeline_width": (curr - timeline_start).days * day_width
+        }
 
     async def get_dashboard_stats(self, user: dict, project_id: str) -> Dict[str, Any]:
         """High-level statistics for project dashboard."""

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        @page {
+            size: A3 landscape;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 8pt;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 100%;
+            border: 0.5pt solid #ccc;
+        }
+
+        .header {
+            background-color: #f8fafc;
+            border-bottom: 0.5pt solid #ccc;
+            padding: 8pt 12pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .header-left {
+            font-weight: bold;
+            font-size: 10pt;
+        }
+
+        .header-right {
+            font-size: 8pt;
+            color: #666;
+        }
+
+        .main-split {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-side {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+            border-right: 1pt solid #444;
+        }
+
+        .gantt-side {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Table Styles */
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table.data-table th {
+            background-color: #eee;
+            border: 0.5pt solid #ccc;
+            padding: 4pt;
+            text-align: left;
+            font-weight: bold;
+            font-size: 7pt;
+            white-space: nowrap;
+        }
+
+        table.data-table td {
+            border: 0.5pt solid #eee;
+            padding: 3pt 4pt;
+            height: 14pt;
+            /* Fixed row height to sync with Gantt */
+            line-height: 1;
+        }
+
+        .wbs-indent {
+            display: inline-block;
+        }
+
+        /* Gantt Styles */
+        .timeline-header {
+            background-color: #eee;
+            border-bottom: 0.5pt solid #ccc;
+            height: 30pt;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .qtr-label {
+            position: absolute;
+            border-right: 0.5pt solid #ccc;
+            height: 15pt;
+            padding: 2pt 4pt;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .month-label {
+            position: absolute;
+            top: 15pt;
+            border-right: 0.5pt solid #ccc;
+            height: 15pt;
+            padding: 2pt 4pt;
+            text-align: center;
+        }
+
+        .gantt-body {
+            position: relative;
+            background-image: linear-gradient(to right, #f1f1f1 1px, transparent 1px);
+
+            background-size: {
+                    {
+                    day_width_px
+                }
+            }
+
+            px 100%;
+        }
+
+        .gantt-row {
+            height: 20pt;
+            /* Matches table row height with padding */
+            border-bottom: 0.5pt solid #f1f1f1;
+            position: relative;
+            padding: 0;
+            margin: 0;
+        }
+
+        .task-bar {
+            position: absolute;
+            top: 6pt;
+            height: 8pt;
+            background-color: #3b82f6;
+            border-radius: 1pt;
+            z-index: 10;
+        }
+
+        .summary-bar {
+            position: absolute;
+            top: 7pt;
+            height: 4pt;
+            background-color: #000;
+            z-index: 10;
+        }
+
+        .summary-bracket {
+            position: absolute;
+            top: 5pt;
+            height: 8pt;
+            width: 4pt;
+            border-left: 1pt solid #000;
+            border-right: 1pt solid #000;
+        }
+
+        .milestone-diamond {
+            position: absolute;
+            top: 6pt;
+            width: 8pt;
+            height: 8pt;
+            background-color: #444;
+            transform: rotate(45deg);
+            z-index: 20;
+        }
+
+        .critical {
+            background-color: #ef4444 !important;
+        }
+
+        .legend {
+            border-top: 0.5pt solid #ccc;
+            padding: 10pt;
+            background-color: #fcfcfc;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10pt;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5pt;
+            font-size: 7pt;
+        }
+
+        .legend-swatch {
+            width: 12pt;
+            height: 6pt;
+            border: 0.5pt solid #999;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 7pt;
+            color: #999;
+            padding: 10pt 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">Project: {{ project_name }}</div>
+            <div class="header-right">Date: {{ now }} | Baseline: {{ baseline_name }}</div>
+        </div>
+
+        <div class="main-split">
+            <div class="table-side">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="30">ID</th>
+                            <th width="40">Mode</th>
+                            <th>Task Name</th>
+                            <th width="60">Duration</th>
+                            <th width="70">Start</th>
+                            <th width="70">Finish</th>
+                            <th width="60">Predecessors</th>
+                            <th width="90">Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr style="height: 20pt;">
+                            <td>{{ loop.index }}</td>
+                            <td>{% if task.task_mode == 'Manual' %}📌{% else %}⚙️{% endif %}</td>
+                            <td>
+                                <span class="wbs-indent" style="width: {{ task.depth * 12 }}pt"></span>
+                                {{ task.task_name }}
+                            </td>
+                            <td>{{ task.scheduled_duration }} days</td>
+                            <td>{{ task.scheduled_start[:10] }}</td>
+                            <td>{{ task.scheduled_finish[:10] }}</td>
+                            <td>{{ task.predecessors_csv }}</td>
+                            <td>{{ task.cost_formatted }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="gantt-side">
+                <div class="timeline-header" style="width: {{ total_timeline_width }}px">
+                    {% for q in quarters %}
+                    <div class="qtr-label" style="left: {{ q.offset }}px; width: {{ q.width }}px">
+                        {{ q.label }}
+                    </div>
+                    {% endfor %}
+                    {% for m in months %}
+                    <div class="month-label" style="left: {{ m.offset }}px; width: {{ m.width }}px">
+                        {{ m.label }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="gantt-body" style="width: {{ total_timeline_width }}px">
+                    {% for task in tasks %}
+                    <div class="gantt-row">
+                        {% if task.is_milestone %}
+                        <div class="milestone-diamond" style="left: {{ task.start_offset_px }}px"></div>
+                        {% elif task.is_summary %}
+                        <div class="summary-bar"
+                            style="left: {{ task.start_offset_px }}px; width: {{ task.width_px }}px"></div>
+                        <!-- Bracket ends -->
+                        <div class="summary-bracket" style="left: {{ task.start_offset_px }}px"></div>
+                        <div class="summary-bracket" style="left: {{ task.start_offset_px + task.width_px - 4 }}px">
+                        </div>
+                        {% else %}
+                        <div class="task-bar {{ 'critical' if task.is_critical }}"
+                            style="left: {{ task.start_offset_px }}px; width: {{ task.width_px }}px"></div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-swatch" style="background:#3b82f6;"></div> Task
+            </div>
+            <div class="legend-item">
+                <div class="legend-swatch" style="background:#000;"></div> Summary
+            </div>
+            <div class="legend-item">
+                <div class="legend-swatch" style="background:#ef4444;"></div> Critical
+            </div>
+            <div class="legend-item">🔸 Milestone</div>
+            <div class="legend-item">📌 Manual Mode</div>
+            <div class="legend-item">⚙️ Auto Mode</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Page 1 of 1 | Sovereign Intelligence Engine v4.2
+    </div>
+</body>
+
+</html>

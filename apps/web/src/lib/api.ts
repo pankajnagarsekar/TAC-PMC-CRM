@@ -202,6 +202,12 @@ export const schedulerApi = {
   exportPdf: (projectId: string) =>
     api.post(`/api/v1/projects/${projectId}/export/pdf`).then(res => res.data),
 
+  exportGanttPdf: (projectId: string) =>
+    api.get(`/api/v1/reports/${projectId}/scheduler_gantt/export/pdf`, {
+      responseType: "blob",
+      params: { sync: true }
+    }),
+
   downloadPdf: (projectId: string) =>
     api.get(`/api/v1/projects/${projectId}/export/download`, {
       responseType: "blob"

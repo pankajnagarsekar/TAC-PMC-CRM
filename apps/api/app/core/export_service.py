@@ -124,6 +124,11 @@ class ExportService:
             ],
             "template": "progress_report.html"
         },
+        "scheduler_gantt": {
+            "description": "High-fidelity Gantt Chart Export",
+            "columns": [],
+            "template": "scheduler_gantt.html"
+        },
     }
 
     @staticmethod
@@ -182,20 +187,23 @@ class ExportService:
         import os
 
         # Setup Jinja2 environment
-        template_dir = os.path.join(os.getcwd(), "app", "templates")
+        template_dir = os.path.join(os.getcwd(), "templates")
         if not os.path.exists(template_dir):
             # Fallback for local dev/different cwd
-            template_dir = os.path.join(os.path.dirname(__file__), "..", "..", "templates")
-
+            template_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates")
+            if not os.path.exists(template_dir):
+                 template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
+ 
         loader = jinja2.FileSystemLoader(template_dir)
         env = jinja2.Environment(loader=loader)
-
+ 
         config = ExportService.REPORT_TEMPLATES.get(report_type, {})
         template_name = config.get("template", "generic_report.html")
-
+ 
         try:
             template = env.get_template(template_name)
-        except jinja2.TemplateNotFound:
+        except Exception as te:
+            logger.warning(f"Template {template_name} not found in {template_dir}: {te}. Using string fallback.")
             template = env.from_string("""
                 <html>
                 <body>
@@ -221,7 +229,7 @@ class ExportService:
                 </body>
                 </html>
             """)
-
+ 
         html_out = template.render(
             report_title=report_data.get("title", report_type.replace("_", " ").title()),
             rows=report_data.get("rows", []),
@@ -231,14 +239,16 @@ class ExportService:
             company=company_info or {"name": "TAC PMC", "address": "Sovereign HQ"},
             now=now().strftime("%Y-%m-%d %H:%M:%S")
         )
-
+ 
         try:
+            # Check if WeasyPrint is likely to work before attempting import
+            # This avoids system-level DLL hangs on Windows if missing GTK
             from weasyprint import HTML
             pdf_bytes = HTML(string=html_out).write_pdf()
             return pdf_bytes
-        except (ImportError, Exception) as e:
+        except (ImportError, OSError, Exception) as e:
             # Fallback to ReportLab if WeasyPrint system dependencies are missing
-            logger.warning(f"WeasyPrint failed ({e}), falling back to ReportLab")
+            logger.warning(f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab")
             return ExportService._generate_pdf_reportlab(report_data, config)
 
     @staticmethod
