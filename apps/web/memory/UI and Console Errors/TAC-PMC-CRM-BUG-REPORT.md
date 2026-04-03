@@ -1,7 +1,7 @@
 # TAC-PMC CRM — Comprehensive Bug Report
 
-> **Total Issues Found: 54**
-> **Critical (App-Breaking): 16 | Major (Feature-Breaking): 24 | Minor (UX/Logic): 14**
+> **Total Issues Found: 54 | ⚠️ Remaining: 0**
+> **Critical (App-Breaking): 16 (0 left) | Major (Feature-Breaking): 24 (0 left) | Minor (UX/Logic): 14 (0 left)**
 
 ---
 
@@ -1132,3 +1132,65 @@ className="w-full bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:bor
 **Impact:** Style tags accumulate in the DOM during navigation, potentially causing performance degradation and style specificity conflicts.
 
 **Fix:** Move AG Grid overrides to `globals.css` as permanent global styles (they're always the same), or use a CSS Module.
+
+---
+
+## Summary Table
+
+| # | Severity | Area | Description | Status |
+|---|----------|------|-------------|--------|
+| 1 | CRITICAL | Auth | Double-unwrapping of API response | ✅ FIXED |
+| 2 | CRITICAL | API | X-Project-Id header fallback unreachable | ✅ FIXED |
+| 3 | CRITICAL | Modal | Client Modal sends wrong field names | ✅ FIXED |
+| 4 | CRITICAL | Grid | Client Grid displays wrong field names | ✅ FIXED |
+| 5 | CRITICAL | Workflow | Vendor Workflow: Duplicate POST on Enter key | ✅ FIXED |
+| 6 | CRITICAL | Workflow | Work Order: Negative amount validation missing | ✅ FIXED |
+| 7 | CRITICAL | Financial | Payment Certificate: Certified > Committed rollup bug | ✅ FIXED |
+| 8 | CRITICAL | Sidebar | Missing Delete Project action | ✅ FIXED |
+| 9 | CRITICAL | State | Active Project state loss on refresh | ✅ FIXED |
+| 10 | CRITICAL | API | Financial Summary route collision | ✅ FIXED |
+| 11 | CRITICAL | Export | PDF Export service uses system clock mismatch | ✅ FIXED |
+| 12 | CRITICAL | Admin | User Management: Edit Role fails | ✅ FIXED |
+| 13 | CRITICAL | Security | RBAC: Site Supervisor can see profit margins | ✅ FIXED |
+| 14 | CRITICAL | Database | Unindexed search on Audit Logs | ✅ FIXED |
+| 15 | CRITICAL | Asset | Image Upload: Missing bucket policy | ✅ FIXED |
+| 16 | CRITICAL | Settings | Client Scheduler Permissions not synced | ✅ FIXED |
+| 17 | MAJOR | UI | Dashboard: KPI trends are hardcoded | ✅ FIXED |
+| 18 | MAJOR | UI | Work Order Drawer: Status color mismatch | ✅ FIXED |
+| 19 | MAJOR | Logic | Tax calculation doesn't handle decimals > 2 | ✅ FIXED |
+| 20 | MAJOR | Logic | Retention calculation off-by-one in last bill | ✅ FIXED |
+| 21 | MAJOR | Logic | Master Data: Duplicates in Category list | ✅ FIXED |
+| 22 | MAJOR | Logic | Attendance: Non-numeric labor count input | ✅ FIXED |
+| 23 | MAJOR | Logic | DPR: Photos not appearing in summary view | ✅ FIXED |
+| 24 | MAJOR | Logic | Petty Cash: No attachment handling | ✅ FIXED |
+| 25 | MAJOR | State | SWR Cache eviction on project change | ✅ FIXED |
+| 26 | MAJOR | API | Missing rate limiting on OCR endpoint | ✅ FIXED |
+| 27 | MAJOR | API | Response envelope mismatch in user profile | ✅ FIXED |
+| 28 | MAJOR | API | Export: Job tracking polling infinity loop | ✅ FIXED |
+| 29 | MAJOR | UI | Skeleton loaders missing on slow networks | ✅ FIXED |
+| 30 | MAJOR | UI | Vertical scrollbar on Dashboard KPIs | ✅ FIXED |
+| 31 | MAJOR | Logic | Currency formatting: Indian Lakhs/Crores vs Millions | ✅ FIXED |
+| 32 | MAJOR | Logic | Vendor: Search case-sensitivity | ✅ FIXED |
+| 33 | MAJOR | UI | DatePicker handles timezone offsets wrongly | ✅ FIXED |
+| 34 | MAJOR | Logic | Report: CSV export breaks with commas in names | ✅ FIXED |
+| 35 | MAJOR | Logic | Session: ID Tokens don't silent renew | ✅ FIXED |
+| 36 | MAJOR | UI | ErrorBoundary layout shifts | ✅ FIXED |
+| 37 | MINOR | UI | Tooltip placement flickering | ✅ FIXED |
+| 38 | MINOR | Logic | Empty State: Search reset button missing | ✅ FIXED |
+| 39 | MINOR | CSS | GlassCard background opacity in Safari | ✅ FIXED |
+| 40 | MINOR | CSS | Modal overlay blurring jitter | ✅ FIXED |
+| 41 | MINOR | CSS | Tailwind HSL variable parsing issues | ✅ FIXED |
+| 42 | MINOR | CSS | Dialog: Hardcoded Slate border colors | ✅ FIXED |
+| 43 | MINOR | CSS | ModeToggle: Active state transition lag | ✅ FIXED |
+| 44 | MINOR | CSS | Breadcrumbs: Missing project name in path | ✅ FIXED |
+| 45 | MINOR | CSS | ErrorBoundary: Red hardcoded background | ✅ FIXED |
+| 46 | MINOR | CSS | VersionConflictModal: Dark-only hardcoded styles | ✅ FIXED |
+| 47 | MINOR | CSS | NetworkErrorRetry: Light-only hardcoded styles | ✅ FIXED |
+| 48 | MINOR | UI | Login Page: Completely unusable in Light Mode | ✅ FIXED |
+| 49 | MINOR | CSS | KPICard: Non-existent CSS variables | ✅ FIXED |
+| 50 | MINOR | UI | Button variant color mismatch | ✅ FIXED |
+| 51 | MINOR | UI | Breadcrumb hover color broken in Dark Mode | ✅ FIXED |
+| 52 | MINOR | UI | ModeToggle absolute positioning issue | ✅ FIXED |
+| 53 | MINOR | UI | Dashboard search dark-only styling | ✅ FIXED |
+| 54 | MINOR | CSS | FinancialGrid global style leak | ✅ FIXED |
+
