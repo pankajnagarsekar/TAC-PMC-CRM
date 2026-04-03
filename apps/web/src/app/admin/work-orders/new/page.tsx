@@ -25,7 +25,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@tac-pmc/ui";
-import { ColDef } from "ag-grid-community";
+import {
+  ColDef,
+  CellValueChangedEvent,
+  ValueParserParams,
+  ValueFormatterParams,
+  ICellRendererParams,
+  IRowNode
+} from "ag-grid-community";
 
 interface LineItem {
   sr_no: number;
@@ -67,7 +74,9 @@ export default function NewWorkOrderPage() {
 
   // Initialize Idempotency Key
   useEffect(() => {
-    setIdempotencyKey(idempotency.get("WO_CREATE"));
+    // Always clear and generate a fresh key on mount for new WO
+    idempotency.clear("WO_CREATE");
+    setIdempotencyKey(idempotency.generate());
   }, []);
 
   const { data: vendors } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
@@ -87,7 +96,7 @@ export default function NewWorkOrderPage() {
   const totalPayable = grandTotal - retentionAmount;
 
   // Grid Definitions
-  const columnDefs: ColDef<any>[] = useMemo(
+  const columnDefs: ColDef<LineItem>[] = useMemo(
     () => [
       {
         field: "description",
@@ -99,16 +108,18 @@ export default function NewWorkOrderPage() {
         field: "qty",
         headerName: "Qty",
         flex: 1,
+        editable: true,
         type: "numericColumn",
-        valueParser: (p: any) => Number(p.newValue) || 0,
+        valueParser: (p: ValueParserParams<LineItem>) => Number(p.newValue) || 0,
       },
       {
         field: "rate",
         headerName: "Rate (₹)",
         flex: 1,
+        editable: true,
         type: "numericColumn",
-        valueParser: (p: any) => Number(p.newValue) || 0,
-        valueFormatter: (p: any) => formatCurrency(p.value),
+        valueParser: (p: ValueParserParams<LineItem>) => Number(p.newValue) || 0,
+        valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(Number(p.value) || 0),
       },
       {
         field: "total",
@@ -116,18 +127,17 @@ export default function NewWorkOrderPage() {
         flex: 1,
         editable: false,
         type: "numericColumn",
-        valueFormatter: (p: any) => formatCurrency(p.value),
+        valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(Number(p.value) || 0),
         cellClass: "bg-slate-800/50 font-bold",
       },
       {
         headerName: "",
-        field: "actions",
         width: 60,
         editable: false,
         pinned: "right",
-        cellRenderer: (params: any) => (
+        cellRenderer: (params: ICellRendererParams<LineItem>) => (
           <button
-            onClick={() => removeLineItem(params.node.rowIndex)}
+            onClick={() => params.node.rowIndex !== null && removeLineItem(params.node.rowIndex)}
             className="text-red-500 hover:text-red-400 p-1 flex items-center justify-center w-full h-full"
           >
             <Trash2 size={14} />
@@ -157,25 +167,28 @@ export default function NewWorkOrderPage() {
 
   const confirmDeleteRow = () => {
     if (deleteRowIndex === null) return;
-    if (lineItems.length === 1) {
-      setDeleteRowIndex(null);
-      return;
-    }
-    const newItems = [...lineItems];
-    newItems.splice(deleteRowIndex, 1);
-    setLineItems(newItems.map((item, i) => ({ ...item, sr_no: i + 1 })));
+    setLineItems((prev) => {
+      if (prev.length === 1) return prev;
+      const newItems = [...prev];
+      newItems.splice(deleteRowIndex, 1);
+      return newItems.map((item, i) => ({ ...item, sr_no: i + 1 }));
+    });
     setDeleteRowIndex(null);
   };
 
-  const onCellValueChanged = (event: any) => {
+  const onCellValueChanged = (event: CellValueChangedEvent<LineItem>) => {
     if (event.colDef.field === "qty" || event.colDef.field === "rate") {
       const data = event.data;
-      data.total = (data.qty || 0) * (data.rate || 0);
-      event.api.applyTransaction({ update: [data] });
+      if (data) {
+        data.total = (data.qty || 0) * (data.rate || 0);
+        event.api.applyTransaction({ update: [data] });
+      }
 
       // Update React state to trigger subtotal recalculation
       const updatedItems: LineItem[] = [];
-      event.api.forEachNode((node: any) => updatedItems.push(node.data));
+      event.api.forEachNode((node: IRowNode<LineItem>) => {
+        if (node.data) updatedItems.push(node.data);
+      });
       setLineItems(updatedItems);
     }
   };
@@ -205,15 +218,16 @@ export default function NewWorkOrderPage() {
     setFieldErrors({});
 
     try {
+      const projectId = activeProject.project_id || activeProject._id;
       const payload = {
         ...formData,
-        project_id: activeProject.project_id || activeProject._id,
+        project_id: projectId,
         line_items: lineItems,
       };
 
       const response = await executeWorkOrderSaveWithLock(async () => {
         return await api.post<WorkOrder>(
-          `/api/v1/work-orders/${activeProject._id || activeProject.project_id}`,
+          `/api/v1/work-orders/${projectId}`,
           payload,
           {
             headers: { "Idempotency-Key": idempotencyKey },
@@ -221,30 +235,32 @@ export default function NewWorkOrderPage() {
         );
       });
 
-      const responseData = response?.data as any;
+      const responseBody = response as unknown as { data: WorkOrder, _warning?: string };
+      const createdItem = responseBody.data;
 
-      if (responseData?._warning === "over_budget") {
+      if (responseBody?._warning === "over_budget") {
         setShowOverBudgetWarning(true);
         return;
       }
 
-      if (responseData?._id) {
-        router.push(`/admin/work-orders/${responseData._id}`);
+      if (createdItem?._id) {
+        router.push(`/admin/work-orders/${createdItem._id}`);
       } else {
-        alert("Work Order created but missing ID. Redirecting...");
+        alert("Work Order created but missing ID. Redirecting to registry...");
         router.push("/admin/work-orders");
       }
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string | { errors: Array<{ field: string; message: string }> } } } };
       const detail = error.response?.data?.detail;
-      if (detail?.errors) {
+      if (typeof detail === 'object' && detail?.errors) {
         const newErrors: Record<string, string> = {};
-        detail.errors.forEach((e: any) => {
+        detail.errors.forEach((e) => {
           newErrors[e.field] = e.message;
         });
         setFieldErrors(newErrors);
         alert("Please correct the highlighted errors.");
       } else {
-        alert(detail || "Failed to save Work Order");
+        alert(typeof detail === 'string' ? detail : "Failed to save Work Order");
       }
       // Regenerate key on failure so user can try again safely
       setIdempotencyKey(idempotency.get("WO_CREATE"));

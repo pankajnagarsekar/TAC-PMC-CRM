@@ -227,6 +227,22 @@ async def calculate_schedule_legacy(
     return GenericResponse(data=result)
 
 
+@router.delete(
+    "/projects/{project_id}/tasks/{task_id}",
+    response_model=GenericResponse[dict],
+    tags=["Scheduler"],
+)
+async def delete_task(
+    project_id: str,
+    task_id: str,
+    user: dict = Depends(get_authenticated_user),
+    service: SchedulerService = Depends(get_scheduler_service),
+):
+    """Permanently remove a task from the project schedule."""
+    result = await service.delete_task(project_id, user["organisation_id"], task_id)
+    return GenericResponse(data=result, message="Task deleted successfully")
+
+
 @router.post(
     "/projects/{project_id}/save-schedule",
     response_model=GenericResponse[dict],

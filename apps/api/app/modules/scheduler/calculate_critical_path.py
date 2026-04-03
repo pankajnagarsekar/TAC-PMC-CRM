@@ -25,7 +25,7 @@ def _parse_date(date_str):
         return None
 
 
-def _apply_constraint(es, ef, duration, constraint_type, constraint_date):
+def _apply_constraint(es, ef, duration, constraint_type, constraint_date, project_start):
     """
     Apply constraint type to (es, ef) pair.
     Returns adjusted (es, ef).
@@ -38,6 +38,7 @@ def _apply_constraint(es, ef, duration, constraint_type, constraint_date):
         return es, ef
 
     ct = constraint_type.upper()
+    dur_delta = timedelta(days=max(0, duration - 1))
 
     if ct == "ALAP":
         # As Late As Possible — handled at backward pass level; skip here
@@ -46,30 +47,38 @@ def _apply_constraint(es, ef, duration, constraint_type, constraint_date):
         # Start No Earlier Than: ES = max(ES, constraint_date)
         if es < cd:
             es = cd
-            ef = es + timedelta(days=duration)
+            ef = es + dur_delta
     elif ct == "SNLT":
         # Start No Later Than: ES = min(ES, constraint_date)
         if es > cd:
-            es = cd
-            ef = es + timedelta(days=duration)
+            # S-BUG #12: Don't allow moving before project start
+            es = max(cd, project_start)
+            ef = es + dur_delta
     elif ct == "FNET":
         # Finish No Earlier Than: EF = max(EF, constraint_date)
         if ef < cd:
             ef = cd
-            es = ef - timedelta(days=duration)
+            es = ef - dur_delta
+            # Also ensure ES doesn't go below project_start if possible
+            if es < project_start:
+                es = project_start
+                ef = es + dur_delta
     elif ct == "FNLT":
         # Finish No Later Than: EF = min(EF, constraint_date)
         if ef > cd:
             ef = cd
-            es = ef - timedelta(days=duration)
+            es = ef - dur_delta
+            if es < project_start:
+                es = project_start
+                ef = es + dur_delta
     elif ct == "MSO":
         # Must Start On
-        es = cd
-        ef = es + timedelta(days=duration)
+        es = max(cd, project_start)
+        ef = es + dur_delta
     elif ct == "MFO":
         # Must Finish On
-        ef = cd
-        es = ef - timedelta(days=duration)
+        ef = max(cd, project_start + dur_delta)
+        es = ef - dur_delta
 
     return es, ef
 
@@ -89,32 +98,34 @@ def _compute_es_from_predecessors(task_id, task_map, project_start):
         if pred_id not in task_map:
             continue
         pred = task_map[pred_id]
-        link_type = pred_entry.get("type", "FS").upper()
-        lag = int(pred_entry.get("lag_days", 0) or 0)
-
-        pred_es = pred.get("es")
-        pred_ef = pred.get("ef")
-        if pred_es is None or pred_ef is None:
+        
+        p_es = pred.get("es")
+        p_ef = pred.get("ef")
+        if p_es is None or p_ef is None:
             continue
 
+        link_type = pred_entry.get("type", "FS").upper()
+        lag = int(pred_entry.get("lag_days", 0) or 0)
+        dur = task.get("duration", 0)
+        dur_delta = timedelta(days=max(0, dur - 1))
+
         if link_type == "FS":
-            # Successor starts after predecessor finishes
-            candidate = pred_ef + timedelta(days=lag)
+            # Successor starts after predecessor (Finish-to-Start)
+            # Construction CPM: Succ_Start = Pred_Finish + 1 + Lag
+            candidate = p_ef + timedelta(days=lag + 1)
         elif link_type == "SS":
-            # Successor starts after predecessor starts
-            candidate = pred_es + timedelta(days=lag)
+            # Successor starts with predecessor (Start-to-Start)
+            candidate = p_es + timedelta(days=lag)
         elif link_type == "FF":
-            # Successor finishes after predecessor finishes
-            # ES = pred_ef + lag - task_duration
-            duration = task_map[task_id]["duration"]
-            candidate = pred_ef + timedelta(days=lag) - timedelta(days=duration)
+            # Successor finishes with predecessor (Finish-to-Finish)
+            # EF_succ = EF_pred + lag => ES_succ = EF_pred + lag - (dur - 1)
+            candidate = p_ef + timedelta(days=lag) - dur_delta
         elif link_type == "SF":
-            # Successor finishes after predecessor starts
-            duration = task_map[task_id]["duration"]
-            candidate = pred_es + timedelta(days=lag) - timedelta(days=duration)
+            # Successor finishes as predecessor starts (Start-to-Finish)
+            # EF_succ = ES_pred + lag => ES_succ = ES_pred + lag - (dur - 1)
+            candidate = p_es + timedelta(days=lag) - dur_delta
         else:
-            # Default to FS
-            candidate = pred_ef + timedelta(days=lag)
+            candidate = p_ef + timedelta(days=lag + 1)
 
         if candidate > max_es:
             max_es = candidate
@@ -123,29 +134,27 @@ def _compute_es_from_predecessors(task_id, task_map, project_start):
 
 
 def run_calculation(input_data: dict) -> dict:
-    """Core calculation logic (Importable). Implements the full 8-step CPM pipeline."""
+    """Core calculation logic. Implements the 8-step enhanced CPM pipeline."""
     try:
         tasks_input = input_data.get("tasks", [])
         project_start_str = input_data.get("project_start")
 
-        # 1. PARSE PROJECT START DATE
+        # Step 1: Parse Project Start
         if not project_start_str:
             project_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         else:
-            project_start = _parse_date(project_start_str)
-            if not project_start:
-                project_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            project_start = _parse_date(project_start_str) or datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
         if not tasks_input:
             return {"tasks": [], "critical_path": [], "total_duration_days": 0}
 
-        # 2. PREPARE DATA STRUCTURES
+        # Step 2 & 3: Data Prep & Manual Mode Detection
         task_map = {}
         for t in tasks_input:
-            if not t.get("task_id"):
-                continue
-            tid = str(t["task_id"])
+            tid = str(t.get("task_id", ""))
+            if not tid: continue
 
+            # Duration parsing
             raw_dur = t.get("duration") or t.get("scheduled_duration") or 0
             if isinstance(raw_dur, str):
                 nums = re.findall(r"\d+", raw_dur)
@@ -153,233 +162,264 @@ def run_calculation(input_data: dict) -> dict:
             else:
                 duration = int(raw_dur) if raw_dur else 0
 
-            # Build full predecessor list with link metadata
-            preds_full = []
-            for p in t.get("predecessors", []):
-                if isinstance(p, dict):
-                    preds_full.append({
-                        "task_id": str(p.get("task_id", "")),
-                        "type": p.get("type", "FS"),
-                        "lag_days": int(p.get("lag_days", 0) or 0),
-                        "strength": p.get("strength", "hard"),
+            # Dependency cleaning
+            preds_processed = []
+            seen_preds = set()
+            raw_preds = t.get("predecessors", [])
+            raw_deps = t.get("dependencies", [])
+            
+            for p in raw_preds:
+                p_id = str(p.get("task_id", "")) if isinstance(p, dict) else str(p)
+                if p_id and p_id not in seen_preds:
+                    seen_preds.add(p_id)
+                    preds_processed.append({
+                        "task_id": p_id,
+                        "type": p.get("type", "FS") if isinstance(p, dict) else "FS",
+                        "lag_days": int(p.get("lag_days", 0) or 0) if isinstance(p, dict) else 0,
+                        "strength": p.get("strength", "hard") if isinstance(p, dict) else "hard"
                     })
-                else:
-                    preds_full.append({"task_id": str(p), "type": "FS", "lag_days": 0, "strength": "hard"})
-
-            # Legacy dependencies field
-            for d in t.get("dependencies", []):
-                dep_id = str(d)
-                if not any(pf["task_id"] == dep_id for pf in preds_full):
-                    preds_full.append({"task_id": dep_id, "type": "FS", "lag_days": 0, "strength": "hard"})
+            for d in raw_deps:
+                d_id = str(d)
+                if d_id and d_id not in seen_preds:
+                    seen_preds.add(d_id)
+                    preds_processed.append({"task_id": d_id, "type": "FS", "lag_days": 0, "strength": "hard"})
 
             task_map[tid] = {
                 "task_id": tid,
                 "duration": duration,
-                "preds_full": [pf for pf in preds_full if pf["task_id"]],
+                "preds_full": preds_processed,
                 "successors": [],
-                "es": None,
-                "ef": None,
-                "ls": None,
-                "lf": None,
-                "slack": 0,
-                "is_critical": False,
+                "es": None, "ef": None, "ls": None, "lf": None,
+                "slack": 0, "is_critical": False,
                 "is_manual": (t.get("task_mode") or "Auto") == "Manual",
                 "is_summary": bool(t.get("is_summary", False)),
                 "summary_type": t.get("summary_type", "auto"),
                 "constraint_type": t.get("constraint_type", "ASAP"),
                 "constraint_date": t.get("constraint_date"),
                 "deadline": t.get("deadline"),
-                "parent_id": t.get("parent_id"),
-                "original": t,
+                "parent_id": str(t.get("parent_id", "")) if t.get("parent_id") else None,
+                "original": dict(t),
             }
 
-        # Build successors and in-degree
+        # Build child index
+        children_map = {tid: [] for tid in task_map}
+        for tid, t in task_map.items():
+            if t["parent_id"] in task_map:
+                children_map[t["parent_id"]].append(tid)
+
+        # Build successor graph and in-degree
+        # To ensure summary cascade, a Summary must be calculated AFTER its children
         in_degree = {tid: 0 for tid in task_map}
         for tid, task in task_map.items():
-            for pred_entry in task["preds_full"]:
-                pred_id = pred_entry["task_id"]
-                if pred_id in task_map:
-                    task_map[pred_id]["successors"].append(tid)
+            # Standard dependencies
+            for pf in task["preds_full"]:
+                if pf["task_id"] in task_map:
+                    task_map[pf["task_id"]]["successors"].append(tid)
                     in_degree[tid] += 1
+            # Structural dependency: child -> parent (for rollup)
+            if task["parent_id"] in task_map:
+                task_map[tid]["successors"].append(task["parent_id"])
+                in_degree[task["parent_id"]] += 1
 
-        # 3. TOPOLOGICAL SORT (Kahn's algorithm)
-        queue = [tid for tid in in_degree if in_degree[tid] == 0]
+        # Kahn's topological sort (Optimized with deque)
+        from collections import deque
+        queue = deque([tid for tid, deg in in_degree.items() if deg == 0])
         topo_order = []
         while queue:
-            curr_id = queue.pop(0)
-            topo_order.append(curr_id)
-            for succ_id in task_map[curr_id]["successors"]:
-                in_degree[succ_id] -= 1
-                if in_degree[succ_id] == 0:
-                    queue.append(succ_id)
+            curr = queue.popleft()
+            topo_order.append(curr)
+            for succ in task_map[curr]["successors"]:
+                in_degree[succ] -= 1
+                if in_degree[succ] == 0:
+                    queue.append(succ)
 
         if len(topo_order) < len(task_map):
-            return {"error": "Circular dependency detected in schedule graph."}
+            cycle_tasks = [tid for tid, deg in in_degree.items() if deg > 0]
+            # Try to build a small chain for the error message
+            error_msg = f"Circular dependency detected involving tasks: {', '.join(cycle_tasks[:5])}"
+            if len(cycle_tasks) > 5:
+                error_msg += f" and {len(cycle_tasks) - 5} others"
+            return {"error": error_msg, "status": "failed", "cycle_task_ids": cycle_tasks}
 
-        # 4. FORWARD PASS
-        # Manual-mode tasks: freeze their existing scheduled dates as ES/EF.
-        # Auto-mode tasks: compute via CPM with full link-type + lag support.
+        # Step 4: Forward Pass (Integrated Rollup)
         for tid in topo_order:
             task = task_map[tid]
-
+            dur_delta = timedelta(days=max(0, task["duration"] - 1))
+            
             if task["is_manual"]:
-                # Freeze: use existing scheduled dates if present
                 orig = task["original"]
-                es = _parse_date(orig.get("scheduled_start")) or project_start
-                ef = _parse_date(orig.get("scheduled_finish"))
-                if ef is None:
-                    ef = es + timedelta(days=task["duration"])
-                task["es"] = es
-                task["ef"] = ef
+                task["es"] = _parse_date(orig.get("scheduled_start")) or project_start
+                task["ef"] = _parse_date(orig.get("scheduled_finish")) or (task["es"] + dur_delta)
+                task["calc_reason"] = "Manual date override"
+            elif task["is_summary"] and task["summary_type"] == "auto":
+                kids = [task_map[k] for k in children_map[tid]]
+                if kids:
+                    task["es"] = min(k["es"] for k in kids if k["es"] is not None)
+                    task["ef"] = max(k["ef"] for k in kids if k["ef"] is not None)
+                    task["duration"] = max(0, (task["ef"] - task["es"]).days + 1)
+                    task["calc_reason"] = f"Rolled up from {len(kids)} child tasks"
+                    
+                    # Progress Rollup with Clamping
+                    total_weight = sum(float(k["original"].get("baseline_cost", 1.0) or 1.0) for k in kids)
+                    if total_weight > 0:
+                        w_sum = sum(float(k["original"].get("percent_complete", 0) or 0) * float(k["original"].get("baseline_cost", 1.0) or 1.0) for k in kids)
+                        p_val = round(w_sum / total_weight, 2)
+                    else:
+                        p_val = round(sum(float(k["original"].get("percent_complete", 0) or 0) for k in kids) / len(kids), 2)
+                    task["original"]["percent_complete"] = max(0, min(100, p_val))
+                else:
+                    task["es"] = _compute_es_from_predecessors(tid, task_map, project_start)
+                    task["ef"] = task["es"] + dur_delta
+                    task["calc_reason"] = "Start of project (No children)"
             else:
-                # Compute ES from predecessors (with link types + lag)
-                es = _compute_es_from_predecessors(tid, task_map, project_start)
-                ef = es + timedelta(days=task["duration"])
+                # Normal CPM
+                task_preds = task["preds_full"]
+                if not task_preds:
+                    task["es"] = project_start
+                    task["calc_reason"] = "Project start"
+                else:
+                    # Find driving predecessor
+                    max_es = project_start
+                    driver = "Project Start"
+                    for pred_entry in task_preds:
+                        pred_id = pred_entry["task_id"]
+                        if pred_id not in task_map: continue
+                        pred = task_map[pred_id]
+                        p_ef = pred.get("ef")
+                        if p_ef is None: continue
+                        
+                        link_type = pred_entry.get("type", "FS").upper()
+                        lag = int(pred_entry.get("lag_days", 0) or 0)
+                        
+                        if link_type == "FS":
+                            candidate = p_ef + timedelta(days=lag + 1)
+                        elif link_type == "SS":
+                            candidate = pred.get("es") + timedelta(days=lag)
+                        else:
+                            candidate = p_ef + timedelta(days=lag + 1)
+                            
+                        if candidate > max_es:
+                            max_es = candidate
+                            driver = f"Predecessor {pred_id} ({link_type}+{lag}d)"
+                    
+                    task["es"] = max_es
+                    task["calc_reason"] = driver
 
-                # Apply constraint types
-                es, ef = _apply_constraint(
-                    es, ef, task["duration"],
-                    task["constraint_type"], task["constraint_date"]
-                )
-                task["es"] = es
-                task["ef"] = ef
+                task["ef"] = task["es"] + dur_delta
+                
+                # Apply constraint influence
+                if task["constraint_type"] != "ASAP":
+                    old_es = task["es"]
+                    task["es"], task["ef"] = _apply_constraint(task["es"], task["ef"], task["duration"], task["constraint_type"], task["constraint_date"], project_start)
+                    if task["es"] != old_es:
+                        task["calc_reason"] += f" | Adjusted by {task['constraint_type']} constraint"
 
-        # 5. BACKWARD PASS
+        # Step 6: Backward Pass (CPM Late Dates)
         final_ef = project_start
         if topo_order:
-            final_ef = max(
-                (task_map[tid]["ef"] for tid in task_map if task_map[tid]["ef"] is not None),
-                default=project_start,
-            )
+            valid_efs = [t["ef"] for t in task_map.values() if t["ef"] is not None]
+            final_ef = max(valid_efs) if valid_efs else project_start
 
         for tid in reversed(topo_order):
             task = task_map[tid]
-
+            dur_delta = timedelta(days=max(0, task["duration"] - 1))
+            
             if task["is_manual"]:
-                # Manual tasks: LS/LF = ES/EF (no float)
-                task["lf"] = task["ef"]
-                task["ls"] = task["es"]
-                task["slack"] = 0
-                task["is_critical"] = True
+                task["lf"], task["ls"], task["slack"], task["is_critical"] = task["ef"], task["es"], 0, True
                 continue
+            
+            task["lf"] = final_ef
+            valid_successors = False
+            for succ_id in task["successors"]:
+                succ = task_map[succ_id]
+                if succ["parent_id"] == tid: continue 
 
-            if not task["successors"]:
-                task["lf"] = final_ef
-            else:
-                min_ls = final_ef
-                for succ_id in task["successors"]:
-                    if succ_id not in task_map:
-                        continue
-                    succ = task_map[succ_id]
-                    if succ["ls"] is None:
-                        continue
-                    # Determine link type from successor's preds_full
-                    link_type = "FS"
-                    lag = 0
-                    for pf in succ["preds_full"]:
-                        if pf["task_id"] == tid:
-                            link_type = pf.get("type", "FS").upper()
-                            lag = int(pf.get("lag_days", 0) or 0)
-                            break
+                valid_successors = True
+                link_type = "FS"
+                lag = 0
+                for pf in succ["preds_full"]:
+                    if pf["task_id"] == tid:
+                        link_type = pf.get("type", "FS").upper()
+                        lag = int(pf.get("lag_days", 0) or 0)
+                        break
+                
+                s_ls = succ["ls"] if succ["ls"] is not None else succ["es"]
+                s_lf = succ["lf"] if succ["lf"] is not None else succ["ef"]
+                if s_ls is None: s_ls = final_ef
+                if s_lf is None: s_lf = final_ef
 
-                    if link_type == "FS":
-                        candidate_lf = succ["ls"] - timedelta(days=lag)
-                    elif link_type == "SS":
-                        # Pred must start before succ starts: LF = LS_succ + duration - lag
-                        candidate_lf = succ["ls"] - timedelta(days=lag) + timedelta(days=task["duration"])
-                    elif link_type == "FF":
-                        candidate_lf = succ["lf"] - timedelta(days=lag)
-                    elif link_type == "SF":
-                        candidate_lf = succ["lf"] - timedelta(days=lag) + timedelta(days=task["duration"])
-                    else:
-                        candidate_lf = succ["ls"] - timedelta(days=lag)
+                if link_type == "FS": 
+                    # pred_LF <= succ_LS - 1 - lag
+                    candidate = s_ls - timedelta(days=lag + 1)
+                elif link_type == "SS": 
+                    # pred_LS <= succ_LS - lag => pred_LF <= succ_LS - lag + (dur - 1)
+                    candidate = s_ls - timedelta(days=lag) + dur_delta
+                elif link_type == "FF": 
+                    candidate = s_lf - timedelta(days=lag)
+                elif link_type == "SF": 
+                    # pred_LS <= succ_LF - lag => pred_LF <= succ_LF - lag + (dur - 1)
+                    candidate = s_lf - timedelta(days=lag) + dur_delta
+                else: 
+                    candidate = s_ls - timedelta(days=lag + 1)
+                
+                if candidate < task["lf"]: task["lf"] = candidate
 
-                    if candidate_lf < min_ls:
-                        min_ls = candidate_lf
+            task["ls"] = task["lf"] - dur_delta
+            
+            if task["constraint_type"] == "ALAP":
+                task["es"], task["ef"] = task["ls"], task["lf"]
 
-                task["lf"] = min_ls
-
-            task["ls"] = task["lf"] - timedelta(days=task["duration"])
-            task["slack"] = (task["ls"] - task["es"]).days
-            task["is_critical"] = task["slack"] <= 0
-
-        # 6. PARENT ROLLUP for summary tasks
-        # Build parent→children index
-        children_map: dict = {tid: [] for tid in task_map}
-        for tid, task in task_map.items():
-            parent_id = task.get("parent_id")
-            if parent_id and str(parent_id) in task_map:
-                children_map[str(parent_id)].append(tid)
-
-        # Process summary tasks in REVERSE topo order (bottom-up)
+        # Step 7: Summary Rollup (Bottom-up for accurate dates, slack, and criticality)
         for tid in reversed(topo_order):
             task = task_map[tid]
-            if not task["is_summary"] or task["summary_type"] != "auto":
-                continue
+            if task["is_summary"] and task["summary_type"] == "auto":
+                kids = [task_map[k] for k in children_map[tid]]
+                if kids:
+                    # ES/EF Rollup (already done in forward, but re-verify if ALAP shifted things)
+                    task["es"] = min(k["es"] for k in kids if k["es"] is not None)
+                    task["ef"] = max(k["ef"] for k in kids if k["ef"] is not None)
+                    task["duration"] = (task["ef"] - task["es"]).days + 1
+                    
+                    # LS/LF Rollup
+                    task["ls"] = min(k["ls"] for k in kids if k["ls"] is not None)
+                    task["lf"] = max(k["lf"] for k in kids if k["lf"] is not None)
+                    
+                    # Slack & Criticality Rollup
+                    task["slack"] = min(k["slack"] for k in kids)
+                    task["is_critical"] = any(k["is_critical"] for k in kids)
+                else:
+                    task["slack"] = (task["ls"] - task["es"]).days
+                    task["is_critical"] = task["slack"] <= 0
+            else:
+                # Re-calculate slack for non-summaries in case ALAP/MSO shifted ES but not LS
+                task["slack"] = (task["ls"] - task["es"]).days
+                task["is_critical"] = task["slack"] <= 0
 
-            child_ids = children_map.get(tid, [])
-            if not child_ids:
-                continue
-
-            child_tasks = [task_map[c] for c in child_ids if c in task_map]
-            child_tasks = [c for c in child_tasks if c["es"] is not None]
-            if not child_tasks:
-                continue
-
-            # Rollup: MIN(child ES), MAX(child EF)
-            task["es"] = min(c["es"] for c in child_tasks)
-            task["ef"] = max(c["ef"] for c in child_tasks)
-
-            # Weighted percent complete by baseline_cost
-            total_cost = sum(
-                float(c["original"].get("baseline_cost", 0) or 0) for c in child_tasks
-            )
-            if total_cost > 0:
-                weighted_pct = sum(
-                    float(c["original"].get("percent_complete", 0) or 0)
-                    * float(c["original"].get("baseline_cost", 0) or 0)
-                    for c in child_tasks
-                ) / total_cost
-                task["original"] = dict(task["original"])
-                task["original"]["percent_complete"] = round(weighted_pct, 2)
-
-            # Duration = EF - ES in days
-            task["duration"] = (task["ef"] - task["es"]).days
-            # Slack inherits min child slack
-            task["slack"] = min(c["slack"] for c in child_tasks)
-            task["is_critical"] = task["slack"] <= 0
-
-        # 7. FORMAT OUTPUT
+        # Step 8: Output assembly
         output_tasks = []
         critical_path = []
-        calculation_version = str(uuid.uuid4())
-        calculated_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        calc_version = str(uuid.uuid4())
+        calc_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         for tid in topo_order:
             t = task_map[tid]
+            if t["is_critical"]: critical_path.append(tid)
 
-            if t["is_critical"]:
-                critical_path.append(tid)
+            node = dict(t["original"])
+            # Remove silent promotion check - preserve status as is
+            # if node.get("task_status") == "draft": node["task_status"] = "not_started"
 
-            updated = dict(t["original"])
+            dv, db = None, False
+            if t.get("deadline") and t["ef"]:
+                dl = _parse_date(t["deadline"])
+                if dl:
+                    dv = (t["ef"] - dl).days
+                    db = dv > 0
 
-            # Compute deadline variance
-            deadline_variance_days = None
-            is_deadline_breached = False
-            if t.get("deadline") and t["ef"] is not None:
-                deadline_dt = _parse_date(t["deadline"])
-                if deadline_dt:
-                    deadline_variance_days = (t["ef"] - deadline_dt).days
-                    is_deadline_breached = deadline_variance_days > 0
-
-            # Step 8: DRAFT → NOT_STARTED auto-transition
-            current_status = updated.get("task_status", "not_started")
-            if current_status == "draft":
-                current_status = "not_started"
-
-            updated.update({
+            node.update({
                 "scheduled_start": t["es"].strftime("%Y-%m-%d") if t["es"] else None,
                 "scheduled_finish": t["ef"].strftime("%Y-%m-%d") if t["ef"] else None,
+                "duration": t["duration"],
                 "scheduled_duration": t["duration"],
                 "early_start": t["es"].strftime("%Y-%m-%d") if t["es"] else None,
                 "early_finish": t["ef"].strftime("%Y-%m-%d") if t["ef"] else None,
@@ -387,29 +427,30 @@ def run_calculation(input_data: dict) -> dict:
                 "late_finish": t["lf"].strftime("%Y-%m-%d") if t["lf"] else None,
                 "total_slack": t["slack"],
                 "is_critical": t["is_critical"],
-                "task_status": current_status,
-                "deadline_variance_days": deadline_variance_days,
-                "is_deadline_breached": is_deadline_breached,
-                "calculated_at": calculated_at,
+                "deadline_variance_days": dv,
+                "is_deadline_breached": db,
+                "calculation_version": calc_version,
+                "calculated_at": calc_at,
+                "calc_reason": t.get("calc_reason"),
             })
-            output_tasks.append(updated)
+            output_tasks.append(node)
 
         return {
             "tasks": output_tasks,
             "critical_path": critical_path,
-            "total_duration_days": (final_ef - project_start).days,
+            "total_duration_days": max(0, (final_ef - project_start).days + 1),
             "status": "success",
-            "calculation_version": calculation_version,
-            "calculated_at": calculated_at,
+            "calculation_version": calc_version,
+            "calculated_at": calc_at,
         }
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 if __name__ == "__main__":
     try:
-        input_data = json.load(sys.stdin)
-        result = run_calculation(input_data)
-        print(json.dumps(result))
+        data = json.load(sys.stdin)
+        print(json.dumps(run_calculation(data)))
     except Exception as e:
         print(json.dumps({"error": str(e)}))

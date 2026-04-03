@@ -118,9 +118,30 @@ class SchedulerService:
         )
         return {"message": "Project schedule saved successfully"}
 
-    async def load_schedule(
-        self, project_id: str, organisation_id: str
+    async def delete_task(
+        self, project_id: str, organisation_id: str, task_id: str
     ) -> Dict[str, Any]:
+        """Permanently remove a task and update project schedule."""
+        schedule = await self.load_schedule(project_id, organisation_id)
+        if not schedule or "tasks" not in schedule:
+            raise ValidationError("Schedule not found")
+
+        original_count = len(schedule["tasks"])
+        schedule["tasks"] = [t for t in schedule["tasks"] if t.get("task_id") != task_id]
+
+        if len(schedule["tasks"]) == original_count:
+             return {"message": "Task not found in schedule", "count": original_count}
+
+        await self.collection.update_one(
+            {"project_id": project_id, "organisation_id": organisation_id},
+            {
+                "$set": {
+                    "tasks": schedule["tasks"],
+                    "updated_at": datetime.now(timezone.utc)
+                }
+            }
+        )
+        return {"message": "Task deleted successfully", "count": len(schedule["tasks"])}
         """Authoritative schedule retrieval with resilience."""
         from bson import ObjectId
 

@@ -104,7 +104,7 @@ export default function KanbanBoard() {
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 min-h-[500px]">
                 {columnTasks.map((task) => {
                   const isSelected = selectedTasks.has(task.task_id);
 

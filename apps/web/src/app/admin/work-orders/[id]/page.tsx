@@ -103,15 +103,38 @@ export default function WorkOrderDetailPage() {
       const qty = parseFloat(data.qty) || 0;
       const rate = parseFloat(data.rate) || 0;
       data.total = qty * rate;
+      event.api.applyTransaction({ update: [data] });
     }
 
-    // Update the entire line items array with the modified row
-    setEditLineItems((prevItems) =>
-      prevItems.map((item) =>
-        item.sr_no === data.sr_no ? data : item
-      )
-    );
+    // Refresh totals and state
+    const updatedItems: LineItem[] = [];
+    event.api.forEachNode((node: any) => {
+      if (node.data) updatedItems.push(node.data);
+    });
+    setEditLineItems(updatedItems);
   }, []);
+
+  const addLineItem = () => {
+    setEditLineItems(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substr(2, 9),
+        sr_no: prev.length + 1,
+        description: "",
+        qty: 0,
+        rate: 0,
+        total: 0
+      }
+    ]);
+  };
+
+  const removeLineItem = (rowIndex: number) => {
+    setEditLineItems(prev => {
+      const next = [...prev];
+      next.splice(rowIndex, 1);
+      return next.map((item, idx) => ({ ...item, sr_no: idx + 1 }));
+    });
+  };
 
   // Seed edit state when starting edit mode
   const handleStartEdit = useCallback(() => {
@@ -123,7 +146,7 @@ export default function WorkOrderDetailPage() {
       discount: wo.discount || 0,
       retention_percent: wo.retention_percent || 0,
     });
-    setEditLineItems((wo.line_items || []) as LineItem[]);
+    setEditLineItems(JSON.parse(JSON.stringify(wo.line_items || [])) as LineItem[]);
     setIsEditing(true);
   }, [wo]);
 
@@ -132,8 +155,11 @@ export default function WorkOrderDetailPage() {
     const subtotal = editLineItems.reduce((sum, item) => sum + (item.total || 0), 0);
     const discount = editState.discount || 0;
     const totalBeforeTax = subtotal - discount;
-    const cgstRate = (wo?.cgst || 9) / 100;
-    const sgstRate = (wo?.sgst || 9) / 100;
+
+    // Use project-level rates if available, fallback to WO values
+    const cgstRate = (project?.project_cgst_percentage ?? wo?.cgst ?? 9) / 100;
+    const sgstRate = (project?.project_sgst_percentage ?? wo?.sgst ?? 9) / 100;
+
     const cgst = totalBeforeTax * cgstRate;
     const sgst = totalBeforeTax * sgstRate;
     const grandTotal = totalBeforeTax + cgst + sgst;
@@ -146,11 +172,13 @@ export default function WorkOrderDetailPage() {
       totalBeforeTax,
       cgst,
       sgst,
+      cgstLabel: (cgstRate * 100).toFixed(0),
+      sgstLabel: (sgstRate * 100).toFixed(0),
       grandTotal,
       retentionAmount,
       totalPayable,
     };
-  }, [editLineItems, editState, wo?.cgst, wo?.sgst]);
+  }, [editLineItems, editState, wo, project]);
 
   // Save work order edits
   const handleSave = useCallback(async () => {
@@ -224,6 +252,8 @@ export default function WorkOrderDetailPage() {
     );
   }
 
+  const detailCgst = (wo.cgst ?? 9);
+  const detailSgst = (wo.sgst ?? 9);
   const isClosed = wo.status === "Closed" || wo.status === "Cancelled";
 
   return (
@@ -460,16 +490,16 @@ export default function WorkOrderDetailPage() {
             </div>
 
             <div className="flex justify-between text-slate-500 px-2 py-1">
-              <span>CGST:</span>
+              <span>CGST ({isEditing ? editFinancials.cgstLabel : detailCgst}%):</span>
               <span className="font-mono text-slate-300">
-                {formatCurrency(isEditing ? editFinancials.cgst : wo.cgst || 0)}
+                {formatCurrency(isEditing ? editFinancials.cgst : (wo.total_before_tax || 0) * (detailCgst / 100))}
               </span>
             </div>
 
             <div className="flex justify-between text-slate-500 px-2 py-1">
-              <span>SGST:</span>
+              <span>SGST ({isEditing ? editFinancials.sgstLabel : detailSgst}%):</span>
               <span className="font-mono text-slate-300">
-                {formatCurrency(isEditing ? editFinancials.sgst : wo.sgst || 0)}
+                {formatCurrency(isEditing ? editFinancials.sgst : (wo.total_before_tax || 0) * (detailSgst / 100))}
               </span>
             </div>
 
@@ -499,8 +529,8 @@ export default function WorkOrderDetailPage() {
               )}
             </div>
 
-            <div className="flex justify-between items-center text-emerald-500 font-bold p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10 mb-2">
-              <span>Total Payable:</span>
+            <div className="flex justify-between items-center text-emerald-500 font-bold p-3 bg-emerald-500/5 rounded-lg border border-orange-500/10 mb-2">
+              <span>Total Payable</span>
               <span className="font-mono text-lg">
                 {formatCurrency(isEditing ? editFinancials.totalPayable : wo.total_payable || 0)}
               </span>
@@ -511,13 +541,38 @@ export default function WorkOrderDetailPage() {
 
       {/* Grid */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl relative">
-        <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <FileText size={16} /> Bill of Quantities {!isEditing && "(Read-Only)"}
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <FileText size={16} /> Bill of Quantities {!isEditing && "(Read-Only)"}
+          </h2>
+          {isEditing && (
+            <button
+              onClick={addLineItem}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition-colors"
+            >
+              + Add Row
+            </button>
+          )}
+        </div>
 
         <FinancialGrid
-          rowData={isEditing ? editLineItems : wo.line_items || []}
-          columnDefs={columnDefs}
+          rowData={isEditing ? editLineItems : (wo?.line_items || [])}
+          columnDefs={[
+            ...columnDefs,
+            ...(isEditing ? [{
+              headerName: "",
+              width: 50,
+              pinned: "right" as const,
+              cellRenderer: (p: { node: { rowIndex: number } }) => (
+                <button
+                  onClick={() => removeLineItem(p.node.rowIndex)}
+                  className="text-red-500 hover:text-red-400 flex items-center justify-center h-full w-full"
+                >
+                  <X size={14} />
+                </button>
+              )
+            }] : [])
+          ]}
           editable={isEditing}
           showSrNo={true}
           height="300px"
@@ -531,7 +586,7 @@ export default function WorkOrderDetailPage() {
         onReload={() => mutateWO()}
       />
 
-      <LinkedCertificates projectId={wo.project_id} workOrderId={wo._id} />
+      {wo && <LinkedCertificates projectId={wo.project_id} workOrderId={wo._id} />}
     </div>
   );
 }

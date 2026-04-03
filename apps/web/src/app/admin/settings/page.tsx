@@ -43,6 +43,7 @@ interface GlobalSettings {
     can_view_dpr: boolean;
     can_view_financials: boolean;
     can_view_reports: boolean;
+    can_view_scheduler: boolean;
   };
 }
 
@@ -78,6 +79,7 @@ export default function SettingsPage() {
       can_view_dpr: true,
       can_view_financials: false,
       can_view_reports: true,
+      can_view_scheduler: false,
     },
   });
 

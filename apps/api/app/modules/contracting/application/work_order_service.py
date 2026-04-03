@@ -302,6 +302,14 @@ class WorkOrderService:
                 "updated_at": datetime.now(timezone.utc),
                 "version": update_req.expected_version,
             }
+            if update_req.status is not None:
+                update_dict["status"] = update_req.status
+            
+            if update_req.category_id is not None:
+                update_dict["category_id"] = update_req.category_id
+            
+            if update_req.vendor_id is not None:
+                update_dict["vendor_id"] = update_req.vendor_id
 
             result = await uow.work_orders.update(
                 wo_id, update_dict, session=uow.session

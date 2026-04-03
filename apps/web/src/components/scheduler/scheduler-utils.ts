@@ -63,7 +63,15 @@ export function parseTaskDate(value?: string | null): Date | null {
   const iso = parseISO(value);
   if (isValid(iso)) return startOfDay(iso);
 
-  const patterns = ["dd-MM-yy", "dd/MM/yy", "dd-MM-yyyy", "dd/MM/yyyy"];
+  const patterns = [
+    "dd-MM-yy",
+    "dd/MM/yy",
+    "dd-MM-yyyy",
+    "dd/MM/yyyy",
+    "dd MMM yy",
+    "dd MMM yyyy",
+    "MMM dd, yyyy"
+  ];
   for (const pattern of patterns) {
     const parsed = parse(value, pattern, new Date());
     if (isValid(parsed)) return startOfDay(parsed);
@@ -100,24 +108,26 @@ export function normalizeTaskOrder(taskMap: ScheduleTaskMap, taskOrder: string[]
 }
 
 export function calculateTimelineRange(tasks: ScheduleTask[]) {
-  const parsedDates = tasks.flatMap((task) => [
+  const parsedDates = (tasks || []).flatMap((task) => [
     parseTaskDate(task.scheduled_start),
     parseTaskDate(task.scheduled_finish),
     parseTaskDate(task.baseline_start),
     parseTaskDate(task.baseline_finish),
+    parseTaskDate(task.early_start),
+    parseTaskDate(task.late_finish),
   ]).filter((date): date is Date => Boolean(date));
 
   if (parsedDates.length === 0) {
     const base = startOfDay(new Date());
-    return { start: base, end: addDays(base, 60) };
+    return { start: base, end: addDays(base, 90) };
   }
 
   const min = parsedDates.reduce((acc, date) => (date < acc ? date : acc), parsedDates[0]);
   const max = parsedDates.reduce((acc, date) => (date > acc ? date : acc), parsedDates[0]);
 
   return {
-    start: addDays(startOfDay(min), -30),
-    end: addDays(startOfDay(max), 60),
+    start: addDays(startOfDay(min), -14),
+    end: addDays(startOfDay(max), 90),
   };
 }
 
@@ -128,7 +138,7 @@ export function getTaskDurationDays(task: ScheduleTask): number {
   const start = parseTaskDate(task.scheduled_start);
   const finish = parseTaskDate(task.scheduled_finish);
   if (!start || !finish) return 0;
-  return Math.max(0, differenceInCalendarDays(finish, start));
+  return Math.max(0, differenceInCalendarDays(finish, start) + 1);
 }
 
 export function getTaskStatus(task: ScheduleTask): ScheduleTaskStatus {

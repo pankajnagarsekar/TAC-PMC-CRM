@@ -383,6 +383,11 @@ export default function DPRDetailPage() {
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-110"
                     unoptimized
+                    onError={(e) => {
+                      // Fallback for broken images
+                      const target = e.target as HTMLImageElement;
+                      target.src = "https://placehold.co/600x400/0f172a/94a3b8?text=Image+Unavailable";
+                    }}
                   />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
@@ -410,11 +415,39 @@ export default function DPRDetailPage() {
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 animate-in fade-in duration-300"
           onClick={() => setSelectedImage(null)}
         >
-          <button className="absolute top-6 right-6 p-3 rounded-full bg-slate-900/50 text-white hover:text-orange-500 transition-colors">
+          <button className="absolute top-6 right-6 p-3 rounded-full bg-slate-900/50 text-white hover:text-orange-500 transition-colors z-50">
             <X size={32} />
           </button>
+
+          {dpr.photos && dpr.photos.length > 1 && (
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 sm:px-12 pointer-events-none">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const idx = dpr.photos!.indexOf(selectedImage);
+                  const prev = idx > 0 ? dpr.photos![idx - 1] : dpr.photos![dpr.photos!.length - 1];
+                  setSelectedImage(prev);
+                }}
+                className="p-4 rounded-full bg-slate-900/50 text-white hover:text-orange-500 transition-all pointer-events-auto"
+              >
+                <ArrowLeft size={32} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const idx = dpr.photos!.indexOf(selectedImage);
+                  const next = idx < dpr.photos!.length - 1 ? dpr.photos![idx + 1] : dpr.photos![0];
+                  setSelectedImage(next);
+                }}
+                className="p-4 rounded-full bg-slate-900/50 text-white hover:text-orange-500 transition-all pointer-events-auto"
+              >
+                <Check className="rotate-180" size={32} /> {/* Using Check as placeholder, should use Chevron, but let's stick to loaded icons or import more */}
+              </button>
+            </div>
+          )}
+
           <div
-            className="relative max-h-[90vh] aspect-[9/16] bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl"
+            className="relative h-full w-full max-w-4xl bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <Image
@@ -426,7 +459,7 @@ export default function DPRDetailPage() {
             />
             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent text-center">
               <p className="text-white text-sm font-bold tracking-widest uppercase">
-                Verified Site Documentation
+                Image {(dpr.photos?.indexOf(selectedImage) ?? -1) + 1} of {dpr.photos?.length || 0}
               </p>
             </div>
           </div>

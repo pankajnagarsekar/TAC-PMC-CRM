@@ -16,14 +16,14 @@ interface BreadcrumbsProps {
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
     return (
         <nav className="flex items-center text-[13px] font-medium text-zinc-500">
-            <Link href="/admin/dashboard" className="hover:text-zinc-900 transition-colors">
+            <Link href="/admin/dashboard" className="hover:text-foreground transition-colors">
                 <Home size={14} />
             </Link>
             {items.map((item, index) => (
                 <React.Fragment key={index}>
-                    <ChevronRight size={14} className="mx-2 text-zinc-300 dark:text-zinc-700" />
+                    <ChevronRight size={14} className="mx-2 text-muted-foreground/30" />
                     {item.href ? (
-                        <Link href={item.href} className="hover:text-zinc-900 transition-colors">
+                        <Link href={item.href} className="hover:text-foreground transition-colors">
                             {item.label}
                         </Link>
                     ) : (

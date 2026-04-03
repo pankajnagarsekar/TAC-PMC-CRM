@@ -370,6 +370,7 @@ export interface GlobalSettings {
   pan_number: string;
   cgst_percentage: number;
   sgst_percentage: number;
+  retention_percentage: number;
   wo_prefix: string;
   pc_prefix: string;
   invoice_prefix: string;

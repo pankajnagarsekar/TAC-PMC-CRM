@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -119,11 +119,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
         <div className="flex h-screen overflow-hidden bg-background font-sans selection:bg-indigo-100 selection:text-indigo-900 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
             {/* Sidebar - Dark RuixenUI Style */}
-            <Sidebar
-                onProjectSwitch={() => setShowProjectModal(true)}
-                isCollapsed={isSidebarCollapsed}
-                onToggle={handleToggleSidebar}
-            />
+            <Suspense fallback={<div className="w-64 h-screen bg-background animate-pulse" />}>
+                <Sidebar
+                    onProjectSwitch={() => setShowProjectModal(true)}
+                    isCollapsed={isSidebarCollapsed}
+                    onToggle={handleToggleSidebar}
+                />
+            </Suspense>
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden py-4 pr-4">
                 {/* Top Header - Floating Glass */}
@@ -151,10 +153,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 {/* Main Workspace - Floating Grid Area */}
                 <main className={cn(
-                  "flex-1 overflow-y-auto high-density-grid p-8 relative custom-scrollbar",
-                  "bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)]",
-                  "rounded-[var(--radius)] shadow-[var(--glass-shadow)] transition-all duration-300",
-                  isClient() && 'client-readonly'
+                    "flex-1 overflow-y-auto high-density-grid p-8 relative custom-scrollbar",
+                    "bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)]",
+                    "rounded-[var(--radius)] shadow-[var(--glass-shadow)] transition-all duration-300",
+                    isClient() && 'client-readonly'
                 )}>
                     <div className="max-w-[1600px] mx-auto space-y-10">
                         <ErrorBoundary>

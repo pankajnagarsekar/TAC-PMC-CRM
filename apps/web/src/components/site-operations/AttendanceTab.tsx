@@ -44,7 +44,9 @@ export default function AttendanceTab() {
       const response = await api.get(
         `/api/v1/projects/${activeProject.project_id}/attendance?${params.toString()}`,
       );
-      setLogs(response.data);
+      const data = response.data;
+      const items = Array.isArray(data) ? data : (data as { items?: AttendanceLog[] })?.items || [];
+      setLogs(items);
     } catch (error) {
       console.error("Error fetching attendance:", error);
       setLogs([]);

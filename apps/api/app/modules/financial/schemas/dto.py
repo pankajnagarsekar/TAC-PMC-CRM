@@ -11,11 +11,10 @@ from app.modules.shared.domain.types import PyObjectId
 class CodeMaster(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: Optional[str] = None
-    category_name: Optional[str] = None
-    code: Optional[str] = None
-    code_short: str = ""
-    code_description: str = ""
-    budget_type: Optional[Literal["commitment", "fund_transfer"]] = "commitment"
+    category_name: str
+    code: str
+    description: Optional[str] = None
+    budget_type: Literal["commitment", "fund_transfer"] = "commitment"
     active_status: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -24,16 +23,16 @@ class CodeMaster(BaseModel):
 
 
 class CodeMasterCreate(BaseModel):
-    code_short: str = ""
-    code_description: str = ""
-    category_name: Optional[str] = None
-    code: Optional[str] = None
-    budget_type: Optional[Literal["commitment", "fund_transfer"]] = "commitment"
+    category_name: str
+    code: str
+    description: Optional[str] = None
+    budget_type: Literal["commitment", "fund_transfer"] = "commitment"
 
 
 class CodeMasterUpdate(BaseModel):
-    code_short: Optional[str] = None
-    code_description: Optional[str] = None
+    category_name: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
     active_status: Optional[bool] = None
 
 

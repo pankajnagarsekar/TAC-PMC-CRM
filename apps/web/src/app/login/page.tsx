@@ -30,9 +30,8 @@ export default function LoginPage() {
       console.log('Attempting login for:', email);
       const res = await api.post<TokenResponse>('/api/v1/auth/login', { email, password });
 
-      // Safe unpacking: handle both unwrapped (via interceptor) and wrapped response
-      const serverData = (res.data as any).data || res.data;
-      const { access_token, refresh_token, user } = serverData;
+      // Correct unpacking: interceptor already handles the envelope
+      const { access_token, refresh_token, user } = res.data as TokenResponse;
 
       if (!user) {
         throw new Error('Identity verification failed: User profile missing from response.');
@@ -55,7 +54,7 @@ export default function LoginPage() {
       }
     } catch (err: unknown) {
       console.error('Login error:', err);
-      const axiosError = err as { response?: { data?: { detail?: any } } };
+      const axiosError = err as { response?: { data?: { detail?: unknown } } };
       const detail = axiosError?.response?.data?.detail;
       setError(
         (typeof detail === 'string' ? detail : JSON.stringify(detail)) ||
@@ -67,7 +66,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-mesh-ultra font-sans selection:bg-indigo-500/30 overflow-hidden relative">
+    <div className="min-h-screen flex bg-mesh-ultra font-sans selection:bg-indigo-500/30 overflow-hidden relative dark">
       {/* Background Aurora Glows - Indigo for RuixenUI */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/[0.07] rounded-full blur-[160px]" />

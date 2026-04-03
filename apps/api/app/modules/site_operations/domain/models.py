@@ -19,11 +19,19 @@ class DailyProgressReport:
         self.data = data
 
     def validate_for_submission(self):
-        """Invariant: DPR requires minimum 4 images before submission."""
+        """Invariant: DPR requires notes and at least 1 site photo before submission."""
         StateMachine.validate_transition("DPR", self.status, "Submitted")
-        if self.image_count < 4:
+        
+        errors = []
+        if not self.data.get("progress_notes") or len(str(self.data.get("progress_notes")).strip()) < 10:
+            errors.append("Detailed progress notes (min 10 chars) are required")
+            
+        if self.image_count < 1:
+            errors.append("At least 1 site photo is mandatory")
+            
+        if errors:
             raise DomainError(
-                f"DPR requires minimum 4 images for submission. Current: {self.image_count}",
+                f"Validation failed: {'. '.join(errors)}",
                 entity_id=str(self.id),
             )
 

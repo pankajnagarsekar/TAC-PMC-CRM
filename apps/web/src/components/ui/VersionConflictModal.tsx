@@ -16,12 +16,12 @@ export default function VersionConflictModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl max-w-md w-full shadow-2xl">
-        <div className="flex items-center gap-3 text-red-500 mb-4">
+      <div className="bg-card border border-border p-8 rounded-2xl max-w-md w-full shadow-2xl glass-panel-luxury">
+        <div className="flex items-center gap-3 text-destructive mb-4">
           <AlertCircle className="w-8 h-8" />
-          <h2 className="text-xl font-semibold">Version Conflict</h2>
+          <h2 className="text-xl font-bold uppercase tracking-tight">Version Conflict</h2>
         </div>
-        <p className="text-slate-300 mb-6">
+        <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
           This record was modified in another session. To prevent overwriting their changes, your save was aborted. Please reload to view the latest changes.
         </p>
         <div className="flex justify-end gap-3">

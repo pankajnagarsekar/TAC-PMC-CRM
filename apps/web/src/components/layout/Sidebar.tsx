@@ -75,7 +75,7 @@ export default function Sidebar({
       key: "dashboard",
     },
     ...(activeProject ? [{
-      href: `/admin/projects/${activeProject._id || activeProject.project_id}`,
+      href: `/admin/projects/${activeProject.project_id || activeProject._id}`,
       icon: Wallet,
       label: "Project Financials",
       key: "project_financials",
@@ -262,7 +262,7 @@ export default function Sidebar({
                     {item.children.map(child => {
                       const childPath = child.href.split('?')[0];
                       const childTab = new URLSearchParams(child.href.split('?')[1]).get('tab');
-                      const isSideChildActive = pathname === childPath && (childTab ? searchParams.get('tab') === childTab : true);
+                      const isSideChildActive = pathname === childPath && (childTab ? searchParams.get('tab') === childTab : !searchParams.get('tab'));
 
                       return (
                         <Link

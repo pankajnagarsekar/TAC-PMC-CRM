@@ -20,7 +20,7 @@ import type {
 
 import api, { fetcher } from "@/lib/api";
 import { useRequestLock } from "@/lib/requestLock";
-import { getOrCreateIdempotencyKey } from "@/lib/idempotency";
+import { idempotency } from "@/lib/idempotency";
 import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { formatCurrency } from "@tac-pmc/ui";
@@ -62,9 +62,10 @@ export default function NewPaymentCertificatePage() {
       : null,
     fetcher,
   );
-  const workOrders: WorkOrder[] =
-    woResponse?.items?.filter((wo: WorkOrder) => wo.status !== "Cancelled") ||
-    [];
+  const workOrders: WorkOrder[] = useMemo(() => {
+    const rawItems = Array.isArray(woResponse) ? woResponse : (woResponse?.items || []);
+    return rawItems.filter((wo: WorkOrder) => wo.status !== "Cancelled");
+  }, [woResponse]);
 
   const { data: categories } = useSWR<CodeMaster[]>(
     "/api/v1/settings/codes?active_only=true",
@@ -75,7 +76,8 @@ export default function NewPaymentCertificatePage() {
 
   // Generate idempotency layer on mount
   useEffect(() => {
-    setIdempotencyKey(getOrCreateIdempotencyKey("PC_CREATE"));
+    idempotency.clear("PC_CREATE");
+    setIdempotencyKey(idempotency.generate());
   }, []);
 
   // Sync Category when WO selected
@@ -87,14 +89,18 @@ export default function NewPaymentCertificatePage() {
   }, [isWoLinked, selectedWoId, workOrders]);
 
   // Calculations Preview
-  const { subtotal, retentionAmount, gst, grandTotal, totalPayable } =
+  const { subtotal, retentionAmount, gst, totalPayable, cgstRate, sgstRate } =
     useMemo(() => {
+      const p = activeProject;
+      const cgst = p?.project_cgst_percentage ?? 9;
+      const sgst = p?.project_sgst_percentage ?? 9;
+
       const rawSub = lineItems.reduce(
         (sum, item) => sum + (Number(item.total) || 0),
         0,
       );
       const reten = rawSub * (retentionPercent / 100);
-      const gstTotal = rawSub * 0.18; // 9% CGST + 9% SGST implied locally
+      const gstTotal = rawSub * ((cgst + sgst) / 100);
       const grand = rawSub + gstTotal;
       const payable = grand - reten;
 
@@ -102,10 +108,11 @@ export default function NewPaymentCertificatePage() {
         subtotal: rawSub,
         retentionAmount: reten,
         gst: gstTotal,
-        grandTotal: grand,
         totalPayable: payable,
+        cgstRate: cgst,
+        sgstRate: sgst
       };
-    }, [lineItems, retentionPercent]);
+    }, [lineItems, retentionPercent, activeProject]);
 
   const { executeWithLock: executePcCreateWithLock } = useRequestLock({
     operationId: "PC_CREATE",
@@ -134,8 +141,9 @@ export default function NewPaymentCertificatePage() {
 
       const wo = isWoLinked ? workOrders.find(w => w._id === selectedWoId) : null;
 
+      const projectId = activeProject.project_id || activeProject._id;
       const payload = {
-        project_id: activeProject.project_id || activeProject._id,
+        project_id: projectId,
         work_order_id: isWoLinked ? selectedWoId : null,
         category_id: !isWoLinked ? selectedCategoryId : (wo?.category_id || undefined),
         vendor_id: wo?.vendor_id || null,
@@ -147,12 +155,15 @@ export default function NewPaymentCertificatePage() {
           unit: item.unit,
           qty: Number(item.qty),
           rate: Number(item.rate),
+          total: Number(item.qty) * Number(item.rate),
         })),
+        cgst: Number(((lineItems.reduce((acc, i) => acc + (Number(i.total) || 0), 0)) * (cgstRate / 100)).toFixed(2)),
+        sgst: Number(((lineItems.reduce((acc, i) => acc + (Number(i.total) || 0), 0)) * (sgstRate / 100)).toFixed(2)),
       };
 
       const res = await executePcCreateWithLock(async () => {
         return await api.post(
-          `/api/v1/payments/`,
+          `/api/v1/payments/${projectId}`,
           payload,
           {
             headers: { "Idempotency-Key": idempotencyKey },
@@ -168,20 +179,25 @@ export default function NewPaymentCertificatePage() {
 
       router.push(`/admin/payment-certificates/${res.data._id}`);
       router.refresh();
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      if (detail?.errors) {
-        const newErrors: Record<string, string> = {};
-        detail.errors.forEach((e: any) => {
-          newErrors[e.field] = e.message;
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string | { errors?: { field: string; message: string }[] } } } };
+      const detail = axiosError.response?.data?.detail;
+
+      if (detail && typeof detail === "object" && "errors" in detail && Array.isArray(detail.errors)) {
+        const fieldErrorsObj: Record<string, string> = {};
+        detail.errors.forEach((e) => {
+          fieldErrorsObj[e.field] = e.message;
         });
-        setFieldErrors(newErrors);
-        setError("Please correct the highlighted errors.");
+        setFieldErrors(fieldErrorsObj);
+        setError("Validation failed. Please check the fields below.");
       } else {
         setError(
-          detail || err.message || "Failed to submit Payment Certificate",
+          (typeof detail === "string" ? detail : null) ||
+          (err as Error).message ||
+          "Failed to submit Payment Certificate",
         );
       }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -484,7 +500,7 @@ export default function NewPaymentCertificatePage() {
             )}
 
             <div className="flex justify-between text-sm text-slate-500 border-t border-slate-800 pt-2 top-padding-2 mt-2">
-              <span>Estimated GST (18%)</span>
+              <span>Estimated GST ({cgstRate + sgstRate}%)</span>
               <span className="font-mono">{formatCurrency(gst)}</span>
             </div>
 

@@ -113,11 +113,11 @@ class ProjectBudgetUpdate(BaseModel):
 class Client(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: str
-    name: str
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gstin: Optional[str] = None
+    client_name: str
+    client_address: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
+    gst_number: Optional[str] = None
     active_status: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -126,17 +126,17 @@ class Client(BaseModel):
 
 
 class ClientCreate(BaseModel):
-    name: str
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gstin: Optional[str] = None
+    client_name: str
+    client_address: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
+    gst_number: Optional[str] = None
 
 
 class ClientUpdate(BaseModel):
-    name: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gstin: Optional[str] = None
+    client_name: Optional[str] = None
+    client_address: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
+    gst_number: Optional[str] = None
     active_status: Optional[bool] = None

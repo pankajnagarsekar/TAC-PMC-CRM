@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import useSWR from "swr";
 import {
   Plus,
   Search,
@@ -11,7 +12,7 @@ import {
   Users,
   Store,
 } from "lucide-react";
-import api from "@/lib/api";
+import api, { fetcher } from "@/lib/api";
 import { Vendor } from "@tac-pmc/types";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VendorModal from "@/components/vendors/VendorModal";
@@ -26,8 +27,12 @@ import {
 import type { ColDef, ICellRendererParams } from "ag-grid-community";
 
 export default function VendorsPage() {
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    data: vendors = [],
+    mutate,
+    isLoading,
+  } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | undefined>(
@@ -36,26 +41,6 @@ export default function VendorsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const { toast } = useToast();
-
-  const fetchVendors = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get("/api/v1/vendors/");
-      setVendors(response.data);
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to fetch vendors",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    fetchVendors();
-  }, [fetchVendors]);
 
   const filteredVendors = useMemo(() => {
     if (!searchTerm) return vendors;
@@ -91,7 +76,7 @@ export default function VendorsPage() {
     try {
       await api.delete(`/api/v1/vendors/${vendorId}`);
       toast({ title: "Success", description: "Vendor deleted successfully" });
-      fetchVendors();
+      mutate();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to delete vendor";
       toast({
@@ -234,7 +219,7 @@ export default function VendorsPage() {
       <VendorModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchVendors}
+        onSuccess={() => mutate()}
         vendor={selectedVendor}
       />
 

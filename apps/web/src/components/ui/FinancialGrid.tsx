@@ -23,15 +23,12 @@ export function formatINR(value: number | string | null | undefined): string {
   const rawNum = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(rawNum)) return "";
 
-  // Guard against -0 and floating point rounding errors near zero
-  const num = Math.abs(rawNum) < 0.0001 ? 0 : rawNum;
-
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(num);
+  }).format(rawNum);
 }
 
 
@@ -155,19 +152,7 @@ export default function FinancialGrid<T>({
         api.stopEditing();
       }
 
-      if (nextCellPosition) {
-        // Navigate to the next cell position
-        api.setFocusedCell(nextCellPosition.rowIndex, nextCellPosition.column);
-        if (!editing) {
-          api.startEditingCell({
-            rowIndex: nextCellPosition.rowIndex,
-            colKey: nextCellPosition.column,
-          });
-        }
-        return true;
-      }
-      // If no next position, allow default tab behavior
-      return true;
+      return nextCellPosition || false;
     },
     [],
   );
@@ -277,6 +262,7 @@ export default function FinancialGrid<T>({
           quickFilterText={quickFilterText}
           headerHeight={48}
           rowHeight={44}
+          suppressColumnVirtualisation={true}
           // Enterprise features - conditionally enabled
           {...(enterpriseEnabled && {
             enableRangeSelection: true,
@@ -285,54 +271,6 @@ export default function FinancialGrid<T>({
           })}
         />
       </div>
-      <style jsx global>{`
-        .ag-theme-quartz-dark, .ag-theme-quartz {
-          --ag-background-color: transparent !important;
-          --ag-header-background-color: ${isDark ? 'rgba(15, 23, 42, 0.6)' : 'rgba(248, 250, 252, 0.8)'} !important;
-          --ag-header-foreground-color: ${isDark ? '#cbd5e1' : '#1e293b'} !important;
-          --ag-foreground-color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
-          --ag-border-color: ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'} !important;
-          --ag-row-hover-color: ${isDark ? 'rgba(249, 115, 22, 0.1)' : 'rgba(249, 115, 22, 0.05)'} !important;
-          --ag-selected-row-background-color: ${isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)'} !important;
-          --ag-range-selection-border-color: #f97316 !important;
-          --ag-font-size: 13px !important;
-          --ag-font-family: inherit !important;
-          --ag-border-radius: 12px !important;
-          --ag-grid-size: 8px !important;
-          --ag-list-item-height: 36px !important;
-          --ag-cell-horizontal-padding: 24px !important;
-        }
-
-        .ag-theme-quartz-dark .ag-header-cell, .ag-theme-quartz .ag-header-cell {
-          font-weight: 700 !important;
-          letter-spacing: 0.08em !important;
-          text-transform: uppercase !important;
-          font-size: 10px !important;
-          padding-left: 24px !important;
-          padding-right: 24px !important;
-        }
-
-        .ag-theme-quartz-dark .ag-cell-inline-editing, .ag-theme-quartz .ag-cell-inline-editing {
-          background: ${isDark ? '#1e293b' : '#ffffff'} !important;
-          border: 1.5px solid #f97316 !important;
-          border-radius: 8px !important;
-          box-shadow: 0 0 20px rgba(249, 115, 22, 0.3) !important;
-        }
-
-        .ag-theme-quartz-dark .ag-cell-inline-editing input, .ag-theme-quartz .ag-cell-inline-editing input {
-          color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
-          background: transparent !important;
-          font-weight: 600 !important;
-        }
-
-        /* Row-level validation indicators */
-        .ag-theme-quartz-dark .row-invalid, .ag-theme-quartz .row-invalid {
-          border-left: 4px solid #ef4444 !important;
-        }
-        .ag-theme-quartz-dark .row-valid, .ag-theme-quartz .row-valid {
-          border-left: 4px solid #10b981 !important;
-        }
-      `}</style>
     </div>
   );
 }

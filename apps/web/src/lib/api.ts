@@ -37,22 +37,17 @@ api.interceptors.request.use(
         const storedProjectJson = localStorage.getItem("crm-project");
         if (storedProjectJson) {
           const { state } = JSON.parse(storedProjectJson);
-          if (state?.activeProject?._id) {
-            config.headers["X-Project-Id"] = typeof state.activeProject._id === 'string'
-              ? state.activeProject._id
-              : String(state.activeProject._id);
+          const projId = state?.activeProject?.project_id || state?.activeProject?._id;
+          if (projId) {
+            config.headers["X-Project-Id"] = String(projId);
           } else if (typeof window !== "undefined") {
             // Fallback: extract project ID from URL if on a project-specific page
             const pathParts = window.location.pathname.split("/");
             const projectsIdx = pathParts.indexOf("projects");
             if (projectsIdx !== -1 && pathParts[projectsIdx + 1]) {
               const urlProjectId = pathParts[projectsIdx + 1];
-              if (urlProjectId.length >= 24) { // Basic MongoDB ObjectId length check
-                config.headers["X-Project-Id"] = urlProjectId;
-              }
+              config.headers["X-Project-Id"] = urlProjectId;
             }
-          } else if (state?.activeProject?.project_id) {
-            config.headers["X-Project-Id"] = state.activeProject.project_id;
           }
         }
       } catch (e) {
@@ -197,6 +192,9 @@ export const schedulerApi = {
       project_start: projectStart,
       total_cost: totalCost
     }).then(res => res.data),
+
+  deleteTask: (projectId: string, taskId: string) =>
+    api.delete(`/api/v1/projects/${projectId}/tasks/${taskId}`).then(res => res.data),
 
   load: (projectId: string) =>
     api.get(`/api/v1/projects/${projectId}/load-schedule`).then(res => res.data),

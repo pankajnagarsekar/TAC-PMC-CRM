@@ -67,24 +67,51 @@ const executeCalculationRequest = async (
   get: () => ScheduleStoreState
 ) => {
   try {
-    const tasks = Object.values(get().taskMap);
-    const toISODate = (dateStr: string | null | undefined): string | null => {
-      if (!dateStr) return null;
-      // Already ISO format YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split("T")[0];
-      // Try parsing any other format via Date constructor
-      const parsed = new Date(dateStr);
-      if (!isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
-      return null;
-    };
-    const starts = tasks.map((t) => toISODate(t.scheduled_start)).filter(Boolean).sort() as string[];
-    const projectStart = starts.length > 0 ? starts[0] : new Date().toISOString().split("T")[0];
+    const { taskMap } = get();
+    const tasks = Object.values(taskMap);
 
-    const response = await schedulerApi.calculate(
-      request.project_id,
-      tasks,
-      projectStart
-    );
+    // S-BUG #3: Use calculateChange for granular edits to avoid massive payloads
+    // Check if it's a granular edit (single task_id present in request)
+    const isGranular = request.task_id && !request.trigger_source?.includes("import");
+
+    let response;
+    const idempotencyKey = `calc-${Date.now()}`;
+
+    if (isGranular) {
+      response = await schedulerApi.calculateChange(
+        request.project_id,
+        request,
+        idempotencyKey
+      );
+    } else {
+      // Fallback: stable projectStart logic
+      const toISODate = (dateStr: string | null | undefined): string | null => {
+        if (!dateStr) return null;
+        if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split("T")[0];
+        const parsed = new Date(dateStr);
+        return isNaN(parsed.getTime()) ? null : parsed.toISOString().split("T")[0];
+      };
+      const starts = tasks.map((t) => toISODate(t.scheduled_start)).filter(Boolean).sort() as string[];
+      const projectStart = starts.length > 0 ? starts[0] : new Date().toISOString().split("T")[0];
+
+      response = await schedulerApi.calculate(
+        request.project_id,
+        tasks,
+        projectStart
+      );
+    }
+
+    // S-BUG #7: Handle explicit backend errors (like circular dependencies)
+    const backendError = (response as { error?: string }).error;
+    if (backendError) {
+      set({
+        pendingCalculation: false,
+        calculationError: backendError
+      });
+      get().rollbackToUndo();
+      toast.error(`Engine Error: ${backendError}`);
+      return;
+    }
 
     get().reconcileWithEngine({
       ...response,
@@ -301,12 +328,14 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       return draftTask;
     },
 
-    removeTask: (taskId) => {
-      set((state) => {
-        if (!state.taskMap[taskId]) {
-          return {};
-        }
+    removeTask: async (taskId) => {
+      const task = get().taskMap[taskId];
+      if (!task) return;
 
+      const projectId = task.project_id;
+
+      // Optimistic removal
+      set((state) => {
         const nextTaskMap = { ...state.taskMap };
         delete nextTaskMap[taskId];
         const nextGraph: typeof state.dependencyGraph = {};
@@ -325,10 +354,37 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
           selectedTasks: new Set([...state.selectedTasks].filter((id) => id !== taskId)),
         };
       });
+
+      try {
+        await schedulerApi.deleteTask(projectId, taskId);
+        toast.success("Task deleted permanently.");
+
+        // Trigger a recalculation of the remaining schedule to fix dependencies
+        const { taskMap } = get();
+        const tasks = Object.values(taskMap);
+
+        get().queueCalculation({
+          project_id: projectId,
+          task_id: tasks[0]?.task_id || "resync",
+          changes: {},
+          version: 1,
+          trigger_source: "task_delete"
+        });
+      } catch (err) {
+        console.error("Failed to delete task:", err);
+        toast.error("Failed to delete task from server. Reverting local change.");
+        // We should ideally reload the schedule here
+        const currentProject = get().taskMap[Object.keys(get().taskMap)[0]]?.project_id;
+        if (currentProject) {
+          const data = await schedulerApi.load(currentProject);
+          get().loadSchedule(data);
+        }
+      }
     },
 
     queueCalculation: (payload) => {
-      const currentTask = get().taskMap[payload.task_id];
+      const state = get();
+      const currentTask = state.taskMap[payload.task_id];
       if (!currentTask) {
         return;
       }
@@ -336,8 +392,36 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       const previousClone = { ...currentTask };
       const optimistic = { ...previousClone, ...buildOptimisticPatch(payload.changes) };
 
+      // S-BUG #6: Optimistic Parent Rollup
+      const updatedMap = { ...state.taskMap, [payload.task_id]: optimistic };
+      if (optimistic.parent_id && updatedMap[optimistic.parent_id]) {
+        const parent = updatedMap[optimistic.parent_id];
+        if (parent.summary_type === "auto") {
+          const siblings = Object.values(updatedMap).filter(t => t.parent_id === optimistic.parent_id);
+          const starts = siblings.map(s => s.scheduled_start).filter(Boolean) as string[];
+          const finishes = siblings.map(s => s.scheduled_finish).filter(Boolean) as string[];
+
+          if (starts.length > 0) {
+            parent.scheduled_start = starts.sort()[0];
+          }
+          if (finishes.length > 0) {
+            parent.scheduled_finish = finishes.sort().reverse()[0];
+          }
+
+          // Progress Rollup
+          const durations = siblings.map(s => s.scheduled_duration ?? 0);
+          const totalDuration = durations.reduce((a, b) => a + b, 0);
+          if (totalDuration > 0) {
+            const weightedSum = siblings.reduce((acc, s) => {
+              return acc + ((s.scheduled_duration ?? 0) * (s.percent_complete ?? 0));
+            }, 0);
+            parent.percent_complete = Math.round(weightedSum / totalDuration);
+          }
+        }
+      }
+
       set((state) => ({
-        taskMap: { ...state.taskMap, [payload.task_id]: optimistic },
+        taskMap: updatedMap,
         undoStack: [
           {
             taskIds: [payload.task_id],

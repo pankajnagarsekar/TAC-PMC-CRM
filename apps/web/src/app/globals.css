@@ -48,6 +48,36 @@
 
     --luxury-gold: 38 52% 56%;
     --luxury-gold-dark: 38 66% 25%;
+
+    /* Luxury Branding Tokens */
+    --luxury-orange: 24 95% 53%;
+    --luxury-orange-hover: 24 95% 48%;
+    --luxury-orange-shadow: rgba(249, 115, 22, 0.2);
+
+    /* Sidebar Active States */
+    --sidebar-active: 214 32% 91%;
+    --sidebar-active-foreground: 38 66% 35%;
+
+    /* KPI Status Colors - Light Mode */
+    --kpi-positive: 142 70% 35%;
+    --kpi-positive-text: 142 76% 36%;
+    --kpi-positive-bg: rgba(16, 185, 129, 0.1);
+    --kpi-positive-shadow: rgba(16, 185, 129, 0.2);
+
+    --kpi-negative: 0 84% 45%;
+    --kpi-negative-text: 0 84% 60%;
+    --kpi-negative-bg: rgba(239, 68, 68, 0.1);
+    --kpi-negative-shadow: rgba(239, 68, 68, 0.2);
+
+    --kpi-warning: 38 92% 50%;
+    --kpi-warning-text: 38 92% 50%;
+    --kpi-warning-bg: rgba(245, 158, 11, 0.1);
+    --kpi-warning-shadow: rgba(245, 158, 11, 0.2);
+
+    --kpi-neutral: 215 16% 47%;
+    --kpi-neutral-text: 215 16% 47%;
+    --kpi-neutral-bg: rgba(100, 116, 139, 0.1);
+    --kpi-neutral-shadow: rgba(100, 116, 139, 0.1);
   }
 
   .dark {
@@ -83,6 +113,21 @@
     --kpi-background: 216 12% 9%;
     --kpi-border: 216 12% 18%;
     --kpi-foreground: 0 0% 98%;
+    --kpi-positive-text: 142 70% 50%;
+    --kpi-positive-bg: rgba(16, 185, 129, 0.15);
+    --kpi-positive-shadow: rgba(16, 185, 129, 0.3);
+
+    --kpi-negative-text: 0 84% 65%;
+    --kpi-negative-bg: rgba(239, 68, 68, 0.15);
+    --kpi-negative-shadow: rgba(239, 68, 68, 0.3);
+
+    --kpi-warning-text: 38 72% 69%;
+    --kpi-warning-bg: rgba(233, 193, 118, 0.15);
+    --kpi-warning-shadow: rgba(233, 193, 118, 0.3);
+
+    --kpi-neutral-text: 216 12% 65%;
+    --kpi-neutral-bg: rgba(255, 255, 255, 0.05);
+    --kpi-neutral-shadow: rgba(0, 0, 0, 0.2);
 
     /* Glassmorphism Tokens - Dark Refined */
     --glass-background: rgba(18, 20, 23, 0.65);
@@ -90,8 +135,17 @@
     --glass-blur: 40px;
     --glass-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
 
+    /* Luxury Branding Tokens - Dark */
+    --luxury-orange: 24 95% 53%;
+    --luxury-orange-hover: 24 95% 63%;
+    --luxury-orange-shadow: rgba(249, 115, 22, 0.4);
+
     --sidebar-active: 216 12% 20%;
     --sidebar-active-foreground: 0 0% 98%;
+
+    /* KPI Status Colors - Dark */
+    --kpi-positive: 142 70% 45%;
+    --kpi-negative: 0 84% 60%;
   }
 
   * {
@@ -448,4 +502,85 @@ div[data-radix-focus-guard]+div {
 .dark ._35nLX {
   fill: hsl(var(--card)) !important;
   stroke: hsl(var(--accent)) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   AG-GRID THEME OVERRIDES (Luxury Industrial)
+   ────────────────────────────────────────────────────────────────────────── */
+
+.ag-theme-quartz-dark,
+.ag-theme-quartz {
+  --ag-background-color: transparent !important;
+  --ag-range-selection-border-color: #f97316 !important;
+  --ag-font-size: 13px !important;
+  --ag-font-family: inherit !important;
+  --ag-border-radius: 12px !important;
+  --ag-grid-size: 8px !important;
+  --ag-list-item-height: 36px !important;
+  --ag-cell-horizontal-padding: 24px !important;
+}
+
+.ag-theme-quartz {
+  --ag-header-background-color: rgba(248, 250, 252, 0.8) !important;
+  --ag-header-foreground-color: #1e293b !important;
+  --ag-foreground-color: #0f172a !important;
+  --ag-border-color: rgba(0, 0, 0, 0.08) !important;
+  --ag-row-hover-color: rgba(249, 115, 22, 0.05) !important;
+  --ag-selected-row-background-color: rgba(249, 115, 22, 0.1) !important;
+}
+
+.ag-theme-quartz-dark {
+  --ag-header-background-color: rgba(15, 23, 42, 0.6) !important;
+  --ag-header-foreground-color: #cbd5e1 !important;
+  --ag-foreground-color: #f8fafc !important;
+  --ag-border-color: rgba(255, 255, 255, 0.08) !important;
+  --ag-row-hover-color: rgba(249, 115, 22, 0.1) !important;
+  --ag-selected-row-background-color: rgba(249, 115, 22, 0.2) !important;
+}
+
+.ag-theme-quartz .ag-header-cell,
+.ag-theme-quartz-dark .ag-header-cell {
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  font-size: 10px !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+.ag-theme-quartz-dark .ag-cell-inline-editing,
+.ag-theme-quartz .ag-cell-inline-editing {
+  border: 1.5px solid #f97316 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.3) !important;
+}
+
+.ag-theme-quartz .ag-cell-inline-editing {
+  background: #ffffff !important;
+}
+
+.ag-theme-quartz-dark .ag-cell-inline-editing {
+  background: #1e293b !important;
+}
+
+.ag-cell-inline-editing input {
+  background: transparent !important;
+  font-weight: 600 !important;
+}
+
+.ag-theme-quartz .ag-cell-inline-editing input {
+  color: #0f172a !important;
+}
+
+.ag-theme-quartz-dark .ag-cell-inline-editing input {
+  color: #f8fafc !important;
+}
+
+/* Row-level validation indicators */
+.row-invalid {
+  border-left: 4px solid #ef4444 !important;
+}
+
+.row-valid {
+  border-left: 4px solid #10b981 !important;
 }

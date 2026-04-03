@@ -28,7 +28,8 @@ export type ChangeSource =
   | "drawer_edit"
   | "import"
   | "api"
-  | "ai_suggestion";
+  | "ai_suggestion"
+  | "task_delete";
 
 export type CostVarianceFlag = "on_budget" | "overrun" | "underrun";
 export type ScheduleTaskStatus =
@@ -90,6 +91,7 @@ export type ScheduleTask = {
   ai_suggested_duration?: number | null;
   ai_confidence_score?: number | null;
   ai_status_flag?: string | null;
+  calc_reason?: string;
   [key: string]: unknown;
 };
 

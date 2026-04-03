@@ -55,7 +55,7 @@ export default function ClientsPage() {
             <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-500">
               <Building2 size={16} />
             </div>
-            <span className="font-semibold text-zinc-900 dark:text-white">{(params.data as any).name || (params.data as any).client_name}</span>
+            <span className="font-semibold text-zinc-900 dark:text-white">{params.data?.client_name}</span>
           </div>
         ),
       },
@@ -67,11 +67,11 @@ export default function ClientsPage() {
           <div className="flex flex-col justify-center py-1">
             <div className="flex items-center gap-2 text-slate-300 text-xs">
               <Mail size={12} className="text-slate-500" />
-              {(params.data as any).email || (params.data as any).client_email || "No email"}
+              {params.data?.client_email || "No email"}
             </div>
             <div className="flex items-center gap-2 text-slate-500 text-xs mt-1">
               <Phone size={12} />
-              {(params.data as any).phone || (params.data as any).client_phone || "No phone"}
+              {params.data?.client_phone || "No phone"}
             </div>
           </div>
         ),
@@ -82,7 +82,7 @@ export default function ClientsPage() {
         flex: 1,
         cellRenderer: (params: any) => (
           <code className="text-[11px] bg-zinc-100 dark:bg-slate-900 px-2 py-0.5 rounded border border-zinc-200 dark:border-slate-800 text-zinc-600 dark:text-slate-400">
-            {(params.data as any).gstin || (params.data as any).gst_number || "N/A"}
+            {params.data?.gst_number || "N/A"}
           </code>
         ),
       },

@@ -147,6 +147,24 @@ export default function ProjectModal({
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!project?._id || !window.confirm("Are you sure you want to delete this project? This will permanently remove all associated data, including schedules, work orders, and site logs.")) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.delete(`/api/v1/projects/${project._id}`);
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || "Failed to delete project");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBudgetChange = (code_id: string, value: string) => {
     const amount = parseFloat(value) || 0;
     setBudgets((prev) => ({ ...prev, [code_id]: amount }));
@@ -441,27 +459,42 @@ export default function ProjectModal({
           </form>
         </div>
 
-        <DialogFooter className="bg-slate-950 px-6 py-4 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="project-form"
-            disabled={loading}
-            className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-900/20"
-          >
-            {loading ? (
-              <Loader2 className="animate-spin" size={18} />
-            ) : (
-              <Save size={18} />
+        <DialogFooter className="bg-slate-950 px-6 py-4 border-t border-slate-800 flex justify-between items-center">
+          <div className="flex-1">
+            {project && (
+              <button
+                type="button"
+                onClick={handleDeleteProject}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all disabled:opacity-50"
+              >
+                <AlertCircle size={18} />
+                DELETE PROJECT
+              </button>
             )}
-            {project ? "Update Project" : "Create Project"}
-          </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="project-form"
+              disabled={loading}
+              className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-900/20"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <Save size={18} />
+              )}
+              {project ? "Update Project" : "Create Project"}
+            </button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

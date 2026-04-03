@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 import {
   format,
@@ -74,7 +75,7 @@ export default function SCurveChart() {
         const bStart = parseTaskDate(task.baseline_start || task.scheduled_start);
         const bFinish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
         // Fallback to wo_value if costs are not explicitly set in the scheduler
-        const baselineCost = Number(task.wo_value ?? task.baseline_cost ?? task.cost ?? 0);
+        const baselineCost = Number(task.wo_value ?? task.baseline_cost ?? 0);
 
         if (!bStart || !bFinish || baselineCost <= 0) return;
 
@@ -169,7 +170,7 @@ export default function SCurveChart() {
 
       <div className="h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+          <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-white/[0.03]" vertical={false} />
             <XAxis
               dataKey="name"
@@ -186,13 +187,19 @@ export default function SCurveChart() {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "var(--tw-bg-opacity, #fff)",
-                background: "bg-white dark:bg-slate-950",
-                border: "1px solid rgba(0,0,0,0.1)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border) / 0.1)",
                 borderRadius: "12px",
                 fontSize: "12px",
+                color: "hsl(var(--card-foreground))",
               }}
               formatter={(value: number | undefined) => [formatCurrency(Number(value || 0)), ""]}
+            />
+            <ReferenceLine
+              x={format(new Date(), "MMM yy")}
+              stroke="#fb923c"
+              strokeDasharray="3 3"
+              label={{ value: 'TODAY', position: 'top', fill: '#fb923c', fontSize: 8, fontWeight: 900 }}
             />
             <Line
               type="monotone"

@@ -5,12 +5,12 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?:
-    | "default"
-    | "destructive"
-    | "outline"
-    | "secondary"
-    | "ghost"
-    | "link";
+  | "default"
+  | "destructive"
+  | "outline"
+  | "secondary"
+  | "ghost"
+  | "link";
   size?: "default" | "sm" | "lg" | "icon";
 }
 
@@ -21,16 +21,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantStyles = {
       default:
-        "bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500",
+        "bg-orange-600 text-white hover:bg-orange-500 focus-visible:ring-orange-500 shadow-lg shadow-orange-950/20 active:scale-95",
       destructive:
-        "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500",
+        "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive active:scale-95",
       outline:
-        "border border-gray-300 bg-white hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-500",
+        "border border-border bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring",
       secondary:
-        "bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500",
+        "bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring",
       ghost:
-        "hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-500",
-      link: "text-blue-600 underline-offset-4 hover:underline focus-visible:ring-blue-500",
+        "hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring",
+      link: "text-primary underline-offset-4 hover:underline focus-visible:ring-ring",
     };
 
     const sizeStyles = {

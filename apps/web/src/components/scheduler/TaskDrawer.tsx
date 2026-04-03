@@ -10,7 +10,13 @@ import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { SchedulePredecessor, ScheduleTask, ScheduleTaskStatus, MomResult, ActionItem } from "@/types/schedule.types";
-import { formatTaskDate, getTaskStatus, buildTaskStatusTransition } from "./scheduler-utils";
+import {
+  formatTaskDate,
+  getTaskStatus,
+  KANBAN_META,
+  VALID_STATUS_TRANSITIONS,
+  buildTaskStatusTransition
+} from "./scheduler-utils";
 import { formatCurrencySafe } from "@/lib/formatters";
 
 function FieldRow({
@@ -55,6 +61,18 @@ export default function TaskDrawer() {
   const [momNotes, setMomNotes] = useState("");
   const [isAnalyzingMom, setIsAnalyzingMom] = useState(false);
   const [momResult, setMomResult] = useState<MomResult | null>(null);
+
+  // S-BUG #5: Local state for performance (avoid keystroke recalculations)
+  const [localTaskName, setLocalTaskName] = useState(selectedTask?.task_name || "");
+  const [localDuration, setLocalDuration] = useState<number>(selectedTask?.scheduled_duration ?? 0);
+  const [localPercent, setLocalPercent] = useState<number>(selectedTask?.percent_complete ?? 0);
+
+  useEffect(() => {
+    if (!selectedTask) return;
+    setLocalTaskName(selectedTask.task_name);
+    setLocalDuration(selectedTask.scheduled_duration ?? 0);
+    setLocalPercent(selectedTask.percent_complete ?? 0);
+  }, [selectedTask, selectedTask?.task_id, selectedTask?.task_name, selectedTask?.scheduled_duration, selectedTask?.percent_complete]);
 
   const handleAnalyzeMom = async () => {
     if (!selectedTask || !momNotes.trim()) return;
@@ -140,7 +158,7 @@ export default function TaskDrawer() {
   };
 
   return (
-    <aside className="sticky top-6 rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-950/70 p-5 shadow-2xl backdrop-blur-xl">
+    <aside className="sticky top-6 z-30 rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-950/70 p-5 shadow-2xl backdrop-blur-xl">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">Task Drawer</h3>
@@ -197,19 +215,29 @@ export default function TaskDrawer() {
                 disabled={readOnly}
                 className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-900 dark:text-white outline-none"
               >
-                <option value="draft">Draft</option>
-                <option value="not_started">Not Started</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="closed">Closed</option>
+                {/* S-BUG #8: Only show valid transitions */}
+                {Object.keys(KANBAN_META).map((item) => {
+                  const currentStatus = getTaskStatus(selectedTask);
+                  const isValid = item === currentStatus ||
+                    (VALID_STATUS_TRANSITIONS[currentStatus] || []).includes(item as ScheduleTaskStatus);
+
+                  if (!isValid) return null;
+
+                  return (
+                    <option key={item} value={item}>
+                      {KANBAN_META[item as ScheduleTaskStatus].label}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
             <div className="grid gap-3">
               <FieldRow label="Task name">
                 <input
-                  value={selectedTask.task_name}
-                  onChange={(event) => commit({ task_name: event.target.value })}
+                  value={localTaskName}
+                  onChange={(e) => setLocalTaskName(e.target.value)}
+                  onBlur={() => commit({ task_name: localTaskName })}
                   disabled={readOnly}
                   className={textInputClass()}
                 />
@@ -239,8 +267,9 @@ export default function TaskDrawer() {
                   <input
                     type="number"
                     min={0}
-                    value={selectedTask.scheduled_duration ?? 0}
-                    onChange={(event) => commit({ scheduled_duration: Number(event.target.value || 0) })}
+                    value={localDuration}
+                    onChange={(e) => setLocalDuration(Number(e.target.value || 0))}
+                    onBlur={() => commit({ scheduled_duration: localDuration })}
                     disabled={readOnly}
                     className={textInputClass()}
                   />
@@ -250,8 +279,9 @@ export default function TaskDrawer() {
                     type="number"
                     min={0}
                     max={100}
-                    value={selectedTask.percent_complete ?? 0}
-                    onChange={(event) => commit({ percent_complete: Number(event.target.value || 0) })}
+                    value={localPercent}
+                    onChange={(e) => setLocalPercent(Number(e.target.value || 0))}
+                    onBlur={() => commit({ percent_complete: localPercent })}
                     disabled={readOnly}
                     className={textInputClass()}
                   />
@@ -265,7 +295,7 @@ export default function TaskDrawer() {
         </Tabs.Content>
 
         <Tabs.Content value="deps" className="space-y-4 pt-2">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
               Project Network (Predecessors)
             </h4>
@@ -343,7 +373,7 @@ export default function TaskDrawer() {
           </div>
         </Tabs.Content>
         <Tabs.Content value="financials" className="space-y-4 pt-2">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-1 overflow-hidden">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-1 overflow-hidden">
             <div className="bg-white/[0.02] p-4 border-b border-white/5 flex justify-between items-center text-pretty">
               <div className="flex items-center gap-2">
                 <Info size={14} className="text-slate-500" />
@@ -381,7 +411,7 @@ export default function TaskDrawer() {
         </Tabs.Content>
 
         <Tabs.Content value="mom" className="space-y-4 pt-2">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-pretty">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-4 text-pretty">
             <div className="flex items-center gap-2 mb-2">
               <Activity size={16} className="text-orange-400" />
               <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
@@ -445,7 +475,15 @@ export default function TaskDrawer() {
                         {momResult.suggested_duration_days} Days
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" className="bg-emerald-400/20 border-emerald-400/30 text-emerald-400 text-[10px] font-black hover:bg-emerald-400/30 px-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-emerald-400/20 border-emerald-400/30 text-emerald-400 text-[10px] font-black hover:bg-emerald-400/30 px-4"
+                      onClick={() => {
+                        commit({ scheduled_duration: momResult.suggested_duration_days });
+                        toast.success("AI suggestion committed to schedule.");
+                      }}
+                    >
                       COMMIT
                     </Button>
                   </div>
@@ -456,7 +494,7 @@ export default function TaskDrawer() {
         </Tabs.Content>
 
         <Tabs.Content value="logs" className="space-y-4 pt-2">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 mb-4">
               Operation Logs & Timesheets
             </h4>

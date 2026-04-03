@@ -238,7 +238,7 @@ class ProjectService:
                 "organisation_id": org_id,
                 "category_id": cat_id,
                 "category_code": code.get("code"),
-                "category_name": code.get("code_description") or code.get("name"),
+                "category_name": code.get("category_name"),
                 "original_budget": FinancialEngine.to_d128(Decimal("0.0")),
                 "committed_amount": FinancialEngine.to_d128(Decimal("0.0")),
                 "remaining_budget": FinancialEngine.to_d128(Decimal("0.0")),

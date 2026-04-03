@@ -44,7 +44,8 @@ export default function DPRTab() {
       if (endDate) params.append("end_date", endDate);
 
       const response = await api.get(`${url}?${params.toString()}`);
-      setDprs(response.data);
+      const data = response.data;
+      setDprs(Array.isArray(data) ? data : (data as { items?: DPR[] })?.items || []);
     } catch (err: unknown) {
       console.error("Error fetching DPRs:", err);
       const error = err as { response?: { data?: { detail?: string } } };

@@ -66,6 +66,14 @@ const ACTION_TYPES = [
 ];
 
 export default function AuditLogPage() {
+  return (
+    <React.Suspense fallback={<div className="h-20 animate-pulse bg-slate-900 rounded-xl m-6" />}>
+      <AuditLogContent />
+    </React.Suspense>
+  );
+}
+
+function AuditLogContent() {
   const searchParams = useSearchParams();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,14 +108,14 @@ export default function AuditLogPage() {
       const response = await api.get(`/api/v1/audit/logs?${params.toString()}`);
       const data = response.data;
 
-      setLogs(append ? [...logs, ...data] : data);
+      setLogs((prev) => (append ? [...prev, ...data] : data));
       setHasMore(data.length === 50);
     } catch {
       // Log error internally if needed
     } finally {
       setLoading(false);
     }
-  }, [filters, logs]);
+  }, [filters]);
 
   useEffect(() => {
     fetchLogs(page, false);

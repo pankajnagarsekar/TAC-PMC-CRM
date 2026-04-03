@@ -40,12 +40,15 @@ export default function PaymentCertificatesPage() {
       const url = `/api/v1/payments/${projectId}?limit=50${cursor ? `&cursor=${cursor}` : ''}`;
       const res = await api.get<{ items: PaymentCertificate[], next_cursor: string | null }>(url);
 
+      const newItems = res.data.items || (Array.isArray(res.data) ? res.data : []);
+      const nextC = res.data.next_cursor || null;
+
       if (!cursor) {
-        setItems(res.data.items);
+        setItems(newItems);
       } else {
-        setItems(prev => [...prev, ...res.data.items]);
+        setItems(prev => [...prev, ...newItems]);
       }
-      setNextCursor(res.data.next_cursor);
+      setNextCursor(nextC);
     } catch (err) {
       console.error('Failed to fetch PCs', err);
       setFetchError('Failed to load payment certificates.');

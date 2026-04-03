@@ -55,6 +55,23 @@ const Bar = memo(function Bar({
     onStartDrag(task, mode, event.clientX);
   };
 
+  if (isMilestone) {
+    return (
+      <div
+        className="absolute top-1/2 z-30 -translate-y-1/2 cursor-pointer group"
+        style={{ left: left - 8, width: 16, height: 16 }}
+        onClick={() => onSelect(task.task_id)}
+      >
+        <div
+          className={`h-full w-full rotate-45 border-2 shadow-xl transition-all ${isCriticalHighlighted ? 'bg-rose-500 border-rose-300' : 'bg-sky-500 border-sky-300'} group-hover:scale-125`}
+        />
+        <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 bg-slate-900 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded transition-opacity">
+          {task.task_name} (M)
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="absolute top-1/2 z-20 -translate-y-1/2"
@@ -62,7 +79,7 @@ const Bar = memo(function Bar({
       onClick={() => onSelect(task.task_id)}
     >
       <div
-        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 ${isCriticalHighlighted ? "border-rose-400/40 bg-rose-500/25" : "border-sky-400/30 bg-sky-500/20"} ${isMilestone ? "rounded-full" : ""}`}
+        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 ${isCriticalHighlighted ? "border-rose-400/40 bg-rose-500/25" : "border-sky-400/30 bg-sky-500/20"}`}
       >
         <div className="flex h-full items-center justify-between gap-2">
           <div className="min-w-0">
@@ -73,7 +90,7 @@ const Bar = memo(function Bar({
               {formatTaskDurationLabel(task)}
             </p>
           </div>
-          <div className="flex items-center gap-1 text-slate-500 dark:text-white/60">
+          <div className="flex items-center gap-1 text-slate-500 dark:text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
@@ -288,6 +305,26 @@ export default function GanttChart() {
     return edges;
   }, [dependencyNodes, highlightCritical, taskMap, visibleTasks]);
 
+  const monthHeaders = useMemo(() => {
+    const months: { label: string; width: number }[] = [];
+    if (days.length === 0) return [];
+
+    let currentMonth = "";
+    let lastMonthObj: { label: string, width: number } | null = null;
+
+    days.forEach((day) => {
+      const label = format(day, "MMMM yyyy");
+      if (label !== currentMonth) {
+        currentMonth = label;
+        lastMonthObj = { label, width: TIMELINE_DAY_WIDTH };
+        months.push(lastMonthObj);
+      } else if (lastMonthObj) {
+        lastMonthObj.width += TIMELINE_DAY_WIDTH;
+      }
+    });
+    return months;
+  }, [days]);
+
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       const current = dragStateRef.current;
@@ -332,6 +369,7 @@ export default function GanttChart() {
       originalStart: task.scheduled_start ?? null,
       originalFinish: task.scheduled_finish ?? null,
     };
+    setActiveDragTaskId(task.task_id); // S-BUG #14: Immediate feedback
   };
 
   const handleSelect = (taskId: string) => {
@@ -408,35 +446,17 @@ export default function GanttChart() {
               <div className="flex flex-col">
                 {/* Month Row */}
                 <div className="flex border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.05]">
-                  {useMemo(() => {
-                    const months: { label: string; width: number }[] = [];
-                    if (days.length === 0) return null;
-
-                    let currentMonth = "";
-                    let lastMonthObj: { label: string, width: number } | null = null;
-
-                    days.forEach((day) => {
-                      const label = format(day, "MMMM yyyy");
-                      if (label !== currentMonth) {
-                        currentMonth = label;
-                        lastMonthObj = { label, width: TIMELINE_DAY_WIDTH };
-                        months.push(lastMonthObj);
-                      } else if (lastMonthObj) {
-                        lastMonthObj.width += TIMELINE_DAY_WIDTH;
-                      }
-                    });
-
-                    return months.map((m, i) => (
-                      <div
-                        key={i}
-                        className="h-9 flex items-center justify-center border-r border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 whitespace-nowrap overflow-hidden px-2 bg-slate-50/50 dark:bg-white/[0.02]"
-                        style={{ width: m.width }}
-                      >
+                  {monthHeaders.map((m, i) => (
+                    <div
+                      key={i}
+                      className="h-9 flex items-center border-r border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 whitespace-nowrap px-4 bg-slate-50/50 dark:bg-white/[0.02] relative"
+                      style={{ width: m.width }}
+                    >
+                      <span className="sticky left-4 z-10 block">
                         {m.label}
-                      </div>
-                    ));
-                  }, [days])}
-
+                      </span>
+                    </div>
+                  ))}
                 </div>
                 {/* Day Row */}
                 <div className="flex">

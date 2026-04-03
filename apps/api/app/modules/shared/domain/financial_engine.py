@@ -132,20 +132,26 @@ class FinancialEngine:
         cgst_pct: Decimal,
         sgst_pct: Decimal,
     ) -> Dict[str, Any]:
-        """Core logic for Payment Certificates."""
+        """
+        Sovereign PC Logic (BUG-25 Align).
+        Formula: Grand Total = (Subtotal + CGST + SGST) - Retention
+        GST is calculated on the Gross Subtotal.
+        Retention is calculated on the Gross Subtotal.
+        """
         pc_value = cls.round(pc_value)
         retention_amount = cls.calculate_retention(pc_value, retention_pct)
-        total_after_retention = cls.round(pc_value - retention_amount)
-
-        cgst_amount = cls.calculate_tax(total_after_retention, cgst_pct)
-        sgst_amount = cls.calculate_tax(total_after_retention, sgst_pct)
+        
+        cgst_amount = cls.calculate_tax(pc_value, cgst_pct)
+        sgst_amount = cls.calculate_tax(pc_value, sgst_pct)
         gst_amount = cls.round(cgst_amount + sgst_amount)
-        grand_total = cls.round(total_after_retention + gst_amount)
+        
+        # Section 4.3 Update: (Subtotal + GST) - Retention
+        grand_total = cls.round(pc_value + gst_amount - retention_amount)
 
         return {
             "subtotal": pc_value,
             "retention_amount": retention_amount,
-            "total_after_retention": total_after_retention,
+            "total_after_retention": cls.round(pc_value - retention_amount),
             "cgst": cgst_amount,
             "sgst": sgst_amount,
             "gst_amount": gst_amount,

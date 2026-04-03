@@ -73,55 +73,57 @@ export default function FinancialChart({
   const yTickFormatter = formatCurrency ? formatINRShort : (v: number) => String(v);
 
   return (
-    <div className={`w-full h-full ${className}`}>
+    <div className={`w-full h-full overflow-x-auto custom-scrollbar ${className}`}>
       {title && (
         <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">{title}</h3>
       )}
-      <ResponsiveContainer width="100%" height={height}>
-        {type === 'bar' ? (
-          <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-            <XAxis
-              dataKey="name"
-              tick={{ fill: textColor, fontSize: 9 }}
-              axisLine={{ stroke: gridColor }}
-              angle={-45}
-              textAnchor="end"
-              height={70}
-              interval={0}
-            />
-            <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              wrapperStyle={{ fontSize: 11, color: textColor }}
-              iconType="square"
-              iconSize={10}
-            />
-            {dataKeys.map(({ key, color, label }) => (
-              <Bar key={key} dataKey={key} name={label} fill={color} radius={[4, 4, 0, 0]} maxBarSize={40} />
-            ))}
-          </BarChart>
-        ) : (
-          <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-            <XAxis
-              dataKey="name"
-              tick={{ fill: textColor, fontSize: 9 }}
-              axisLine={{ stroke: gridColor }}
-              angle={-45}
-              textAnchor="end"
-              height={70}
-              interval={0}
-            />
-            <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 11, color: textColor }} />
-            {dataKeys.map(({ key, color, label }) => (
-              <Line key={key} type="monotone" dataKey={key} name={label} stroke={color} strokeWidth={2} dot={{ r: 3 }} />
-            ))}
-          </LineChart>
-        )}
-      </ResponsiveContainer>
+      <div style={{ minWidth: data.length * 60 }}>
+        <ResponsiveContainer width="100%" height={height}>
+          {type === 'bar' ? (
+            <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: textColor, fontSize: 9 }}
+                axisLine={{ stroke: gridColor }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+              />
+              <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend
+                wrapperStyle={{ fontSize: 11, color: textColor }}
+                iconType="square"
+                iconSize={10}
+              />
+              {dataKeys.map(({ key, color, label }) => (
+                <Bar key={key} dataKey={key} name={label} fill={color} radius={[4, 4, 0, 0]} maxBarSize={40} />
+              ))}
+            </BarChart>
+          ) : (
+            <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: textColor, fontSize: 9 }}
+                axisLine={{ stroke: gridColor }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+              />
+              <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 11, color: textColor }} />
+              {dataKeys.map(({ key, color, label }) => (
+                <Line key={key} type="monotone" dataKey={key} name={label} stroke={color} strokeWidth={2} dot={{ r: 3 }} />
+              ))}
+            </LineChart>
+          )}
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -201,12 +201,16 @@ class ReportingService:
             petty_cash_total = Decimal("0.0")
 
             for alloc in allocations:
+                cat_id = alloc.get("category_id")
+                category = await self.db.code_master.find_one({"_id": ObjectId(cat_id) if ObjectId.is_valid(cat_id) else cat_id})
+                cat_name = category.get("category_name") if category else f"Category {cat_id}"
+                
                 cash_in_hand = FinancialEngine.to_decimal(alloc.get("cash_in_hand", 0))
                 petty_cash_total += cash_in_hand
                 categories_data.append(
                     {
-                        "code_id": str(alloc.get("category_id")),
-                        "code_name": f"Category {alloc.get('category_id')}",
+                        "code_id": str(cat_id),
+                        "code_name": cat_name,
                         "approved_budget": float(
                             FinancialEngine.to_decimal(
                                 alloc.get("allocation_original", 0)
@@ -298,11 +302,12 @@ class ReportingService:
     async def _project_summary_report(self, project_id: str) -> Dict[str, Any]:
         pipeline = [
             {"$match": {"project_id": project_id}},
+            {"$addFields": {"cid_obj": {"$toObjectId": "$category_id"}}},
             {
                 "$lookup": {
                     "from": "code_master",
-                    "localField": "category_id",
-                    "foreignField": "code",
+                    "localField": "cid_obj",
+                    "foreignField": "_id",
                     "as": "category",
                 }
             },
@@ -381,10 +386,14 @@ class ReportingService:
 
         pipeline = [
             {"$match": match_stage},
+            {"$addFields": {
+                "cid_obj": {"$toObjectId": "$category_id"},
+                "vid_obj": {"$toObjectId": "$vendor_id"}
+            }},
             {
                 "$lookup": {
                     "from": "code_master",
-                    "localField": "category_id",
+                    "localField": "cid_obj",
                     "foreignField": "_id",
                     "as": "category",
                 }
@@ -392,7 +401,7 @@ class ReportingService:
             {
                 "$lookup": {
                     "from": "vendors",
-                    "localField": "vendor_id",
+                    "localField": "vid_obj",
                     "foreignField": "_id",
                     "as": "vendor",
                 }
@@ -446,10 +455,14 @@ class ReportingService:
             }
         pipeline = [
             {"$match": match_stage},
+            {"$addFields": {
+                "cid_obj": {"$toObjectId": "$category_id"},
+                "vid_obj": {"$toObjectId": "$vendor_id"}
+            }},
             {
                 "$lookup": {
                     "from": "code_master",
-                    "localField": "category_id",
+                    "localField": "cid_obj",
                     "foreignField": "_id",
                     "as": "category",
                 }
@@ -457,7 +470,7 @@ class ReportingService:
             {
                 "$lookup": {
                     "from": "vendors",
-                    "localField": "vendor_id",
+                    "localField": "vid_obj",
                     "foreignField": "_id",
                     "as": "vendor",
                 }
@@ -540,10 +553,11 @@ class ReportingService:
     ) -> Dict[str, Any]:
         pipeline = [
             {"$match": {"project_id": project_id}},
+            {"$addFields": {"cid_obj": {"$toObjectId": "$category_id"}}},
             {
                 "$lookup": {
                     "from": "code_master",
-                    "localField": "category_id",
+                    "localField": "cid_obj",
                     "foreignField": "_id",
                     "as": "category",
                 }
@@ -584,10 +598,14 @@ class ReportingService:
     ) -> Dict[str, Any]:
         pipeline = [
             {"$match": {"project_id": project_id}},
+            {"$addFields": {
+                "cid_obj": {"$toObjectId": "$category_id"},
+                "vid_obj": {"$toObjectId": "$vendor_id"}
+            }},
             {
                 "$lookup": {
                     "from": "code_master",
-                    "localField": "category_id",
+                    "localField": "cid_obj",
                     "foreignField": "_id",
                     "as": "category",
                 }
@@ -595,7 +613,7 @@ class ReportingService:
             {
                 "$lookup": {
                     "from": "vendors",
-                    "localField": "vendor_id",
+                    "localField": "vid_obj",
                     "foreignField": "_id",
                     "as": "vendor",
                 }

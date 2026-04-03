@@ -107,7 +107,7 @@ export const GanttDependencyOverlay = memo(function GanttDependencyOverlay({
           stroke="currentColor"
           strokeWidth={1.25}
           markerEnd="url(#gantt-dep-arrow)"
-          className={path.isCritical ? "text-rose-300/40" : "text-white/20"}
+          className={path.isCritical ? "text-rose-500/40 dark:text-rose-300/40" : "text-slate-400/40 dark:text-white/20"}
         />
       ))}
     </svg>

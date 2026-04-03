@@ -51,7 +51,6 @@ export default function ExpenseEntryModal({
   // OCR state
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,20 +84,12 @@ export default function ExpenseEntryModal({
         }
       }
       setCategories(uniqueCategories);
-
-      // Auto-select first category if available
-      if (uniqueCategories.length > 0 && !formData.category_id) {
-        setFormData((prev) => ({
-          ...prev,
-          category_id: uniqueCategories[0]._id,
-        }));
-      }
     } catch (error) {
       console.error("Failed to fetch categories:", error);
     } finally {
       setIsLoadingCategories(false);
     }
-  }, [projectId, formData.category_id]);
+  }, [projectId]);
 
   useEffect(() => {
     if (isOpen && projectId) {
@@ -110,11 +101,20 @@ export default function ExpenseEntryModal({
     }
   }, [isOpen, projectId, fetchCategories]);
 
+  // Auto-select first category if available
+  useEffect(() => {
+    if (categories.length > 0 && !formData.category_id) {
+      setFormData((prev) => ({
+        ...prev,
+        category_id: categories[0]._id,
+      }));
+    }
+  }, [categories, formData.category_id]);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadedFile(file);
 
     // Create preview URL
     const url = URL.createObjectURL(file);
@@ -185,7 +185,8 @@ export default function ExpenseEntryModal({
           amount: parseFloat(formData.amount),
           type: "DEBIT",
           description: `[${formData.bill_reference}] ${formData.purpose}`,
-          image_url: uploadedFile ? previewUrl : null,
+          // Fix Bug #29: Don't send blob URLs to backend
+          image_url: null,
         },
         {
           headers: {
@@ -224,7 +225,6 @@ export default function ExpenseEntryModal({
       bill_reference: "",
     });
     setOcrResult(null);
-    setUploadedFile(null);
     setSaveWarnings([]);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -354,7 +354,6 @@ export default function ExpenseEntryModal({
                   <button
                     type="button"
                     onClick={() => {
-                      setUploadedFile(null);
                       setPreviewUrl(null);
                       setOcrResult(null);
                       if (fileInputRef.current) {

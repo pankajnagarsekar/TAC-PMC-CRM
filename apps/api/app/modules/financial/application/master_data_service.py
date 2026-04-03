@@ -33,16 +33,16 @@ class MasterDataService:
         """Implemented authoritative master data creation with uniqueness guard."""
         await self.permission_checker.check_admin_role(user)
 
-        # Uniqueness Guard: (Organisation, CodeShort)
+        # Uniqueness Guard: (Organisation, Code)
         existing = await self.code_repo.find_one(
             {
                 "organisation_id": user["organisation_id"],
-                "code_short": code_data.code_short,
+                "code": code_data.code,
             }
         )
         if existing:
             raise ValidationError(
-                "CODE_EXISTS: A master code with this short name already exists."
+                "CODE_EXISTS: A master code with this name already exists."
             )
 
         doc = code_data.dict()

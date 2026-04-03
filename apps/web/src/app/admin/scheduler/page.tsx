@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import { AlertTriangle, FileDown, Info, Plus, Upload, CalendarDays, Database, Grid3X3, GanttChart as GanttIcon, ListTodo, Landmark, TrendingUp } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -22,6 +22,14 @@ import SCurveChart from "@/components/scheduler/SCurveChart";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 export default function ProjectSchedulerPage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-background animate-pulse" />}>
+      <ProjectSchedulerContent />
+    </Suspense>
+  );
+}
+
+function ProjectSchedulerContent() {
   const { activeProject } = useProjectStore();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -33,6 +41,12 @@ export default function ProjectSchedulerPage() {
   const calculationError = useScheduleStore((state) => state.calculationError);
   const taskCount = useScheduleStore((state) => Object.keys(state.taskMap).length);
   const { user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState(currentTab);
+
+  // Sync local tab state with URL
+  useEffect(() => {
+    setActiveTab(currentTab);
+  }, [currentTab]);
 
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -61,6 +75,7 @@ export default function ProjectSchedulerPage() {
   }, [activeProject, loadSchedule]);
 
   const handleTabChange = (value: string) => {
+    setActiveTab(value); // Optimistic immediate update
     const params = new URLSearchParams(searchParams);
     params.set("tab", value);
     router.replace(`?${params.toString()}`);
@@ -97,10 +112,7 @@ export default function ProjectSchedulerPage() {
     if (!activeProject) return;
     setExporting(true);
     try {
-      // First trigger the background export process
       await schedulerApi.exportPdf(activeProject.project_id);
-
-      // Then download (in this implementation, we combine or use the download endpoint)
       const response = await schedulerApi.downloadPdf(activeProject.project_id);
       const blob = response.data;
       const url = window.URL.createObjectURL(blob);
@@ -178,7 +190,7 @@ export default function ProjectSchedulerPage() {
               { value: "export", label: "Export", icon: Upload },
             ].map((tab) => {
               const TabIcon = tab.icon;
-              const isActive = currentTab === tab.value;
+              const isActive = activeTab === tab.value;
               return (
                 <button
                   key={tab.value}
@@ -206,129 +218,159 @@ export default function ProjectSchedulerPage() {
         </div>
       </div>
 
-      {
-        calculationError && (
-          <GlassCard className="mb-8 border-rose-500/20 bg-rose-500/5 p-4">
-            <div className="flex items-center gap-3 text-rose-500">
-              <AlertTriangle size={20} />
-              <p className="text-xs font-bold uppercase tracking-widest">{calculationError}</p>
+      {calculationError && (
+        <GlassCard className="mb-8 border-rose-500/20 bg-rose-500/5 p-4">
+          <div className="flex items-center gap-3 text-rose-500">
+            <AlertTriangle size={20} />
+            <p className="text-xs font-bold uppercase tracking-widest">{calculationError}</p>
+          </div>
+        </GlassCard>
+      )}
+
+      {taskCount === 0 && activeTab !== "export" ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] py-12 px-6">
+          <GlassCard className="max-w-2xl w-full p-12 text-center border-orange-500/20 bg-orange-500/[0.02]">
+            <div className="mx-auto mb-8 w-24 h-24 rounded-[32px] bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-500 shadow-2xl shadow-orange-500/10">
+              <Database size={48} strokeWidth={1.5} />
+            </div>
+            <h3 className="text-3xl font-black uppercase tracking-tight text-white mb-4">No Active Schedule</h3>
+            <p className="text-slate-400 max-w-md mx-auto mb-10 font-medium leading-relaxed">
+              This project is currently an empty container. Initialize the delivery schedule to begin tracking progress and financials.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+              <Button
+                onClick={handleAddTask}
+                disabled={pendingCalculation || isClient}
+                className="h-14 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest text-[11px]"
+              >
+                <Plus size={18} className="mr-2" />
+                Add First Task
+              </Button>
+              <Button
+                onClick={() => handleTabChange("export")}
+                className="h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[11px]"
+              >
+                <Upload size={18} className="mr-2" />
+                Import MPP/XML
+              </Button>
             </div>
           </GlassCard>
-        )
-      }
-
-      <Tabs.Root value={currentTab} onValueChange={handleTabChange} className="space-y-8">
-        <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(currentTab) ? 'xl:grid-cols-[minmax(0,1fr)_420px]' : 'xl:grid-cols-1'}`}>
-          <div className="min-w-0 space-y-8">
-            <Tabs.Content value="grid" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-              <SchedulerGrid />
-            </Tabs.Content>
-
-            <Tabs.Content value="gantt" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-              <GanttChart />
-            </Tabs.Content>
-
-            <Tabs.Content value="kanban" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-              <KanbanBoard />
-            </Tabs.Content>
-
-            <Tabs.Content value="analytics" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-              <SCurveChart />
-            </Tabs.Content>
-
-            <Tabs.Content value="budget" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-              <div className="max-w-5xl mx-auto space-y-8">
-                <h3 className="text-zinc-500 uppercase tracking-widest text-[10px] font-bold px-4">Financial Status — Planned vs Actuals per Category</h3>
-                <FinancialChart
-                  title=""
-                  data={financials?.map((f: DerivedFinancialState) => ({
-                    name: f.category_name || f.category_code || 'N/A',
-                    budget: f.original_budget,
-                    committed: f.committed_value
-                  })) || []}
-                  dataKeys={[
-                    { key: 'budget', color: '#775a19', label: 'Planned' },
-                    { key: 'committed', color: '#505f7a', label: 'Actual' }
-                  ]}
-                  height={500}
-                />
-              </div>
-            </Tabs.Content>
-
-            <Tabs.Content value="export" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-              <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-                <GlassCard className="p-8 space-y-6">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
-                    <Upload size={24} />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-tight">Import Data</h4>
-                    <p className="text-zinc-500 text-xs mt-1">Upload Microsoft Project (.mpp), XML, or CSV files to seed the schedule.</p>
-                  </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept=".mpp,.xml,.pdf"
-                    onChange={handleImportSchedule}
-                  />
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={importing || isClient}
-                    className="w-full rounded-xl bg-orange-600 dark:bg-orange-500 text-white font-black uppercase tracking-widest h-12"
-                  >
-                    {importing ? "Processing..." : "Select File"}
-                  </Button>
-                </GlassCard>
-
-                <GlassCard className="p-8 space-y-6">
-                  <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-                    <FileDown size={24} />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-tight">Export PDF</h4>
-                    <p className="text-zinc-500 text-xs mt-1">Generate a high-fidelity PDF report of the current Gantt and table state.</p>
-                  </div>
-                  <Button
-                    onClick={handleExport}
-                    disabled={exporting}
-                    className="w-full rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest h-12"
-                  >
-                    {exporting ? "Generating..." : "Download Report"}
-                  </Button>
-                </GlassCard>
-
-                {!isClient && (
-                  <GlassCard className="p-8 space-y-6 md:col-span-2 border-amber-500/20 bg-amber-500/5">
-                    <div className="flex items-center gap-6">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                        <Database size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-lg font-bold text-amber-600 dark:text-amber-500 uppercase tracking-tight">Legacy Migration</h4>
-                        <p className="text-zinc-500 text-xs mt-1">Bridge data from the legacy ERP payment schedule modules into this new unified planner.</p>
-                      </div>
-                      <button
-                        onClick={handleMigrate}
-                        disabled={migrating || taskCount > 0}
-                        className="rounded-xl border border-amber-500/40 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10 font-bold uppercase tracking-widest h-12 px-8"
-                      >
-                        {migrating ? "Migrating..." : "Start Migration"}
-                      </button>
-                    </div>
-                  </GlassCard>
-                )}
-              </div>
-            </Tabs.Content>
-          </div>
-
-          {(currentTab === "grid" || currentTab === "gantt" || currentTab === "kanban") && (
-            <div className="w-[420px] hidden xl:block">
-              <TaskDrawer />
-            </div>
-          )}
         </div>
-      </Tabs.Root>
-    </div >
+      ) : (
+        <Tabs.Root value={activeTab} onValueChange={handleTabChange} className="space-y-8">
+          <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(activeTab) ? 'xl:grid-cols-[minmax(0,1fr)_420px]' : 'xl:grid-cols-1'}`}>
+            <div className="min-w-0 space-y-8">
+              <Tabs.Content value="grid" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <SchedulerGrid />
+              </Tabs.Content>
+
+              <Tabs.Content value="gantt" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <GanttChart />
+              </Tabs.Content>
+
+              <Tabs.Content value="kanban" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <KanbanBoard />
+              </Tabs.Content>
+
+              <Tabs.Content value="analytics" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <SCurveChart />
+              </Tabs.Content>
+
+              <Tabs.Content value="budget" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <div className="max-w-5xl mx-auto space-y-8">
+                  <h3 className="text-zinc-500 uppercase tracking-widest text-[10px] font-bold px-4">Financial Status — Planned vs Actuals per Category</h3>
+                  <FinancialChart
+                    title=""
+                    data={financials?.map((f: DerivedFinancialState) => ({
+                      name: f.category_name || f.category_code || 'N/A',
+                      budget: f.original_budget,
+                      committed: f.committed_value
+                    })) || []}
+                    dataKeys={[
+                      { key: 'budget', color: '#775a19', label: 'Planned' },
+                      { key: 'committed', color: '#505f7a', label: 'Actual' }
+                    ]}
+                    height={500}
+                  />
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="export" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <GlassCard className="p-8 space-y-6">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                      <Upload size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-tight">Import Data</h4>
+                      <p className="text-zinc-500 text-xs mt-1">Upload Microsoft Project (.mpp), XML, or CSV files to seed the schedule.</p>
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept=".mpp,.xml,.pdf"
+                      onChange={handleImportSchedule}
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={importing || isClient}
+                      className="w-full rounded-xl bg-orange-600 dark:bg-orange-500 text-white font-black uppercase tracking-widest h-12"
+                    >
+                      {importing ? "Processing..." : "Select File"}
+                    </Button>
+                  </GlassCard>
+
+                  <GlassCard className="p-8 space-y-6">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                      <FileDown size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-tight">Export PDF</h4>
+                      <p className="text-zinc-500 text-xs mt-1">Generate a high-fidelity PDF report of the current Gantt and table state.</p>
+                    </div>
+                    <Button
+                      onClick={handleExport}
+                      disabled={exporting}
+                      className="w-full rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest h-12"
+                    >
+                      {exporting ? "Generating..." : "Download Report"}
+                    </Button>
+                  </GlassCard>
+
+                  {!isClient && (
+                    <GlassCard className="p-8 space-y-6 md:col-span-2 border-amber-500/20 bg-amber-500/5">
+                      <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                          <Database size={24} />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-lg font-bold text-amber-600 dark:text-amber-500 uppercase tracking-tight">Legacy Migration</h4>
+                          <p className="text-zinc-500 text-xs mt-1">Bridge data from the legacy ERP payment schedule modules into this new unified planner.</p>
+                        </div>
+                        <button
+                          onClick={handleMigrate}
+                          disabled={migrating || taskCount > 0}
+                          className="rounded-xl border border-amber-500/40 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10 font-bold uppercase tracking-widest h-12 px-8"
+                        >
+                          {migrating ? "Migrating..." : "Start Migration"}
+                        </button>
+                      </div>
+                    </GlassCard>
+                  )}
+                </div>
+              </Tabs.Content>
+            </div>
+
+            {(currentTab === "grid" || currentTab === "gantt" || currentTab === "kanban") && (
+              <div className="w-[420px] hidden xl:block">
+                <TaskDrawer />
+              </div>
+            )}
+          </div>
+        </Tabs.Root>
+      )}
+    </div>
   );
 }

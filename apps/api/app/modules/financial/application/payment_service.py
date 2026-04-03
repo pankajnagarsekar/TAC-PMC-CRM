@@ -142,8 +142,8 @@ class PaymentService:
                     "status": "Draft",
                     "line_items": line_items_processed,
                     "version": 1,
-                    "created_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
+                    "created_at": now(),
+                    "updated_at": now(),
                 }
             )
 
@@ -197,7 +197,7 @@ class PaymentService:
 
             await uow.payments.update(
                 pc_id,
-                {"status": "Closed", "closed_at": datetime.now(timezone.utc)},
+                {"status": "Closed", "closed_at": now()},
                 session=uow.session,
             )
 
@@ -245,7 +245,7 @@ class PaymentService:
                                 new_remaining
                             ),
                             "cash_in_hand": FinancialEngine.to_d128(new_cash),
-                            "last_pc_closed_date": datetime.now(timezone.utc),
+                            "last_pc_closed_date": now(),
                         },
                         session=uow.session,
                     )

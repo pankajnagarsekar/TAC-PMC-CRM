@@ -131,11 +131,21 @@ export default function AdminDashboard() {
 
   // --- REARRANGE DRIVEN LAYOUT ---
   const DEFAULT_LAYOUT = ['timeline', 'tasks', 'analytics', 'log', 'scheduler', 'budget'];
-  const [layout, setLayout] = React.useState<string[]>(DEFAULT_LAYOUT);
+  const [layout, setLayout] = React.useState<string[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_LAYOUT;
+    const saved = localStorage.getItem('dashboard_global_layout');
+    // We use a global layout by default, but sync it to projects if exists
+    return saved ? JSON.parse(saved) : DEFAULT_LAYOUT;
+  });
 
   React.useEffect(() => {
     const saved = localStorage.getItem(`dashboard_layout_${activeProject?.project_id}`);
-    if (saved) setLayout(JSON.parse(saved));
+    if (saved) {
+      setLayout(JSON.parse(saved));
+    } else {
+      const globalSaved = localStorage.getItem('dashboard_global_layout');
+      if (globalSaved) setLayout(JSON.parse(globalSaved));
+    }
   }, [activeProject?.project_id]);
 
   const moveWidget = (id: string, dir: 'up' | 'down') => {
@@ -148,6 +158,7 @@ export default function AdminDashboard() {
     [newLayout[idx], newLayout[newIdx]] = [newLayout[newIdx], newLayout[idx]];
     setLayout(newLayout);
     localStorage.setItem(`dashboard_layout_${activeProject?.project_id}`, JSON.stringify(newLayout));
+    localStorage.setItem('dashboard_global_layout', JSON.stringify(newLayout));
   };
 
   const widgets: Record<string, React.ReactNode> = {
@@ -425,7 +436,7 @@ export default function AdminDashboard() {
             <input
               type="text"
               placeholder="Search projects by name or code..."
-              className="w-full bg-zinc-950/50 border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-primary/40 transition-all shadow-inner"
+              className="w-full bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-white/5 rounded-2xl pl-12 pr-4 py-4 text-zinc-900 dark:text-white outline-none focus:border-primary/40 transition-all shadow-inner"
               value={projectSearch}
               onChange={(e) => setProjectSearch(e.target.value)}
             />

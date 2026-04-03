@@ -9,6 +9,14 @@ import { HardHat, FileText, Users, Mic, Wallet } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 export default function SiteOperationsPage() {
+  return (
+    <React.Suspense fallback={<div className="h-20 animate-pulse bg-zinc-100 dark:bg-zinc-800 rounded-xl" />}>
+      <SiteOperationsContent />
+    </React.Suspense>
+  );
+}
+
+function SiteOperationsContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") || "dprs";
   const [activeTab, setActiveTab] = useState(initialTab);

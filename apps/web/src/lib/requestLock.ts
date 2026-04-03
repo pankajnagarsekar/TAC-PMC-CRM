@@ -28,9 +28,11 @@ export function useRequestLock(
 ): UseRequestLockReturn {
   const { operationId, timeoutMs = 30000 } = options;
   const [isLocked, setIsLocked] = useState(false);
+  const isLockedRef = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const lock = useCallback(() => {
+    isLockedRef.current = true;
     setIsLocked(true);
 
     // Auto-release after timeout to prevent permanent lock
@@ -38,11 +40,13 @@ export function useRequestLock(
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
+      isLockedRef.current = false;
       setIsLocked(false);
     }, timeoutMs);
   }, [timeoutMs]);
 
   const unlock = useCallback(() => {
+    isLockedRef.current = false;
     setIsLocked(false);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -52,7 +56,7 @@ export function useRequestLock(
 
   const executeWithLock = useCallback(
     async <T>(fn: () => Promise<T>): Promise<T | null> => {
-      if (isLocked) {
+      if (isLockedRef.current) {
         console.warn(
           `[RequestLock] Operation "${operationId}" is already in progress. Silently blocking.`,
         );
@@ -69,7 +73,7 @@ export function useRequestLock(
         unlock();
       }
     },
-    [isLocked, lock, unlock, operationId],
+    [lock, unlock, operationId],
   );
 
   return {

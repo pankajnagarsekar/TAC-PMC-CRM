@@ -62,25 +62,25 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-[400px] flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg border border-red-100 p-8 text-center">
+        <div className="min-h-[400px] flex items-center justify-center p-6 bg-background">
+          <div className="max-w-md w-full bg-card rounded-2xl shadow-2xl border border-destructive/20 p-8 text-center glass-panel-luxury">
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
 
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-xl font-bold text-foreground mb-2">
               Something went wrong
             </h2>
 
-            <p className="text-gray-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               We&apos;re sorry, but an unexpected error occurred. Our team has been
               notified and we&apos;re working to fix the issue.
             </p>
 
             {process.env.NODE_ENV === "development" && this.state.error && (
               <div className="mb-6 text-left">
-                <details className="bg-gray-50 rounded p-4 text-sm">
-                  <summary className="font-medium text-gray-700 cursor-pointer">
+                <details className="bg-muted rounded-xl p-4 text-sm">
+                  <summary className="font-bold text-foreground/70 cursor-pointer">
                     Error Details (Development Only)
                   </summary>
                   <pre className="mt-2 text-xs text-red-600 overflow-auto whitespace-pre-wrap">

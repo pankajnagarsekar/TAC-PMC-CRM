@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/api';
 import { Project } from '@/types/api';
-import { FolderOpen, Search, X, ChevronRight, AlertTriangle, Building2, Loader2, Target } from 'lucide-react';
+import { FolderOpen, Search, X, ChevronRight, AlertTriangle, Building2, Loader2 } from 'lucide-react';
 
 interface ProjectSelectorModalProps {
   onClose: () => void;
@@ -35,10 +35,10 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
 
   function selectProject(project: Project) {
     console.log("Selecting project:", project);
-    console.log("Project has project_id?", project.project_id);
     setActiveProject(project);
-    // Force a full page reload to ensure absolute financial data isolation and clear all state
-    window.location.reload();
+    // CRITICAL: SWR cache is purged in setActiveProject store action.
+    // Removed window.location.reload() to preserve SPA experience.
+    onClose();
   }
 
   return (
@@ -97,7 +97,7 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
               </div>
               <div className="space-y-1">
                 <p className="text-white text-sm font-bold">Failed to load projects</p>
-                <p className="text-slate-500 text-xs text-balance">The system couldn't verify your project permissions.</p>
+                <p className="text-slate-500 text-xs text-balance">The system couldn&apos;t verify your project permissions.</p>
               </div>
               <button
                 onClick={() => mutate()}

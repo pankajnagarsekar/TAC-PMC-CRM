@@ -55,6 +55,7 @@ class WorkOrderCreate(BaseModel):
 class WorkOrderUpdate(BaseModel):
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
+    status: Optional[Literal["Draft", "Pending", "Approved", "Completed", "Closed", "Cancelled"]] = None
     line_items: Optional[List[WOLineItem]] = None
     discount: Optional[Decimal] = Field(None, ge=0)
     retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)

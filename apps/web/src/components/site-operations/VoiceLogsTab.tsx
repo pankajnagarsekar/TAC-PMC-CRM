@@ -31,7 +31,9 @@ export default function VoiceLogsTab() {
       const response = await api.get(
         `/api/v1/projects/${activeProject.project_id}/voice-logs`,
       );
-      setLogs(response.data);
+      const data = response.data;
+      const items = Array.isArray(data) ? data : (data as { items?: VoiceLog[] })?.items || [];
+      setLogs(items);
     } catch (error) {
       console.error("Error fetching voice logs:", error);
       setLogs([]);

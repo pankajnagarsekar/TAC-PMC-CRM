@@ -71,10 +71,19 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
     setError(null);
 
     try {
+      const payload = {
+        client_name: formData.name,
+        client_email: formData.email,
+        client_phone: formData.phone,
+        client_address: formData.address,
+        gst_number: formData.gstin,
+        active_status: formData.active_status,
+      };
+
       if (client?._id) {
-        await api.put(`/api/v1/clients/${client._id}`, formData);
+        await api.put(`/api/v1/clients/${client._id}`, payload);
       } else {
-        await api.post('/api/v1/clients/', formData);
+        await api.post('/api/v1/clients/', payload);
       }
       onSuccess();
       onClose();

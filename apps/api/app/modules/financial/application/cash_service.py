@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from app.core.time import now
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -54,7 +55,7 @@ class CashService:
         """Aggregate project-wide cash state with threshold status."""
         await self.permission_checker.check_project_access(user, project_id)
 
-        now_dt = datetime.now(timezone.utc)
+        now_dt = now()
         project = await self.project_repo.get_by_project_id(project_id)
 
         categories = await self.code_repo.list(

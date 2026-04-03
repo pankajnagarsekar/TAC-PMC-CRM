@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
-import { formatTaskDate, getTaskStatus, KANBAN_META } from "./scheduler-utils";
+import { formatTaskDate, getTaskStatus, KANBAN_META, VALID_STATUS_TRANSITIONS } from "./scheduler-utils";
 
 function clampNumber(value: string, min = 0, max = 100) {
   const parsed = Number(value);
@@ -42,6 +42,10 @@ const EditableCell = memo(function EditableCell({
           type === "number"
             ? (draft === "" ? null : clampNumber(String(draft), 0, 999999))
             : (String(draft).trim() || null);
+
+        // S-BUG #19: Prevent redundant re-calculations if value hasn't changed
+        if (nextValue === value) return;
+
         onCommit(nextValue);
       }}
       className={`w-full rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none transition focus:border-orange-400/40 focus:bg-slate-200 dark:focus:bg-white/[0.05] ${className}`}
@@ -135,10 +139,22 @@ const GridRow = memo(function GridRow({
         )}
       </div>
 
-      <div className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium">{formatTaskDate(task.scheduled_start)}</div>
-      <div className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium">{formatTaskDate(task.scheduled_finish)}</div>
+      <div
+        className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium"
+        title={task.calc_reason || "Calculated by engine"}
+      >
+        {formatTaskDate(task.scheduled_start)}
+      </div>
+      <div
+        className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium"
+        title={task.calc_reason || "Calculated by engine"}
+      >
+        {formatTaskDate(task.scheduled_finish)}
+      </div>
 
-      <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold uppercase text-[10px] tracking-widest">{task.scheduled_duration ?? "--"} d</div>
+      <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-bold uppercase text-[10px] tracking-widest">
+        {task.scheduled_duration !== null && !isNaN(Number(task.scheduled_duration)) ? `${task.scheduled_duration} d` : "--"}
+      </div>
 
       <div className="flex items-center justify-center px-3 border-r border-slate-200 dark:border-white/5">
         {readOnly ? (
@@ -177,11 +193,18 @@ const GridRow = memo(function GridRow({
               }}
               className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-900 dark:text-white outline-none focus:border-orange-400/40"
             >
-              {Object.keys(KANBAN_META).map((item) => (
-                <option key={item} value={item}>
-                  {KANBAN_META[item as ScheduleTaskStatus].label}
-                </option>
-              ))}
+              {Object.keys(KANBAN_META).map((item) => {
+                const isValid = item === status ||
+                  (VALID_STATUS_TRANSITIONS[status] || []).includes(item as ScheduleTaskStatus);
+
+                if (!isValid) return null;
+
+                return (
+                  <option key={item} value={item}>
+                    {KANBAN_META[item as ScheduleTaskStatus].label}
+                  </option>
+                );
+              })}
             </select>
             <Button
               type="button"

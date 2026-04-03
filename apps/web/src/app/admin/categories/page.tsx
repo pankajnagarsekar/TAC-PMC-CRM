@@ -145,6 +145,7 @@ export default function CategoriesPage() {
   }
 
   function handleDelete(code: CodeMaster) {
+    setError("");
     setDeleteCode(code);
   }
 
@@ -345,7 +346,13 @@ export default function CategoriesPage() {
                 Delete Category
               </DialogTitle>
             </DialogHeader>
-            <div className="py-4">
+            <div className="py-4 space-y-4">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-3 rounded-lg text-sm flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  {error}
+                </div>
+              )}
               <p className="text-slate-300">
                 Are you sure you want to delete{" "}
                 <strong>{deleteCode.category_name}</strong> ({deleteCode.code})?
