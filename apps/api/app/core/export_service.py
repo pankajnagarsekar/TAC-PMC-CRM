@@ -1,10 +1,14 @@
+import logging
 from app.core.time import now
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, Optional
 
+logger = logging.getLogger(__name__)
+
 
 class ExportService:
+
     """
     Sovereign Export Engine (Ported from Legacy Core).
     Handles Excel and PDF templates for construction reports.
@@ -15,11 +19,12 @@ class ExportService:
             "description": "Project-level financial summary",
             "columns": [
                 ("CODE", 10),
-                ("Description", 40),
-                ("Budget", 15),
-                ("Committed", 15),
-                ("Certified", 15),
-                ("Remaining", 15),
+                ("Description", 30),
+                ("Budget", 12),
+                ("Committed", 12),
+                ("Certified", 12),
+                ("Remaining", 12),
+                ("Status", 10),
             ],
             "template": "project_summary.html"
         },
@@ -27,9 +32,12 @@ class ExportService:
             "description": "Work Order tracking report",
             "columns": [
                 ("CODE", 10),
-                ("WO Reference", 20),
+                ("WO Reference", 15),
                 ("Vendor", 20),
                 ("WO Value", 15),
+                ("Retention", 15),
+                ("Date", 12),
+                ("Status", 13),
             ],
             "template": "work_order_tracker.html"
         },
@@ -37,19 +45,22 @@ class ExportService:
             "description": "PC tracking report",
             "columns": [
                 ("CODE", 10),
-                ("PC Reference", 20),
+                ("PC Reference", 15),
                 ("Vendor", 20),
-                ("PC Value", 15),
+                ("Total Value", 15),
+                ("Date", 12),
+                ("Certified", 15),
+                ("Status", 13),
             ],
             "template": "payment_certificate_tracker.html"
         },
         "petty_cash_tracker": {
             "description": "Petty Cash tracking report",
             "columns": [
-                ("Date", 12),
-                ("Ref", 15),
-                ("Amount", 15),
-                ("Description", 40),
+                ("Date", 15),
+                ("Ref", 20),
+                ("Amount", 20),
+                ("Description", 45),
             ],
             "template": "petty_cash_tracker.html"
         },
@@ -167,11 +178,7 @@ class ExportService:
         report_data: Dict[str, Any],
         company_info: Optional[Dict[str, Any]] = None,
     ) -> bytes:
-        """
-        Generates PDF using WeasyPrint and Jinja2 templates.
-        """
         import jinja2
-        from weasyprint import HTML
         import os
 
         # Setup Jinja2 environment
@@ -225,5 +232,67 @@ class ExportService:
             now=now().strftime("%Y-%m-%d %H:%M:%S")
         )
 
-        pdf_bytes = HTML(string=html_out).write_pdf()
-        return pdf_bytes
+        try:
+            from weasyprint import HTML
+            pdf_bytes = HTML(string=html_out).write_pdf()
+            return pdf_bytes
+        except (ImportError, Exception) as e:
+            # Fallback to ReportLab if WeasyPrint system dependencies are missing
+            logger.warning(f"WeasyPrint failed ({e}), falling back to ReportLab")
+            return ExportService._generate_pdf_reportlab(report_data, config)
+
+    @staticmethod
+    def _generate_pdf_reportlab(report_data: Dict[str, Any], config: Dict[str, Any]) -> bytes:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Title
+        title = report_data.get("title", "Report")
+        elements.append(Paragraph(title, styles['Title']))
+        elements.append(Spacer(1, 12))
+
+        # Table Data
+        headers = [col[0] for col in config.get("columns", [])]
+        col_widths_raw = [col[1] for col in config.get("columns", [])]
+        
+        # Calculate absolute widths based on 500px content area
+        total_relative = sum(col_widths_raw)
+        col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
+
+        rows = report_data.get("rows", [])
+        
+        # Wrap data in Paragraphs to support multi-line text
+        cell_style = styles["Normal"]
+        cell_style.fontSize = 8
+        
+        data = [[Paragraph(str(h), styles["Normal"]) for h in headers]]
+        for row in rows:
+            formatted_row = [Paragraph(str(cell), cell_style) for cell in row]
+            data.append(formatted_row)
+
+        # Create Table
+        t = Table(data, colWidths=col_widths, repeatRows=1)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+
+        elements.append(t)
+        doc.build(elements)
+        return buffer.getvalue()
+
+

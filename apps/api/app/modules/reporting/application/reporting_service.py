@@ -334,20 +334,20 @@ class ReportingService:
         }
 
         for item in financial_data:
-            budget = FinancialEngine.to_decimal(item.get("original_budget"))
-            committed = FinancialEngine.to_decimal(item.get("committed_value"))
-            certified = FinancialEngine.to_decimal(item.get("certified_value"))
-            remaining = FinancialEngine.to_decimal(item.get("balance_budget_remaining"))
+            budget = FinancialEngine.to_decimal(item.get("original_budget") or 0)
+            committed = FinancialEngine.to_decimal(item.get("committed_value") or 0)
+            certified = FinancialEngine.to_decimal(item.get("certified_value") or 0)
+            remaining = FinancialEngine.to_decimal(item.get("balance_budget_remaining") or 0)
 
             rows.append(
                 [
-                    item.get("category_code"),
-                    item.get("category_name"),
-                    str(budget),
-                    str(committed),
-                    str(certified),
-                    str(remaining),
-                    "TBD",
+                    item.get("category_code") or "N/A",
+                    item.get("category_name") or "Unnamed Category",
+                    ExportService.format_currency(budget),
+                    ExportService.format_currency(committed),
+                    ExportService.format_currency(certified),
+                    ExportService.format_currency(remaining),
+                    "Active",
                 ]
             )
             totals["budget"] += budget
@@ -358,15 +358,6 @@ class ReportingService:
         return {
             "title": "Project Financial Summary",
             "project_id": project_id,
-            "columns": [
-                "CODE",
-                "Description",
-                "Budget",
-                "Committed",
-                "Certified",
-                "Remaining",
-                "Deadline",
-            ],
             "rows": rows,
             "totals": {k: str(v) for k, v in totals.items()},
             "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
@@ -422,17 +413,20 @@ class ReportingService:
         rows = []
         total_amount = Decimal("0")
         for wo in wo_data:
-            amount = FinancialEngine.to_decimal(wo.get("grand_total"))
-            ret_amount = FinancialEngine.to_decimal(wo.get("retention_amount"))
+            amount = FinancialEngine.to_decimal(wo.get("grand_total") or 0)
+            ret_amount = FinancialEngine.to_decimal(wo.get("retention_amount") or 0)
+            c_at = wo.get("created_at")
+            date_str = c_at.strftime("%Y-%m-%d") if c_at else "N/A"
+
             rows.append(
                 [
-                    wo.get("category_code", ""),
-                    wo.get("wo_ref", ""),
-                    wo.get("vendor_name", ""),
-                    str(amount),
-                    str(ret_amount),
-                    wo.get("created_at").strftime("%Y-%m-%d"),
-                    "TBD",
+                    wo.get("category_code") or "N/A",
+                    wo.get("wo_ref") or "N/A",
+                    wo.get("vendor_name") or "Unknown",
+                    ExportService.format_currency(amount),
+                    ExportService.format_currency(ret_amount),
+                    date_str,
+                    "Active",
                 ]
             )
             total_amount += amount
@@ -491,16 +485,19 @@ class ReportingService:
         rows = []
         total_certified = Decimal("0")
         for pc in pc_data:
-            amount = FinancialEngine.to_decimal(pc.get("grand_total"))
+            amount = FinancialEngine.to_decimal(pc.get("grand_total") or 0)
+            c_at = pc.get("created_at")
+            date_str = c_at.strftime("%Y-%m-%d") if c_at else "N/A"
+            
             rows.append(
                 [
-                    pc.get("category_code", ""),
-                    pc.get("pc_ref", ""),
-                    pc.get("vendor_name", ""),
-                    str(amount),
-                    pc.get("created_at").strftime("%Y-%m-%d"),
-                    str(amount) if pc.get("status") == "Closed" else "0.00",
-                    "Pending",
+                    pc.get("category_code") or "N/A",
+                    pc.get("pc_ref") or "N/A",
+                    pc.get("vendor_name") or "Unknown",
+                    ExportService.format_currency(amount),
+                    date_str,
+                    ExportService.format_currency(amount) if pc.get("status") == "Closed" else "₹ 0.00",
+                    pc.get("status") or "Draft",
                 ]
             )
             total_certified += amount
@@ -529,12 +526,15 @@ class ReportingService:
         rows = []
         total_value = Decimal("0")
         for pc in pcs:
-            amount = FinancialEngine.to_decimal(pc.get("grand_total"))
+            amount = FinancialEngine.to_decimal(pc.get("grand_total") or 0)
+            c_at = pc.get("created_at")
+            date_str = c_at.strftime("%Y-%m-%d") if c_at else "N/A"
+            
             rows.append(
                 [
-                    pc.get("created_at").strftime("%Y-%m-%d"),
-                    pc.get("pc_ref", ""),
-                    str(amount),
+                    date_str,
+                    pc.get("pc_ref") or "N/A",
+                    ExportService.format_currency(amount),
                     "Refill Request",
                 ]
             )

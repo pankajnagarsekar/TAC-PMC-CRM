@@ -349,16 +349,24 @@ async def download_scheduler_export_pdf(
     from app.core.export_service import ExportService
     
     # We generate on-the-fly for now
-    report_data = await reporting_service.get_report(
-        user, project_id, "project_summary", None, None
-    )
-    pdf_bytes = ExportService.export_to_pdf_service("project_summary", report_data)
-    
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Project_Schedule_{project_id}.pdf"}
-    )
+    try:
+        report_data = await reporting_service.get_report(
+            user, project_id, "project_summary", None, None
+        )
+        pdf_bytes = ExportService.export_to_pdf_service("project_summary", report_data)
+        
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=Project_Schedule_{project_id}.pdf"}
+        )
+    except Exception as e:
+        import traceback
+        error_msg = f"EXPORT_FAILED: {str(e)}\n{traceback.format_exc()}"
+        logger.error(error_msg)
+        raise
+
+
 
 
 @router.get(
