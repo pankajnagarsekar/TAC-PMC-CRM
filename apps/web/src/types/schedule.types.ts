@@ -92,6 +92,7 @@ export type ScheduleTask = {
   ai_confidence_score?: number | null;
   ai_status_flag?: string | null;
   calc_reason?: string;
+  project_scheduled_start?: string | null;  // Cached project anchor date for stable full-recalc
   [key: string]: unknown;
 };
 

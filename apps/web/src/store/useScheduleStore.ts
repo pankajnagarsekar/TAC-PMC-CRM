@@ -84,15 +84,36 @@ const executeCalculationRequest = async (
         idempotencyKey
       );
     } else {
-      // Fallback: stable projectStart logic
+      // Full-schedule fallback (imports, task deletes, undo).
+      // S-BUG #4: projectStart must be stable — use the project's own scheduled_start
+      // if available, to prevent a single task drag from shifting the entire schedule.
       const toISODate = (dateStr: string | null | undefined): string | null => {
         if (!dateStr) return null;
         if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split("T")[0];
         const parsed = new Date(dateStr);
         return isNaN(parsed.getTime()) ? null : parsed.toISOString().split("T")[0];
       };
-      const starts = tasks.map((t) => toISODate(t.scheduled_start)).filter(Boolean).sort() as string[];
-      const projectStart = starts.length > 0 ? starts[0] : new Date().toISOString().split("T")[0];
+
+      // Priority: (1) explicit project start stored on the task's project,
+      // (2) the earliest non-null scheduled_start across all tasks (legacy fallback).
+      // The project start is stored on tasks as project.scheduled_start via the load response.
+      const firstTask = tasks[0];
+      const projectRecord = (firstTask as any)?.project;
+      const stableStart =
+        toISODate((projectRecord as any)?.scheduled_start) ||
+        toISODate((firstTask as any)?.project_scheduled_start);
+
+      let projectStart: string;
+      if (stableStart) {
+        projectStart = stableStart;
+      } else {
+        // Legacy: derive from tasks — least-bad option when project record is unavailable
+        const starts = tasks
+          .map((t) => toISODate(t.scheduled_start))
+          .filter(Boolean)
+          .sort() as string[];
+        projectStart = starts.length > 0 ? starts[0] : new Date().toISOString().split("T")[0];
+      }
 
       response = await schedulerApi.calculate(
         request.project_id,
@@ -218,7 +239,10 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       clearPendingCalculation();
       const decoratedTasks = (response.tasks || []).map(t => ({
         ...t,
-        project_id: t.project_id || response.project_id
+        project_id: t.project_id || response.project_id,
+        // S-BUG #4: Cache project's canonical start date on every task so
+        // the full-recalc path can use a stable projectStart anchor
+        project_scheduled_start: (response as any).project_start || t.project_scheduled_start,
       }));
 
       set({

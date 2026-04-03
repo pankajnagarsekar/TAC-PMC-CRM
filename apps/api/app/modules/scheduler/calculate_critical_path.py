@@ -343,10 +343,19 @@ def run_calculation(input_data: dict) -> dict:
                         lag = int(pf.get("lag_days", 0) or 0)
                         break
                 
-                s_ls = succ["ls"] if succ["ls"] is not None else succ["es"]
+                # Derive s_lf first — it's more likely to be set than s_ls
                 s_lf = succ["lf"] if succ["lf"] is not None else succ["ef"]
-                if s_ls is None: s_ls = final_ef
-                if s_lf is None: s_lf = final_ef
+                if s_lf is None:
+                    s_lf = final_ef
+
+                # Derive s_ls from s_lf if ls is missing — never use es as a proxy
+                succ_dur_delta = timedelta(days=max(0, succ["duration"] - 1))
+                if succ["ls"] is not None:
+                    s_ls = succ["ls"]
+                elif s_lf is not None:
+                    s_ls = s_lf - succ_dur_delta
+                else:
+                    s_ls = final_ef
 
                 if link_type == "FS": 
                     # pred_LF <= succ_LS - 1 - lag

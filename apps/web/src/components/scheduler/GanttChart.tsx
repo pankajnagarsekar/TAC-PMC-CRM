@@ -35,6 +35,7 @@ const Bar = memo(function Bar({
   left,
   width,
   emphasizeCritical,
+  isDragging,
   onSelect,
   onStartDrag,
 }: {
@@ -42,6 +43,7 @@ const Bar = memo(function Bar({
   left: number;
   width: number;
   emphasizeCritical: boolean;
+  isDragging: boolean;
   onSelect: (taskId: string) => void;
   onStartDrag: (task: ScheduleTask, mode: DragMode, startX: number) => void;
 }) {
@@ -79,7 +81,12 @@ const Bar = memo(function Bar({
       onClick={() => onSelect(task.task_id)}
     >
       <div
-        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 ${isCriticalHighlighted ? "border-rose-400/40 bg-rose-500/25" : "border-sky-400/30 bg-sky-500/20"}`}
+        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 cursor-grab active:cursor-grabbing ${isDragging
+            ? "scale-[1.03] ring-2 ring-orange-400/60 shadow-orange-400/20 shadow-xl opacity-90"
+            : isCriticalHighlighted
+              ? "border-rose-400/40 bg-rose-500/25"
+              : "border-sky-400/30 bg-sky-500/20"
+          }`}
       >
         <div className="flex h-full items-center justify-between gap-2">
           <div className="min-w-0">
@@ -228,6 +235,10 @@ export default function GanttChart() {
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
 
   const dragStateRef = useRef<DragState>(null);
+  const taskMapRef = useRef(taskMap);
+  useEffect(() => {
+    taskMapRef.current = taskMap;
+  }, [taskMap]);
   const viewportHeight = 420;
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 6;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 3);
@@ -345,7 +356,7 @@ export default function GanttChart() {
       setPreviewDeltaDays(0);
 
       if (taskId && mode && !readOnly) {
-        const task = taskMap[taskId];
+        const task = taskMapRef.current[taskId];
         if (task) {
           commitDrag(task, mode, deltaDays);
         }
@@ -358,7 +369,7 @@ export default function GanttChart() {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [readOnly, taskMap, commitDrag]);
+  }, [readOnly, commitDrag]);
 
   const startDrag = (task: ScheduleTask, mode: DragMode, startX: number) => {
     if (readOnly || !mode) return;
@@ -567,6 +578,7 @@ export default function GanttChart() {
                         left={left}
                         width={width}
                         emphasizeCritical={highlightCritical}
+                        isDragging={activeDragTaskId === task.task_id}
                         onSelect={handleSelect}
                         onStartDrag={startDrag}
                       />

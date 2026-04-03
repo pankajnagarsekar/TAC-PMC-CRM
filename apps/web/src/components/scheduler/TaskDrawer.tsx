@@ -301,23 +301,23 @@ export default function TaskDrawer() {
             </h4>
             <div className="mt-3 space-y-2">
               {(selectedTask.predecessors ?? []).length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/5 p-4 text-center">
+                <div className="rounded-xl border border-dashed border-slate-200 dark:border-white/5 p-4 text-center">
                   <p className="text-[10px] uppercase tracking-[0.1em] text-slate-500">No network links established</p>
                 </div>
               ) : (
                 (selectedTask.predecessors ?? []).map((dep) => (
                   <div
                     key={`${dep.task_id}-${dep.type}-${dep.lag_days ?? 0}`}
-                    className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs text-white/80"
+                    className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02] px-3 py-2 text-xs text-slate-700 dark:text-white/80"
                   >
                     <div className="flex items-center justify-between gap-2 text-[10px]">
-                      <span className="font-bold text-white tracking-widest uppercase">{dep.task_id}</span>
+                      <span className="font-bold text-slate-900 dark:text-white tracking-widest uppercase">{dep.task_id}</span>
                       <span className="bg-white/5 px-2 py-0.5 rounded text-sky-400 font-bold border border-sky-400/20">
                         {dep.type}
                       </span>
                     </div>
                     <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                      Lag: <span className="text-white font-bold">{dep.lag_days ?? 0}</span> days, Strategy: <span className="text-white">{dep.strength ?? "hard"}</span>
+                      Lag: <span className="text-slate-900 dark:text-white font-bold">{dep.lag_days ?? 0}</span> days, Strategy: <span className="text-slate-900 dark:text-white">{dep.strength ?? "hard"}</span>
                     </p>
                   </div>
                 ))
@@ -325,7 +325,7 @@ export default function TaskDrawer() {
             </div>
 
             <div className="mt-6 space-y-4">
-              <h5 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 border-b border-white/5 pb-1">Link New Predecessor</h5>
+              <h5 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 border-b border-slate-200 dark:border-white/5 pb-1">Link New Predecessor</h5>
               <div className="grid gap-3">
                 <FieldRow label="Target Task ID">
                   <input
@@ -374,7 +374,7 @@ export default function TaskDrawer() {
         </Tabs.Content>
         <Tabs.Content value="financials" className="space-y-4 pt-2">
           <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-1 overflow-hidden">
-            <div className="bg-white/[0.02] p-4 border-b border-white/5 flex justify-between items-center text-pretty">
+            <div className="bg-slate-50 dark:bg-white/[0.02] p-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center text-pretty">
               <div className="flex items-center gap-2">
                 <Info size={14} className="text-slate-500" />
                 <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Financial Economics</h4>
@@ -391,12 +391,12 @@ export default function TaskDrawer() {
                 ["Cost Variation", (selectedTask.cost_variance ?? 0) === 0 ? "OPTIMAL" : selectedTask.cost_variance, "VAR"],
                 ["Resource Density", (selectedTask.assigned_resources?.length ?? 0), "HEADS"],
               ].map(([label, value, unit]) => (
-                <div key={label as string} className="flex flex-col gap-1 p-3 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors">
+                <div key={label as string} className="flex flex-col gap-1 p-3 rounded-xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.01] hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
                   <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
                     {label}
                   </span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-sm font-black text-white italic">
+                    <span className="text-sm font-black text-slate-900 dark:text-white italic">
                       {typeof value === 'number' ? formatCurrencySafe(value) : String(value)}
                     </span>
                     <span className="text-[9px] font-medium text-slate-700">{String(unit)}</span>
@@ -404,7 +404,7 @@ export default function TaskDrawer() {
                 </div>
               ))}
             </div>
-            <div className="p-4 bg-orange-500/5 border-t border-white/5 text-[10px] text-orange-400/80 italic text-pretty leading-relaxed">
+            <div className="p-4 bg-orange-500/5 border-t border-slate-200 dark:border-white/5 text-[10px] text-orange-600/80 dark:text-orange-400/80 italic text-pretty leading-relaxed">
               * Economics are synchronized with the Procurement Ledger. Variations reflect site deviations from baseline estimates.
             </div>
           </div>
@@ -427,7 +427,7 @@ export default function TaskDrawer() {
               <textarea
                 value={momNotes}
                 onChange={(e) => setMomNotes(e.target.value)}
-                className="w-full min-h-[160px] rounded-xl border border-white/5 bg-white/[0.03] p-4 text-[11px] font-medium text-white outline-none focus:border-orange-400/40 resize-none transition-all placeholder:text-slate-700 shadow-inner"
+                className="w-full min-h-[160px] rounded-xl border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] p-4 text-[11px] font-medium text-slate-900 dark:text-white outline-none focus:border-orange-400/40 resize-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 shadow-inner"
                 placeholder="Ex: Discussed Pillar assembly. 4 days added due to curing time. Amit assigned to validation."
               />
               <Button
@@ -448,7 +448,7 @@ export default function TaskDrawer() {
 
               {momResult && (
                 <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-1">
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-1">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tactical Insights</p>
                     <div className="text-[8px] font-black text-emerald-400 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -458,8 +458,8 @@ export default function TaskDrawer() {
 
                   <div className="grid gap-2">
                     {(momResult.action_items || []).map((item: ActionItem, idx: number) => (
-                      <div key={idx} className="bg-white/[0.02] border border-white/5 p-3 rounded-xl">
-                        <p className="text-white text-xs font-bold tracking-tight">{item.task_name}</p>
+                      <div key={idx} className="bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 p-3 rounded-xl">
+                        <p className="text-slate-900 dark:text-white text-xs font-bold tracking-tight">{item.task_name}</p>
                         <div className="mt-2 flex justify-between text-[10px] uppercase font-black tracking-widest opacity-60">
                           <span className="text-orange-400">@{item.assignee || 'TBD'}</span>
                           <span className="text-slate-400 italic font-medium">BY {item.deadline || 'PENDING'}</span>
@@ -500,25 +500,25 @@ export default function TaskDrawer() {
             </h4>
 
             <div className="space-y-3">
-              {[
-                { date: "2026-03-28", type: "Labor", summary: "4 carpenters, 2 helpers deployed for formwork" },
-                { date: "2026-03-27", type: "Material", summary: "Steel arrival confirmed per schedule" },
-                { date: "2026-03-26", type: "Quality", summary: "Compaction test passed for block B1" }
-              ].map((log, i) => (
-                <div key={i} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all group">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{log.date}</span>
-                    <span className="text-[8px] font-bold text-orange-400 px-1.5 py-0.5 rounded bg-orange-400/10 border border-orange-400/20 uppercase">{log.type}</span>
-                  </div>
-                  <p className="text-[10px] text-zinc-400 font-medium group-hover:text-zinc-200 transition-colors">
-                    {log.summary}
-                  </p>
-                </div>
-              ))}
+              {/* Empty state — log data lives in Site Operations DPRs */}
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-white/10 p-6 text-center space-y-2">
+                <Activity size={20} className="mx-auto text-slate-300 dark:text-white/20" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                  No inline logs for this task
+                </p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-600 leading-relaxed">
+                  Daily progress records, labour attendance, and quality entries are captured in Site Operations DPRs and are linked to this task via its WBS code.
+                </p>
+              </div>
 
-              <div className="mt-4 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-center justify-between">
-                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tight">Full Registry in Site Ops</span>
-                <Link href="/admin/site-operations?tab=attendance" className="text-[9px] font-black text-white hover:text-primary transition-colors uppercase flex items-center gap-1">
+              <div className="mt-2 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10 dark:border-indigo-500/10 flex items-center justify-between">
+                <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
+                  Full Registry in Site Ops
+                </span>
+                <Link
+                  href={`/admin/site-operations?tab=attendance&task=${selectedTask.task_id}`}
+                  className="text-[9px] font-black text-slate-900 dark:text-white hover:text-primary transition-colors uppercase flex items-center gap-1"
+                >
                   View <Activity size={10} />
                 </Link>
               </div>
