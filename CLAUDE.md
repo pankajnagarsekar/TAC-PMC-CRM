@@ -101,9 +101,10 @@ apps/web/src/
 ```
 apps/mobile/
 ├── app/               # Expo Router (role-based navigation)
-│   ├── (admin)/       # Admin routes (DPR review, attendance view)
-│   ├── (client)/      # Client routes (project overview)
-│   ├── (supervisor)/  # Supervisor routes (attendance, worker logs)
+│   ├── (admin)/       # dashboard, projects, petty-cash, attendance-view,
+│   │                  # worker-log, workers-report, ocr, notifications, dpr/, settings/
+│   ├── (client)/      # dashboard, reports
+│   ├── (supervisor)/  # dashboard, attendance, dpr, worker-log, voice-log, profile
 │   └── login.tsx      # Auth entry point
 ├── components/        # Reusable components
 ├── contexts/          # React Context providers
@@ -292,7 +293,8 @@ Routes are organized within each Bounded Context in `apps/api/app/modules/[modul
 
 Business logic resides in the `application/` layer of each module:
 - `identity/application/auth_service.py`: Authentication logic
-- `financial/application/master_data_service.py`: Reference data management
+- `financial/application/financial_service.py`: Core financial orchestration
+- `financial/application/master_data_service.py`: Reference data management (financial codes)
 - `financial/application/cash_service.py`: Cash position tracking and reconciliation
 - `financial/application/payment_service.py`: Payment processing
 - `project/application/scheduler_service.py`: Critical path and scheduling
@@ -461,41 +463,10 @@ See Ruflo.md for complete CLI reference.
 
 ---
 
-## Recent Implementations
+## Additional Notes
 
-### Supervisor Attendance & Site Operations (v1.5)
-
-- **Supervisor Attendance**: Mobile attendance marking with GPS and photo capture
-- **Admin Attendance Dashboard**: View and manage attendance records across projects
-- **Worker Logs**: Track daily worker presence and hours
-- **Site Overheads**: Manage site-level overhead costs
-- **DPR Status Machine**: Daily Progress Reports with status transitions
-
-### Cash Management & Financial Services (v1.4)
-
-- **Cash Service**: Real-time cash position tracking and reconciliation
-- **Master Data Service**: Reference data management for financial codes (LABOR, MATERIAL, EQUIPMENT, OVERHEAD, CONTINGENCY)
-- **Payment Service**: Payment processing and transaction management
-- **Work Order Creation**: Financial grid with line-item management and budget validation
-- **Idempotency**: Duplicate-safe financial operations
-
-### Reporting & AI Insights
-
-- **AI Summary Service**: LLM-powered project and financial summaries (OpenAI integration)
-- **Analytics Dashboard**: Real-time project metrics and KPIs
-
-### Infrastructure
-
-- **CI/CD Pipeline**: GitHub Actions — API lint+test, Web lint+typecheck, Docker builds
-- **Docker**: Production containers for both API (Python 3.11-slim) and Web (Node 20 multi-stage)
-- **Production Seeding**: `seed_production.py` for initial database setup
-
----
-
-## Additional Resources
-
-- **FastAPI Docs**: http://localhost:8000/docs (when running)
-- **Next.js Docs**: https://nextjs.org/docs
-- **Tailwind CSS**: https://tailwindcss.com/docs
-- **Zustand**: https://github.com/pmndrs/zustand
-- **MongoDB Motor**: https://motor.readthedocs.io/
+- **FastAPI interactive docs**: available at `http://localhost:8000/docs` when the API is running
+- **Financial codes** (master data): LABOR, MATERIAL, EQUIPMENT, OVERHEAD, CONTINGENCY
+- **Mobile OCR**: `(admin)/ocr.tsx` handles document scanning via camera
+- **Voice Logs**: Supervisor can submit voice-based site logs via `(supervisor)/voice-log.tsx`
+- **DPR flow**: Supervisor creates → Admin reviews/approves; status machine lives in `site_operations` module
