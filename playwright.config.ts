@@ -72,14 +72,9 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: process.env.CI
-      ? 'cd apps/web && npm run build && node .next/standalone/server.js'
-      : 'cd apps/web && npm run dev',
+    command: 'cd apps/web && npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 180 * 1000, // Wait up to 3 minutes for server to start
-    env: {
-      NODE_ENV: process.env.CI ? 'production' : 'development',
-    },
+    timeout: 120 * 1000,
   },
 });
