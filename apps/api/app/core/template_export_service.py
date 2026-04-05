@@ -80,43 +80,41 @@ class TemplateExportService(ExportService):
         # Fill Items
         items = data.get("items", [])
         start_row = 18
-        
-        # The template has blank rows from 18 to 44. If we have more than 26 items we need to insert rows.
-        # But for absolute safety and styling, we will just write the items in the existing rows 
-        # and hide unused ones, or rely on normal template behavior.
         current_row = start_row
+        
+        # Standardize items filling
         for idx, item in enumerate(items, 1):
             if current_row >= 44:
                 ws.insert_rows(current_row)
                 # Copy styling from previous row
                 for col in range(2, 7):
-                    ws.cell(row=current_row, column=col).font = copy(ws.cell(row=current_row-1, column=col).font)
-                    ws.cell(row=current_row, column=col).border = copy(ws.cell(row=current_row-1, column=col).border)
+                    prev_cell = ws.cell(row=current_row-1, column=col)
+                    new_cell = ws.cell(row=current_row, column=col)
+                    new_cell.font = copy(prev_cell.font)
+                    new_cell.border = copy(prev_cell.border)
+                    new_cell.alignment = copy(prev_cell.alignment)
             
-            ws.cell(row=current_row, column=2, value=idx) # Sr No
-            ws.cell(row=current_row, column=3, value=item.get("description", ""))
-            ws.cell(row=current_row, column=4, value=item.get("quantity", 0))
-            ws.cell(row=current_row, column=5, value=item.get("rate", 0))
-            ws.cell(row=current_row, column=6, value=item.get("total", 0))
+            ws.cell(row=current_row, column=2).value = idx # Sr No
+            ws.cell(row=current_row, column=3).value = item.get("description", "")
+            ws.cell(row=current_row, column=4).value = float(item.get("quantity", 0))
+            ws.cell(row=current_row, column=5).value = float(item.get("rate", 0))
+            ws.cell(row=current_row, column=6).value = float(item.get("total", 0))
             current_row += 1
             
-        # Clear remaining blank rows if needed, or leave them as template blank space
+        # Fill Totals
+        offset = max(0, current_row - 44)
         
-        # Fill Totals (Note: template subtotals are at row 45 initially)
-        # We need to find the "Subtotal :" cell and populate adjacent cells
-        offset = current_row - 44 if current_row > 44 else 0
+        ws.cell(row=45 + offset, column=5).value = float(data.get("subtotal", 0))
+        ws.cell(row=46 + offset, column=5).value = float(data.get("discount", 0))
+        ws.cell(row=47 + offset, column=5).value = float(data.get("total_after_discount", 0))
+        ws.cell(row=48 + offset, column=5).value = float(data.get("cgst", 0))
+        ws.cell(row=49 + offset, column=5).value = float(data.get("sgst", 0))
+        ws.cell(row=50 + offset, column=5).value = float(data.get("grand_total", 0))
         
-        ws.cell(row=45 + offset, column=5, value=data.get("subtotal", 0))
-        ws.cell(row=46 + offset, column=5, value=data.get("discount", 0))
-        ws.cell(row=47 + offset, column=5, value=data.get("total_after_discount", 0))
-        ws.cell(row=48 + offset, column=5, value=data.get("cgst", 0))
-        ws.cell(row=49 + offset, column=5, value=data.get("sgst", 0))
-        ws.cell(row=50 + offset, column=5, value=data.get("grand_total", 0))
-        
-        # Timeline and warranty mappings
-        ws.cell(row=51 + offset, column=3, value=data.get("start_date", ""))
-        ws.cell(row=52 + offset, column=3, value=data.get("end_date", ""))
-        ws.cell(row=51 + offset, column=6, value=data.get("warranty", ""))
+        # Timeline and warranty
+        ws.cell(row=51 + offset, column=3).value = str(data.get("start_date", ""))
+        ws.cell(row=52 + offset, column=3).value = str(data.get("end_date", ""))
+        ws.cell(row=51 + offset, column=6).value = str(data.get("warranty", ""))
         
         out = BytesIO()
         wb.save(out)
@@ -163,30 +161,31 @@ class TemplateExportService(ExportService):
             if current_row >= 43:
                 ws.insert_rows(current_row)
                 for col in range(2, 8):
-                    ws.cell(row=current_row, column=col).font = copy(ws.cell(row=current_row-1, column=col).font)
-                    ws.cell(row=current_row, column=col).border = copy(ws.cell(row=current_row-1, column=col).border)
+                    prev_cell = ws.cell(row=current_row-1, column=col)
+                    new_cell = ws.cell(row=current_row, column=col)
+                    new_cell.font = copy(prev_cell.font)
+                    new_cell.border = copy(prev_cell.border)
+                    new_cell.alignment = copy(prev_cell.alignment)
             
-            ws.cell(row=current_row, column=2, value=idx) # Sr. No.
-            ws.cell(row=current_row, column=3, value=item.get("description", "")) # Scope of Work
-            ws.cell(row=current_row, column=4, value=item.get("rate", 0))
-            ws.cell(row=current_row, column=5, value=item.get("quantity", 0))
-            ws.cell(row=current_row, column=6, value=item.get("unit", ""))
-            ws.cell(row=current_row, column=7, value=item.get("total", 0))
+            ws.cell(row=current_row, column=2).value = idx # Sr. No.
+            ws.cell(row=current_row, column=3).value = item.get("description", "") # Scope of Work
+            ws.cell(row=current_row, column=4).value = float(item.get("rate", 0))
+            ws.cell(row=current_row, column=5).value = float(item.get("quantity", 0))
+            ws.cell(row=current_row, column=6).value = str(item.get("unit", ""))
+            ws.cell(row=current_row, column=7).value = float(item.get("total", 0))
             current_row += 1
             
-        offset = current_row - 43 if current_row > 43 else 0
+        offset = max(0, current_row - 43)
         
-        # Inject totals. Based on mapping: E44 is "Sub Total :", so F/G44 is value.
-        # Template relies on column 7 (G) or 6 (F)? Wait, let's use G.
+        # Inject totals
+        ws.cell(row=44 + offset, column=3).value = str(data.get("pmc_comments", ""))
         
-        ws.cell(row=44 + offset, column=3, value=data.get("pmc_comments", ""))
-        
-        ws.cell(row=44 + offset, column=7, value=data.get("subtotal", 0))
-        ws.cell(row=45 + offset, column=7, value=data.get("retention", 0))
-        ws.cell(row=46 + offset, column=7, value=data.get("total_after_retention", 0))
-        ws.cell(row=47 + offset, column=7, value=data.get("cgst", 0))
-        ws.cell(row=48 + offset, column=7, value=data.get("sgst", 0))
-        ws.cell(row=49 + offset, column=7, value=data.get("grand_total", 0))
+        ws.cell(row=44 + offset, column=7).value = float(data.get("subtotal", 0))
+        ws.cell(row=45 + offset, column=7).value = float(data.get("retention", 0))
+        ws.cell(row=46 + offset, column=7).value = float(data.get("total_after_retention", 0))
+        ws.cell(row=47 + offset, column=7).value = float(data.get("cgst", 0))
+        ws.cell(row=48 + offset, column=7).value = float(data.get("sgst", 0))
+        ws.cell(row=49 + offset, column=7).value = float(data.get("grand_total", 0))
         
         out = BytesIO()
         wb.save(out)
