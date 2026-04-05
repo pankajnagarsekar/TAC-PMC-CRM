@@ -54,6 +54,16 @@ jobs:
   test-e2e:
     name: E2E Tests — Playwright
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:latest
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -63,15 +73,36 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
-      - name: Install dependencies
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install Python dependencies
+        run: pip install -r apps/api/requirements.txt
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
+      - name: Start API server
+        run: cd apps/api && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        env:
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: test_db
+          JWT_SECRET_KEY: test-secret-key-for-ci
+          ENVIRONMENT: development
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..30}; do
+            curl -f http://localhost:8000/docs && break
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
       - name: Run Playwright tests
         run: pnpm test:e2e
         env:
           CI: true
           NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: test_db
 
   docker-web:
     name: Docker Build — Web
