@@ -8,17 +8,27 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:latest
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
     steps:
     - uses: actions/checkout@v4
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 10.30.3
     - uses: actions/setup-node@v4
       with:
-        node-version: 20
-    - name: Install dependencies
-      run: npm install -g pnpm && pnpm install
-    - name: Set up MongoDB
-      uses: supercharge/mongodb-github-action@1.10.0
-      with:
-        mongodb-version: '6.0'
+        node-version: '20'
+        cache: 'pnpm'
+    - name: Install Node dependencies
+      run: pnpm install --frozen-lockfile
     - name: Install Playwright Browsers
       run: pnpm exec playwright install --with-deps
     - name: Set up Python
@@ -29,7 +39,7 @@ jobs:
       run: |
         cd apps/api
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install --break-system-packages -r requirements.txt
     - name: Start API server
       run: |
         sudo apt-get update && sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
@@ -37,15 +47,15 @@ jobs:
         nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/uvicorn.log 2>&1 &
         echo $! > /tmp/api.pid
         echo "Waiting for API to be ready..."
-        for i in $(seq 1 30); do
+        for i in $(seq 1 60); do
           if curl -sf http://127.0.0.1:8000/docs > /dev/null 2>&1; then
             echo "✓ API is ready after ${i}s"
             break
           fi
-          echo "  [$i/30] Not ready yet..."
+          echo "  [$i/60] Not ready yet..."
           sleep 2
-          if [ $i -eq 30 ]; then
-            echo "❌ API failed to start"
+          if [ $i -eq 60 ]; then
+            echo "❌ API failed to start within 120s"
             cat /tmp/uvicorn.log
             exit 1
           fi
@@ -53,26 +63,80 @@ jobs:
       env:
         MONGO_URL: mongodb://localhost:27017
         DB_NAME: tac_pmc_crm
-        JWT_SECRET_KEY: test_secret
+        JWT_SECRET_KEY: test_secret_key_for_ci
         ENVIRONMENT: testing
     - name: Seed test database
       run: |
         cd apps/api
-        echo "🌱 Seeding test database with required user accounts..."
-        python scripts/seed_production.py
-        echo "✅ Seed complete"
-      env:
-        MONGO_URL: mongodb://localhost:27017
-        DB_NAME: tac_pmc_crm
+        echo "🌱 Seeding test database..."
+        MONGO_URL=mongodb://localhost:27017 DB_NAME=tac_pmc_crm python scripts/seed_production.py
+        echo "✅ Seed script completed"
+    - name: Verify database — users must exist
+      run: |
+        python - <<'EOF'
+        import asyncio, sys
+        from motor.motor_asyncio import AsyncIOMotorClient
+
+        async def verify():
+            client = AsyncIOMotorClient("mongodb://localhost:27017")
+            db = client["tac_pmc_crm"]
+            users = await db.users.find(
+                {}, {"email": 1, "role": 1, "active_status": 1, "hashed_password": 1}
+            ).to_list(20)
+            client.close()
+            print(f"\n=== DB VERIFICATION: tac_pmc_crm.users ({len(users)} docs) ===")
+            if not users:
+                print("❌ FATAL: No users found in database — seeding failed!")
+                sys.exit(1)
+            required = {
+                "amit@thirdangleconcept.com", "admin@tacpmc.com",
+                "client@tacpmc.com", "supervisor@tacpmc.com"
+            }
+            found = set()
+            for u in users:
+                email = u.get("email", "?")
+                has_pw = bool(u.get("hashed_password"))
+                active = u.get("active_status")
+                role = u.get("role", "?")
+                status = "✅" if has_pw and active else "❌"
+                print(f"  {status} {email} | role={role} | active={active} | has_pw={has_pw}")
+                found.add(email)
+            missing = required - found
+            if missing:
+                print(f"\n❌ FATAL: Missing required users: {missing}")
+                sys.exit(1)
+            print("\n✅ All required users verified in database")
+
+        asyncio.run(verify())
+        EOF
+    - name: Verify API authentication
+      run: |
+        echo "=== Testing login endpoint directly ==="
+        HTTP_CODE=$(curl -s -o /tmp/login_response.json -w "%{http_code}" \
+          -X POST http://127.0.0.1:8000/api/v1/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@tacpmc.com","password":"Admin@1234"}')
+        echo "HTTP Status: $HTTP_CODE"
+        echo "Response body:"
+        cat /tmp/login_response.json
+        echo ""
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ FATAL: API login verification failed (HTTP $HTTP_CODE)"
+          echo "=== API Logs ==="
+          cat /tmp/uvicorn.log
+          exit 1
+        fi
+        echo "✅ API authentication verified"
     - name: Run Playwright tests
       run: pnpm exec playwright test
       env:
+        CI: true
         NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:8000
-    - name: Show API logs on failure
-      if: failure()
+    - name: Show API logs
+      if: always()
       run: |
         echo "=== API Server Logs ==="
-        cat /tmp/uvicorn.log || echo "No API logs found"
+        tail -100 /tmp/uvicorn.log || echo "No API logs found"
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
