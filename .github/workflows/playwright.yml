@@ -34,18 +34,45 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
         cd apps/api
-        nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
-        sleep 10
-        curl -v http://127.0.0.1:8000/system/health || (cat uvicorn.log && exit 1)
+        nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/uvicorn.log 2>&1 &
+        echo $! > /tmp/api.pid
+        echo "Waiting for API to be ready..."
+        for i in $(seq 1 30); do
+          if curl -sf http://127.0.0.1:8000/docs > /dev/null 2>&1; then
+            echo "✓ API is ready after ${i}s"
+            break
+          fi
+          echo "  [$i/30] Not ready yet..."
+          sleep 2
+          if [ $i -eq 30 ]; then
+            echo "❌ API failed to start"
+            cat /tmp/uvicorn.log
+            exit 1
+          fi
+        done
       env:
         MONGO_URL: mongodb://localhost:27017
         DB_NAME: tac_pmc_crm_test
         JWT_SECRET_KEY: test_secret
         ENVIRONMENT: testing
+    - name: Seed test database
+      run: |
+        cd apps/api
+        echo "🌱 Seeding test database with required user accounts..."
+        python scripts/seed_production.py
+        echo "✅ Seed complete"
+      env:
+        MONGO_URL: mongodb://localhost:27017
+        DB_NAME: tac_pmc_crm_test
     - name: Run Playwright tests
       run: pnpm exec playwright test
       env:
         NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:8000
+    - name: Show API logs on failure
+      if: failure()
+      run: |
+        echo "=== API Server Logs ==="
+        cat /tmp/uvicorn.log || echo "No API logs found"
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
