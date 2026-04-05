@@ -107,51 +107,6 @@ async def get_vendor_ledger(
 
 
 @router.get(
-    "/work-orders/{wo_id}",
-    response_model=GenericResponse[WorkOrder],
-    tags=["Work Orders"],
-)
-async def get_work_order(
-    wo_id: str,
-    user: dict = Depends(get_authenticated_user),
-    wo_service: WorkOrderService = Depends(get_work_order_service),
-):
-    """Get a specific work order by ID."""
-    wo = await wo_service.get_work_order(user, wo_id)
-    return GenericResponse(data=wo)
-
-
-@router.get(
-    "/work-orders/{wo_id}/export/pdf",
-    tags=["Work Orders"],
-)
-async def export_work_order_pdf(
-    wo_id: str,
-    user: dict = Depends(get_authenticated_user),
-    wo_service: WorkOrderService = Depends(get_work_order_service),
-):
-    from fastapi.responses import StreamingResponse
-    import io
-    from app.core.export_service import ExportService
-
-    wo = await wo_service.get_work_order(user, wo_id)
-    # Prepare data for generic template
-    report_data = {
-        "title": f"Work Order: {wo.get('wo_ref')}",
-        "rows": [[k, str(v)] for k, v in wo.items() if not isinstance(v, (list, dict))],
-        "totals": {"grand_total": str(wo.get("grand_total"))}
-    }
-    
-    pdf_bytes = ExportService.export_to_pdf_service("work_order_tracker", report_data)
-    
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=WO_{wo_id}.pdf"}
-    )
-
-
-@router.get(
     "/work-orders/",
     response_model=GenericResponse[Dict[str, Any]],
     tags=["Work Orders"],
@@ -199,7 +154,6 @@ async def update_work_order(
     nonce: str = Depends(verify_nonce),
 ):
     """Update an existing work order."""
-    # Fixed argument order bug from legacy routes
     result = await wo_service.update_work_order(user, wo_id, wo_data)
     return GenericResponse(data=result)
 
@@ -220,6 +174,32 @@ async def get_work_order(
 
 
 @router.get(
+    "/work-orders/{wo_id}/export/excel",
+    tags=["Work Orders"],
+)
+async def export_work_order_excel(
+    wo_id: str,
+    user: dict = Depends(get_authenticated_user),
+    wo_service: WorkOrderService = Depends(get_work_order_service),
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.template_export_service import TemplateExportService
+    from app.modules.identity.application.settings_service import SettingsService
+    from app.core.dependencies import get_settings_service, get_vendor_service, get_db
+
+    wo = await wo_service.get_work_order(user, wo_id)
+    
+    excel_bytes = TemplateExportService.export_work_order_exact(wo, fmt="excel")
+    
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=WO_{wo_id}.xlsx"}
+    )
+
+
+@router.get(
     "/work-orders/{wo_id}/export/pdf",
     tags=["Work Orders"],
 )
@@ -230,17 +210,11 @@ async def export_work_order_pdf(
 ):
     from fastapi.responses import StreamingResponse
     import io
-    from app.core.export_service import ExportService
+    from app.core.template_export_service import TemplateExportService
 
     wo = await wo_service.get_work_order(user, wo_id)
-    # Prepare data for generic template
-    report_data = {
-        "title": f"Work Order: {wo.get('wo_ref')}",
-        "rows": [[k, str(v)] for k, v in wo.items() if not isinstance(v, (list, dict))],
-        "totals": {"grand_total": str(wo.get("grand_total"))}
-    }
     
-    pdf_bytes = ExportService.export_to_pdf_service("work_order_tracker", report_data)
+    pdf_bytes = TemplateExportService.export_work_order_exact(wo, fmt="pdf")
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),

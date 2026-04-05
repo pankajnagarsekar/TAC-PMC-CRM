@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            color: #333;
+        }
+        .header-table, .items-table, .totals-table, .terms-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .header-table td {
+            padding: 4px;
+            vertical-align: top;
+        }
+        .items-table th, .items-table td, .totals-table td, .terms-table td {
+            border: 1px solid #000;
+            padding: 6px;
+        }
+        .items-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: left;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="title">WORK ORDER</div>
+
+    <table class="header-table">
+        <tr>
+            <td width="60%">
+                <span class="bold">{{ metadata.vendor.name | default('Vendor Name') }}</span><br>
+                {{ metadata.vendor.address_line1 | default('') }}<br>
+                {{ metadata.vendor.address_line2 | default('') }}<br>
+                {{ metadata.vendor.address_line3 | default('') }}<br>
+                <br>
+                <span class="bold">GST No :</span> {{ metadata.vendor.gst_no | default('-') }}
+            </td>
+            <td width="40%">
+                <table style="width:100%">
+                    <tr><td class="bold">WO Refn:</td><td>{{ metadata.wo_ref | default('') }}</td></tr>
+                    <tr><td class="bold">WO Date:</td><td>{{ metadata.wo_date | default('') }}</td></tr>
+                    <tr><td class="bold">CODE :</td><td>{{ metadata.code | default('') }}</td></tr>
+                    <tr><td class="bold">ISSUED BY:</td><td>{{ company.name | default('Third Angle Concepts') }}</td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table class="header-table">
+        <tr>
+            <td width="60%">
+                <span class="bold">To,</span><br>
+                <span class="bold">Contact:</span> {{ metadata.vendor.contact_person | default('') }}<br>
+                <span class="bold">Mobile:</span>
+            </td>
+            <td width="40%">
+                <span class="bold">Shipping to</span><br>
+                {{ company.name | default('Project Site') }}<br>
+                <span class="bold">Contact:</span> {{ company.contact_person | default('') }}
+            </td>
+        </tr>
+    </table>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th width="10%">Sr No.</th>
+                <th width="45%">Description</th>
+                <th width="15%">Quantity</th>
+                <th width="15%">Rate</th>
+                <th width="15%">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in rows %}
+            <tr>
+                <td class="text-center">{{ loop.index }}</td>
+                <td>{{ item.description | default('') }}</td>
+                <td class="text-right">{{ item.quantity | default(0) }}</td>
+                <td class="text-right">{{ item.rate | default(0) }}</td>
+                <td class="text-right">{{ item.total | default(0) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td width="60%" style="vertical-align: top;">
+                <span class="bold">Notes & Payment Terms</span><br>
+                5% Retention applicable on all PC (Ref 16)
+            </td>
+            <td width="40%">
+                <table class="totals-table">
+                    <tr><td class="bold">Subtotal :</td><td class="text-right">{{ metadata.subtotal | default(0) }}</td></tr>
+                    <tr><td class="bold">Discount:</td><td class="text-right">{{ metadata.discount | default(0) }}</td></tr>
+                    <tr><td class="bold">Total :</td><td class="text-right">{{ metadata.total_after_discount | default(0) }}</td></tr>
+                    <tr><td class="bold">CGST :</td><td class="text-right">{{ metadata.cgst | default(0) }}</td></tr>
+                    <tr><td class="bold">SGST :</td><td class="text-right">{{ metadata.sgst | default(0) }}</td></tr>
+                    <tr><td class="bold">Grand Total :</td><td class="text-right">{{ metadata.grand_total | default(0) }}</td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    
+    <br>
+
+    <table class="header-table">
+        <tr>
+            <td width="33%">
+                <span class="bold">Timeline</span><br>
+                Start Date: {{ metadata.start_date | default('') }}<br>
+                End Date: {{ metadata.end_date | default('') }}
+            </td>
+            <td width="33%">
+                <span class="bold">Warranty</span><br>
+                Product: <br>
+                Workmanship: {{ metadata.warranty | default('12 Months') }}
+            </td>
+        </tr>
+    </table>
+
+    <h4>General Terms and Condition:</h4>
+    <ol style="font-size: 10px; text-align: justify; padding-left: 20px;">
+        <li>The Contractor shall ensure all labour, technicians and supervisors possess valid police verification documents, health cards and mandatory statutory clearances, available at all times during their engagement.</li>
+        <li>The Contractor is fully responsible for safety of their workforce and must provide PPE such as safety shoes, helmets, belts, gloves and goggles.</li>
+        <li>Any accident, injury or fatality shall be handled entirely by the Contractor including medical treatment, compensation and legal liability.</li>
+        <li>Waste must be segregated, disposed safely and without burning or chemical dumping. Dust control and tidy operations must be maintained at all times.</li>
+        <li>Contractor shall maintain daily site cleanliness. All debris or waste shall be stored at a designated area and cleared regularly to prevent obstruction.</li>
+        <li>Works must be executed strictly as per approved drawings, materials and specifications within stipulated timelines.</li>
+        <li>Contractor is responsible for safe storage and protection of all materials (client-supplied or contractor-supplied). Any losses or damages due to improper handling will be recovered from the Contractor.</li>
+        <li>All work shall follow approved site working hours. High-noise or disruptive tasks shall require 24-hour prior intimation to PMC.</li>
+        <li>All PMC observations and instructions will be issued only to the Contractor's designated site supervisor. No direct instruction will be given to labour.</li>
+        <li>Any snags or defects identified by PMC must be rectified within the stipulated period. Failure to do so will result in corrective work being executed through alternate agencies at Contractor's cost.</li>
+        <li>Standard workmanship warranty of 12 Months from the date of Handover applicable to the Contractor. Any failure within the defects liability period shall be rectified without cost.</li>
+        <li>Any increase or decrease in quantities or scope must be informed to PMC immediately. Revised Work Orders or Change Orders will be issued accordingly.</li>
+        <li>Payment Certificates will be prepared by PMC based on joint measurements. Contractor must provide complete measurement sheets and ensure supervisor presence during inspections.</li>
+        <li>All payments shall be released strictly against PMC-approved and signed Payment Certificates.</li>
+        <li>Payment Certificates shall be prepared between the 25th and 30th of each month. Submissions outside this window will move to the next cycle.</li>
+        <li>A 5% retention will be deducted from all payments. Retention will be released only after full completion of work and after a minimum three-month period post-monsoon, subject to no defects.</li>
+        <li>Contractor personnel shall not share site photos, drawings, videos or project details on social media or externally without written approval from the Company/PMC.</li>
+        <li>In case of breach of any clause or non-performance, the Company reserves the right to execute the works through alternate agencies. Any cost or time impact arising from such action will be fully recovered from the Contractor's payments or retention.</li>
+    </ol>
+
+    <br><br>
+    <div style="float: right; text-align: center; width: 200px;">
+        <br><br><br>
+        <hr>
+        <span class="bold">Accepted and Agreed</span><br>
+        {{ metadata.vendor.contact_person | default('') }}
+    </div>
+
+</body>
+</html>

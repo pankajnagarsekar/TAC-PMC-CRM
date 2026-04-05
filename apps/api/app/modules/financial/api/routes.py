@@ -47,6 +47,32 @@ async def get_payment_certificate(
 
 
 @router.get(
+    "/payments/{pc_id}/export/excel",
+    tags=["Payments"],
+)
+async def export_payment_certificate_excel(
+    pc_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    from fastapi.responses import StreamingResponse
+    import io
+    from app.core.template_export_service import TemplateExportService
+    from app.modules.identity.application.settings_service import SettingsService
+    from app.core.dependencies import get_settings_service, get_vendor_service, get_db
+
+    pc = await payment_service.get_payment_certificate(user, pc_id)
+    
+    excel_bytes = TemplateExportService.export_payment_certificate_exact(pc, fmt="excel")
+    
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=PC_{pc_id}.xlsx"}
+    )
+
+
+@router.get(
     "/payments/{pc_id}/export/pdf",
     tags=["Payments"],
 )
@@ -57,17 +83,11 @@ async def export_payment_certificate_pdf(
 ):
     from fastapi.responses import StreamingResponse
     import io
-    from app.core.export_service import ExportService
+    from app.core.template_export_service import TemplateExportService
 
     pc = await payment_service.get_payment_certificate(user, pc_id)
-    # Prepare data for generic template
-    report_data = {
-        "title": f"Payment Certificate: {pc.get('pc_ref')}",
-        "rows": [[k, str(v)] for k, v in pc.items() if not isinstance(v, (list, dict))],
-        "totals": {"grand_total": str(pc.get("grand_total"))}
-    }
     
-    pdf_bytes = ExportService.export_to_pdf_service("payment_certificate_tracker", report_data)
+    pdf_bytes = TemplateExportService.export_payment_certificate_exact(pc, fmt="pdf")
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
