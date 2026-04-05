@@ -22,10 +22,12 @@ yarn.lock
 tmp/
 .aider*
 .agents/
+.agent/
 .emergent/
 .claude/
 .claude-flow/
 .swarm/
+.planning/
 
 # Dependencies
 node_modules/
