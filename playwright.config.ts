@@ -79,7 +79,7 @@ export default defineConfig({
     // Add a healthcheck to ensure web server is responding
     env: {
       // Make sure the web server knows where the API is
-      NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
+      NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000',
     },
   },
 });
