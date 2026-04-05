@@ -222,6 +222,7 @@ async def export_work_order_pdf(
     
     # Fetch Category (CodeMaster) info
     from app.modules.financial.application.master_data_service import MasterDataService
+    db = await get_db()
     md_service = MasterDataService(db, None, None) # Minimal instantiation for code fetch
     category = await md_service.get_code_by_id(user, wo.get("category_id"))
     wo["category"] = category
@@ -232,7 +233,6 @@ async def export_work_order_pdf(
         wo["wo_date"] = wo.get("created_at")
     
     # Get Company/Organisation details
-    db = await get_db()
     settings = await db.organisation_settings.find_one({"organisation_id": user["organisation_id"]})
     if settings and "company_profile" in settings:
         wo["company"] = settings["company_profile"]
