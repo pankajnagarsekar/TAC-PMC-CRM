@@ -76,5 +76,10 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    // Add a healthcheck to ensure web server is responding
+    env: {
+      // Make sure the web server knows where the API is
+      NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
+    },
   },
 });

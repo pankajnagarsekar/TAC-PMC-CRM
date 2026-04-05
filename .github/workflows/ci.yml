@@ -82,12 +82,32 @@ jobs:
         run: pip install -r apps/api/requirements.txt
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
+      - name: Create API health check script
+        run: |
+          cat > /tmp/api_health_check.sh << 'EOF'
+          #!/bin/bash
+          while true; do
+            if ! curl -sf http://localhost:8000/docs > /dev/null 2>&1; then
+              echo "❌ API health check failed!"
+              exit 1
+            fi
+            sleep 5
+          done
+          EOF
+          chmod +x /tmp/api_health_check.sh
       - name: Start API server
         run: |
           cd apps/api
-          nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > api.log 2>&1 &
-          echo $! > api.pid
-          echo "API server PID: $(cat api.pid)"
+          python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
+          API_PID=$!
+          echo $API_PID > /tmp/api.pid
+          echo "API server started with PID: $API_PID"
+          sleep 2
+          if ! kill -0 $API_PID 2>/dev/null; then
+            echo "❌ API server failed to start"
+            cat /tmp/api.log
+            exit 1
+          fi
         env:
           MONGO_URL: mongodb://localhost:27017
           DB_NAME: test_db
@@ -95,20 +115,29 @@ jobs:
           ENVIRONMENT: development
       - name: Wait for API to be ready
         run: |
-          echo "Waiting for API server to start..."
+          echo "Waiting for API server to be healthy..."
           for i in {1..60}; do
             if curl -sf http://localhost:8000/docs > /dev/null 2>&1; then
-              echo "✓ API server is ready!"
+              echo "✓ API server is healthy and ready!"
               break
             fi
             echo "[$i/60] API server not ready, retrying in 2 seconds..."
             sleep 2
             if [ $i -eq 60 ]; then
-              echo "✗ API server failed to start"
-              cat apps/api/api.log
+              echo "❌ API server failed to become ready within 120 seconds"
+              if [ -f /tmp/api.log ]; then
+                echo "=== API Logs ==="
+                cat /tmp/api.log
+              fi
               exit 1
             fi
           done
+      - name: Start API health monitoring (background)
+        run: |
+          bash /tmp/api_health_check.sh > /tmp/api_monitor.log 2>&1 &
+          MONITOR_PID=$!
+          echo $MONITOR_PID > /tmp/monitor.pid
+          echo "Health monitor started with PID: $MONITOR_PID"
       - name: Seed test database
         run: cd apps/api && python scripts/seed_production.py
         env:
@@ -121,6 +150,27 @@ jobs:
           NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
           MONGO_URL: mongodb://localhost:27017
           DB_NAME: test_db
+      - name: Check API health after tests
+        if: always()
+        run: |
+          API_PID=$(cat /tmp/api.pid)
+          if kill -0 $API_PID 2>/dev/null; then
+            echo "✓ API server is still running"
+          else
+            echo "❌ API server crashed during test execution"
+            if [ -f /tmp/api.log ]; then
+              echo "=== API Logs ==="
+              tail -100 /tmp/api.log
+            fi
+            exit 1
+          fi
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
 
   docker-web:
     name: Docker Build — Web

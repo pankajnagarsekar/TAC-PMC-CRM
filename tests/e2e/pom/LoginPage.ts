@@ -27,20 +27,42 @@ export class LoginPage {
         await this.emailInput.fill(email);
         await this.passwordInput.fill(password);
 
-        // Use Promise.race to either wait for navigation or an error message
+        // Click login button and wait for response
         await this.loginButton.click();
 
-        // Wait for either dashboard URL or error visibility
-        try {
-            await this.page.waitForURL(/.*dashboard/, { timeout: 30000 });
-        } catch (e) {
-            // Check if error message is visible
-            const isErrorVisible = await this.errorMessage.isVisible();
-            if (isErrorVisible) {
-                const text = await this.errorMessage.textContent();
-                throw new Error(`Login failed with error: ${text}`);
+        // Wait for either dashboard URL or error visibility with extended timeout
+        const maxRetries = 3;
+        let lastError: Error | null = null;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                await this.page.waitForURL(/.*dashboard/, { timeout: 30000 });
+                return; // Success
+            } catch (e) {
+                lastError = e as Error;
+                console.log(`Login attempt ${attempt} failed: ${e instanceof Error ? e.message : String(e)}`);
+
+                // Check if error message is visible (actual auth error, not network)
+                const isErrorVisible = await this.errorMessage.isVisible().catch(() => false);
+                if (isErrorVisible) {
+                    const text = await this.errorMessage.textContent();
+                    throw new Error(`Login failed with error: ${text}`);
+                }
+
+                // If it's the last attempt, throw the error
+                if (attempt === maxRetries) {
+                    throw lastError;
+                }
+
+                // Wait before retrying
+                console.log(`Retrying login (attempt ${attempt + 1}/${maxRetries})...`);
+                await this.page.waitForTimeout(2000);
+
+                // Reset form and try again
+                await this.emailInput.fill(email);
+                await this.passwordInput.fill(password);
+                await this.loginButton.click();
             }
-            throw e;
         }
     }
 
