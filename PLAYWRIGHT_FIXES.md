@@ -29,4 +29,23 @@ Consequentially, this generated the following testing failure:
 
 3. Verified Fix: 15/15 Auth Tests successfully executed their identity assertions during simulation without dropping network connections. 
 
+## CI/CD Failure (GitHub Actions)
+**Update:** The issue persisted in GitHub Actions because the `playwright-test` runner expects a running backend to communicate with, but the CI workflow was only starting the Next.js web server.
+
+**Resolution Steps for CI:**
+1. **Added MongoDB Service:** Integrated `supercharge/mongodb-github-action@1.10.0` to provide a database for the test backend.
+2. **Setup Python Environment:** Added steps to install Python and API dependencies (`requirements.txt`).
+3. **Background API Server:** Configured the workflow to start the FastAPI backend in the background using `nohup` on port `8000`.
+4. **Health Check:** Added a `curl` health check with a 10-second `sleep` to ensure the API is fully operational before the Playwright tests begin.
+5. **Environment Sync:** Forced `NEXT_PUBLIC_BACKEND_URL` to `http://127.0.0.1:8000` within the workflow `env` block.
+
+```yaml
+    - name: Start API server
+      run: |
+        cd apps/api
+        nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
+        sleep 10
+        curl -v http://127.0.0.1:8000/system/health || (cat apps/api/uvicorn.log && exit 1)
+```
+
 *(Warnings observed on `npm` and `middleware` deprecation output in the console are benign warnings from npm itself globally, and do not halt script executions or CI pipelines).*
