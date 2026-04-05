@@ -52,7 +52,7 @@ jobs:
         done
       env:
         MONGO_URL: mongodb://localhost:27017
-        DB_NAME: tac_pmc_crm_test
+        DB_NAME: tac_pmc_crm
         JWT_SECRET_KEY: test_secret
         ENVIRONMENT: testing
     - name: Seed test database
@@ -63,7 +63,7 @@ jobs:
         echo "✅ Seed complete"
       env:
         MONGO_URL: mongodb://localhost:27017
-        DB_NAME: tac_pmc_crm_test
+        DB_NAME: tac_pmc_crm
     - name: Run Playwright tests
       run: pnpm exec playwright test
       env:
