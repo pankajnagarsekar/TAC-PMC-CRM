@@ -103,12 +103,12 @@
             </td>
             <td width="40%" style="vertical-align: top;">
                 <table class="totals-table">
-                    <tr><td class="bold">Sub Total :</td><td class="text-right">{{ metadata.subtotal | default(0) }}</td></tr>
-                    <tr><td class="bold">Retention 5% :</td><td class="text-right">{{ metadata.retention | default(0) }}</td></tr>
-                    <tr><td class="bold">Total :</td><td class="text-right">{{ metadata.total_after_retention | default(0) }}</td></tr>
-                    <tr><td class="bold">CGST :</td><td class="text-right">{{ metadata.cgst | default(0) }}</td></tr>
-                    <tr><td class="bold">SGST :</td><td class="text-right">{{ metadata.sgst | default(0) }}</td></tr>
-                    <tr><td class="bold">Grand Total :</td><td class="text-right">{{ metadata.grand_total | default(0) }}</td></tr>
+                    <tr><td class="bold">Sub Total :</td><td class="text-right">{{ (metadata.subtotal | string) }}</td></tr>
+                    <tr><td class="bold">Retention {{ metadata.retention_percent | default(5) }}% :</td><td class="text-right">{{ (metadata.retention_amount | string) }}</td></tr>
+                    <tr><td class="bold">Total :</td><td class="text-right">{{ (metadata.total_after_retention | string) }}</td></tr>
+                    <tr><td class="bold">CGST :</td><td class="text-right">{{ (metadata.cgst | string) }}</td></tr>
+                    <tr><td class="bold">SGST :</td><td class="text-right">{{ (metadata.sgst | string) }}</td></tr>
+                    <tr><td class="bold">Grand Total :</td><td class="text-right">{{ (metadata.grand_total | string) }}</td></tr>
                 </table>
             </td>
         </tr>

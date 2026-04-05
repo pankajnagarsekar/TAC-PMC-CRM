@@ -56,14 +56,16 @@
         <tr>
             <td width="60%">
                 <span class="bold">{{ metadata.vendor.name | default('Vendor Name') }}</span><br>
-                {{ metadata.vendor.address | default('') }}<br>
+                {{ metadata.vendor.address_line1 | default('') }}<br>
+                {{ metadata.vendor.address_line2 | default('') }}<br>
+                {{ metadata.vendor.address_line3 | default('') }}<br>
                 <br>
-                <span class="bold">GST No :</span> {{ metadata.vendor.gstin | default('-') }}
+                <span class="bold">GST No :</span> {{ metadata.vendor.gst_no | default('-') }}
             </td>
             <td width="40%">
                 <table style="width:100%">
                     <tr><td class="bold">WO Refn:</td><td>{{ metadata.wo_ref | default('') }}</td></tr>
-                    <tr><td class="bold">WO Date:</td><td>{{ metadata.wo_date | default('') }}</td></tr>
+                    <tr><td class="bold">WO Date:</td><td>{{ (metadata.wo_date | string) }}</td></tr>
                     <tr><td class="bold">CODE :</td><td>{{ metadata.code | default('') }}</td></tr>
                     <tr><td class="bold">ISSUED BY:</td><td>{{ company.name | default('Third Angle Concepts') }}</td></tr>
                 </table>
@@ -76,7 +78,7 @@
             <td width="60%">
                 <span class="bold">To,</span><br>
                 <span class="bold">Contact:</span> {{ metadata.vendor.contact_person | default('') }}<br>
-                <span class="bold">Mobile:</span>
+                <span class="bold">Mobile:</span> {{ metadata.vendor.mobile | default('') }}
             </td>
             <td width="40%">
                 <span class="bold">Shipping to</span><br>
@@ -101,9 +103,9 @@
             <tr>
                 <td class="text-center">{{ loop.index }}</td>
                 <td>{{ item.description | default('') }}</td>
-                <td class="text-right">{{ item.rate | default(0) }}</td>
-                <td class="text-right">{{ item.qty | default(0) }}</td>
-                <td class="text-right">{{ item.total | default(0) }}</td>
+                <td class="text-right">{{ (item.quantity | default(item.qty) | string) }}</td>
+                <td class="text-right">{{ (item.rate | string) }}</td>
+                <td class="text-right">{{ (item.total | string) }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -113,16 +115,16 @@
         <tr>
             <td width="60%" style="vertical-align: top;">
                 <span class="bold">Notes & Payment Terms</span><br>
-                5% Retention applicable on all PC (Ref 16)
+                {{ metadata.retention_percent | default(5) }}% Retention applicable on all PC (Ref 16)
             </td>
             <td width="40%">
                 <table class="totals-table">
-                    <tr><td class="bold">Subtotal :</td><td class="text-right">{{ metadata.subtotal | default(0) }}</td></tr>
-                    <tr><td class="bold">Discount:</td><td class="text-right">{{ metadata.discount | default(0) }}</td></tr>
-                    <tr><td class="bold">Total :</td><td class="text-right">{{ metadata.total_after_discount | default(0) }}</td></tr>
-                    <tr><td class="bold">CGST :</td><td class="text-right">{{ metadata.cgst | default(0) }}</td></tr>
-                    <tr><td class="bold">SGST :</td><td class="text-right">{{ metadata.sgst | default(0) }}</td></tr>
-                    <tr><td class="bold">Grand Total :</td><td class="text-right">{{ metadata.grand_total | default(0) }}</td></tr>
+                    <tr><td class="bold">Subtotal :</td><td class="text-right">{{ (metadata.subtotal | string) }}</td></tr>
+                    <tr><td class="bold">Discount:</td><td class="text-right">{{ (metadata.discount | string) }}</td></tr>
+                    <tr><td class="bold">Total :</td><td class="text-right">{{ (metadata.total_after_discount | string) }}</td></tr>
+                    <tr><td class="bold">CGST :</td><td class="text-right">{{ (metadata.cgst | string) }}</td></tr>
+                    <tr><td class="bold">SGST :</td><td class="text-right">{{ (metadata.sgst | string) }}</td></tr>
+                    <tr><td class="bold">Grand Total :</td><td class="text-right">{{ (metadata.grand_total | string) }}</td></tr>
                 </table>
             </td>
         </tr>

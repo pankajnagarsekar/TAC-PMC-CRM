@@ -7,7 +7,9 @@ from app.core.dependencies import (
     get_cash_service,
     get_master_data_service,
     get_payment_service,
+    get_vendor_service,
 )
+from app.modules.contracting.application.vendor_service import VendorService
 from app.modules.shared.domain.schemas import GenericResponse
 
 from ..application.cash_service import CashService
