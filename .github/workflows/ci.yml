@@ -51,6 +51,28 @@ jobs:
       - name: Build API image
         run: docker build -t tac-pmc-api apps/api/
 
+  test-e2e:
+    name: E2E Tests — Playwright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+      - name: Run Playwright tests
+        run: pnpm test:e2e
+        env:
+          CI: true
+          NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
+
   docker-web:
     name: Docker Build — Web
     runs-on: ubuntu-latest
