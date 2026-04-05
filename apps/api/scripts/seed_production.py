@@ -88,7 +88,7 @@ async def seed_production():
             {
                 "email": "client@tacpmc.com",
                 "name": "Client Representative",
-                "role": "Other",
+                "role": "Client",
                 "password": "Client@1234",
             },
         ]
