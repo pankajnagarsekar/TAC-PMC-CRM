@@ -248,7 +248,7 @@ class ExportService:
             return pdf_bytes
         except (ImportError, OSError, Exception) as e:
             # Fallback to ReportLab if WeasyPrint system dependencies are missing
-            logger.warning(f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab")
+            logger.error(f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab. HTML length: {len(html_out)}")
             return ExportService._generate_pdf_reportlab(report_data, config)
 
     @staticmethod
@@ -274,7 +274,11 @@ class ExportService:
         
         # Calculate absolute widths based on 500px content area
         total_relative = sum(col_widths_raw)
-        col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
+        if total_relative > 0:
+            col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
+        else:
+            # Fallback for empty columns
+            col_widths = [100.0] * max(1, len(headers))
 
         rows = report_data.get("rows", [])
         
@@ -282,9 +286,21 @@ class ExportService:
         cell_style = styles["Normal"]
         cell_style.fontSize = 8
         
+        if not headers and rows:
+             # If no headers but we have rows, maybe they are dicts?
+             # For 'exact' templates, rows (items) are often dicts.
+             # ReportLab fallback is not great for dicts but let's try to show something.
+             first_row = rows[0]
+             if isinstance(first_row, dict):
+                 headers = list(first_row.keys())
+                 col_widths = [520 / len(headers)] * len(headers)
+
         data = [[Paragraph(str(h), styles["Normal"]) for h in headers]]
         for row in rows:
-            formatted_row = [Paragraph(str(cell), cell_style) for cell in row]
+            if isinstance(row, dict):
+                formatted_row = [Paragraph(str(row.get(h, "")), cell_style) for h in headers]
+            else:
+                formatted_row = [Paragraph(str(cell), cell_style) for cell in row]
             data.append(formatted_row)
 
         # Create Table

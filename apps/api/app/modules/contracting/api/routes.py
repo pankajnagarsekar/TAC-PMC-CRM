@@ -207,12 +207,41 @@ async def export_work_order_pdf(
     wo_id: str,
     user: dict = Depends(get_authenticated_user),
     wo_service: WorkOrderService = Depends(get_work_order_service),
+    vendor_service: VendorService = Depends(get_vendor_service),
 ):
     from fastapi.responses import StreamingResponse
     import io
     from app.core.template_export_service import TemplateExportService
+    from app.core.dependencies import get_db, get_settings_service
 
     wo = await wo_service.get_work_order(user, wo_id)
+    
+    # Bridge data for exact export
+    vendor = await vendor_service.get_vendor(user, wo.get("vendor_id"))
+    wo["vendor"] = vendor
+    
+    # Fetch Category (CodeMaster) info
+    from app.modules.financial.application.master_data_service import MasterDataService
+    md_service = MasterDataService(db, None, None) # Minimal instantiation for code fetch
+    category = await md_service.get_code_by_id(user, wo.get("category_id"))
+    wo["category"] = category
+    wo["code"] = category.get("code", "") if category else ""
+    
+    # Set default dates for template
+    if "wo_date" not in wo:
+        wo["wo_date"] = wo.get("created_at")
+    
+    # Get Company/Organisation details
+    db = await get_db()
+    settings = await db.organisation_settings.find_one({"organisation_id": user["organisation_id"]})
+    if settings and "company_profile" in settings:
+        wo["company"] = settings["company_profile"]
+    else:
+        # Try finding the organisation name directly as a fallback
+        from bson import ObjectId
+        query = {"_id": ObjectId(user["organisation_id"])} if ObjectId.is_valid(user["organisation_id"]) else {"organisation_id": user["organisation_id"]}
+        org = await db.organisations.find_one(query)
+        wo["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": "Site Address"}
     
     pdf_bytes = TemplateExportService.export_work_order_exact(wo, fmt="pdf")
     

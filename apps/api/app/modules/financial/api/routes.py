@@ -80,12 +80,41 @@ async def export_payment_certificate_pdf(
     pc_id: str,
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
+    vendor_service: VendorService = Depends(get_vendor_service),
 ):
     from fastapi.responses import StreamingResponse
     import io
     from app.core.template_export_service import TemplateExportService
+    from app.core.dependencies import get_db
 
     pc = await payment_service.get_payment_certificate(user, pc_id)
+    
+    # Bridge data for exact export
+    vendor = await vendor_service.get_vendor(user, pc.get("vendor_id"))
+    pc["vendor"] = vendor
+    
+    # Fetch Category (CodeMaster) info
+    from app.modules.financial.application.master_data_service import MasterDataService
+    db = await get_db()
+    md_service = MasterDataService(db, None, None) 
+    category = await md_service.get_code_by_id(user, pc.get("category_id"))
+    pc["category"] = category
+    pc["code"] = category.get("code", "") if category else ""
+    
+    # Set default dates for template
+    if "pc_date" not in pc:
+        pc["pc_date"] = pc.get("created_at")
+    
+    # Get Company/Organisation details
+    settings = await db.organisation_settings.find_one({"organisation_id": user["organisation_id"]})
+    if settings and "company_profile" in settings:
+        pc["company"] = settings["company_profile"]
+    else:
+        # Try finding the organisation name directly as a fallback
+        from bson import ObjectId
+        query = {"_id": ObjectId(user["organisation_id"])} if ObjectId.is_valid(user["organisation_id"]) else {"organisation_id": user["organisation_id"]}
+        org = await db.organisations.find_one(query)
+        pc["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": "Site Address"}
     
     pdf_bytes = TemplateExportService.export_payment_certificate_exact(pc, fmt="pdf")
     

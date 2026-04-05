@@ -56,11 +56,9 @@
         <tr>
             <td width="60%">
                 <span class="bold">{{ metadata.vendor.name | default('Vendor Name') }}</span><br>
-                {{ metadata.vendor.address_line1 | default('') }}<br>
-                {{ metadata.vendor.address_line2 | default('') }}<br>
-                {{ metadata.vendor.address_line3 | default('') }}<br>
+                {{ metadata.vendor.address | default('') }}<br>
                 <br>
-                <span class="bold">GST No :</span> {{ metadata.vendor.gst_no | default('-') }}
+                <span class="bold">GST No :</span> {{ metadata.vendor.gstin | default('-') }}
             </td>
             <td width="40%">
                 <table style="width:100%">
@@ -103,8 +101,8 @@
             <tr>
                 <td class="text-center">{{ loop.index }}</td>
                 <td>{{ item.description | default('') }}</td>
-                <td class="text-right">{{ item.quantity | default(0) }}</td>
                 <td class="text-right">{{ item.rate | default(0) }}</td>
+                <td class="text-right">{{ item.qty | default(0) }}</td>
                 <td class="text-right">{{ item.total | default(0) }}</td>
             </tr>
             {% endfor %}

@@ -37,16 +37,18 @@ class TemplateExportService(ExportService):
         """
         if fmt.lower() == "pdf":
             # Delegate to existing ExportService HTML->PDF pipeline but with specific template
+            # For Exact templates, we map line_items to rows for generic fallback
+            items = data.get("line_items", data.get("items", []))
             pdf_data = {
                 "title": f"Work Order {data.get('wo_ref', '')}",
-                "rows": data.get("items", []),
+                "rows": items,
                 "metadata": data,
                 "company": data.get("company", {})
             }
             # Custom html for Exact WO
             cls.REPORT_TEMPLATES["work_order_exact"] = {
                 "template": "work_order_exact.html",
-                "columns": []
+                "columns": [("Sr No", 5), ("Description", 40), ("Qty", 10), ("Rate", 10), ("Total", 15)]
             }
             return cls.export_to_pdf_service("work_order_exact", pdf_data, data.get("company"))
             
@@ -78,7 +80,7 @@ class TemplateExportService(ExportService):
         ws["D14"] = company.get("contact_person", "")
         
         # Fill Items
-        items = data.get("items", [])
+        items = data.get("line_items", data.get("items", []))
         start_row = 18
         current_row = start_row
         
@@ -126,15 +128,16 @@ class TemplateExportService(ExportService):
         Exports a Payment Certificate dynamically matching exact PC Excel Sheet.
         """
         if fmt.lower() == "pdf":
+            items = data.get("line_items", data.get("items", []))
             pdf_data = {
                 "title": f"Payment Certificate {data.get('pc_ref', '')}",
-                "rows": data.get("items", []),
+                "rows": items,
                 "metadata": data,
                 "company": data.get("company", {})
             }
             cls.REPORT_TEMPLATES["payment_certificate_exact"] = {
                 "template": "payment_certificate_exact.html",
-                "columns": []
+                "columns": [("Sr No", 5), ("Description", 40), ("Rate", 10), ("Qty", 10), ("Unit", 10), ("Total", 15)]
             }
             return cls.export_to_pdf_service("payment_certificate_exact", pdf_data, data.get("company"))
             
@@ -153,7 +156,7 @@ class TemplateExportService(ExportService):
         ws["G7"] = data.get("wo_ref", "")
         
         # PC Items typically start at row 10 (Sr No is row 9)
-        items = data.get("items", [])
+        items = data.get("line_items", data.get("line_items", []))
         start_row = 10
         current_row = start_row
         

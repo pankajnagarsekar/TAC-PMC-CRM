@@ -58,7 +58,7 @@
                 <span class="bold">Contractor</span><br>
                 {{ metadata.vendor.name | default('Vendor Name') }}<br>
                 <br>
-                <span class="bold">GST No :</span> {{ metadata.vendor.gst_no | default('-') }}
+                <span class="bold">GST No :</span> {{ metadata.vendor.gstin | default('-') }}
             </td>
             <td width="40%">
                 <table style="width:100%">
@@ -85,9 +85,9 @@
             {% for item in rows %}
             <tr>
                 <td class="text-center">{{ loop.index }}</td>
-                <td>{{ item.description | default('') }}</td>
+                <td>{{ item.scope_of_work | default('') }}</td>
                 <td class="text-right">{{ item.rate | default(0) }}</td>
-                <td class="text-right">{{ item.quantity | default(0) }}</td>
+                <td class="text-right">{{ item.qty | default(0) }}</td>
                 <td class="text-center">{{ item.unit | default('') }}</td>
                 <td class="text-right">{{ item.total | default(0) }}</td>
             </tr>
