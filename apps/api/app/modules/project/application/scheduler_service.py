@@ -67,11 +67,7 @@ class SchedulerService:
         input_payload = {"tasks": tasks, "project_start": project_start}
         
         # DEBUG: Save payload to file to inspect what's being sent
-        try:
-            with open("last_scheduler_payload.json", "w") as f:
-                json.dump(serialize_doc(input_payload), f)
-        except:
-            pass
+        # Removed debug write to "last_scheduler_payload.json" for production stability
 
         task_count = len(tasks) if tasks is not None else 0
         logger.info(f"SCHEDULER: Calculating for project {project_id} with {task_count} tasks starting at {project_start}")
@@ -208,8 +204,8 @@ class SchedulerService:
                     bf = datetime.strptime(b_finish[:10], fmt)
                     sf = datetime.strptime(s_finish[:10], fmt)
                     variance = (sf - bf).days
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to calculate variance for task {t.get('task_id')}: {e}")
             
             results.append({
                 "task_id": str(t.get("task_id", "")),

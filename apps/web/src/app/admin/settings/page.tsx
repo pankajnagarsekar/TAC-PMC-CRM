@@ -21,6 +21,7 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { CodeMaster } from "@/types/api";
 import CategoryModal from "@/components/categories/CategoryModal";
+import { useToast } from "@/hooks/use-toast";
 
 interface GlobalSettings {
   name: string;
@@ -85,6 +86,7 @@ export default function SettingsPage() {
 
   const [savingSettings, setSavingSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -97,8 +99,13 @@ export default function SettingsPage() {
             ...settingsRes.data,
           }));
         }
-      } catch {
-        console.log("Settings not initialized yet or endpoint missing.");
+      } catch (err) {
+        console.error("Settings not initialized yet or endpoint missing:", err);
+        toast({
+          title: "System Error",
+          description: "Could not fetch global settings from the server. Using local defaults.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -111,10 +118,17 @@ export default function SettingsPage() {
     try {
       const payload = prepareSettingsPayload();
       await api.put("/api/v1/settings/", payload);
-      alert("Global settings saved successfully!");
+      toast({
+        title: "Success",
+        description: "Global settings synchronized successfully across all modules.",
+      });
     } catch (err) {
       console.error(err);
-      alert("Failed to save settings.");
+      toast({
+        title: "Update Failed",
+        description: "Encountered a server error while attempting to sync settings.",
+        variant: "destructive",
+      });
     } finally {
       setSavingSettings(false);
     }

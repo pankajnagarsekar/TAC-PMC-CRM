@@ -249,7 +249,11 @@ class ExportService:
         except (ImportError, OSError, Exception) as e:
             # Fallback to ReportLab if WeasyPrint system dependencies are missing
             logger.error(f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab. HTML length: {len(html_out)}")
-            return ExportService._generate_pdf_reportlab(report_data, config)
+            try:
+                return ExportService._generate_pdf_reportlab(report_data, config)
+            except Exception as re:
+                logger.error(f"ReportLab fallback also failed: {re}")
+                raise RuntimeError("PDF generation failed: Both WeasyPrint and ReportLab engines are unavailable or encountered a terminal error.")
 
     @staticmethod
     def _generate_pdf_reportlab(report_data: Dict[str, Any], config: Dict[str, Any]) -> bytes:

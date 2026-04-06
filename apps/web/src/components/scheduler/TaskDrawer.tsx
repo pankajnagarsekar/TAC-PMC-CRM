@@ -421,10 +421,10 @@ export default function TaskDrawer() {
                     {label}
                   </span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-sm font-black text-slate-900 dark:text-white italic">
+                    <span className="text-sm font-black text-zinc-900 dark:text-white italic">
                       {typeof value === 'number' ? formatCurrencySafe(value) : String(value)}
                     </span>
-                    <span className="text-[9px] font-medium text-slate-700">{String(unit)}</span>
+                    <span className="text-[9px] font-bold text-zinc-500 dark:text-slate-400">{String(unit)}</span>
                   </div>
                 </div>
               ))}
@@ -536,7 +536,7 @@ export default function TaskDrawer() {
                 </p>
               </div>
 
-              <div className="mt-2 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10 dark:border-indigo-500/10 flex items-center justify-between">
+              <div className="mt-2 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-center justify-between">
                 <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
                   Full Registry in Site Ops
                 </span>

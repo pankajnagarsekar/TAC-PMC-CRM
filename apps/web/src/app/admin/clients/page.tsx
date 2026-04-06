@@ -35,6 +35,7 @@ export default function ClientsPage() {
     data: clients,
     mutate,
     isLoading,
+    error,
   } = useSWR<Client[]>("/api/v1/clients/", fetcher);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -220,7 +221,21 @@ export default function ClientsPage() {
 
       {/* Grid */}
       <div className="relative">
-        {!isLoading && (!clients || clients.length === 0) ? (
+        {error ? (
+          <div className="empty-state-luxury min-h-[400px]">
+            <div className="empty-state-luxury-icon bg-rose-500/10 text-rose-500 border-rose-500/20">
+              <XCircle size={32} />
+            </div>
+            <h3 className="empty-state-luxury-title">Connection Interrupted</h3>
+            <p className="empty-state-luxury-desc">The server was unable to stream the client registry. Please check your network or try again.</p>
+            <button 
+              onClick={() => mutate()}
+              className="mt-6 px-6 py-2.5 bg-orange-600/10 text-orange-500 border border-orange-500/20 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-orange-600/20 transition-all"
+            >
+              Retry Sync
+            </button>
+          </div>
+        ) : !isLoading && (!clients || clients.length === 0) ? (
           <div className="empty-state-luxury min-h-[400px]">
             <div className="empty-state-luxury-icon">
               <Users size={32} />

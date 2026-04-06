@@ -27,4 +27,5 @@
 
 ## Milestone 6: Application Stabilization & Scheduler Remediation (Active)
 - [/] Phase 15: Stabilize CRM Core & Resolve Scheduler Regressions
-- [ ] Phase 16: Final Production Verification & Performance Tuning
+- [ ] Phase 16: Critical CRM Restoration & UI Excellence
+- [ ] Phase 17: Production Verification & Performance Tuning

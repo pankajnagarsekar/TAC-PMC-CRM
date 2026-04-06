@@ -31,7 +31,8 @@ export default function VendorsPage() {
     data: vendors = [],
     mutate,
     isLoading,
-  } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
+    error,
+  } = useSWR<Vendor[]>("/api/v1/vendors/?active_only=true", fetcher);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -197,7 +198,21 @@ export default function VendorsPage() {
           </div>
         </div>
 
-        {!isLoading && filteredVendors.length === 0 ? (
+        {error ? (
+          <div className="empty-state-luxury min-h-[300px]">
+            <div className="empty-state-luxury-icon bg-rose-500/10 text-rose-500 border-rose-500/20">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="empty-state-luxury-title">Registry Sync Failed</h3>
+            <p className="empty-state-luxury-desc">The server was unable to retrieve the partner network. Try refreshing or contact devops if persistence fails.</p>
+            <button 
+              onClick={() => mutate()}
+              className="mt-6 px-6 py-2.5 bg-orange-600/10 text-orange-500 border border-orange-500/20 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-orange-600/20 transition-all"
+            >
+              Retry Sync
+            </button>
+          </div>
+        ) : !isLoading && filteredVendors.length === 0 ? (
           <div className="empty-state-luxury min-h-[300px]">
             <div className="empty-state-luxury-icon">
               <Store size={32} />

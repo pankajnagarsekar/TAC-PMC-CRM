@@ -4,6 +4,7 @@ import type {
   ScheduleCalculationResponse,
   ScheduleChangeRequest,
 } from "@/types/schedule.types";
+import { toast } from "sonner";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -131,6 +132,21 @@ api.interceptors.response.use(
         clearTokens();
         window.location.href = "/login";
         return Promise.reject(error);
+      }
+    }
+
+    // Unhandled 4xx/5xx errors visibility
+    if (error.response && error.response.status >= 400 && typeof window !== "undefined") {
+      const isLoginRequest = originalRequest.url?.includes('/auth/login');
+      const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
+
+      // Do not show global toast for login or refresh as they handle the UI locally or by full redirect
+      if (!isLoginRequest && !isRefreshRequest) {
+        toast.error("Endpoint Synchronization Failed", {
+          description: error.response.status === 403 
+            ? "Administrative bypass required to perform this action."
+            : "The server encountered an error processing this request.",
+        });
       }
     }
 
