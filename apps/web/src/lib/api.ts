@@ -89,6 +89,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
+      // If the request that failed was the login endpoint itself, do NOT attempt
+      // a token refresh or redirect — just surface the error to the caller so the
+      // login form's catch block can display the error message instead of causing
+      // a full page reload that clears all React state and creates a redirect loop.
+      const isAuthRequest = originalRequest.url?.includes('/auth/login') ||
+                            originalRequest.url?.includes('/auth/refresh');
+      if (isAuthRequest) {
+        return Promise.reject(error);
+      }
+
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (!refreshToken) {

@@ -44,7 +44,8 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
         cd apps/api
-        nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/uvicorn.log 2>&1 &
+        # Bind to 0.0.0.0 so the API is reachable from both localhost and 127.0.0.1
+        nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
         echo $! > /tmp/api.pid
         echo "Waiting for API to be ready..."
         for i in $(seq 1 60); do
@@ -65,6 +66,10 @@ jobs:
         DB_NAME: tac_pmc_crm
         JWT_SECRET_KEY: test_secret_key_for_ci
         ENVIRONMENT: testing
+        # Explicit CORS origins so allow_credentials=True works correctly with browsers.
+        # The Next.js dev server runs on localhost:3000; without this, browsers reject
+        # credentialled responses that carry Access-Control-Allow-Origin: *
+        ALLOWED_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
     - name: Seed test database
       run: |
         cd apps/api
@@ -111,22 +116,44 @@ jobs:
         EOF
     - name: Verify API authentication
       run: |
-        echo "=== Testing login endpoint directly ==="
-        HTTP_CODE=$(curl -s -o /tmp/login_response.json -w "%{http_code}" \
-          -X POST http://127.0.0.1:8000/api/v1/auth/login \
-          -H "Content-Type: application/json" \
-          -d '{"email":"admin@tacpmc.com","password":"Admin@1234"}')
-        echo "HTTP Status: $HTTP_CODE"
-        echo "Response body:"
-        cat /tmp/login_response.json
-        echo ""
-        if [ "$HTTP_CODE" != "200" ]; then
-          echo "❌ FATAL: API login verification failed (HTTP $HTTP_CODE)"
-          echo "=== API Logs ==="
+        echo "=== Testing login endpoint for all Playwright test users ==="
+        FAILED=0
+
+        check_login() {
+          local EMAIL="$1"
+          local PASS="$2"
+          local LABEL="$3"
+          HTTP_CODE=$(curl -s -o /tmp/login_resp_${LABEL}.json -w "%{http_code}" \
+            -X POST http://127.0.0.1:8000/api/v1/auth/login \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASS}\"}")
+          echo ""
+          echo "--- ${LABEL}: ${EMAIL} ---"
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/login_resp_${LABEL}.json
+          echo ""
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ FATAL: Login failed for ${EMAIL} (HTTP $HTTP_CODE)"
+            FAILED=1
+          else
+            echo "✅ ${EMAIL} authenticated successfully"
+          fi
+        }
+
+        # Verify every user the Playwright tests will exercise
+        check_login "amit@thirdangleconcept.com" "Admin@1234"    "amit"
+        check_login "admin@tacpmc.com"            "Admin@1234"    "admin"
+        check_login "client@tacpmc.com"           "Client@1234"   "client"
+        check_login "supervisor@tacpmc.com"       "Supervisor@1234" "supervisor"
+
+        if [ "$FAILED" = "1" ]; then
+          echo ""
+          echo "=== API Server Logs ==="
           cat /tmp/uvicorn.log
           exit 1
         fi
-        echo "✅ API authentication verified"
+        echo ""
+        echo "✅ All API authentication checks passed"
     - name: Run Playwright tests
       run: pnpm exec playwright test
       env:

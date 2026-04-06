@@ -39,7 +39,15 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
 
     # CORS (Fixed CR-06)
-    ALLOWED_ORIGINS: list[str] = ["*"]
+    # Wildcard "*" + allow_credentials=True is technically invalid per the CORS spec
+    # (browsers reject Access-Control-Allow-Origin: * when credentials are present).
+    # Default to explicit localhost origins for dev/CI; override via env var in prod.
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ]
 
     model_config = SettingsConfigDict(
         case_sensitive=True, env_file=".env", extra="ignore"
@@ -66,8 +74,12 @@ else:
 # Fixed CR-06: Authoritative CORS Warning (Reverted Hard Stop as per user request)
 if "*" in settings.ALLOWED_ORIGINS:
     logger.warning(
-        f"SECURITY_ADVISORY: Wildcard CORS enabled in {settings.ENVIRONMENT} mode."
+        f"SECURITY_ADVISORY: Wildcard CORS origin in {settings.ENVIRONMENT} mode. "
+        "Note: '*' + allow_credentials=True violates the CORS spec. "
+        "Set ALLOWED_ORIGINS to explicit origins (e.g. http://localhost:3000)."
     )
+else:
+    logger.info(f"CONFIG: CORS origins configured: {settings.ALLOWED_ORIGINS}")
 if (
     settings.ENVIRONMENT.lower() in ["production", "prod"]
     and settings.JWT_SECRET_KEY == "DEV_INSECURE_SECRET_CHANGE_ME"
