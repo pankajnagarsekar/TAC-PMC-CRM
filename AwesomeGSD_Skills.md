@@ -1,6 +1,6 @@
-# AwesomeGSD_Skills.md — Project Operating Manual
+# Project Operating Manual — Skill-First Workflow
 
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-06
 **Project:** TAC-PMC-CRM
 **Tech Stack:** React.js (Frontend) | Node.js (Backend) | Python (API Server) | MongoDB (Database)
 **Design Language:** Luxury Industrial
@@ -11,7 +11,7 @@
 
 **MANDATORY:** For **EVERY** task (analysis, bug fixing, feature creation, UI adjustment, database changes, or refactoring), you MUST:
 
-1. **Identify the most relevant skills** by searching the `.agents/skills` or `~/.gemini/antigravity/skills` directories for applicable skill files
+1. **Identify the most relevant skills** by searching the `.agents/skills` (project-specific) or `C:\Users\panka\.gemini\antigravity\skills` (latest system-wide skills) directories.
 2. **Document which skills are being used** in your response before beginning work
 3. **Stack skills strategically** (see section 2 below) for complex tasks
 4. **Verify alignment** with project specifications before writing any code
@@ -31,22 +31,22 @@ Stack skills based on task type. Always include the base skill(s) plus context-s
 ### Error Detection & Debugging
 ```
 Primary: @error-detective + @debugging-toolkit + @software-architecture
-Secondary: @gsd-debug + @error-diagnostics-smart-debug + @bug-hunter
+Secondary: @systematic-debugging + @error-diagnostics-smart-debug + @bug-hunter
 Example: When fixing a database query failure, also check data integrity patterns
 ```
 
 ### New Feature Implementation
 ```
 Primary: @software-architecture + @concise-planning + @[language]-pro
-Secondary: @gsd-plan-phase + @gsd-execute-phase + @pydantic-ai + @ai-engineer
+Secondary: @writing-plans + @executing-plans + @pydantic-ai + @ai-engineer
 Example: Adding a new CRM field requires @react-best-practices (frontend) + @python-pro (backend) + @database-design (schema)
 ```
 
 ### Complex Orchestration & Governance
 ```
-Primary: @gsd-manager + @gsd-new-project + @gsd-plan-phase + @gsd-execute-phase
-Secondary: @antigravity-skill-orchestrator + @gsd-verify-work + @gsd-ship + @loki-mode
-Usage: EVERY major task must be initialized as a GSD milestone or phase. Use @gsd-sdk for automation.
+Primary: @agent-manager-skill + @concise-planning + @writing-plans
+Secondary: @antigravity-skill-orchestrator + @verification-before-completion + @requesting-code-review
+Usage: EVERY major task must be initialized with a clear PLAN.md using @writing-plans.
 ```
 
 ### UI/UX Adjustments & Components
@@ -59,7 +59,7 @@ Example: Any design change must maintain the Luxury Industrial aesthetic using @
 ### Database Schema & Data Changes
 ```
 Primary: @database-design + @data-integrity-patterns + @prisma-expert + @drizzle-orm-expert
-Secondary: @neon-postgres + @supabase-automation + @sql-pro + @database-architect
+Secondary: @neon-postgres + @supabase-automation + @sql-pro + @database-admin
 Example: Schema modifications must preserve financial integrity and include migration tests
 ```
 
@@ -159,25 +159,26 @@ All code modifications **MUST** align with the following specifications. These a
 
 ## 6. Code Modification Workflow 📝
 
-Management of all work follows the **GSD (Get Shit Done)** protocol combined with the `gsd-sdk`.
+All work follows a systematic skill-driven lifecycle to ensure quality and specification alignment.
 
-### Phase 1: GSD Initialization
-- **Brownfield/Start**: Use `/gsd-map-codebase` to refresh the agent's map.
-- **New Task**: Use `/gsd-plan-phase "[Task Title]"` or `gsd-sdk run "<prompt>"` to initialize.
-- **Review**: The user must approve the `PLAN.md` before execution.
+### Phase 1: Analysis & Scoping
+- **Context Mapping**: Use `@analyze-project` or `@software-architecture` to map relevant files and dependencies.
+- **Requirement Validation**: Verify the task against `Enterprise Frontend Engineering Specification.md` or `Backend Database Schema & Financial Integrity Specification.md`.
 
-### Phase 2: Skill Identification & Stacking
-- Once the GSD phase is active:
-- "I will use @[skill1] + @[skill2] + @[skill3] for the implementation of this phase because..."
+### Phase 2: Planning
+- **Skill Selection**: Identify the stack of `@skills` needed for the task.
+- **Technical Plan**: Use `@concise-planning` or `@writing-plans` to generate a detailed implementation strategy.
+- **Approval**: Present the plan to the user for validation before modifying code.
 
 ### Phase 3: Implementation
-- Execute the task using `/gsd-execute-phase` or `gsd-sdk auto`.
-- Commit incrementally following the GSD commit tool standards (using `@commit`).
+- **Execution**: Use `@executing-plans` for disciplined execution of the approved plan.
+- **Pattern Adherence**: Use language-specific skills (e.g., `@javascript-pro`, `@python-pro`) to ensure idiomatic code.
+- **Incremental Commits**: Commit logical units of work following the project's commit standards.
 
 ### Phase 4: Verification & Shipping
-- Run verification tests and output the mandatory Verification Step checklist.
-- Use `/gsd-verify-work` to validate the phase.
-- Use `/gsd-ship` to prepare the PR and merge.
+- **Validation**: Run the mandatory `@testing-patterns` checklist.
+- **Final Review**: Use `@verification-before-completion` to ensure all edge cases are handled.
+- **PR Readiness**: Use `@requesting-code-review` to summarize changes and prepare for merge.
 
 ---
 
@@ -237,29 +238,19 @@ The project uses a "Luxury Industrial" aesthetic:
 ## 10. Contact & Escalation 📞
 
 - **Specification Updates:** Create an issue with `[SPEC-UPDATE]` tag
-- **Architecture Questions:** Use `@software-architect` skill
+- **Architecture Questions:** Use `@software-architecture` skill
 - **Design Questions:** Use `@antigravity-design-expert` skill
-- **Data Integrity Questions:** Use `@database-architect` skill
-- **Autonomous Operations:** Use `@loki-mode` or `@gsd-manager`
+- **Data Integrity Questions:** Use `@database-admin` skill
+- **Autonomous Operations:** Use `@agent-orchestrator` or `@antigravity-skill-orchestrator`
 
 ---
 
-## 11. GSD SDK Usage (gsd-sdk) 🛠️
+## 11. Latest Skills & Standards 🛠️
 
-The project is integrated with `gsd-sdk` for autonomous lifecycle management.
+For the most up-to-date agent capabilities, always refer to the system-wide skills directory:
+`C:\Users\panka\.gemini\antigravity\skills`
 
-### Core Commands
-- `gsd-sdk run "<prompt>"`: Execute a full milestone from a text prompt.
-- `gsd-sdk auto`: Run the full autonomous lifecycle (discover → execute → advance).
-- `gsd-sdk init [input]`: Bootstrap a new project from a PRD or description.
-
-### Global Options
-- `--project-dir <dir>`: Set target project directory (default: cwd).
-- `--ws-port <port>`: Enable WebSocket transport for remote management.
-- `--model <model>`: Override the default LLM model.
-- `--max-budget <n>`: Set maximum budget per step in USD.
-
----
+These skills should be used in conjunction with project-specific skills in `.agents/skills` to ensure the highest quality of implementation.
 
 **Document Owners:** TAC-PMC-CRM Development Team
 **Review Frequency:** Quarterly or as needed
