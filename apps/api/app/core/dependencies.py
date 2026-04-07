@@ -28,6 +28,7 @@ from app.modules.shared.application.audit_service import AuditService
 from app.modules.shared.application.notification_service import NotificationService
 from app.modules.shared.application.snapshot_service import SnapshotService
 from app.modules.site_operations.application.site_service import SiteService
+from app.modules.tasks.application.task_service import TaskService
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
@@ -250,3 +251,18 @@ async def get_scheduler_service(
 
 async def get_alert_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AlertService:
     return AlertService(db)
+
+from app.modules.shared.application.audit_service import AuditService
+from app.core.permissions import PermissionChecker
+from app.modules.shared.application.snapshot_service import SnapshotService
+from app.modules.tasks.application.task_service import TaskService
+
+
+async def get_task_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker),
+    snap: SnapshotService = Depends(get_snapshot_service)
+) -> TaskService:
+    return TaskService(db, audit, perm, snap)
+

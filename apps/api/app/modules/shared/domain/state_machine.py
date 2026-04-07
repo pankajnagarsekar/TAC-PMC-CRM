@@ -38,6 +38,15 @@ class StateMachine:
         "Cancelled": set(),
     }
 
+    # TASK STATES
+    TASK_TRANSITIONS: Dict[str, Set[str]] = {
+        "Open": {"In Progress", "Closed"},
+        "In Progress": {"Review", "Open", "Closed"},
+        "Review": {"Completed", "In Progress"},
+        "Completed": {"Closed"},
+        "Closed": set(),  # FINAL: Data Freeze
+    }
+
     @classmethod
     def validate_transition(cls, entity_type: str, current_state: str, next_state: str):
         """Standard validator for all transitions. Raises IllegalTransitionError or DataFreezeError."""
@@ -45,6 +54,8 @@ class StateMachine:
             transitions = cls.PROJECT_TRANSITIONS
         elif entity_type == "DPR":
             transitions = cls.DPR_TRANSITIONS
+        elif entity_type == "TASK":
+            transitions = cls.TASK_TRANSITIONS
         else:
             transitions = cls.PAYMENT_TRANSITIONS
 
@@ -71,6 +82,8 @@ class StateMachine:
             transitions = cls.PROJECT_TRANSITIONS
         elif entity_type == "DPR":
             transitions = cls.DPR_TRANSITIONS
+        elif entity_type == "TASK":
+            transitions = cls.TASK_TRANSITIONS
         else:
             transitions = cls.PAYMENT_TRANSITIONS
 

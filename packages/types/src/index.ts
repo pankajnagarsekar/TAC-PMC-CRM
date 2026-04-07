@@ -89,6 +89,7 @@ export interface Project {
   master_remaining_budget?: number;
   threshold_petty?: number;
   threshold_ovh?: number;
+  location?: string;
   version?: number;
   created_at?: string;
   updated_at?: string;
@@ -514,4 +515,54 @@ export interface AISummary {
   generated_at: string;
   model: string;
   triggered_by: 'scheduler' | 'manual';
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// TASKS
+// ──────────────────────────────────────────────────────────────────────────
+export interface Task {
+  _id?: string;
+  task_id?: string;
+  organisation_id: string;
+  project_id: string;
+  sr_no: number;
+  task_description: string;
+  assigned_to_user_id?: string;
+  assigned_to_name: string;
+  assigned_to_type: string;
+  deadline?: string;
+  status: "Open" | "In Progress" | "Review" | "Completed" | "Closed";
+  priority: "Low" | "Medium" | "High" | string;
+  notes?: string;
+  scheduler_task_id?: string;
+  created_by: string;
+  created_by_name: string;
+  version: number;
+  audit_log?: any[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TaskCreate {
+  project_id: string;
+  task_description: string;
+  assigned_to_user_id?: string;
+  assigned_to_name: string;
+  assigned_to_type: string;
+  deadline?: string;
+  priority: "Low" | "Medium" | "High" | string;
+  notes?: string;
+  scheduler_task_id?: string;
+  created_by_name: string;
+}
+
+export interface TaskUpdate {
+  task_description?: string;
+  assigned_to_user_id?: string;
+  assigned_to_name?: string;
+  assigned_to_type?: string;
+  deadline?: string;
+  status?: "Open" | "In Progress" | "Review" | "Completed" | "Closed" | string;
+  priority?: "Low" | "Medium" | "High" | string;
+  notes?: string;
 }

@@ -1,0 +1,50 @@
+
+> tac-pmc-crm@ lint D:\_repos\TAC-PMC-CRM
+> turbo lint
+
+• turbo 2.8.17
+• Packages in scope: @tac-pmc/api, @tac-pmc/mobile, @tac-pmc/types, @tac-pmc/ui, tac-pmc-web
+• Running lint in 5 packages
+• Remote caching disabled
+@tac-pmc/mobile:lint: cache miss, executing 384f6c576c806084
+@tac-pmc/api:lint: cache miss, executing 36b07e6ff54767d6
+@tac-pmc/ui:lint: cache miss, executing d6aa9ead9f655432
+@tac-pmc/types:lint: cache miss, executing c7d8207fe7e0b740
+@tac-pmc/api:lint: 
+@tac-pmc/api:lint: > @tac-pmc/api@1.0.0 lint D:\_repos\TAC-PMC-CRM\apps\api
+@tac-pmc/api:lint: > python -m flake8 .
+@tac-pmc/api:lint: 
+@tac-pmc/mobile:lint: 
+@tac-pmc/mobile:lint: > @tac-pmc/mobile@1.0.0 lint D:\_repos\TAC-PMC-CRM\apps\mobile
+@tac-pmc/mobile:lint: > eslint .
+@tac-pmc/mobile:lint: 
+@tac-pmc/ui:lint: 
+@tac-pmc/ui:lint: > @tac-pmc/ui@0.1.0 lint D:\_repos\TAC-PMC-CRM\packages\ui
+@tac-pmc/ui:lint: > eslint . --fix
+@tac-pmc/ui:lint: 
+@tac-pmc/types:lint: 
+@tac-pmc/types:lint: > @tac-pmc/types@0.1.0 lint D:\_repos\TAC-PMC-CRM\packages\types
+@tac-pmc/types:lint: > eslint . --fix
+@tac-pmc/types:lint: 
+@tac-pmc/api:lint: [WARNING] Failed to read unmanaged installs: expected str, bytes or os.PathLike object, not NoneType
+@tac-pmc/api:lint: D:\_repos\TAC-PMC-CRM\apps\api\Python\pythoncore-3.14-64\python.exe: No module named flake8
+@tac-pmc/api:lint:  ELIFECYCLE  Command failed with exit code 1.
+@tac-pmc/api:lint:  WARN   Local package.json exists, but node_modules missing, did you mean to install?
+@tac-pmc/ui:lint: (node:11972) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///D:/_repos/TAC-PMC-CRM/packages/ui/eslint.config.js?mtime=1774950387974 is not specified and it doesn't parse as CommonJS.
+@tac-pmc/ui:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@tac-pmc/ui:lint: To eliminate this warning, add "type": "module" to D:\_repos\TAC-PMC-CRM\packages\ui\package.json.
+@tac-pmc/ui:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@tac-pmc/types:lint: (node:20880) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///D:/_repos/TAC-PMC-CRM/packages/types/eslint.config.js?mtime=1774950379552 is not specified and it doesn't parse as CommonJS.
+@tac-pmc/types:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@tac-pmc/types:lint: To eliminate this warning, add "type": "module" to D:\_repos\TAC-PMC-CRM\packages\types\package.json.
+@tac-pmc/types:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@tac-pmc/api:lint: ERROR: command finished with error: command (D:\_repos\TAC-PMC-CRM\apps\api) C:\Program Files\nodejs\pnpm.CMD run lint exited (1)
+@tac-pmc/api#lint: command (D:\_repos\TAC-PMC-CRM\apps\api) C:\Program Files\nodejs\pnpm.CMD run lint exited (1)
+
+ Tasks:    0 successful, 4 total
+Cached:    0 cached, 4 total
+  Time:    1.015s 
+Failed:    @tac-pmc/api#lint
+
+ ERROR  run failed: command  exited (1)
+ ELIFECYCLE  Command failed with exit code 1.

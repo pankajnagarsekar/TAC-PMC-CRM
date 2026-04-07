@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
+  CheckSquare,
   FileText,
   CreditCard,
   Wallet,
@@ -96,6 +97,12 @@ export default function Sidebar({
       ]
     },
     {
+      href: "/admin/tasks",
+      icon: CheckSquare,
+      label: "Tasks",
+      key: "tasks",
+    },
+    {
       href: "/admin/categories",
       icon: LayoutDashboard,
       label: "Categories",
@@ -174,6 +181,7 @@ export default function Sidebar({
         "Site Operations": perms.can_view_dpr,
         Reports: perms.can_view_reports,
         "Project Planner": perms.can_view_scheduler,
+        Tasks: true,
       };
 
       return !!mapping[item.label];

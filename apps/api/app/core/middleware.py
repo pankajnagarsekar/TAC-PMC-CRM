@@ -70,6 +70,7 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
                 error_msg = exc.detail
             else:
                 logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
+                error_msg = f"SYSTEM_FAULT: {str(exc)}"
                 
             return self._standard_error(
                 status_code,

@@ -1,0 +1,713 @@
+// API CLIENT WRAPPER
+// Centralized API client with JWT injection, error handling, typed responses
+
+import { Platform } from 'react-native';
+import {
+  LoginRequest,
+  LoginResponse,
+  User,
+  Project,
+  CreateProjectRequest,
+  Code,
+  CreateCodeRequest,
+  BudgetPerCode,
+  CreateBudgetRequest,
+  UpdateBudgetRequest,
+  FinancialState,
+  DerivedFinancialState,
+  Vendor,
+  CreateVendorRequest,
+  WorkOrder,
+  CreateWorkOrderRequest,
+  ReviseWorkOrderRequest,
+  PaymentCertificate,
+  RevisePaymentCertificateRequest,
+  Payment,
+  CreatePaymentRequest,
+  RetentionRelease,
+  CreateRetentionReleaseRequest,
+  Attendance,
+  CreateAttendanceRequest,
+  VoiceLog,
+  CreateVoiceLogRequest,
+  CSA,
+  CreateCSARequest,
+  DPR,
+  GenerateDPRRequest,
+  Image,
+  CreateImageRequest,
+  TimelineEvent,
+  Snapshot,
+  Alert,
+  AdminDashboardData,
+  SupervisorDashboardData,
+  OCRResult,
+  OCRRequest,
+  AuditLog,
+  ApiErrorResponse,
+} from '../types/api';
+
+// ============================================
+// CONFIGURATION
+// ============================================
+const BASE_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  process.env.EXPO_PUBLIC_API_URL ||
+  'http://localhost:8000';
+
+const TOKEN_KEYS = {
+  ACCESS: 'access_token',
+  REFRESH: 'refresh_token',
+  USER: 'user_data',
+} as const;
+
+let SecureStore: typeof import('expo-secure-store') | null = null;
+if (Platform.OS !== 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    SecureStore = require('expo-secure-store');
+  } catch (e) {
+    console.warn('Failed to load expo-secure-store:', e);
+  }
+}
+
+// ============================================
+// AUTH TOKEN HELPERS (Web-safe)
+// ============================================
+export const getAuthToken = async (): Promise<string | null> => {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('access_token');
+  }
+  try {
+    return SecureStore ? await SecureStore.getItemAsync('access_token') : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setAuthToken = async (token: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('access_token', token);
+    return;
+  }
+  try {
+    if (SecureStore) await SecureStore.setItemAsync('access_token', token);
+  } catch { }
+};
+
+export const clearAuthToken = async (): Promise<void> => {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem('access_token');
+    return;
+  }
+  try {
+    if (SecureStore) await SecureStore.deleteItemAsync('access_token');
+  } catch { }
+};
+
+// ============================================
+// STORAGE ABSTRACTION
+// ============================================
+const storage = {
+  async get(key: string): Promise<string | null> {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    return SecureStore ? SecureStore.getItemAsync(key) : null;
+  },
+  async set(key: string, value: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    if (SecureStore) return SecureStore.setItemAsync(key, value);
+  },
+  async remove(key: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    if (SecureStore) return SecureStore.deleteItemAsync(key);
+  },
+};
+
+// ============================================
+// ERROR CLASS
+// ============================================
+export class ApiError extends Error {
+  status: number;
+  data: ApiErrorResponse;
+
+  constructor(message: string, status: number, data?: ApiErrorResponse) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data || { detail: message };
+  }
+}
+
+// ============================================
+// CORE FETCH WRAPPER
+// ============================================
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  requiresAuth = true
+): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Inject JWT token
+  if (requiresAuth) {
+    const token = await storage.get(TOKEN_KEYS.ACCESS);
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+  try {
+    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    // Handle 401 - attempt token refresh
+    if (response.status === 401 && requiresAuth) {
+      const refreshed = await attemptTokenRefresh();
+      if (refreshed) {
+        const newToken = await storage.get(TOKEN_KEYS.ACCESS);
+        headers['Authorization'] = `Bearer ${newToken}`;
+        const retryResponse = await fetch(url, { ...options, headers });
+
+        if (!retryResponse.ok) {
+          const error = await retryResponse.json().catch(() => ({ detail: 'Request failed' }));
+          throw new ApiError(error.detail, retryResponse.status, error);
+        }
+        const retryData = await retryResponse.json();
+        if (retryData && retryData.data !== undefined && 'success' in retryData) {
+          return retryData.data as T;
+        }
+        return retryData;
+      } else {
+        await clearTokens();
+        throw new ApiError('Session expired', 401);
+      }
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+      throw new ApiError(error.detail || 'Request failed', response.status, error);
+    }
+
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    const data = await response.json();
+    // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
+    if (data && data.data !== undefined && 'success' in data) {
+      return data.data as T;
+    }
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('Request timed out — check your connection', 0);
+    }
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Network error — are you online?', 0);
+  }
+}
+
+// ============================================
+// GENERIC API CLIENT HELPER
+// ============================================
+export const apiClient = {
+  get: <T>(endpoint: string): Promise<T> => request<T>(endpoint),
+  post: <T>(endpoint: string, body?: object): Promise<T> => request<T>(endpoint, {
+    method: 'POST',
+    body: body ? JSON.stringify(body) : undefined,
+  }),
+  put: <T>(endpoint: string, body?: object): Promise<T> => request<T>(endpoint, {
+    method: 'PUT',
+    body: body ? JSON.stringify(body) : undefined,
+  }),
+  delete: <T>(endpoint: string): Promise<T> => request<T>(endpoint, { method: 'DELETE' }),
+};
+
+let refreshTokenPromise: Promise<boolean> | null = null;
+
+async function attemptTokenRefresh(): Promise<boolean> {
+  if (refreshTokenPromise) {
+    return refreshTokenPromise;
+  }
+
+  refreshTokenPromise = (async () => {
+    try {
+      const refreshToken = await storage.get(TOKEN_KEYS.REFRESH);
+      if (!refreshToken) return false;
+
+      const response = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      const raw = await response.json();
+      const data: LoginResponse = raw.data || raw; // Handle GenericResponse envelope
+      await storage.set(TOKEN_KEYS.ACCESS, data.access_token);
+      await storage.set(TOKEN_KEYS.REFRESH, data.refresh_token);
+      await storage.set(TOKEN_KEYS.USER, JSON.stringify(data.user));
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshTokenPromise = null;
+    }
+  })();
+
+  return refreshTokenPromise;
+}
+
+async function clearTokens(): Promise<void> {
+  await storage.remove(TOKEN_KEYS.ACCESS);
+  await storage.remove(TOKEN_KEYS.REFRESH);
+  await storage.remove(TOKEN_KEYS.USER);
+}
+
+// ============================================
+// AUTH API
+// ============================================
+export const authApi = {
+  async login(credentials: LoginRequest): Promise<LoginResponse> {
+    const data = await request<LoginResponse>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    }, false);
+    await storage.set(TOKEN_KEYS.ACCESS, data.access_token);
+    await storage.set(TOKEN_KEYS.REFRESH, data.refresh_token);
+    await storage.set(TOKEN_KEYS.USER, JSON.stringify(data.user));
+    return data;
+  },
+  async logout(): Promise<void> {
+    try {
+      // Revoke refresh tokens server-side
+      await request('/api/v1/auth/logout', { method: 'POST' });
+    } catch (error) {
+      // Still clear local tokens even if server call fails
+      console.error('Server logout failed:', error);
+    }
+    await clearTokens();
+  },
+  async getCurrentUser(): Promise<User | null> {
+    const userData = await storage.get(TOKEN_KEYS.USER);
+    return userData ? JSON.parse(userData) : null;
+  },
+  async isAuthenticated(): Promise<boolean> {
+    const token = await storage.get(TOKEN_KEYS.ACCESS);
+    return !!token;
+  },
+  async getToken(): Promise<string | null> {
+    return storage.get(TOKEN_KEYS.ACCESS);
+  },
+  async checkCanLogout(): Promise<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }> {
+    try {
+      return await request<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }>('/api/v1/auth/can-logout');
+    } catch (error) {
+      // Fail-safe behavior to avoid locking users in app due transient API errors
+      console.error('Failed to check logout status:', error);
+      return { can_logout: true };
+    }
+  },
+};
+
+// ============================================
+// PROJECTS API
+// ============================================
+export const projectsApi = {
+  getAll: (): Promise<Project[]> => request('/api/v1/projects/'),
+  getById: (id: string): Promise<Project> => request(`/api/v1/projects/${id}/`),
+  create: (data: CreateProjectRequest): Promise<Project> => request('/api/v1/projects/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<CreateProjectRequest>): Promise<Project> => request(`/api/v1/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// CODES API
+// ============================================
+export const codesApi = {
+  getAll: (activeOnly = true): Promise<Code[]> => request(`/api/v1/settings/codes?active_only=${activeOnly}`),
+  getById: (id: string): Promise<Code> => request(`/api/v1/settings/codes/${id}`),
+  create: (data: CreateCodeRequest): Promise<Code> => request('/api/v1/settings/codes', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// BUDGETS API
+// ============================================
+export const budgetsApi = {
+  getAll: (projectId: string): Promise<BudgetPerCode[]> => request(`/api/v1/projects/${projectId}/budgets`),
+  getById: (id: string): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`), // Check if this exists globally or per project
+  create: (projectId: string, data: CreateBudgetRequest): Promise<BudgetPerCode> => request(`/api/v1/projects/${projectId}/budgets`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: UpdateBudgetRequest): Promise<BudgetPerCode> => request(`/api/v1/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// FINANCIAL STATE API
+// ============================================
+export const financialApi = {
+  getState: (projectId: string, codeId?: string): Promise<FinancialState[]> => {
+    const params = new URLSearchParams({ project_id: projectId });
+    if (codeId) params.append('code_id', codeId);
+    return request(`/api/v1/projects/${projectId}/financials?${params}`);
+  },
+  getProjectFinancials: (projectId: string): Promise<DerivedFinancialState[]> =>
+    request(`/api/v1/projects/${projectId}/financials`),
+};
+
+// ============================================
+// VENDORS API
+// ============================================
+export const vendorsApi = {
+  getAll: (activeOnly = true): Promise<Vendor[]> => request(`/api/v1/vendors/?active_only=${activeOnly}`),
+  getById: (id: string): Promise<Vendor> => request(`/api/v1/vendors/${id}`),
+  create: (data: CreateVendorRequest): Promise<Vendor> => request('/api/v1/vendors/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<CreateVendorRequest>): Promise<Vendor> => request(`/api/v1/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> => request(`/api/v1/vendors/${id}`, { method: 'DELETE' }),
+};
+
+// ============================================
+// WORK ORDERS API
+// ============================================
+export const workOrdersApi = {
+  getAll: (projectId?: string, status?: string): Promise<WorkOrder[]> => {
+    const params = new URLSearchParams();
+    if (status) params.append('status_filter', status);
+    const endpoint = projectId ? `/api/v1/work-orders/${projectId}` : `/api/v1/work-orders/`;
+    return request(`${endpoint}?${params}`);
+  },
+  getById: (id: string): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}`),
+  create: (projectId: string, data: CreateWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${projectId}`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: CreateWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> => request(`/api/v1/work-orders/${id}`, { method: 'DELETE' }),
+  issue: (id: string): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}/issue`, { method: 'POST' }),
+  cancel: (id: string): Promise<void> => request(`/api/v1/work-orders/${id}/cancel`, { method: 'POST' }),
+  revise: (id: string, data: ReviseWorkOrderRequest): Promise<WorkOrder> => request(`/api/v1/work-orders/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
+  getTransitions: (id: string): Promise<{ allowed_transitions: string[] }> => request(`/api/v1/work-orders/${id}/transitions`),
+};
+
+// ============================================
+// PAYMENT CERTIFICATES API
+// ============================================
+export const paymentCertificatesApi = {
+  getAll: (projectId: string): Promise<PaymentCertificate[]> => request(`/api/v1/payments/${projectId}`),
+  getById: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/id/${id}`),
+  create: (data: Partial<PaymentCertificate>): Promise<PaymentCertificate> => request('/api/v1/payments/', { method: 'POST', body: JSON.stringify(data) }),
+  certify: (id: string): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/close`, { method: 'POST' }),
+  revise: (id: string, data: RevisePaymentCertificateRequest): Promise<PaymentCertificate> => request(`/api/v1/payments/${id}/revise`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// PAYMENTS API
+// ============================================
+export const paymentsApi = {
+  getByPC: (pcId: string): Promise<Payment[]> => request(`/api/v1/payments?pc_id=${pcId}`),
+  create: (data: CreatePaymentRequest): Promise<Payment> => request('/api/v1/payments', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// RETENTION RELEASES API
+// ============================================
+export const retentionApi = {
+  getAll: (projectId: string): Promise<RetentionRelease[]> => request(`/api/v1/retention-releases?project_id=${projectId}`),
+  create: (data: CreateRetentionReleaseRequest): Promise<RetentionRelease> => request('/api/v1/retention-releases', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// ATTENDANCE API
+// ============================================
+export const attendanceApi = {
+  getAll: (projectId: string): Promise<Attendance[]> => {
+    return request(`/api/v1/projects/${projectId}/attendance`);
+  },
+  adminGetAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<{ attendance: Attendance[] }> => {
+    const params = new URLSearchParams({ project_id: projectId, ...filters });
+    return request(`/api/v1/attendance/admin/all?${params}`);
+  },
+  logWorkers: (data: CreateAttendanceRequest): Promise<Attendance> =>
+    request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
+  checkIn: (data: { project_id: string; location?: { latitude: number; longitude: number; address?: string } }): Promise<Attendance> => {
+    return request('/api/v1/attendance/check-in', { method: 'POST', body: JSON.stringify(data) });
+  },
+  checkOut: (projectId: string, data: Record<string, unknown> = {}): Promise<Attendance> =>
+    request('/api/v1/attendance/check-out', { method: 'POST', body: JSON.stringify({ ...data, project_id: projectId }) }),
+  getToday: (projectId: string): Promise<Attendance | null> =>
+    request(`/api/v1/attendance/today?project_id=${projectId}`),
+  getHistory: (projectId: string, limit: number = 10): Promise<{ attendance: Attendance[] }> =>
+    request(`/api/v1/attendance/admin/all?project_id=${projectId}&limit=${limit}`),
+};
+
+// ============================================
+// AI API
+// ============================================
+export const aiApi = {
+  speechToText: (audioBase64: string): Promise<{ text: string }> =>
+    request('/api/v1/speech-to-text', { method: 'POST', body: JSON.stringify({ audio_data: audioBase64 }) }),
+};
+
+// ============================================
+// VOICE LOGS API
+// ============================================
+export const voiceLogsApi = {
+  getAll: (projectId: string): Promise<VoiceLog[]> => request(`/api/v1/projects/${projectId}/voice-logs`),
+  create: (data: CreateVoiceLogRequest): Promise<VoiceLog> => request('/api/v1/voice-logs', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// WORKER LOGS API
+// ============================================
+export const workerLogsApi = {
+  create: (data: Record<string, unknown>): Promise<unknown> =>
+    request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<unknown[]> => {
+    const params = new URLSearchParams({ project_id: projectId, ...filters as Record<string, string> });
+    return request(`/api/v1/worker-logs/?${params}`);
+  },
+};
+
+// ============================================
+// DPR API
+// ============================================
+export const dprApi = {
+  getAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<DPR[]> => {
+    const params = new URLSearchParams({ ...filters as Record<string, string> });
+    return request(`/api/v1/projects/${projectId}/dprs?${params}`);
+  },
+  create: (data: Record<string, unknown>): Promise<DPR & { exists?: boolean }> =>
+    request('/api/v1/dprs/', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id: string): Promise<void> =>
+    request(`/api/v1/dprs/${id}`, { method: 'DELETE' }),
+  uploadImage: (dprId: string, data: Record<string, unknown>): Promise<unknown> =>
+    request(`/api/v1/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
+  submit: (id: string): Promise<unknown> =>
+    request(`/api/v1/dprs/${id}/submit`, { method: 'POST' }),
+  generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/dpr/generate/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, unknown>): Promise<DPR> =>
+    request(`/api/v1/dprs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getById: (id: string): Promise<DPR> => request(`/api/v1/dprs/${id}`),
+  approve: (id: string): Promise<DPR> => request(`/api/v1/dprs/${id}/approve`, { method: 'PATCH' }),
+  reject: (id: string, reason: string): Promise<DPR> => request(`/api/v1/dprs/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+};
+
+// ============================================
+// DASHBOARD API
+// ============================================
+export const dashboardApi = {
+  getAdminDashboard: (): Promise<{ projects: unknown[] }> =>
+    request(`/api/v1/admin/projects-overview`),
+  getProjectDashboard: (projectId: string): Promise<AdminDashboardData> =>
+    request(`/api/v1/reports/${projectId}/dashboard-stats`),
+  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/v1/projects/${projectId}/dashboard`),
+};
+
+// ============================================
+// USERS API
+// ============================================
+export const usersApi = {
+  getAll: (): Promise<User[]> => request('/api/v1/users/'),
+  getById: (id: string): Promise<User> => request(`/api/v1/users/${id}`),
+};
+
+// ============================================
+// HARDENED CASH API (Phase 7 Parity)
+// ============================================
+
+export interface CashCategory {
+  category_id: string;
+  category_name: string;
+  cash_in_hand: number;
+  allocation_total: number;
+  is_negative: boolean;
+  threshold_breached: boolean;
+}
+
+export interface CashSummaryResponse {
+  categories: CashCategory[];
+  summary: {
+    total_cash_in_hand: number;
+  };
+}
+
+export interface CashTransaction {
+  transaction_id: string;
+  project_id: string;
+  category_id: string;
+  description: string;
+  amount: number;
+  transaction_date: string;
+  created_by: string;
+  created_at: string;
+}
+
+export const cashApi = {
+  getSummary: (projectId: string): Promise<CashSummaryResponse> =>
+    request(`/api/v1/cash/summary/${projectId}`),
+  listTransactions: (projectId: string, params?: { category_id?: string; limit?: number; cursor?: string }): Promise<{ items: any[]; next_cursor?: string }> => {
+    let url = `/api/v1/cash/transactions?project_id=${projectId}`;
+    if (params?.category_id) url += `&category_id=${params.category_id}`;
+    if (params?.limit) url += `&limit=${params.limit}`;
+    if (params?.cursor) url += `&cursor=${params.cursor}`;
+    return request(url);
+  },
+  createTransaction: (projectId: string, data: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> =>
+    request('/api/v1/petty-cash/transaction', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, project_id: projectId }),
+      headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {}
+    }),
+};
+
+// ============================================
+// CSA API
+// ============================================
+export const csaApi = {
+  getAll: (projectId: string): Promise<CSA[]> => request(`/api/v1/projects/${projectId}/csa`),
+  create: (data: CreateCSARequest): Promise<CSA> => request('/api/v1/csa', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// IMAGES API
+// ============================================
+export const imagesApi = {
+  getAll: (projectId: string, codeId?: string): Promise<Image[]> => {
+    const params = new URLSearchParams({ project_id: projectId });
+    if (codeId) params.append('code_id', codeId);
+    return request(`/api/v1/images?${params}`);
+  },
+  uploadToDPR: (dprId: string, data: CreateImageRequest): Promise<Image> => request(`/api/v1/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// TIMELINE API
+// ============================================
+export const timelineApi = {
+  getAll: (projectId: string, limit = 50): Promise<TimelineEvent[]> => request(`/api/v1/projects/${projectId}/timeline?limit=${limit}`),
+};
+
+// ============================================
+// SNAPSHOTS API
+// ============================================
+export const snapshotsApi = {
+  getAll: (projectId: string, type?: string): Promise<Snapshot[]> => {
+    const params = new URLSearchParams({ project_id: projectId });
+    if (type) params.append('type', type);
+    return request(`/api/v1/shared/snapshots?${params}`);
+  },
+  getById: (id: string): Promise<Snapshot> => request(`/api/v1/shared/snapshots/${id}`),
+};
+
+// ============================================
+// ALERTS API
+// ============================================
+export const alertsApi = {
+  getAll: (projectId?: string, resolved = false): Promise<Alert[]> => {
+    const params = new URLSearchParams({ resolved: String(resolved) });
+    if (projectId) params.append('project_id', projectId);
+    return request(`/api/v1/shared/alerts?${params}`);
+  },
+  resolve: (id: string): Promise<Alert> => request(`/api/v1/shared/alerts/${id}/resolve`, { method: 'POST' }),
+};
+
+// ============================================
+// OCR API
+// ============================================
+export const ocrApi = {
+  scanInvoice: (data: OCRRequest): Promise<OCRResult> => request('/api/v1/ai/ocr', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// AUDIT LOGS API
+// ============================================
+export const auditLogsApi = {
+  getAll: (entityType?: string, entityId?: string, limit = 100): Promise<AuditLog[]> => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (entityType) params.append('entity_type', entityType);
+    if (entityId) params.append('entity_id', entityId);
+    return request(`/api/v1/audit-logs?${params}`);
+  },
+};
+
+// ============================================
+// SETTINGS API
+// ============================================
+export interface GlobalSettings {
+  dpr_enforcement_enabled?: boolean;
+  default_retention_percentage?: number;
+  [key: string]: unknown;
+}
+
+export const settingsApi = {
+  getGlobalSettings: (): Promise<GlobalSettings> => request('/api/v1/settings/'),
+  updateGlobalSettings: (data: Partial<GlobalSettings>): Promise<GlobalSettings> =>
+    request('/api/v1/settings/', { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+// ============================================
+// REPORTING API
+// ============================================
+export interface ReportData {
+  [key: string]: unknown;
+}
+
+export const reportingApi = {
+  getReportData: (projectId: string, reportType: string, params?: { start_date?: string; end_date?: string }): Promise<ReportData> => {
+    const query = new URLSearchParams();
+    if (params?.start_date) query.append('start_date', params.start_date);
+    if (params?.end_date) query.append('end_date', params.end_date);
+    return request(`/api/v1/reports/${projectId}/${reportType}?${query}`);
+  },
+  getExportUrl: (projectId: string, reportType: string, format: 'excel' | 'pdf', params?: { start_date?: string; end_date?: string }): string => {
+    const query = new URLSearchParams();
+    if (params?.start_date) query.append('start_date', params.start_date);
+    if (params?.end_date) query.append('end_date', params.end_date);
+    return `${BASE_URL}/api/v1/reports/${projectId}/${reportType}/export/${format}?${query}`;
+  }
+};
+
+// ============================================
+// DEFAULT EXPORT
+// ============================================
+export default {
+  auth: authApi,
+  projects: projectsApi,
+  codes: codesApi,
+  budgets: budgetsApi,
+  financial: financialApi,
+  vendors: vendorsApi,
+  workOrders: workOrdersApi,
+  paymentCertificates: paymentCertificatesApi,
+  payments: paymentsApi,
+  retention: retentionApi,
+  attendance: attendanceApi,
+  voiceLogs: voiceLogsApi,
+  dpr: dprApi,
+  dashboard: dashboardApi,
+  users: usersApi,
+  settings: settingsApi,
+  reporting: reportingApi,
+  cash: cashApi,
+  csa: csaApi,
+  images: imagesApi,
+  timeline: timelineApi,
+  snapshots: snapshotsApi,
+  alerts: alertsApi,
+  ocr: ocrApi,
+  auditLogs: auditLogsApi,
+};
+
+
