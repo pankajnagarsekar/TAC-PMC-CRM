@@ -63,14 +63,14 @@ export default function WorkerLogScreen() {
     try {
       const data = await vendorsApi.getAll();
       const formattedVendors = (data || []).map((v: any) => ({
-        code_id: v.vendor_id,
+        code_id: v.vendor_id || '',
         code: v.vendor_type || '',
         first_name: v.vendor_name || '',
         last_name: '',
         display_name: v.vendor_name || v.display_name || '',
       }));
       setVendors(formattedVendors);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load vendors:', error);
     } finally {
       setIsLoading(false);
@@ -87,12 +87,12 @@ export default function WorkerLogScreen() {
       isCollapsed: false,
     };
     // Collapse all existing entries
-    setEntries(prev => [...prev.map(e => ({ ...e, isCollapsed: true })), newEntry]);
+    setEntries((prev: WorkerEntry[]) => [...prev.map((e: WorkerEntry) => ({ ...e, isCollapsed: true })), newEntry]);
   };
 
   // Toggle entry collapse
   const toggleCollapse = (id: string) => {
-    setEntries(entries.map(e =>
+    setEntries(entries.map((e: WorkerEntry) =>
       e.id === id ? { ...e, isCollapsed: !e.isCollapsed } : e
     ));
   };
@@ -104,12 +104,12 @@ export default function WorkerLogScreen() {
 
   // Remove entry
   const removeEntry = (id: string) => {
-    setEntries(entries.filter(e => e.id !== id));
+    setEntries(entries.filter((e: WorkerEntry) => e.id !== id));
   };
 
   // Update entry
-  const updateEntry = (id: string, field: keyof WorkerEntry, value: any) => {
-    setEntries(entries.map(e =>
+  const updateEntry = <K extends keyof WorkerEntry>(id: string, field: K, value: WorkerEntry[K]) => {
+    setEntries(entries.map((e: WorkerEntry) =>
       e.id === id ? { ...e, [field]: value } : e
     ));
   };
@@ -131,17 +131,17 @@ export default function WorkerLogScreen() {
   };
 
   // Filter vendors based on search
-  const filteredVendors = vendors.filter(v =>
+  const filteredVendors = vendors.filter((v: Vendor) =>
     v.display_name.toLowerCase().includes(vendorSearch.toLowerCase())
   );
 
   // Calculate total workers
-  const totalWorkers = entries.reduce((sum, e) => sum + (e.workers_count || 0), 0);
+  const totalWorkers = entries.reduce((sum: number, e: WorkerEntry) => sum + (e.workers_count || 0), 0);
 
   // Save entries
   const handleSave = async () => {
     // Validation
-    const invalidEntries = entries.filter(e => !e.vendor || !e.workers_count || !e.purpose.trim());
+    const invalidEntries = entries.filter((e: WorkerEntry) => !e.vendor || !e.workers_count || !e.purpose.trim());
     if (invalidEntries.length > 0) {
       Alert.alert('Incomplete Entries', 'Please fill all fields for each entry.');
       return;
@@ -158,7 +158,7 @@ export default function WorkerLogScreen() {
       const payload = {
         project_id: selectedProject?.project_id,
         date: new Date().toISOString().split('T')[0],
-        entries: entries.map(e => ({
+        entries: entries.map((e: WorkerEntry) => ({
           vendor_code: e.vendor?.code,
           vendor_name: e.vendor?.display_name,
           workers_count: e.workers_count,
@@ -211,8 +211,9 @@ export default function WorkerLogScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Entries List */}
-        {entries.map((entry, index) => (
-          <Card key={entry.id} style={styles.entryCard}>
+        {entries.map((entry: WorkerEntry, index: number) => (
+          <View key={entry.id}>
+            <Card style={{ padding: Spacing.md, marginBottom: Spacing.md }}>
             {/* Collapsible Header */}
             <TouchableOpacity
               style={styles.entryHeader}
@@ -263,7 +264,7 @@ export default function WorkerLogScreen() {
                   keyboardType="number-pad"
                   placeholder="0"
                   value={entry.workers_count ? entry.workers_count.toString() : ''}
-                  onChangeText={(text) => {
+                  onChangeText={(text: string) => {
                     const num = parseInt(text) || 0;
                     updateEntry(entry.id, 'workers_count', num);
                   }}
@@ -275,7 +276,7 @@ export default function WorkerLogScreen() {
                   style={styles.textInput}
                   placeholder="Enter work description..."
                   value={entry.purpose}
-                  onChangeText={(text) => updateEntry(entry.id, 'purpose', text)}
+                  onChangeText={(text: string) => updateEntry(entry.id, 'purpose', text)}
                   multiline
                   numberOfLines={2}
                 />
@@ -292,7 +293,8 @@ export default function WorkerLogScreen() {
                 )}
               </>
             )}
-          </Card>
+            </Card>
+          </View>
         ))}
 
         {/* Add Entry Button */}
@@ -362,8 +364,8 @@ export default function WorkerLogScreen() {
             {/* Vendor List */}
             <FlatList
               data={filteredVendors}
-              keyExtractor={(item) => item.code_id}
-              renderItem={({ item }) => (
+              keyExtractor={(item: Vendor) => item.code_id}
+              renderItem={({ item }: { item: Vendor }) => (
                 <TouchableOpacity
                   style={styles.vendorItem}
                   onPress={() => selectVendor(item)}

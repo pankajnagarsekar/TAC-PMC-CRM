@@ -89,8 +89,8 @@ export default function OrganizationSettingsScreen() {
   const loadSettings = async () => {
     try {
       const data = await apiRequest('/api/organisation-settings');
-      setSettings(prev => ({ ...prev, ...data }));
-    } catch (error) {
+      setSettings((prev: OrgSettings) => ({ ...prev, ...data }));
+    } catch (error: any) {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
@@ -137,11 +137,18 @@ export default function OrganizationSettingsScreen() {
     updateField('logo_base64', '');
   };
 
-  const updateField = (field: keyof OrgSettings, value: string | number) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+  const updateField = <K extends keyof OrgSettings>(field: K, value: OrgSettings[K]) => {
+    setSettings((prev: OrgSettings) => ({ ...prev, [field]: value }));
   };
 
-  const Section = ({ title, icon, id, children }: { title: string; icon: string; id: string; children: React.ReactNode }) => (
+  interface SectionProps {
+    title: string;
+    icon: string;
+    id: string;
+    children: React.ReactNode;
+  }
+
+  const Section: React.FC<SectionProps> = ({ title, icon, id, children }) => (
     <View style={styles.section}>
       <Pressable style={styles.sectionHeader} onPress={() => setActiveSection(activeSection === id ? null : id)}>
         <View style={styles.sectionTitleRow}>
@@ -154,7 +161,16 @@ export default function OrganizationSettingsScreen() {
     </View>
   );
 
-  const InputField = ({ label, value, onChangeText, placeholder, multiline, keyboardType }: any) => (
+  interface InputFieldProps {
+    label: string;
+    value: string | number;
+    onChangeText: (text: string) => void;
+    placeholder?: string;
+    multiline?: boolean;
+    keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address';
+  }
+
+  const InputField: React.FC<InputFieldProps> = ({ label, value, onChangeText, placeholder, multiline, keyboardType }) => (
     <View style={styles.inputGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
       <TextInput
@@ -255,7 +271,7 @@ export default function OrganizationSettingsScreen() {
           <TextInput
             style={styles.termsInput}
             value={settings.terms_and_conditions}
-            onChangeText={(v) => updateField('terms_and_conditions', v)}
+            onChangeText={(v: string) => updateField('terms_and_conditions', v)}
             placeholder="Enter your standard terms and conditions here..."
             placeholderTextColor={Colors.textMuted}
             multiline

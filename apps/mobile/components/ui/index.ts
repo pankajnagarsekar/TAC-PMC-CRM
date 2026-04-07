@@ -5,3 +5,4 @@ export { Input } from './Input';
 export { Card } from './Card';
 export { LoadingScreen } from './LoadingScreen';
 export { BlueprintGrid } from './BlueprintGrid';
+export { Badge } from './Badge';

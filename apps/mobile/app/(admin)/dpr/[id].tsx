@@ -29,52 +29,15 @@ import { apiClient, authApi, dprApi, workerLogsApi } from '../../../services/api
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 // eslint-disable-next-line import/no-named-as-default
 import VersionSelector from '../../../components/VersionSelector';
+import { DPR, WorkerLog, WorkerLogEntry } from '../../../types/api';
 
-interface DPRImage {
-  image_id: string;
-  image_url?: string;
-  image_data?: string;
-  caption?: string;
-  uploaded_at?: string;
-}
-
-interface DPRDetail {
-  dpr_id: string;
-  project_id: string;
-  project_name?: string;
-  project_code?: string;
-  dpr_date: string;
-  status: string;
-  progress_notes?: string;
-  images: DPRImage[];
-  created_at: string;
-  updated_at?: string;
-  version?: number;
-  locked_flag?: boolean;
-}
-
-interface WorkerLogEntry {
-  vendor_name: string;
-  workers_count: number;
-  skill_type: string;
-  rate_per_worker: number;
-  remarks: string;
-}
-
-interface WorkerLog {
-  log_id: string;
-  project_id: string;
-  date: string;
-  supervisor_name: string;
-  entries: WorkerLogEntry[];
-  total_workers: number;
-}
+// Centralized DPR types used from types/api.ts
 
 export default function DPRDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [dpr, setDpr] = useState<DPRDetail | null>(null);
+  const [dpr, setDpr] = useState<DPR | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);

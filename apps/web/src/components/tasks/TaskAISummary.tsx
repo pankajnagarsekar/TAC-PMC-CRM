@@ -7,12 +7,15 @@ interface TaskAISummaryProps {
 }
 
 interface AISummaryData {
-  total: number;
-  open: number;
-  in_progress: number;
-  review: number;
-  completed: number;
   summary_text: string;
+  metrics: {
+    total: number;
+    open: number;
+    overdue: number;
+    completed: number;
+    status_distribution: Record<string, number>;
+    top_assignees: Record<string, number>;
+  };
 }
 
 export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
@@ -24,6 +27,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
     setIsLoading(true);
     try {
       const res = await api.get<AISummaryData>(`/api/v1/tasks/ai-summary?project_id=${projectId}`);
+      // res.data will be the object returned by GeneralResponse.data
       setData(res.data);
       setError(null);
     } catch (err) {
@@ -64,7 +68,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
     );
   }
 
-  if (!data) return null;
+  if (!data || !data.metrics) return null;
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden group">
@@ -82,26 +86,26 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
       <div className="flex flex-wrap gap-4 mb-6">
         <div className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg">
           <span className="text-[10px] text-slate-500 uppercase block font-bold leading-none">Total</span>
-          <span className="text-lg font-bold text-white leading-none">{data.total}</span>
+          <span className="text-lg font-bold text-white leading-none">{data.metrics.total}</span>
         </div>
         <div className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg">
-          <span className="text-[10px] text-blue-500 uppercase block font-bold leading-none">In Progress</span>
-          <span className="text-lg font-bold text-white leading-none">{data.in_progress}</span>
+          <span className="text-[10px] text-blue-500 uppercase block font-bold leading-none">Open</span>
+          <span className="text-lg font-bold text-white leading-none">{data.metrics.open}</span>
         </div>
         <div className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg">
           <span className="text-[10px] text-emerald-500 uppercase block font-bold leading-none">Done</span>
-          <span className="text-lg font-bold text-white leading-none tracking-tight">{data.completed}</span>
+          <span className="text-lg font-bold text-white leading-none tracking-tight">{data.metrics.completed}</span>
         </div>
       </div>
 
       <div className="bg-slate-950/50 border border-slate-800/50 rounded-lg p-4">
         <p className="text-sm text-slate-300 leading-relaxed italic">
-          "{data.summary_text || "The project is currently proceeding as scheduled with 85% of early-stage milestones met. Focus on 'In Review' items to unblock pending construction starts."}"
+          "{data.summary_text || "The project is currently proceeding as scheduled with early-stage milestones met."}"
         </p>
       </div>
 
       <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-600 uppercase">Powered by TAC-AI Agent v3.1</span>
+        <span className="text-[10px] font-bold text-slate-600 uppercase">Powered by TAC-AI Agent</span>
         <button 
           onClick={fetchSummary}
           className="text-xs font-bold text-slate-500 hover:text-white transition-colors flex items-center gap-1"
@@ -112,3 +116,4 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
     </div>
   );
 }
+

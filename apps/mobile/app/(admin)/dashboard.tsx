@@ -61,7 +61,7 @@ export default function ProjectDashboard() {
         fetchFinancials();
     };
 
-    const totalBudget = useMemo(() => financials.reduce((sum, f) => sum + (f.original_budget || 0), 0), [financials]);
+    const totalBudget = useMemo(() => financials.reduce((sum: number, f: DerivedFinancialState) => sum + (f.original_budget || 0), 0), [financials]);
 
     if (!selectedProject) {
         return (
@@ -193,7 +193,7 @@ export default function ProjectDashboard() {
                         {[
                             { label: 'FUNDS', icon: 'wallet', route: '/(admin)/petty-cash' },
                             { label: 'DPR', icon: 'file-text', route: '/(admin)/dpr' },
-                            { label: 'WORKERS', icon: 'users', route: '/(admin)/worker-log' },
+                            { label: 'TASKS', icon: 'check-square', route: '/(admin)/tasks' },
                             { label: 'MORE', icon: 'grid', route: '/(admin)/settings' }
                         ].map((item, idx) => (
                             <Pressable

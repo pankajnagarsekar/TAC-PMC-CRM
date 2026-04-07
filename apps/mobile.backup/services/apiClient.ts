@@ -45,6 +45,9 @@ import {
   OCRRequest,
   AuditLog,
   ApiErrorResponse,
+  Task,
+  CreateTaskRequest,
+  UpdateTaskRequest,
 } from '../types/api';
 
 // ============================================
@@ -658,6 +661,23 @@ export const settingsApi = {
 };
 
 // ============================================
+// TASKS API
+// ============================================
+export const tasksApi = {
+  getTasks: (projectId?: string): Promise<Task[]> => {
+    const url = projectId ? `/api/v1/tasks/?project_id=${projectId}` : '/api/v1/tasks/';
+    return request(url);
+  },
+  getTask: (taskId: string): Promise<Task> => request(`/api/v1/tasks/${taskId}`),
+  createTask: (data: CreateTaskRequest): Promise<Task> =>
+    request('/api/v1/tasks/', { method: 'POST', body: JSON.stringify(data) }),
+  updateTask: (taskId: string, data: UpdateTaskRequest): Promise<Task> =>
+    request(`/api/v1/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getAISummary: (taskId: string): Promise<{ summary: string }> =>
+    request(`/api/v1/tasks/${taskId}/ai-summary`),
+};
+
+// ============================================
 // REPORTING API
 // ============================================
 export interface ReportData {
@@ -700,6 +720,7 @@ export default {
   users: usersApi,
   settings: settingsApi,
   reporting: reportingApi,
+  tasks: tasksApi,
   cash: cashApi,
   csa: csaApi,
   images: imagesApi,

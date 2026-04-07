@@ -1,2 +1,0 @@
-Visualization: D:\_repos\TAC-PMC-CRM\.code-review-graph\graph.html
-Open in browser to explore your codebase graph.

@@ -33,7 +33,10 @@ import {
   CSA,
   CreateCSARequest,
   DPR,
+  DPRSubmitResponse,
   GenerateDPRRequest,
+  WorkerLog,
+  WorkerLogEntry,
   Image,
   CreateImageRequest,
   TimelineEvent,
@@ -45,6 +48,8 @@ import {
   OCRRequest,
   AuditLog,
   ApiErrorResponse,
+  Task,
+  TaskAISummary,
 } from '../types/api';
 
 // ============================================
@@ -113,21 +118,33 @@ const storage = {
     if (Platform.OS === 'web') {
       return localStorage.getItem(key);
     }
-    return SecureStore ? SecureStore.getItemAsync(key) : null;
+    try {
+      return SecureStore ? await SecureStore.getItemAsync(key) : null;
+    } catch {
+      return null;
+    }
   },
   async set(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.setItem(key, value);
       return;
     }
-    if (SecureStore) return SecureStore.setItemAsync(key, value);
+    try {
+      if (SecureStore) await SecureStore.setItemAsync(key, value);
+    } catch {
+      // Silently fail if secure storage is unavailable
+    }
   },
   async remove(key: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.removeItem(key);
       return;
     }
-    if (SecureStore) return SecureStore.deleteItemAsync(key);
+    try {
+      if (SecureStore) await SecureStore.deleteItemAsync(key);
+    } catch {
+      // Silently fail if secure storage is unavailable
+    }
   },
 };
 
@@ -321,12 +338,21 @@ export const authApi = {
     try {
       return await request<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }>('/api/v1/auth/can-logout');
     } catch (error) {
-      // Fail-safe behavior to avoid locking users in app due transient API errors
-      console.error('Failed to check logout status:', error);
       return { can_logout: true };
     }
   },
 };
+
+/**
+ * Safely appends parameters to URLSearchParams, filtering out undefined/null
+ */
+function appendParams(params: URLSearchParams, records: Record<string, string | number | undefined>): void {
+  Object.entries(records).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      params.append(key, String(value));
+    }
+  });
+}
 
 // ============================================
 // PROJECTS API
@@ -435,8 +461,9 @@ export const attendanceApi = {
   getAll: (projectId: string): Promise<Attendance[]> => {
     return request(`/api/v1/projects/${projectId}/attendance`);
   },
-  adminGetAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<{ attendance: Attendance[] }> => {
-    const params = new URLSearchParams({ project_id: projectId, ...filters });
+  adminGetAll: (projectId: string, filters: Record<string, string | number | undefined> = {}): Promise<{ attendance: Attendance[] }> => {
+    const params = new URLSearchParams({ project_id: projectId });
+    appendParams(params, filters);
     return request(`/api/v1/attendance/admin/all?${params}`);
   },
   logWorkers: (data: CreateAttendanceRequest): Promise<Attendance> =>
@@ -453,7 +480,21 @@ export const attendanceApi = {
 };
 
 // ============================================
-// AI API
+// TASKS
+// ============================================
+export const tasksApi = {
+  getForProject: (projectId: string): Promise<Task[]> =>
+    request(`/api/v1/tasks/?project_id=${projectId}`),
+  getById: (id: string): Promise<Task> =>
+    request(`/api/v1/tasks/${id}`),
+  updateStatus: (id: string, status: string): Promise<Task> =>
+    request(`/api/v1/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  getAISummary: (projectId: string): Promise<TaskAISummary> =>
+    request(`/api/v1/tasks/ai-summary?project_id=${projectId}`),
+};
+
+// ============================================
+// ISSUES
 // ============================================
 export const aiApi = {
   speechToText: (audioBase64: string): Promise<{ text: string }> =>
@@ -472,10 +513,11 @@ export const voiceLogsApi = {
 // WORKER LOGS API
 // ============================================
 export const workerLogsApi = {
-  create: (data: Record<string, unknown>): Promise<unknown> =>
+  create: (data: Record<string, unknown>): Promise<WorkerLog> =>
     request('/api/v1/worker-logs/', { method: 'POST', body: JSON.stringify(data) }),
-  getAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<unknown[]> => {
-    const params = new URLSearchParams({ project_id: projectId, ...filters as Record<string, string> });
+  getAll: (projectId: string, filters: Record<string, string | number | undefined> = {}): Promise<WorkerLog[]> => {
+    const params = new URLSearchParams({ project_id: projectId });
+    appendParams(params, filters);
     return request(`/api/v1/worker-logs/?${params}`);
   },
 };
@@ -484,9 +526,11 @@ export const workerLogsApi = {
 // DPR API
 // ============================================
 export const dprApi = {
-  getAll: (projectId: string, filters: Record<string, string | number> = {}): Promise<DPR[]> => {
-    const params = new URLSearchParams({ ...filters as Record<string, string> });
-    return request(`/api/v1/projects/${projectId}/dprs?${params}`);
+  getAll: (projectId: string, filters: Record<string, string | number | undefined> = {}): Promise<DPR[]> => {
+    const params = new URLSearchParams();
+    appendParams(params, filters);
+    const endpoint = projectId ? `/api/v1/projects/${projectId}/dprs` : `/api/v1/dprs/`;
+    return request(`${endpoint}?${params}`);
   },
   create: (data: Record<string, unknown>): Promise<DPR & { exists?: boolean }> =>
     request('/api/v1/dprs/', { method: 'POST', body: JSON.stringify(data) }),
@@ -494,7 +538,7 @@ export const dprApi = {
     request(`/api/v1/dprs/${id}`, { method: 'DELETE' }),
   uploadImage: (dprId: string, data: Record<string, unknown>): Promise<unknown> =>
     request(`/api/v1/dprs/${dprId}/images`, { method: 'POST', body: JSON.stringify(data) }),
-  submit: (id: string): Promise<unknown> =>
+  submit: (id: string): Promise<DPRSubmitResponse> =>
     request(`/api/v1/dprs/${id}/submit`, { method: 'POST' }),
   generate: (data: GenerateDPRRequest): Promise<DPR> => request('/api/v1/dpr/generate/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Record<string, unknown>): Promise<DPR> =>
@@ -700,6 +744,7 @@ export default {
   users: usersApi,
   settings: settingsApi,
   reporting: reportingApi,
+  tasks: tasksApi,
   cash: cashApi,
   csa: csaApi,
   images: imagesApi,

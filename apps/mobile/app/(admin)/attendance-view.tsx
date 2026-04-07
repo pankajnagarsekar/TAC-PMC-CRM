@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
 import { useRouter } from 'expo-router';
 import { apiClient, authApi, attendanceApi, workerLogsApi } from '../../services/apiClient';
-import { Attendance } from '../../types/api';
+import { Attendance, WorkerLogSummary } from '../../types/api';
 import { Card, Input, Button } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 import * as Linking from 'expo-linking';
@@ -38,13 +38,7 @@ interface AttendanceRecord {
   status: string;
 }
 
-interface WorkerLogSummary {
-  log_id: string;
-  date: string;
-  supervisor_name: string;
-  total_workers: number;
-  entries: { vendor_name: string; workers_count: number }[];
-}
+// WorkerLogSummary interface moved to centralized types/api.ts
 
 export default function AttendanceViewScreen() {
   const router = useRouter();
@@ -80,9 +74,7 @@ export default function AttendanceViewScreen() {
   // Worker attendance (from worker logs)
   const [workerLogs, setWorkerLogs] = useState<WorkerLogSummary[]>([]);
 
-  const projectId = selectedProject
-    ? (selectedProject as any).project_id || (selectedProject as any)._id
-    : null;
+  const projectId = selectedProject?.project_id || null;
 
   const fetchData = useCallback(async () => {
     if (!projectId) {

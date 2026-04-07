@@ -7,7 +7,7 @@ import { BlurView } from 'expo-blur';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardProps {
-  children: ReactNode;
+  children?: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   variant?: 'default' | 'outlined' | 'elevated' | 'glass';

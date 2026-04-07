@@ -706,6 +706,54 @@ export interface OCRRequest {
 }
 
 // ============================================
+// TASKS
+// ============================================
+export interface Task {
+  task_id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  status: "Open" | "In Progress" | "Review" | "Completed" | "Closed";
+  priority: "Low" | "Medium" | "High" | "Urgent";
+  assigned_to?: string;
+  assigned_to_name?: string;
+  due_date?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+  audit_log: TaskAuditLog[];
+  ai_summary?: string;
+}
+
+export interface TaskAuditLog {
+  timestamp: string;
+  action: string;
+  user_id: string;
+  user_name: string;
+  details: string;
+  old_status?: string;
+  new_status?: string;
+}
+
+export interface CreateTaskRequest {
+  project_id: string;
+  title: string;
+  description?: string;
+  priority?: "Low" | "Medium" | "High" | "Urgent";
+  assigned_to?: string;
+  due_date?: string;
+}
+
+export interface UpdateTaskRequest {
+  title?: string;
+  description?: string;
+  status?: "Open" | "In Progress" | "Review" | "Completed" | "Closed";
+  priority?: "Low" | "Medium" | "High" | "Urgent";
+  assigned_to?: string;
+  due_date?: string;
+}
+
+// ============================================
 // AUDIT LOG
 // ============================================
 export interface AuditLog {

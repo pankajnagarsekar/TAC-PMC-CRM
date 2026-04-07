@@ -4,9 +4,9 @@ import { History, User, Clock, AlertCircle } from "lucide-react";
 
 interface AuditLog {
   action: string;
-  performed_by: string;
-  performed_at: string;
-  details?: Record<string, any>;
+  timestamp: string;
+  user: string;
+  detail: string;
 }
 
 interface TaskChangeLogProps {
@@ -49,20 +49,20 @@ export default function TaskChangeLog({ logs }: TaskChangeLogProps) {
                   {log.action.replace(/_/g, " ")}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50">
-                  {formatDistanceToNow(new Date(log.performed_at), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                 </span>
               </div>
               
               <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
                 <User size={12} />
-                <span>{log.performed_by}</span>
+                <span>{log.user}</span>
               </div>
               
-              {log.details && Object.keys(log.details).length > 0 && (
+              {log.detail && (
                 <div className="bg-slate-950 border border-slate-800/50 rounded-lg p-3 text-xs">
-                  <pre className="text-slate-300 font-mono overflow-x-auto">
-                    {JSON.stringify(log.details, null, 2)}
-                  </pre>
+                   <p className="text-slate-300">
+                    {log.detail}
+                  </p>
                 </div>
               )}
             </div>
@@ -72,5 +72,6 @@ export default function TaskChangeLog({ logs }: TaskChangeLogProps) {
     </div>
   );
 }
+
 
 import { Plus } from "lucide-react";

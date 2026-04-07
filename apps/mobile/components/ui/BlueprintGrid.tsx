@@ -8,7 +8,7 @@ const { width, height } = Dimensions.get('window');
  * A subtle architectural drafting grid background component.
  * Provides a 'Blueprint Atelier' technical floor for the UI.
  */
-export function BlueprintGrid({ children }: { children: React.ReactNode }) {
+export function BlueprintGrid({ children }: { children?: any }) {
     const { isDark } = useTheme();
 
     return (

@@ -29,8 +29,10 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.RECORD_AUDIO"
-      ]
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.tacpmc.tacpmccrm"
     },
     "web": {
       "bundler": "metro",
@@ -74,6 +76,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9ee63410-0a41-4362-8d1b-904dbdab7572"
+      }
+    },
+    "owner": "tacpmc"
   }
 }

@@ -137,6 +137,12 @@ export default function AdminLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

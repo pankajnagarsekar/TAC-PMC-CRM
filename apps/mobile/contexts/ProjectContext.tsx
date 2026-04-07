@@ -81,7 +81,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     <ProjectContext.Provider
       value={{
         selectedProject,
-        projectId: (selectedProject as any)?.project_id || (selectedProject as any)?._id || (selectedProject as any)?.id || '',
+        projectId: selectedProject?.project_id || '',
         setSelectedProject,
         clearProject,
         isProjectSelected: selectedProject !== null,

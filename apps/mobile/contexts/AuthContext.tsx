@@ -56,7 +56,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isAuthenticated: false,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth check failed:', error);
       setState({
         user: null,
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [checkAuthStatus]);
 
   const login = useCallback(async (credentials: LoginRequest): Promise<User> => {
-    setState(prev => ({ ...prev, isLoading: true }));
+    setState((prev: AuthState) => ({ ...prev, isLoading: true }));
     try {
       const response = await authApi.login(credentials);
       setState({
@@ -81,15 +81,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isAuthenticated: true,
       });
       return response.user;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState((prev: AuthState) => ({ ...prev, isLoading: false }));
       throw error;
     }
   }, []);
 
   const logout = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true }));
+    setState((prev: AuthState) => ({ ...prev, isLoading: true }));
 
     try {
       await authApi.logout();
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const response = await authApi.checkCanLogout();
       return response;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to check logout status:', error);
       // On error, allow logout (fail-safe)
       return { can_logout: true };
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUser = useCallback(async () => {
     const user = await authApi.getCurrentUser();
-    setState(prev => ({ ...prev, user }));
+    setState((prev: AuthState) => ({ ...prev, user }));
   }, []);
 
   return (
