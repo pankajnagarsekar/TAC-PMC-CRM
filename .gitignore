@@ -76,3 +76,6 @@ desktop.ini
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Mobile Bakup
+/mobile.backup

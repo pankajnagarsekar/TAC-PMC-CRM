@@ -28,6 +28,16 @@ async def create_task(
         import traceback
         print(f"DIAGNOSTIC_TRACEBACK: {traceback.format_exc()}")
         raise e
+        
+@router.get("/", response_model=GenericResponse[List[Task]])
+async def list_tasks(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    service: TaskService = Depends(get_task_service)
+):
+    """Fetch tasks for a given project."""
+    result = await service.get_tasks(user, project_id)
+    return GenericResponse(data=result)
 
 @router.get("/{task_id}", response_model=GenericResponse[Task])
 async def get_task(
@@ -57,3 +67,13 @@ async def update_task(
 ):
     result = await service.update_task_details(user, task_id, data)
     return GenericResponse(data=result, message="Task details updated successfully")
+
+
+@router.get("/ai-summary", response_model=GenericResponse)
+async def get_task_ai_summary(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    service: TaskService = Depends(get_task_service)
+):
+    result = await service.get_task_summary_for_ai(user, project_id)
+    return GenericResponse(data=result)

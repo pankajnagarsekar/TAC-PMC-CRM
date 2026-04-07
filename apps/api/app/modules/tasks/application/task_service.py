@@ -2,8 +2,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.modules.tasks.infrastructure.repository import TaskRepository
+from app.modules.tasks.infrastructure.repository import TaskRepository, TaskAISummaryRepository
 from app.modules.tasks.schemas.dto import TaskCreate, TaskUpdate
+from app.modules.project.infrastructure.repository import ProjectRepository
 
 
 class TaskService:
@@ -89,3 +90,78 @@ class TaskService:
 
         await self.repo.update_one({"_id": task["_id"]}, {"$set": update_dict})
         return await self.repo.get_by_id(task_id)
+
+    async def get_tasks(self, user: dict, project_id: str) -> List[Dict[str, Any]]:
+        """List tasks for a project filtered by organisation."""
+        return await self.repo.find({
+            "organisation_id": user["organisation_id"],
+            "project_id": project_id
+        })
+
+    async def get_task_summary_for_ai(self, user: dict, project_id: str) -> Dict[str, Any]:
+        """Aggregates metrics and generates AI summary with caching."""
+        summary_repo = TaskAISummaryRepository(self.db)
+        
+        # 1. Check Cache
+        existing = await summary_repo.find_one(
+            {"project_id": project_id, "organisation_id": user["organisation_id"]},
+            sort=[("created_at", -1)]
+        )
+        if existing:
+            created_at = existing.get("created_at")
+            # 6 hour cache TTL
+            if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < 21600:
+                return existing
+
+        # 2. Aggregation Logic
+        tasks = await self.repo.find({"project_id": project_id, "organisation_id": user["organisation_id"]})
+        if not tasks:
+             return {"summary_text": "No tasks available to summarize.", "metrics": {}}
+
+        total = len(tasks)
+        open_tasks = [t for t in tasks if t.get("status") in ["Open", "In Progress"]]
+        overdue = 0
+        now = datetime.now(timezone.utc)
+        for t in open_tasks:
+            d = t.get("deadline")
+            if d and d < now: overdue += 1
+
+        dist = {}
+        for t in tasks:
+            s = t.get("status", "Unknown")
+            dist[s] = dist.get(s, 0) + 1
+
+        assignees = {}
+        for t in tasks:
+            name = t.get("assigned_to_name", "Unassigned")
+            assignees[name] = assignees.get(name, 0) + 1
+        top_assignees = dict(sorted(assignees.items(), key=lambda x: x[1], reverse=True)[:3])
+
+        report_data = {
+            "total": total,
+            "open": len(open_tasks),
+            "overdue": overdue,
+            "completed": sum(1 for t in tasks if t.get("status") in ["Completed", "Closed"]),
+            "status_distribution": dist,
+            "top_assignees": top_assignees
+        }
+
+        # 3. AI Generation
+        from app.core.ai_summary_service import EmergentSummaryProvider, MockSummaryProvider
+        from app.core.config import settings
+        
+        project_repo = ProjectRepository(self.db)
+        project = await project_repo.get_by_id(project_id)
+        project_name = project.get("project_name", project_id) if project else project_id
+
+        provider = EmergentSummaryProvider(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else MockSummaryProvider()
+        summary_text = await provider.generate_summary(report_data, f"Task Management for {project_name}")
+
+        doc = {
+            "project_id": project_id,
+            "organisation_id": user["organisation_id"],
+            "summary_text": summary_text,
+            "metrics": report_data,
+            "created_at": datetime.now(timezone.utc)
+        }
+        return await summary_repo.create(doc)
