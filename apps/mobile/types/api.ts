@@ -407,6 +407,48 @@ export interface CreateAttendanceRequest {
 }
 
 // ============================================
+// TASKS
+// ============================================
+export interface Task {
+  id: string;
+  _id?: string;
+  task_id?: string;
+  project_id: string;
+  organisation_id: string;
+  task_description: string;
+  assigned_to_user_id?: string;
+  assigned_to_name: string;
+  assigned_to_type: string;
+  deadline?: string;
+  priority: string;
+  status: "Open" | "In Progress" | "Completed" | "Closed";
+  sr_no: number;
+  created_by: string;
+  created_by_name: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  audit_log: Array<{
+    action: string;
+    timestamp: string;
+    user: string;
+    detail: string;
+  }>;
+}
+
+export interface TaskAISummary {
+  summary_text: string;
+  metrics: {
+    total: number;
+    open: number;
+    overdue: number;
+    completed: number;
+    status_distribution: Record<string, number>;
+    top_assignees: Record<string, number>;
+  };
+}
+
+// ============================================
 // ISSUES
 // ============================================
 export interface Issue {
@@ -543,9 +585,44 @@ export interface DPR {
   updated_at?: string;
 }
 
+export interface DPRSubmitResponse {
+  success: boolean;
+  message: string;
+  pdf_data?: string;
+  file_name?: string;
+}
+
 export interface GenerateDPRRequest {
   project_id: string;
   supervisor_id?: string;
+}
+
+// ============================================
+// WORKER LOGS
+// ============================================
+export interface WorkerLogEntry {
+  vendor_name: string;
+  workers_count: number;
+  skill_type: string;
+  rate_per_worker: number;
+  remarks: string;
+}
+
+export interface WorkerLog {
+  log_id: string;
+  project_id: string;
+  date: string;
+  supervisor_name: string;
+  entries: WorkerLogEntry[];
+  total_workers: number;
+}
+
+export interface WorkerLogSummary {
+  log_id: string;
+  date: string;
+  supervisor_name: string;
+  total_workers: number;
+  entries: { vendor_name: string; workers_count: number }[];
 }
 
 // ============================================

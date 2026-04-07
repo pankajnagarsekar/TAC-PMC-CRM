@@ -521,6 +521,7 @@ export interface AISummary {
 // TASKS
 // ──────────────────────────────────────────────────────────────────────────
 export interface Task {
+  id?: string;
   _id?: string;
   task_id?: string;
   organisation_id: string;
@@ -538,7 +539,12 @@ export interface Task {
   created_by: string;
   created_by_name: string;
   version: number;
-  audit_log?: any[];
+  audit_log?: Array<{
+    action: string;
+    timestamp: string;
+    user: string;
+    detail: string;
+  }>;
   created_at?: string;
   updated_at?: string;
 }
