@@ -108,7 +108,7 @@ class TaskService:
 
     async def get_tasks(self, user: dict, project_id: str) -> List[Dict[str, Any]]:
         """List all tasks for a project scoped to the user's organisation."""
-        return await self.repo.find({
+        return await self.repo.list({
             "organisation_id": user["organisation_id"],
             "project_id": project_id,
         })
@@ -148,7 +148,7 @@ class TaskService:
                 return existing
 
         # 2. Aggregate task metrics
-        tasks = await self.repo.find({
+        tasks = await self.repo.list({
             "project_id": project_id,
             "organisation_id": user["organisation_id"],
         })
