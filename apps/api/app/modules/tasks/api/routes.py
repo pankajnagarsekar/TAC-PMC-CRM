@@ -46,12 +46,26 @@ async def list_tasks(
 
 @router.get("/ai-summary", response_model=GenericResponse)
 async def get_task_ai_summary(
-    project_id: str,
+    project_id: str = None,
     user: dict = Depends(get_authenticated_user),
     service: TaskService = Depends(get_task_service),
 ):
-    result = await service.get_task_summary_for_ai(user, project_id)
-    return GenericResponse(data=result)
+    from fastapi import HTTPException
+
+    if not project_id:
+        raise HTTPException(
+            status_code=400,
+            detail="project_id query parameter is required"
+        )
+
+    try:
+        result = await service.get_task_summary_for_ai(user, project_id)
+        return GenericResponse(data=result)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate AI summary: {str(e)}"
+        )
 
 
 # ── ITEM ROUTES (wildcard — must come last) ──────────────────────────────────

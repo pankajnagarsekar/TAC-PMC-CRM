@@ -135,25 +135,28 @@ class TaskService:
 
     async def get_task_summary_for_ai(self, user: dict, project_id: str) -> Dict[str, Any]:
         """Aggregates metrics and generates AI summary with caching."""
-        summary_repo = TaskAISummaryRepository(self.db)
+        try:
+            summary_repo = TaskAISummaryRepository(self.db)
 
-        # 1. Check Cache (6-hour TTL)
-        existing = await summary_repo.find_one(
-            {"project_id": project_id, "organisation_id": user["organisation_id"]},
-            sort=[("created_at", -1)],
-        )
-        if existing:
-            created_at = existing.get("created_at")
-            if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < 21600:
-                return existing
+            # 1. Check Cache (6-hour TTL)
+            existing = await summary_repo.find_one(
+                {"project_id": project_id, "organisation_id": user["organisation_id"]},
+                sort=[("created_at", -1)],
+            )
+            if existing:
+                created_at = existing.get("created_at")
+                if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < 21600:
+                    return existing
 
-        # 2. Aggregate task metrics
-        tasks = await self.repo.list({
-            "project_id": project_id,
-            "organisation_id": user["organisation_id"],
-        })
-        if not tasks:
-            return {"summary_text": "No tasks available to summarize.", "metrics": {}}
+            # 2. Aggregate task metrics
+            tasks = await self.repo.list({
+                "project_id": project_id,
+                "organisation_id": user["organisation_id"],
+            })
+            if not tasks:
+                return {"summary_text": "No tasks available to summarize.", "metrics": {}}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error aggregating task metrics: {str(e)}")
 
         total = len(tasks)
         open_tasks = [t for t in tasks if t.get("status") in ["Open", "In Progress"]]
