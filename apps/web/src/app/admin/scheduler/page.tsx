@@ -259,7 +259,14 @@ function ProjectSchedulerContent() {
         </div>
       ) : (
         <Tabs.Root value={activeTab} onValueChange={handleTabChange} className="space-y-8">
-          <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(activeTab) ? 'xl:grid-cols-[minmax(0,1fr)_420px]' : 'xl:grid-cols-1'}`}>
+          <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(activeTab) ? 'xl:grid-cols-[420px_minmax(0,1fr)]' : 'xl:grid-cols-1'}`}>
+            {/* Task Drawer - Left Sidebar */}
+            {(currentTab === "grid" || currentTab === "gantt" || currentTab === "kanban") && (
+              <div className="w-[420px] hidden xl:block">
+                <TaskDrawer />
+              </div>
+            )}
+
             <div className="min-w-0 space-y-8">
               <Tabs.Content value="grid" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
                 <SchedulerGrid />
@@ -364,12 +371,6 @@ function ProjectSchedulerContent() {
                 </div>
               </Tabs.Content>
             </div>
-
-            {(currentTab === "grid" || currentTab === "gantt" || currentTab === "kanban") && (
-              <div className="w-[420px] hidden xl:block">
-                <TaskDrawer />
-              </div>
-            )}
           </div>
         </Tabs.Root>
       )}

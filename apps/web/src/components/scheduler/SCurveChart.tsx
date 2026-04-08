@@ -168,8 +168,8 @@ export default function SCurveChart() {
         </div>
       </div>
 
-      <div className="h-[400px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-[400px] w-full min-w-0 overflow-hidden">
+        <ResponsiveContainer width="100%" height="100%" debounce={100}>
           <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-white/[0.03]" vertical={false} />
             <XAxis
