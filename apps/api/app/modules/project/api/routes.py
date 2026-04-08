@@ -134,11 +134,13 @@ async def delete_project(
 
 @router.get("/clients/", response_model=GenericResponse[List[Client]], tags=["Clients"])
 async def list_clients(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     user: dict = Depends(get_authenticated_user),
     client_service: ClientService = Depends(get_client_service),
 ):
-    """List all clients within the organisation."""
-    clients = await client_service.list_clients(user["organisation_id"])
+    """List all clients within the organisation with pagination support."""
+    clients = await client_service.list_clients(user["organisation_id"], skip=skip, limit=limit)
     return GenericResponse(data=clients)
 
 
@@ -381,10 +383,11 @@ async def download_scheduler_export_pdf(
     
     # We generate on-the-fly for now
     try:
+        # Fixed: Use 'scheduler_gantt' template for scheduler export
         report_data = await reporting_service.get_report(
-            user, project_id, "project_summary", None, None
+            user, project_id, "scheduler_gantt", None, None
         )
-        pdf_bytes = ExportService.export_to_pdf_service("project_summary", report_data)
+        pdf_bytes = ExportService.export_to_pdf_service("scheduler_gantt", report_data)
         
         return StreamingResponse(
             io.BytesIO(pdf_bytes),

@@ -16,7 +16,15 @@ class DatabaseManager:
     async def connect(self, mongo_url: str, db_name: str):
         """Establish authoritative connection with hard ping."""
         try:
-            self.client = AsyncIOMotorClient(mongo_url)
+            # AUTHORITATIVE: Connection pooling and timeout hardening (Point 7, 115)
+            self.client = AsyncIOMotorClient(
+                mongo_url,
+                maxPoolSize=50,
+                minPoolSize=10,
+                waitQueueTimeoutMS=5000,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=10000,
+            )
             self.db = self.client[db_name]
             # Hard Ping (Point 7)
             await self.client.admin.command("ping")

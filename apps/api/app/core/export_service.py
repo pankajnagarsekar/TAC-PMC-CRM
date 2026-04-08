@@ -194,6 +194,7 @@ class ExportService:
         # Search for templates directory in multiple locations to support local dev and production
         search_paths = [
             os.path.join(os.getcwd(), "templates"),
+            os.path.join(os.getcwd(), "apps", "api", "templates"),
             os.path.join(os.path.dirname(__file__), "..", "..", "templates"),
             os.path.join(os.path.dirname(__file__), "..", "templates"),
             os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates"),
@@ -243,7 +244,8 @@ class ExportService:
             totals=report_data.get("totals", {}),
             metadata=report_data.get("metadata", {}),
             company=company_info or {"name": "TAC PMC", "address": "Sovereign HQ"},
-            now=now().strftime("%Y-%m-%d %H:%M:%S")
+            now=now().strftime("%Y-%m-%d %H:%M:%S"),
+            **report_data # Pass all other fields (tasks, months, etc.) for specialized templates
         )
  
         try:
@@ -291,6 +293,22 @@ class ExportService:
             col_widths = [100.0] * max(1, len(headers))
 
         rows = report_data.get("rows", [])
+        if not rows and "tasks" in report_data:
+            # Fallback for scheduler/Gantt reports in ReportLab (Point 118)
+            rows = report_data["tasks"]
+            if not config.get("columns"):
+                 # Provide default columns for Gantt tasks if missing
+                 config["columns"] = [
+                     ("Task Name", 40),
+                     ("Start", 15),
+                     ("Finish", 15),
+                     ("Duration", 10),
+                     ("Predecessors", 20)
+                 ]
+                 headers = ["Task Name", "Start", "Finish", "Duration", "Predecessors"]
+                 col_widths_raw = [40, 15, 15, 10, 20]
+                 total_relative = sum(col_widths_raw)
+                 col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
         
         # Wrap data in Paragraphs to support multi-line text
         cell_style = styles["Normal"]

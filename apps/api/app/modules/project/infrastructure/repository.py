@@ -55,7 +55,10 @@ class ClientRepository(BaseRepository[Client]):
 
     async def ensure_indexes(self):
         await super().ensure_indexes()
+        # Authoritative performance indexing (Point 115)
         await self.collection.create_index([("organisation_id", ASCENDING)])
+        await self.collection.create_index([("client_name", ASCENDING)])
+        await self.collection.create_index([("client_email", ASCENDING)], background=True)
         # Removed client_id unique index if not explicitly using internal client_id field
 
 

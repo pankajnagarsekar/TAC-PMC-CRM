@@ -125,12 +125,23 @@ class ReportingService:
                 return depth
             return get_depth(task["parent_id"], depth + 1)
  
+        def safe_dt(d_val):
+            if not d_val: return None
+            if isinstance(d_val, datetime): return d_val.replace(tzinfo=None)
+            try:
+                # Handle ISO format with Z or +00:00
+                dt_str = str(d_val).replace("Z", "+00:00")
+                return datetime.fromisoformat(dt_str).replace(tzinfo=None)
+            except:
+                try: return datetime.strptime(str(d_val)[:10], fmt).replace(tzinfo=None)
+                except: return None
+
         for t in tasks_raw:
-            t_start = datetime.strptime(t["scheduled_start"][:10], fmt) if t.get("scheduled_start") else timeline_start
-            t_finish = datetime.strptime(t["scheduled_finish"][:10], fmt) if t.get("scheduled_finish") else t_start
+            t_dt_start = safe_dt(t.get("scheduled_start")) or timeline_start
+            t_dt_finish = safe_dt(t.get("scheduled_finish")) or t_dt_start
             
-            offset_days = (t_start - timeline_start).days
-            duration_days = (t_finish - t_start).days + 1
+            offset_days = (t_dt_start.replace(tzinfo=None) - timeline_start.replace(tzinfo=None)).days
+            duration_days = (t_dt_finish.replace(tzinfo=None) - t_dt_start.replace(tzinfo=None)).days + 1
             
             # Predecessors CSV
             preds = t.get("predecessors", [])
@@ -142,7 +153,7 @@ class ReportingService:
                     if r_t["task_id"] == pid:
                         pred_rows.append(str(idx + 1))
                         break
- 
+  
             pt = t.copy()
             pt["depth"] = get_depth(t["task_id"])
             pt["start_offset_px"] = offset_days * day_width
@@ -150,6 +161,14 @@ class ReportingService:
             pt["predecessors_csv"] = ", ".join(pred_rows)
             pt["cost_formatted"] = ExportService.format_currency(t.get("wo_value") or 0)
             pt["is_summary"] = bool(t.get("is_summary"))
+            
+            # Fallback mappings for ReportLab/Exact templates (Point 118)
+            pt["Task Name"] = t.get("task_name", "Unnamed")
+            pt["Start"] = t_dt_start.strftime("%Y-%m-%d") if t_dt_start else "N/A"
+            pt["Finish"] = t_dt_finish.strftime("%Y-%m-%d") if t_dt_finish else "N/A"
+            pt["Duration"] = f"{duration_days}d"
+            pt["Predecessors"] = pt["predecessors_csv"]
+            
             processed_tasks.append(pt)
  
         # 3. Timeline Markers (Months & Quarters)
