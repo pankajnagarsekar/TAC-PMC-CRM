@@ -269,6 +269,20 @@ async def list_categories(
     return GenericResponse(data=categories)
 
 
+@router.get(
+    "/settings/petty-cash-categories",
+    response_model=GenericResponse[List[CodeMaster]],
+    tags=["Settings"],
+)
+async def list_petty_cash_categories(
+    user: dict = Depends(get_authenticated_user),
+    master_service: MasterDataService = Depends(get_master_data_service),
+):
+    """List petty cash and site overhead categories only."""
+    categories = await master_service.list_petty_cash_categories(user)
+    return GenericResponse(data=categories)
+
+
 @router.post(
     "/settings/codes",
     response_model=GenericResponse[dict],

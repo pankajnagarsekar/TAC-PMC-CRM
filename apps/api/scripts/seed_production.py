@@ -130,7 +130,8 @@ async def seed_production():
             {"code": "CSA", "description": "Client Supplied Assets", "category": "Supply"},
             {"code": "PRF", "description": "Professional Fees", "category": "Consultancy"},
             {"code": "STC", "description": "Approvals & Statutory Charges", "category": "Legal"},
-            {"code": "PTC", "description": "Petty Cash / Running Expenses", "category": "Admin"},
+            {"code": "PTC", "description": "Petty Cash", "category": "Petty Cash"},
+            {"code": "SOH", "description": "Site Overheads", "category": "Site Overhead"},
             {"code": "CON", "description": "Contingency", "category": "Risk"},
         ]
 

@@ -29,6 +29,15 @@ class MasterDataService:
             query["category_name"] = category_name
         return await self.code_repo.list(query)
 
+    async def list_petty_cash_categories(self, user: dict) -> List[Dict[str, Any]]:
+        """List only Petty Cash and Site Overhead categories for petty cash module."""
+        query = {
+            "organisation_id": user["organisation_id"],
+            "category_name": {"$in": ["Petty Cash", "Site Overhead"]},
+            "active_status": True,
+        }
+        return await self.code_repo.list(query)
+
     async def create_code(self, user: dict, code_data: Any) -> Dict[str, Any]:
         """Implemented authoritative master data creation with uniqueness guard."""
         await self.permission_checker.check_admin_role(user)
