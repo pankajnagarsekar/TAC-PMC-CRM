@@ -233,7 +233,7 @@ function ProjectSchedulerContent() {
             <div className="mx-auto mb-8 w-24 h-24 rounded-[32px] bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-500 shadow-2xl shadow-orange-500/10">
               <Database size={48} strokeWidth={1.5} />
             </div>
-            <h3 className="text-3xl font-black uppercase tracking-tight text-white mb-4">No Active Schedule</h3>
+            <h3 className="text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-4">No Active Schedule</h3>
             <p className="text-slate-400 max-w-md mx-auto mb-10 font-medium leading-relaxed">
               This project is currently an empty container. Initialize the delivery schedule to begin tracking progress and financials.
             </p>
@@ -249,7 +249,7 @@ function ProjectSchedulerContent() {
               </Button>
               <Button
                 onClick={() => handleTabChange("export")}
-                className="h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[11px]"
+                className="h-14 rounded-2xl bg-slate-200 dark:bg-white/5 border border-slate-300 dark:border-white/10 hover:bg-slate-300 dark:hover:bg-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[11px]"
               >
                 <Upload size={18} className="mr-2" />
                 Import MPP/XML

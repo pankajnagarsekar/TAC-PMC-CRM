@@ -67,7 +67,7 @@ const Bar = memo(function Bar({
         <div
           className={`h-full w-full rotate-45 border-2 shadow-xl transition-all ${isCriticalHighlighted ? 'bg-rose-500 border-rose-300' : 'bg-sky-500 border-sky-300'} group-hover:scale-125`}
         />
-        <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 bg-slate-900 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded transition-opacity">
+        <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 bg-slate-900 dark:bg-slate-950 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded transition-opacity">
           {task.task_name} (M)
         </div>
       </div>
@@ -236,6 +236,15 @@ export default function GanttChart() {
 
   const dragStateRef = useRef<DragState>(null);
   const taskMapRef = useRef(taskMap);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback(() => {
+    if (scrollContainerRef.current && topScrollRef.current) {
+      topScrollRef.current.scrollLeft = scrollContainerRef.current.scrollLeft;
+    }
+  }, []);
+
   useEffect(() => {
     taskMapRef.current = taskMap;
   }, [taskMap]);
@@ -427,7 +436,7 @@ export default function GanttChart() {
                 onChange={(e) => handleBaselineChange(Number(e.target.value))}
               >
                 {[...Array(11)].map((_, i) => (
-                  <option key={i + 1} value={i + 1} className="bg-slate-900 text-white">
+                  <option key={i + 1} value={i + 1}>
                     B{i + 1}
                   </option>
                 ))}
@@ -446,7 +455,16 @@ export default function GanttChart() {
         </div>
       </div>
 
-      <div className="overflow-x-auto overflow-y-hidden rounded-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
+      {/* Top scroll sync indicator */}
+      <div
+        ref={topScrollRef}
+        className="overflow-x-auto overflow-y-hidden h-4 rounded-t-[28px] border border-b-0 border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/30"
+        style={{ scrollBehavior: 'smooth' }}
+      >
+        <div style={{ minWidth: 280 + timelineWidth }} className="h-4" />
+      </div>
+
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto overflow-y-hidden rounded-b-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
         <div style={{ minWidth: 280 + timelineWidth }}>
           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-40">
             <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">

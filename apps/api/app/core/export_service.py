@@ -183,17 +183,23 @@ class ExportService:
         report_data: Dict[str, Any],
         company_info: Optional[Dict[str, Any]] = None,
     ) -> bytes:
-        import jinja2
         import os
+        try:
+            import jinja2
+        except ImportError:
+            logger.error("Jinja2 package is not installed. Please install it using 'pip install jinja2'.")
+            raise
 
         # Setup Jinja2 environment
-        template_dir = os.path.join(os.getcwd(), "templates")
-        if not os.path.exists(template_dir):
-            # Fallback for local dev/different cwd
-            template_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates")
-            if not os.path.exists(template_dir):
-                 template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
- 
+        # Search for templates directory in multiple locations to support local dev and production
+        search_paths = [
+            os.path.join(os.getcwd(), "templates"),
+            os.path.join(os.path.dirname(__file__), "..", "..", "templates"),
+            os.path.join(os.path.dirname(__file__), "..", "templates"),
+            os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates"),
+        ]
+        
+        template_dir = next((p for p in search_paths if os.path.exists(p)), search_paths[0])
         loader = jinja2.FileSystemLoader(template_dir)
         env = jinja2.Environment(loader=loader)
  
