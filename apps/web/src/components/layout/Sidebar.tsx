@@ -101,6 +101,10 @@ export default function Sidebar({
       icon: CheckSquare,
       label: "Tasks",
       key: "tasks",
+      children: [
+        { href: "/admin/tasks?tab=list", label: "Active Tasks", key: "tasks_active" },
+        { href: "/admin/tasks?tab=board", label: "Kanban Board", key: "tasks_board" },
+      ],
     },
     {
       href: "/admin/categories",

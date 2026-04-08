@@ -35,7 +35,6 @@ export default function NewTaskPage() {
       await api.post("/api/v1/tasks/", {
         ...formData,
         project_id: projectId,
-        created_by_name: "Admin User", // Wait, actual logged in user is better, but API takes it? No, API usually gets it from token
       });
       
       toast({

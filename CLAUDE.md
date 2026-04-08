@@ -50,6 +50,7 @@ apps/api/app/
     ├── site_operations/ # DPRs, Attendance, Worker Logs, Site Overheads, Voice Logs
     ├── reporting/     # AI Summaries, Analytics, Dashboard
     ├── scheduler/     # PPM/Gantt scheduling (standalone module)
+    ├── tasks/         # Task Management, Kanban Board, Change Logs
     └── shared/        # Shared Kernel (Audit, Alerts, Notifications, BaseRepo)
 ```
 
@@ -210,11 +211,14 @@ npm run lint
 
 **Every task MUST identify and document relevant skills before beginning work.** Stack skills strategically based on task type:
 
+- **New API Module (DDD)**: @api-design-principles + @fastapi-pro + @ddd-tactical-patterns + @database-design
+- **New Web Feature**: @software-architecture + @react-best-practices + @tailwind-design-system + @typescript-pro
+- **New Mobile Screen**: @mobile-developer + @react-native-architecture + @typescript-pro
 - **Error Detection**: @error-detective + @debugging-toolkit + @software-architecture
-- **New Features**: @software-architecture + @[language]-pro + @database-design
+- **Database Changes**: @database-design + @data-integrity-patterns + @mongodb (or @sql-pro)
 - **UI/UX Changes**: @antigravity-design-expert + @tailwind-design-system + @react-best-practices
-- **Database Changes**: @database-design + @data-integrity-patterns + @sql-pro
-- **API Development**: @api-design-principles + @[language]-pro + @security-best-practices
+- **State Machine/Workflow**: @ddd-tactical-patterns + @state-machine-design
+- **Integration Work**: @system-architect + @api-design-principles + @integration-patterns
 
 ### 2. **RuFlo V3 Framework** (Ruflo.md)
 
@@ -310,6 +314,111 @@ Business logic resides in the `application/` layer of each module:
 - **Rate Limiting**: slowapi configured in lifecycle
 - **Resilience**: Retry patterns, circuit breakers in core
 
+### Creating a New API Module (DDD Pattern)
+
+Every module follows this structure:
+
+```
+modules/{MODULE_NAME}/
+├── __init__.py
+├── api/
+│   ├── __init__.py
+│   └── routes.py              # FastAPI router(s), all HTTP endpoints
+├── application/
+│   ├── __init__.py
+│   └── {entity}_service.py    # Business logic orchestration (use cases)
+├── domain/
+│   ├── __init__.py
+│   ├── models.py              # Aggregate roots, invariants, value objects
+│   ├── exceptions.py           # Domain-specific exceptions
+│   └── types.py                # Enums, custom types
+├── infrastructure/
+│   ├── __init__.py
+│   └── repository.py           # Data access (extends BaseRepository[T])
+└── schemas/
+    ├── __init__.py
+    └── dto.py                  # Pydantic request/response models
+```
+
+**Key Principles:**
+1. **Domain Model Owns Invariants**: Business rules enforced in `domain/models.py`, not in the service
+2. **Service Orchestrates**: Application service calls domain, repository, and shared services (audit, notification, permission)
+3. **Repository is Generic**: Extend `BaseRepository[T]` from `shared/infrastructure/base_repository.py` — handles CRUD, indexes, org-scoping via `**filters`
+4. **No Cross-Module Imports**: Modules are sovereign; communicate only via API (REST)
+5. **State Transitions via StateMachine**: All status changes validated by `StateMachine.validate_transition(entity_type, current, next)`
+
+**Registration:**
+- Add router to `apps/api/app/api/router.py`: `v1_router.include_router(module_router)`
+- Add service factory to `apps/api/app/core/dependencies.py` as a FastAPI `Depends()` function
+
+### State Machine & Transitions
+
+All entities with lifecycle states (PROJECT, PAYMENT, DPR, TASK) use the centralized `StateMachine` class:
+
+```python
+# apps/api/app/modules/shared/domain/state_machine.py
+StateMachine.validate_transition("TASK", "Open", "In Progress")  # Returns True or raises IllegalTransitionError
+StateMachine.check_modification_allowed("TASK", "Closed")  # Raises DataFreezeError if state is final (no outgoing transitions)
+```
+
+**Important States & Freezing:**
+- Entities with empty transition sets (e.g., `"Closed": set()`) are **frozen** — cannot be modified or transitioned further
+- Financial entities in final states (Paid, Cancelled) enforce immutability via DataFreezeError on any update attempt
+- Always call `StateMachine.check_modification_allowed()` before allowing field edits
+
+### Repository & BaseRepository Pattern
+
+`BaseRepository[T]` provides generic CRUD with org-scoping security:
+
+```python
+class TaskRepository(BaseRepository[Task]):
+    collection_name = "tasks"
+
+    async def list_by_project(self, project_id: str, filters: TaskListFilter):
+        # BaseRepository automatically adds organisation_id scoping via **filters
+        query = {"project_id": project_id, "organisation_id": self.org_id}
+        return await self.find(query, limit=50, skip=0)
+```
+
+**Key Methods:**
+- `get_by_id(id, **filters)` — Single document (with org-scoping filters)
+- `find(query, limit, skip)` — Multiple documents (cursor-based pagination)
+- `create(data)` — Insert (auto-timestamps: created_at, updated_at, version=1)
+- `update(id, data, **filters)` — Update (increments version, returns new doc)
+- `aggregate(pipeline)` — MongoDB aggregation for complex queries
+
+**Security:** The `**filters` parameter enforces org-scoping. All queries include `organisation_id` automatically.
+
+### Audit Trail & Change Logs
+
+Every state change is immutably logged via `AuditService`:
+
+```python
+await audit_service.log_action(
+    organisation_id=user["organisation_id"],
+    module_name="TASK_MANAGEMENT",
+    entity_type="TASK",
+    entity_id=task_id,
+    action_type="CREATE",  # CREATE, UPDATE, DELETE, APPROVE, TRANSITION, etc.
+    user_id=user["user_id"],
+    project_id=project_id,
+    old_value_json=old_task_dict,  # Before values (for UPDATE)
+    new_value_json=new_task_dict,  # After values (all actions)
+)
+```
+
+**Snapshots:**
+- `SnapshotService` creates full entity snapshots on terminal state transitions (Completed, Closed)
+- Used for archival and rollback analysis; not for every change (prevents storage bloat)
+
+### Assignment Patterns
+
+For entities with user assignment (Task, WorkOrder, etc.):
+- Store `assigned_to_user_id` (FK to users collection, nullable) for CRM users
+- Store `assigned_to_name` (always populated) for display — can be a CRM username or free text ("MEP", "Architect", etc.)
+- Store `assigned_to_type` ("user" | "external") to distinguish
+- This dual model allows assigning to external parties without requiring CRM accounts
+
 ---
 
 ## Frontend Development
@@ -332,9 +441,62 @@ Components follow atomic design principles:
 ### State Management
 
 - **Global State**: Zustand in `src/store/`
-- **Server State**: SWR for API data fetching
+  - `useProjectStore` — Active project context (mandatory for project-scoped operations)
+  - `useScheduleStore` — Scheduler task data with optimistic updates
+  - `useAuthStore` — User authentication & role data
+- **Server State**: SWR for API data fetching (client-side, cache-aware)
 - **Component State**: React hooks for local state
 - **No Redux**: Zustand is preferred for its simplicity and performance
+
+### Web API Client Pattern
+
+File: `apps/web/src/lib/api.ts`
+
+The Axios client automatically injects headers and handles authentication:
+- Injects `X-Project-Id` header from `useProjectStore` for project-scoped requests
+- Injects `Authorization: Bearer {JWT}` token from `useAuthStore`
+- 401 responses trigger automatic token refresh via refresh-token endpoint
+- GenericResponse envelope unwrapping (v1 spec): `{ data, status_code, timestamp }`
+
+**Usage:**
+```typescript
+const { data: tasks } = useSWR(
+  activeProject ? `/api/v1/tasks/?project_id=${activeProject.project_id}` : null,
+  fetcher  // Uses the Axios client above
+);
+```
+
+### Web Page Patterns
+
+**List Page Example** (reference: `work-orders/page.tsx`):
+1. Extract `activeProject` from `useProjectStore()`
+2. Use `useSWR` to fetch data with `project_id` filter
+3. Display with AG Grid (`FinancialGrid` component)
+4. Add filters (search, status dropdowns)
+5. Row click → navigate to detail page
+
+**Detail Page Example** (reference: `work-orders/[id]/page.tsx`):
+1. Extract `id` from route params: `useParams()`
+2. Fetch single record + related data in parallel
+3. Implement optimistic updates with version conflict handling
+4. Use `VersionConflictModal` for concurrency conflicts
+5. Sidebar shows change log (audit entries from API)
+
+### UI Component Library
+
+**Location:** `packages/ui/src/components/` + `apps/web/src/components/ui/`
+
+**Core Components:**
+- `GlassCard` — Frosted glassmorphism container (Luxury Industrial aesthetic)
+- `KPICard` — Metric display with status colors & trend arrows
+- `FinancialGrid` — AG Grid wrapper for financial tables (sortable, filterable)
+- Button, Input, Dialog, Breadcrumbs (shadcn + Radix UI primitives)
+
+**Styling Approach:**
+- Tailwind CSS 4 with CSS variables for theme colors
+- `globals.css` defines Luxury Industrial color tokens
+- Dark mode support via `next-themes`
+- Mobile-first responsive design
 
 ---
 
@@ -355,7 +517,7 @@ Test files in `apps/api/tests/`:
 - Fixtures in `conftest.py`
 - Mocking only for external services
 
-### Frontend Testing
+### Web Testing
 
 TypeScript type checking:
 ```bash
@@ -364,6 +526,51 @@ npx tsc --noEmit
 ```
 
 Jest + React Testing Library available for component and integration tests. Test files use `__tests__` directory convention.
+
+---
+
+## Mobile Development
+
+### Mobile API Client Pattern
+
+File: `apps/mobile/services/apiClient.ts`
+
+Similar to web but with mobile-specific features:
+- JWT stored in secure storage (native) or localStorage (web)
+- 15-second request timeout with AbortController
+- Token refresh on 401 with exponential backoff retry
+- GenericResponse envelope unwrapping (v1 spec)
+- Organized into domain-scoped API groups: `authApi`, `projectsApi`, `dprApi`, `tasksApi`, etc.
+
+**Usage:**
+```typescript
+const tasks = await tasksApi.getAll(projectId, { status: "Open", search: "beam" });
+const task = await tasksApi.getById(taskId);
+```
+
+### Mobile Navigation & Role-Based Routing
+
+- **Root:** `index.tsx` checks `useAuth()` and redirects by role (admin, supervisor, client)
+- **Role Groups:** `(admin)/`, `(supervisor)/`, `(client)/` with separate layout + guards
+- **Project Context:** `useProjectContext()` provides selected project for supervisor workflow
+- **Tab Navigation:** Admin has 5 tabs (Dashboard, Projects, DPR, Attendance, More); Supervisor has 4 tabs
+
+### Mobile Component Patterns
+
+**Base Components** (`apps/mobile/components/ui/`):
+- `Card` — Variant-based (default, outlined, elevated, glass) with padding options
+- `Button` — Variants (primary, secondary, outline, danger, ghost) with loading state
+- `Input` — Label, error, hint, icon support, password toggle
+- Theme context for dynamic styling
+
+**Screen Patterns:**
+- **List Screen:** FlatList + filters (search, date range, status chips) + pull-to-refresh
+- **Detail Screen:** Scrollable view with editable/read-only sections, nested components
+- **Form Screen:** TextInput fields, pickers (date, time), submission handlers
+
+### Mobile Types
+
+File: `apps/mobile/types/api.ts` — Comprehensive TypeScript interfaces for all API contracts, mirroring `packages/types` + mobile-specific aggregates like `AdminDashboardData`, `SupervisorDashboardData`
 
 ---
 
@@ -463,6 +670,19 @@ See Ruflo.md for complete CLI reference.
 
 ---
 
+## Key Architectural Principles
+
+1. **Domain-Driven Design**: Every module owns its domain model; business rules live in `domain/models.py`, not services
+2. **Org Scoping**: All queries include `organisation_id` filter via BaseRepository `**filters` for multi-tenancy
+3. **State Immutability**: Final states (marked in StateMachine with empty transition sets) freeze data — no edits allowed
+4. **Audit Everything**: Every state change (CREATE, UPDATE, DELETE, TRANSITION) logged via AuditService
+5. **Idempotency**: Financial operations use idempotency keys (`core/idempotency.py`) to prevent duplicates
+6. **Project Scoping**: Web and mobile operations require `activeProject` context; no cross-project data leaks
+7. **No Soft Deletes**: Entities transitioned to final states (Closed, Cancelled) rather than soft-deleted
+8. **Cross-Module Communication**: Via REST API only; no direct database access or Python imports between modules
+9. **Type Safety**: End-to-end TypeScript (web, mobile) + Pydantic (API); shared types in `packages/types`
+10. **Zero Error Policy**: All merges require passing `pnpm lint` and `pytest` with zero ERRORS (warnings OK)
+
 ## Additional Notes
 
 - **FastAPI interactive docs**: available at `http://localhost:8000/docs` when the API is running
@@ -470,6 +690,8 @@ See Ruflo.md for complete CLI reference.
 - **Mobile OCR**: `(admin)/ocr.tsx` handles document scanning via camera
 - **Voice Logs**: Supervisor can submit voice-based site logs via `(supervisor)/voice-log.tsx`
 - **DPR flow**: Supervisor creates → Admin reviews/approves; status machine lives in `site_operations` module
+- **Tasks module**: New module for task management with Kanban board, change logs, and AI summaries
+- **Luxury Industrial Design**: All UI follows this aesthetic; check `packages/ui` for design tokens and component examples
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
@@ -494,8 +716,8 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 
 | Tool | Use when |
 |------|----------|
-| `detect_changes` | Reviewing code changes � gives risk-scored analysis |
-| `get_review_context` | Need source snippets for review � token-efficient |
+| `detect_changes` | Reviewing code changes � gives risk-scored analysis |
+| `get_review_context` | Need source snippets for review � token-efficient |
 | `get_impact_radius` | Understanding blast radius of a change |
 | `get_affected_flows` | Finding which execution paths are impacted |
 | `query_graph` | Tracing callers, callees, imports, tests, dependencies |

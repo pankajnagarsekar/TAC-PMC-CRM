@@ -61,6 +61,13 @@ export default function AdminSettings() {
 
         {/* Settings Sections */}
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Work Management</Text>
+          <Card padding="none">
+            <SettingsItem icon="checkmark-circle" title="Tasks" onPress={() => router.push('/(admin)/tasks')} Colors={Colors} styles={styles} />
+          </Card>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Organization</Text>
           <Card padding="none">
             <SettingsItem icon="people" title="User Management" onPress={() => router.push('/(admin)/settings/users')} Colors={Colors} styles={styles} />

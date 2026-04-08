@@ -14,7 +14,6 @@ class BaseSchema(BaseModel):
 
 
 class TaskCreate(BaseSchema):
-    organisation_id: str
     project_id: str
     task_description: str
     assigned_to_user_id: Optional[str] = None
