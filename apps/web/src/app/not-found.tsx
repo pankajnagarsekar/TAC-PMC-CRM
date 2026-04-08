@@ -4,7 +4,7 @@ import { MoveLeft, LayoutGrid, Ghost, Compass } from "lucide-react";
 
 export default function NotFound() {
     return (
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
             {/* Background Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] -z-10" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-600/10 rounded-full blur-[120px] -z-10" />
