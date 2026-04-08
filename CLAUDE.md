@@ -731,3 +731,28 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+---
+
+## Skill routing
+
+Configure gstack opinionated engineering roles:
+
+- "is this worth building?" -> `/office-hours`
+- "i am stuck" -> `/office-hours`
+- "plan this" -> `/autoplan`
+- "build this" -> `/codex`
+- "careful now" -> `/careful`
+- "take a checkpoint" -> `/checkpoint`
+- "test this" -> `/qa`
+- "qa this" -> `/qa`
+- "review this" -> `/review`
+- "ship this" -> `/ship`
+- "check health" -> `/health`
+- "investigate this" -> `/investigate`
+- "reflect on this" -> `/retro`
+- "reflect on the last turn" -> `/retro`
+- "guard this" -> `/guard`
+- "unfreeze this" -> `/unfreeze`
+- "freeze this" -> `/freeze`
+- "upgrade gstack" -> `/gstack-upgrade`
