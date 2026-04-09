@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.modules.shared.domain.state_machine import StateMachine
 from app.modules.tasks.infrastructure.repository import TaskRepository, TaskAISummaryRepository
+from app.modules.tasks.domain.authorization import TaskAuthorizationManager
 from app.modules.tasks.schemas.dto import TaskCreate, TaskUpdate
 from app.modules.project.infrastructure.repository import ProjectRepository
 
@@ -52,6 +53,9 @@ class TaskService:
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
 
+        # Authorization check: verify org scoping
+        TaskAuthorizationManager.verify_user_org_scoping(user["organisation_id"], task["organisation_id"])
+
         current_status = task.get("status", "Open")
         if new_status == current_status:
             return task
@@ -80,6 +84,9 @@ class TaskService:
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
+
+        # Authorization check: verify org scoping
+        TaskAuthorizationManager.verify_user_org_scoping(user["organisation_id"], task["organisation_id"])
 
         # Task 7 fix: use StateMachine for consistent modification guard
         try:
@@ -120,6 +127,9 @@ class TaskService:
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
+
+        # Authorization check: verify org scoping
+        TaskAuthorizationManager.verify_user_org_scoping(user["organisation_id"], task["organisation_id"])
 
         # If already Closed, nothing to do
         if task.get("status") == "Closed":
