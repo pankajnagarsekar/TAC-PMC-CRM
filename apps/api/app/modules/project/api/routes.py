@@ -333,24 +333,62 @@ async def compare_baselines(
 
 @router.post(
     "/projects/{project_id}/baseline/lock",
+    response_model=GenericResponse[dict],
     tags=["Scheduler"],
 )
 async def lock_baseline(
     project_id: str,
-    data: Dict[str, Any],
     user: dict = Depends(get_authenticated_user),
     service: SchedulerService = Depends(get_scheduler_service),
 ):
-    """Snapshot the current schedule as a baseline."""
-    # This usually means copying current scheduled dates to baseline fields
-    # For now, we delegate to a service method if it exists, or stub it
-    result = await service.save_schedule(
-        project_id,
-        user["organisation_id"],
-        user["user_id"],
-        data, # We might want to handle this differently in a real impl
-    )
-    return GenericResponse(data=result, message="Baseline locked successfully")
+    """Lock the current schedule as a baseline (immutable snapshot)."""
+    try:
+        result = await service.lock_baseline(
+            project_id,
+            user["organisation_id"],
+            user["user_id"]
+        )
+        return GenericResponse(
+            data=result,
+            message=f"Baseline locked successfully - {result['locked_tasks']} tasks frozen"
+        )
+    except Exception as e:
+        from fastapi import HTTPException
+        from app.modules.shared.domain.exceptions import DomainError
+        logger.error(f"BASELINE_LOCK_FAILED: {str(e)}", exc_info=True)
+        if isinstance(e, DomainError):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Baseline lock error: {str(e)}")
+
+
+@router.post(
+    "/projects/{project_id}/baseline/unlock",
+    response_model=GenericResponse[dict],
+    tags=["Scheduler"],
+)
+async def unlock_baseline(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    service: SchedulerService = Depends(get_scheduler_service),
+):
+    """Unlock a baseline to allow further modifications."""
+    try:
+        result = await service.unlock_baseline(
+            project_id,
+            user["organisation_id"],
+            user["user_id"]
+        )
+        return GenericResponse(
+            data=result,
+            message=f"Baseline unlocked successfully - {result['unlocked_tasks']} tasks unfrozen"
+        )
+    except Exception as e:
+        from fastapi import HTTPException
+        from app.modules.shared.domain.exceptions import DomainError
+        logger.error(f"BASELINE_UNLOCK_FAILED: {str(e)}", exc_info=True)
+        if isinstance(e, DomainError):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Baseline unlock error: {str(e)}")
 
 
 

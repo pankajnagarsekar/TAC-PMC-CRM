@@ -48,3 +48,21 @@ def test_org_id():
 @pytest.fixture
 def test_project_id():
     return "test-proj-456"
+
+
+@pytest.fixture
+async def test_db():
+    """Async fixture providing test MongoDB database."""
+    settings.DB_NAME = "tac_pmc_test_db"
+    await db_manager.connect(settings.MONGO_URL, settings.DB_NAME)
+
+    db = db_manager.db
+
+    yield db
+
+    # Cleanup after test
+    if db_manager.client:
+        try:
+            await db_manager.client.drop_database(settings.DB_NAME)
+        except Exception:
+            pass

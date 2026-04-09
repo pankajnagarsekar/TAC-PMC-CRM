@@ -7,8 +7,9 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from app.modules.shared.domain.exceptions import ValidationError
+from app.modules.shared.domain.exceptions import ValidationError, DataFreezeError
 from app.core.utils import serialize_doc
+from app.modules.scheduler.baseline_manager import BaselineManager
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class SchedulerService:
     def __init__(self, db):
         self.db = db
         self.collection = db["project_schedules"]
+        self.baseline_manager = BaselineManager(db)
 
 
     async def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
@@ -74,13 +76,13 @@ class SchedulerService:
              raise ValidationError("CRITICAL: Calculation aborted - project_id is None or empty")
 
         input_payload = {"tasks": tasks, "project_start": project_start}
-        
+
         # DEBUG: Save payload to file to inspect what's being sent
         # Removed debug write to "last_scheduler_payload.json" for production stability
 
         task_count = len(tasks) if tasks is not None else 0
         logger.info(f"SCHEDULER: Calculating for project {project_id} with {task_count} tasks starting at {project_start}")
-        
+
         if task_count == 0:
             return {
                 "tasks": [],
@@ -92,17 +94,31 @@ class SchedulerService:
                 "schedule_version": 1
             }
 
+        # BASELINE LOCK CHECK: Verify no baseline-locked tasks are being modified
+        for task in tasks:
+            if task.get("baseline_locked"):
+                # Extract the modifications being attempted
+                # This is detected if the task is in the input (implies modification attempt)
+                logger.warning(
+                    f"BASELINE_VIOLATION: Task {task.get('task_id')} is baseline-locked "
+                    f"(v{task.get('baseline_version')}) - modifications blocked"
+                )
+                raise DataFreezeError(
+                    "TASK",
+                    f"Baseline (v{task.get('baseline_version', '?')})"
+                )
+
         # SECURE OFF-THREAD CALL: Prevent event loop blocking for CPU-bound engine
         import asyncio
         from app.modules.scheduler.calculate_critical_path import run_calculation
-        
+
         # Serialize first to strip ObjectId/datetime from MongoDB task documents
         clean_payload = serialize_doc(input_payload)
         results = await asyncio.to_thread(run_calculation, clean_payload)
- 
+
         if "error" in results:
             raise ValidationError(results["error"])
- 
+
         return serialize_doc(results)
 
     async def save_schedule(
@@ -191,20 +207,127 @@ class SchedulerService:
                 "error": f"Internal Error: {str(e)}"
             }
 
+    async def lock_baseline(
+        self,
+        project_id: str,
+        organisation_id: str,
+        user_id: str,
+        baseline_version: int = 1,
+    ) -> Dict[str, Any]:
+        """
+        Lock the current schedule as a baseline.
+
+        Args:
+            project_id: Project to lock
+            organisation_id: Organization context
+            user_id: User locking baseline
+            baseline_version: Baseline version (default: 1)
+
+        Returns:
+            Lock status and snapshot info
+        """
+        schedule = await self.load_schedule(project_id, organisation_id)
+        tasks = schedule.get("tasks", [])
+
+        if not tasks:
+            raise ValidationError("Cannot lock baseline with empty schedule")
+
+        result = await self.baseline_manager.lock_baseline(
+            project_id,
+            organisation_id,
+            user_id,
+            tasks,
+            baseline_version
+        )
+
+        # Persist locked tasks back to schedule
+        locked_tasks = [
+            {
+                **task,
+                "baseline_locked": True,
+                "baseline_version": baseline_version,
+                "baseline_locked_at": datetime.now(timezone.utc),
+                "baseline_locked_by": user_id,
+                "baseline_start": task.get("scheduled_start"),
+                "baseline_finish": task.get("scheduled_finish"),
+            }
+            for task in tasks
+        ]
+
+        await self.collection.update_one(
+            {"project_id": project_id, "organisation_id": organisation_id},
+            {
+                "$set": {
+                    "tasks": locked_tasks,
+                    "baseline_version": baseline_version,
+                    "baseline_locked_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+            upsert=True,
+        )
+
+        return result
+
+    async def unlock_baseline(
+        self,
+        project_id: str,
+        organisation_id: str,
+        user_id: str,
+    ) -> Dict[str, Any]:
+        """
+        Unlock the current baseline to allow further modifications.
+
+        Args:
+            project_id: Project to unlock
+            organisation_id: Organization context
+            user_id: User unlocking baseline
+
+        Returns:
+            Unlock status
+        """
+        schedule = await self.load_schedule(project_id, organisation_id)
+        tasks = schedule.get("tasks", [])
+
+        result = await self.baseline_manager.unlock_baseline(
+            project_id,
+            organisation_id,
+            user_id,
+            tasks
+        )
+
+        # Persist unlocked tasks back to schedule
+        unlocked_tasks = [
+            {**task, "baseline_locked": False}
+            for task in tasks
+        ]
+
+        await self.collection.update_one(
+            {"project_id": project_id, "organisation_id": organisation_id},
+            {
+                "$set": {
+                    "tasks": unlocked_tasks,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            }
+        )
+
+        return result
+
     async def compare_baselines(
         self, project_id: str, organisation_id: str, baseline_a: int, baseline_b: int = None
     ) -> List[Dict[str, Any]]:
         # Fetch current schedule
         schedule = await self.load_schedule(project_id, organisation_id)
         tasks = schedule.get("tasks", [])
-        
+
         results = []
         for t in tasks:
             b_start = t.get("baseline_start") or t.get("scheduled_start")
             b_finish = t.get("baseline_finish") or t.get("scheduled_finish")
             s_start = t.get("scheduled_start")
             s_finish = t.get("scheduled_finish")
-            
+
             variance = 0
             if b_finish and s_finish:
                 fmt = "%Y-%m-%d"
@@ -214,7 +337,7 @@ class SchedulerService:
                     variance = (sf - bf).days
                 except Exception as e:
                     logger.warning(f"Failed to calculate variance for task {t.get('task_id')}: {e}")
-            
+
             results.append({
                 "task_id": str(t.get("task_id", "")),
                 "baseline_a_start": b_start,
@@ -223,5 +346,5 @@ class SchedulerService:
                 "baseline_b_finish": s_finish,
                 "schedule_variance_days": variance
             })
-            
+
         return results
