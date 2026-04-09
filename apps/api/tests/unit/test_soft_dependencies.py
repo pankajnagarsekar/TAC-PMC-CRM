@@ -15,13 +15,22 @@ from app.modules.scheduler.calculate_critical_path import run_calculation
 
 
 def test_soft_dependency_constrains_dates():
-    """Soft dependency should constrain ES/EF but not criticality"""
+    """Soft dependency should constrain ES/EF but not criticality when there's a longer parallel path"""
     tasks = [
         {"task_id": "A", "duration": 5, "predecessors": []},
         {
             "task_id": "B",
             "duration": 2,
             "predecessors": [{"task_id": "A", "type": "FS", "lag_days": 0, "strength": "soft"}],
+        },
+        {"task_id": "C", "duration": 10, "predecessors": []},  # Longer path
+        {
+            "task_id": "D",
+            "duration": 1,
+            "predecessors": [
+                {"task_id": "B", "type": "FS", "lag_days": 0, "strength": "hard"},
+                {"task_id": "C", "type": "FS", "lag_days": 0, "strength": "hard"},
+            ],
         },
     ]
     project_start = "2024-01-01"
@@ -31,10 +40,10 @@ def test_soft_dependency_constrains_dates():
     assert result["status"] == "success"
     tasks_dict = {t["task_id"]: t for t in result["tasks"]}
 
-    # B should start after A finishes (ES constrained)
-    assert tasks_dict["B"]["scheduled_start"] == "2024-01-07"  # A ends 2024-01-05, +1 = 2024-01-06, B starts
+    # B should start after A finishes (ES constrained by soft dep)
+    assert tasks_dict["B"]["scheduled_start"] == "2024-01-06"
 
-    # But B should NOT be critical (it has slack)
+    # But B should NOT be critical (has slack because C is longer)
     assert tasks_dict["B"]["is_critical"] == False
     assert tasks_dict["B"]["total_slack"] > 0
 

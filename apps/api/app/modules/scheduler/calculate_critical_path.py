@@ -98,7 +98,7 @@ def _compute_es_from_predecessors(task_id, task_map, project_start):
         if pred_id not in task_map:
             continue
         pred = task_map[pred_id]
-        
+
         p_es = pred.get("es")
         p_ef = pred.get("ef")
         if p_es is None or p_ef is None:
