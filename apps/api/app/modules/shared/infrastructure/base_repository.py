@@ -124,7 +124,17 @@ class BaseRepository(Generic[T]):
         upsert: bool = False,
         session: Optional[AsyncIOMotorClientSession] = None,
     ):
-        """Atomic single document update."""
+        """Atomic single document update with automatic ID conversion."""
+        if "_id" in query and isinstance(query["_id"], str) and ObjectId.is_valid(query["_id"]):
+            query["_id"] = ObjectId(query["_id"])
+        
+        # Ensure updated_at is set if using $set
+        if "$set" in update:
+            update["$set"]["updated_at"] = datetime.now(timezone.utc)
+        elif "$set" not in update and not any(k.startswith("$") for k in update.keys()):
+            # If it's a direct replacement (unlikely in update_one but for safety)
+            update["updated_at"] = datetime.now(timezone.utc)
+
         return await self.collection.update_one(
             query, update, upsert=upsert, session=session
         )

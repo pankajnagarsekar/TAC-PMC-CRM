@@ -19,7 +19,7 @@ async def test_create_task(client: AsyncClient, admin_token: str, test_project_i
     res_json = response.json()
     if response.status_code != 201:
         print(f"DEBUG ERROR: {res_json}")
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Expected 201, got {response.status_code}. Body: {res_json}"
     data = res_json.get("data")
     if not data:
         print(f"DEBUG_FULL_RES: {res_json}")
@@ -90,7 +90,7 @@ async def test_invalid_transition(client: AsyncClient, admin_token: str, test_pr
         json={"status": "Completed"}
     )
     assert response.status_code == 400
-    assert "Illegal transition" in response.json()["detail"]
+    assert "INVALID_TRANSITION" in response.json()["detail"]
 
 @pytest.mark.asyncio
 async def test_data_freeze_in_closed(client: AsyncClient, admin_token: str, test_project_id: str, test_org_id: str):
@@ -110,14 +110,21 @@ async def test_data_freeze_in_closed(client: AsyncClient, admin_token: str, test
     data = res_json["data"]
     task_id = data.get("id") or data.get("_id")
 
+    # Move to In Progress
+    res = await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "In Progress"})
+    assert res.status_code == 200, f"Failed to move to In Progress: {res.text}"
+    # Move to Completed
+    res = await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "Completed"})
+    assert res.status_code == 200, f"Failed to move to Completed: {res.text}"
     # Move to Closed
-    await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "Closed"})
+    res = await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "Closed"})
+    assert res.status_code == 200, f"Failed to move to Closed: {res.text}"
 
     # Attempt update
-    response = await client.put(
+    response = await client.patch(
         f"/api/v1/tasks/{task_id}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"task_description": "Modified Description"}
     )
     assert response.status_code == 400
-    assert "Modification not allowed" in response.json()["detail"]
+    assert "DATA_FREEZE" in response.json()["detail"]

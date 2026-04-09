@@ -22,10 +22,12 @@
 - [x] Phase 10: ESLint Remediation & Hardening (apps/web)
 - [x] Phase 11: Dashboard API Stabilization
 - [/] Phase 12: Production Readiness Hardening (Emergency Audit Fixes)
-25: - [x] Phase 13: Playwright Testing Automation Setup
-26: - [ ] Phase 14: Comprehensive E2E Testing Scenarios Implementation
+- [x] Phase 13: Playwright Testing Automation Setup
+- [ ] Phase 14: Comprehensive E2E Testing Scenarios Implementation
+
 
 ## Milestone 6: Application Stabilization & Scheduler Remediation (Active)
-- [/] Phase 15: Stabilize CRM Core & Resolve Scheduler Regressions
-- [ ] Phase 16: Critical CRM Restoration & UI Excellence
+- [/] Phase 15: project-scheduler-redesign
+- [ ] Phase 16: critical-fixes-restoration
 - [ ] Phase 17: Production Verification & Performance Tuning
+

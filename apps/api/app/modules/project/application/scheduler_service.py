@@ -38,9 +38,18 @@ class SchedulerService:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            
+
             input_json = json.dumps(input_data).encode()
-            stdout, stderr = await process.communicate(input=input_json)
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(input=input_json),
+                    timeout=30.0
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+                error_msg = f"Scheduler execution timeout for {script_name} (exceeded 30s)"
+                logger.error(f"SCHEDULER_TIMEOUT: {error_msg}")
+                raise ValidationError(error_msg)
             
             stdout_str = stdout.decode()
             stderr_str = stderr.decode()
@@ -160,10 +169,9 @@ class SchedulerService:
             schedule = await self.collection.find_one(query)
 
             if not schedule:
-                # Try project_id without organisation_id if it's a migration case
-                schedule = await self.collection.find_one({"project_id": project_id})
-                if schedule:
-                    logger.warning(f"Found schedule for {project_id} without organisation_id check")
+                # No fallback without org_id - security first
+                # If schedule not found with org_id, return empty rather than bypass security
+                pass
 
             if not schedule:
                 return {

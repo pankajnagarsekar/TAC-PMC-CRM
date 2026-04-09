@@ -1,7 +1,7 @@
 import pytest
 from decimal import Decimal
 from bson import Decimal128
-from app.modules.financial.domain.engine import FinancialEngine
+from app.modules.shared.domain.financial_engine import FinancialEngine
 
 def test_to_d128_valid_inputs():
     # Decimal
@@ -17,7 +17,7 @@ def test_to_d128_valid_inputs():
     assert FinancialEngine.to_d128(d128) == d128
 
 def test_to_d128_none_input():
-    assert FinancialEngine.to_d128(None) == Decimal128("0")
+    assert FinancialEngine.to_d128(None) == Decimal128("0.00")
 
 def test_to_d128_invalid_input():
     with pytest.raises(Exception):

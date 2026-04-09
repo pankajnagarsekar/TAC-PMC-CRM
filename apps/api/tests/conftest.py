@@ -6,13 +6,7 @@ from app.db.mongodb import db_manager
 from app.core.config import settings
 from app.core.dependencies import get_authenticated_user, verify_nonce
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def client():
     # Use test database
     settings.DB_NAME = "tac_pmc_test_db"
@@ -35,7 +29,10 @@ async def client():
     # Cleanup
     app.dependency_overrides = {}
     if db_manager.client:
-        await db_manager.client.drop_database(settings.DB_NAME)
+        try:
+            await db_manager.client.drop_database(settings.DB_NAME)
+        except Exception:
+            pass
     db_manager.close()
 
 @pytest.fixture

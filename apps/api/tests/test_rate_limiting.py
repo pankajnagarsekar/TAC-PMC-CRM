@@ -15,7 +15,7 @@ def test_rate_limiting_work_orders():
     for _ in range(15):
         # We don't need a valid payload for the limiter to catch it
         # (the limiter runs before the body is fully validated by business logic usually)
-        response = client.post("/api/work-orders/", json={"dummy": "data"})
+        response = client.post("/api/v1/work-orders/", json={"dummy": "data"})
         responses.append(response.status_code)
 
     assert (
@@ -29,7 +29,7 @@ def test_rate_limiting_cash_transactions():
     """
     responses = []
     for _ in range(15):
-        response = client.post("/api/cash/transactions", json={"dummy": "data"})
+        response = client.post("/api/v1/cash/transactions", json={"dummy": "data"})
         responses.append(response.status_code)
 
     assert (

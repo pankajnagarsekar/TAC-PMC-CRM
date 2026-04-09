@@ -146,7 +146,14 @@ def run_calculation(input_data: dict) -> dict:
             project_start = _parse_date(project_start_str) or datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
         if not tasks_input:
-            return {"tasks": [], "critical_path": [], "total_duration_days": 0}
+            return {
+                "tasks": [],
+                "critical_path": [],
+                "total_duration_days": 0,
+                "status": "success",
+                "calculation_version": str(uuid.uuid4()),
+                "calculated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            }
 
         # Step 2 & 3: Data Prep & Manual Mode Detection
         task_map = {}
@@ -374,7 +381,11 @@ def run_calculation(input_data: dict) -> dict:
                 if candidate < task["lf"]: task["lf"] = candidate
 
             task["ls"] = task["lf"] - dur_delta
-            
+
+            # Calculate slack and criticality for regular tasks
+            task["slack"] = (task["ls"] - task["es"]).days
+            task["is_critical"] = task["slack"] <= 0
+
             if task["constraint_type"] == "ALAP":
                 task["es"], task["ef"] = task["ls"], task["lf"]
 
@@ -399,7 +410,6 @@ def run_calculation(input_data: dict) -> dict:
                 else:
                     task["slack"] = (task["ls"] - task["es"]).days
                     task["is_critical"] = task["slack"] <= 0
-                task["is_critical"] = task["slack"] <= 0
  
         # Step 7.5: WBS Generation (Hierarchical numbering)
         def assign_wbs(parent_tid, prefix=""):

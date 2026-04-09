@@ -20,7 +20,7 @@ class IllegalTransitionError(DomainError):
         next_state: str,
         allowed: Optional[list] = None,
     ):
-        msg = f"Cannot move {entity_type} from {current_state} to {next_state}."
+        msg = f"INVALID_TRANSITION: Cannot move {entity_type} from {current_state} to {next_state}."
         if allowed:
             msg += f" Allowed: [{', '.join(allowed)}]"
         super().__init__(msg)
@@ -31,7 +31,7 @@ class DataFreezeError(DomainError):
 
     def __init__(self, entity_type: str, state: str):
         super().__init__(
-            f"Entity {entity_type} is in final state '{state}' and cannot be modified."
+            f"DATA_FREEZE: Entity {entity_type} is in final state '{state}' and cannot be modified."
         )
 
 
