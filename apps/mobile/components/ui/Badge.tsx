@@ -8,6 +8,8 @@ interface BadgeProps {
   variant?: 'solid' | 'outline';
   style?: ViewStyle;
   textStyle?: TextStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export const Badge = ({
@@ -16,11 +18,13 @@ export const Badge = ({
   variant = 'solid',
   style,
   textStyle,
+  accessibilityLabel,
+  accessibilityHint,
 }: BadgeProps) => {
   const { colors, spacing, borderRadius, fontSizes } = useTheme();
-  
+
   const badgeColor = color || colors.primary;
-  
+
   const containerStyle: ViewStyle[] = [
     styles.container,
     {
@@ -28,8 +32,8 @@ export const Badge = ({
       paddingHorizontal: spacing.sm,
       paddingVertical: 2, // Extra small vertical padding
     },
-    variant === 'solid' 
-      ? { backgroundColor: badgeColor } 
+    variant === 'solid'
+      ? { backgroundColor: badgeColor }
       : { backgroundColor: 'transparent', borderWidth: 1, borderColor: badgeColor },
     style as ViewStyle,
   ];
@@ -44,7 +48,13 @@ export const Badge = ({
   ];
 
   return (
-    <View style={containerStyle}>
+    <View
+      style={containerStyle}
+      accessible={true}
+      accessibilityRole="text"
+      accessibilityLabel={accessibilityLabel || `Badge: ${label}`}
+      accessibilityHint={accessibilityHint}
+    >
       <Text style={labelStyle}>{label ? label.toUpperCase() : ''}</Text>
     </View>
   );
