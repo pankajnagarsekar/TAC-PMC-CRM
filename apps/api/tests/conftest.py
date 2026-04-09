@@ -66,3 +66,10 @@ async def test_db():
             await db_manager.client.drop_database(settings.DB_NAME)
         except Exception:
             pass
+
+
+@pytest.fixture
+async def baseline_manager(test_db):
+    """Async fixture providing BaselineManager with test database."""
+    from app.modules.scheduler.baseline_manager import BaselineManager
+    return BaselineManager(test_db)
