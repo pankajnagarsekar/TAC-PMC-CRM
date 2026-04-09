@@ -18,14 +18,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter();
     const pathname = usePathname();
     const { user, accessToken, clearAuth, _hasHydrated, isClient } = useAuthStore();
-    const { activeProject } = useProjectStore();
+    const { activeProject, _hasHydrated: projectHydrated } = useProjectStore();
     const [showProjectModal, setShowProjectModal] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
 
     // Auto-show project selector if navigating to project-scoped pages without activeProject
     useEffect(() => {
-        if (!mounted || !_hasHydrated) return;
+        if (!mounted || !_hasHydrated || !projectHydrated) return;
 
         const projectScopedRoutes = [
             '/admin/work-orders',
@@ -61,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     // Auth guard
     useEffect(() => {
-        if (!mounted || !_hasHydrated) return;
+        if (!mounted || !_hasHydrated || !projectHydrated) return;
 
         if (!accessToken || !user) {
             router.replace('/login');
@@ -73,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             router.replace('/login');
             return;
         }
-    }, [accessToken, user, router, clearAuth, mounted, _hasHydrated]);
+    }, [accessToken, user, router, clearAuth, mounted, _hasHydrated, projectHydrated]);
 
     // Derive breadcrumbs from pathname
     const breadcrumbItems = pathname
@@ -106,7 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         );
     }
 
-    if (!_hasHydrated) {
+    if (!_hasHydrated || !projectHydrated) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-muted-foreground animate-pulse font-medium text-xs tracking-widest uppercase">

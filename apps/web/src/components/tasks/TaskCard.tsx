@@ -1,3 +1,5 @@
+'use client';
+
 import { Task } from "@/types/api";
 import { useRouter } from "next/navigation";
 import { Clock } from "lucide-react";

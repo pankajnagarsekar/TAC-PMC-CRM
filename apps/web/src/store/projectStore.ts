@@ -9,14 +9,17 @@ import { mutate } from 'swr';
 // ──────────────────────────────────────────────────────────────────────────
 interface ProjectState {
   activeProject: Project | null;
+  _hasHydrated: boolean;
   setActiveProject: (project: Project) => void;
   clearProject: () => void;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
       activeProject: null,
+      _hasHydrated: false,
 
       setActiveProject: (project: Project) => {
         const currentActive = get().activeProject;
@@ -34,9 +37,14 @@ export const useProjectStore = create<ProjectState>()(
         mutate(() => true, undefined, { revalidate: false });
         set({ activeProject: null });
       },
+
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'crm-project',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
       partialize: (state) => ({ activeProject: state.activeProject }),
     }
   )

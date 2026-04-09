@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from "react";
 import { Sparkles, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import api from "@/lib/api";

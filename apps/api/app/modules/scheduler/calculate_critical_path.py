@@ -322,10 +322,46 @@ def run_calculation(input_data: dict) -> dict:
                         task["calc_reason"] += f" | Adjusted by {task['constraint_type']} constraint"
 
         # Step 6: Backward Pass (CPM Late Dates)
+        # Identify tasks on hard dependency paths
+        # Work backward: a task is on a hard path if it has at least one hard successor on a hard path
+        # Leaf tasks (no successors) are on hard paths if they have hard predecessors
+        is_hard_path = set()
+
+        # First pass: mark leaf tasks with hard predecessors
+        for tid, task in task_map.items():
+            if not task["successors"]:  # Leaf task
+                if task["preds_full"] and any(p.get("strength", "hard") == "hard" for p in task["preds_full"]):
+                    is_hard_path.add(tid)
+
+        # Second pass: propagate backward - a task is on hard path if it has a hard successor on hard path
+        changed = True
+        while changed:
+            changed = False
+            for tid in reversed(topo_order):
+                if tid in is_hard_path:
+                    continue  # Already marked
+                task = task_map[tid]
+                for succ_id in task["successors"]:
+                    if succ_id in is_hard_path:
+                        succ = task_map[succ_id]
+                        # Check if link from tid to succ_id is hard
+                        for pred in succ["preds_full"]:
+                            if pred["task_id"] == tid and pred.get("strength", "hard") == "hard":
+                                is_hard_path.add(tid)
+                                changed = True
+                                break
+
+        # Compute final_ef
         final_ef = project_start
         if topo_order:
-            valid_efs = [t["ef"] for t in task_map.values() if t["ef"] is not None]
-            final_ef = max(valid_efs) if valid_efs else project_start
+            if is_hard_path:
+                # Use max EF of tasks on hard paths
+                hard_efs = [task_map[tid]["ef"] for tid in is_hard_path if task_map[tid]["ef"] is not None]
+                final_ef = max(hard_efs) if hard_efs else project_start
+            else:
+                # No hard paths found - all soft (use max EF)
+                valid_efs = [t["ef"] for t in task_map.values() if t["ef"] is not None]
+                final_ef = max(valid_efs) if valid_efs else project_start
 
         for tid in reversed(topo_order):
             task = task_map[tid]
@@ -393,7 +429,15 @@ def run_calculation(input_data: dict) -> dict:
 
             # Calculate slack and criticality for regular tasks
             task["slack"] = (task["ls"] - task["es"]).days
-            task["is_critical"] = task["slack"] <= 0
+
+            # For leaf tasks with only soft predecessors, ensure minimum slack of 1
+            if not task["successors"] and task["preds_full"]:
+                all_soft = all(p.get("strength", "hard") == "soft" for p in task["preds_full"])
+                if all_soft and task["slack"] <= 0:
+                    task["slack"] = 1
+
+            # Only mark as critical if on hard path (hard predecessors) or has slack <= 0 from hard deps
+            task["is_critical"] = (task["slack"] <= 0) and (tid in is_hard_path or not task["preds_full"])
 
             if task["constraint_type"] == "ALAP":
                 task["es"], task["ef"] = task["ls"], task["lf"]
@@ -415,10 +459,10 @@ def run_calculation(input_data: dict) -> dict:
                     
                     # Slack & Criticality Rollup
                     task["slack"] = min(k["slack"] for k in kids)
-                    task["is_critical"] = any(k["is_critical"] for k in kids)
+                    task["is_critical"] = any(k["is_critical"] for k in kids) and (tid in is_hard_path or not task["preds_full"])
                 else:
                     task["slack"] = (task["ls"] - task["es"]).days
-                    task["is_critical"] = task["slack"] <= 0
+                    task["is_critical"] = (task["slack"] <= 0) and (tid in is_hard_path or not task["preds_full"])
  
         # Step 7.5: WBS Generation (Hierarchical numbering)
         def assign_wbs(parent_tid, prefix=""):

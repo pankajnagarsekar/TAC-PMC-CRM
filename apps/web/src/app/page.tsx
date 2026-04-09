@@ -1,15 +1,23 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 
 // Root page — just a redirect based on auth state
 export default function RootPage() {
   const router = useRouter();
-  const { user, accessToken } = useAuthStore();
+  const { user, accessToken, _hasHydrated } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Wait for hydration before checking auth
+    if (!mounted || !_hasHydrated) return;
+
     console.log('RootPage: Auth state', { hasToken: !!accessToken, hasUser: !!user, role: user?.role });
     if (!accessToken || !user) {
       router.replace('/login');
@@ -18,7 +26,7 @@ export default function RootPage() {
     } else {
       router.replace('/login');
     }
-  }, [accessToken, user, router]);
+  }, [accessToken, user, router, mounted, _hasHydrated]);
 
   console.log('RootPage: rendering loader');
 
