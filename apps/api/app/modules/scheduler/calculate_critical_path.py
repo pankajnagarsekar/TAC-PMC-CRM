@@ -339,16 +339,25 @@ def run_calculation(input_data: dict) -> dict:
             valid_successors = False
             for succ_id in task["successors"]:
                 succ = task_map[succ_id]
-                if succ["parent_id"] == tid: continue 
+                if succ["parent_id"] == tid: continue
 
-                valid_successors = True
+                # SOFT DEPS: Only hard dependencies affect backward pass (criticality)
+                # Soft deps constrain ES/EF (forward pass) but not criticality
                 link_type = "FS"
                 lag = 0
+                strength = "hard"  # Default to hard
                 for pf in succ["preds_full"]:
                     if pf["task_id"] == tid:
                         link_type = pf.get("type", "FS").upper()
                         lag = int(pf.get("lag_days", 0) or 0)
+                        strength = pf.get("strength", "hard")
                         break
+
+                # Skip soft dependencies in backward pass (only affect forward pass ES/EF)
+                if strength == "soft":
+                    continue
+
+                valid_successors = True
                 
                 # Derive s_lf first — it's more likely to be set than s_ls
                 s_lf = succ["lf"] if succ["lf"] is not None else succ["ef"]
