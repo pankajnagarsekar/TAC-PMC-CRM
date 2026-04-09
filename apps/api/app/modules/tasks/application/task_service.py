@@ -9,6 +9,7 @@ from app.modules.shared.domain.state_machine import StateMachine
 from app.modules.tasks.infrastructure.repository import TaskRepository, TaskAISummaryRepository
 from app.modules.tasks.domain.authorization import TaskAuthorizationManager
 from app.modules.tasks.domain.exceptions import TaskSummaryGenerationError
+from app.modules.tasks.infrastructure.cache_manager import TaskAISummaryCache
 from app.modules.tasks.schemas.dto import TaskCreate, TaskUpdate
 from app.modules.project.infrastructure.repository import ProjectRepository
 
@@ -45,7 +46,16 @@ class TaskService:
                 "detail": f"Task created with sr_no {sr_no}",
             }],
         })
-        return await self.repo.create(task_dict)
+        task = await self.repo.create(task_dict)
+
+        # Invalidate cached summary for this project
+        await TaskAISummaryCache.invalidate_for_project(
+            self.db,
+            user["organisation_id"],
+            data.project_id
+        )
+
+        return task
 
     async def get_task(self, user: dict, task_id: str) -> Dict[str, Any]:
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
@@ -83,6 +93,14 @@ class TaskService:
             {"_id": task["_id"]},
             {"$set": update_data, "$push": {"audit_log": audit_entry}},
         )
+
+        # Invalidate cached summary for this project
+        await TaskAISummaryCache.invalidate_for_project(
+            self.db,
+            user["organisation_id"],
+            task["project_id"]
+        )
+
         return await self.repo.get_by_id(task_id)
 
     async def update_task_details(self, user: dict, task_id: str, data: TaskUpdate) -> Dict[str, Any]:
@@ -115,6 +133,14 @@ class TaskService:
             {"_id": task["_id"]},
             {"$set": update_dict, "$push": {"audit_log": audit_entry}},
         )
+
+        # Invalidate cached summary for this project
+        await TaskAISummaryCache.invalidate_for_project(
+            self.db,
+            user["organisation_id"],
+            task["project_id"]
+        )
+
         return await self.repo.get_by_id(task_id)
 
     async def get_tasks(self, user: dict, project_id: str) -> List[Dict[str, Any]]:
@@ -140,12 +166,23 @@ class TaskService:
         if task.get("status") == "Closed":
             return
 
+        # Store project_id before deletion
+        project_id = task.get("project_id")
+
         # Pristine Open tasks with only the CREATE log entry can be hard-deleted
         if task.get("status") == "Open" and len(task.get("audit_log", [])) <= 1:
             await self.repo.delete(task_id)
         else:
             # Transition to Closed — this preserves the audit trail
             await self.update_status(user, task_id, "Closed")
+
+        # Invalidate cached summary for this project
+        if project_id:
+            await TaskAISummaryCache.invalidate_for_project(
+                self.db,
+                user["organisation_id"],
+                project_id
+            )
 
     async def get_task_summary_for_ai(self, user: dict, project_id: str) -> Dict[str, Any]:
         """Aggregates metrics and generates AI summary with caching and timeout protection."""
