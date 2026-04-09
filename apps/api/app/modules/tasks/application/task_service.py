@@ -10,6 +10,11 @@ from app.modules.tasks.infrastructure.repository import TaskRepository, TaskAISu
 from app.modules.tasks.domain.authorization import TaskAuthorizationManager
 from app.modules.tasks.domain.exceptions import TaskSummaryGenerationError
 from app.modules.tasks.infrastructure.cache_manager import TaskAISummaryCache
+from app.modules.tasks.domain.constants import (
+    TASK_AI_SUMMARY_CACHE_TTL_SECONDS,
+    TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS,
+    MAX_TOP_ASSIGNEES_IN_SUMMARY,
+)
 from app.modules.tasks.schemas.dto import TaskCreate, TaskUpdate
 from app.modules.project.infrastructure.repository import ProjectRepository
 
@@ -17,7 +22,28 @@ logger = logging.getLogger(__name__)
 
 
 class TaskService:
+    """
+    Task management service implementing domain-driven design patterns.
+
+    This service orchestrates task operations including creation, updates, status transitions,
+    and AI summary generation. It enforces:
+    - Atomic serial number (sr_no) generation via MongoDB atomic operations
+    - State machine-based status transitions with immutable final states
+    - Organization scoping for multi-tenancy security
+    - Cache invalidation on task mutations
+    - Audit trail maintenance for compliance
+    """
+
     def __init__(self, db: AsyncIOMotorDatabase, audit=None, perm=None, snap=None):
+        """
+        Initialize TaskService.
+
+        Args:
+            db: Motor async MongoDB database instance
+            audit: Optional audit service for logging state changes
+            perm: Optional permission service for role-based access
+            snap: Optional snapshot service for state snapshots
+        """
         self.db = db
         self.repo = TaskRepository(db)
         self.audit = audit
@@ -25,7 +51,22 @@ class TaskService:
         self.snap = snap
 
     async def create_task(self, user: dict, data: TaskCreate) -> Dict[str, Any]:
-        """Atomic creation with sequential sr_no."""
+        """
+        Create a new task with atomic sequential sr_no generation.
+
+        Ensures unique sr_no within project scope via MongoDB's atomic find_one_and_update.
+        All new tasks start in Open status with empty audit log.
+
+        Args:
+            user: Authenticated user dict with organisation_id, user_id, full_name
+            data: TaskCreate DTO with task_description, assigned_to_name, priority, etc.
+
+        Returns:
+            Created task document with sr_no, status=Open, audit_log=[CREATE entry]
+
+        Raises:
+            HTTPException: On database errors
+        """
         sr_no = await self.repo.get_next_sr_no(
             user["organisation_id"],
             data.project_id,
@@ -58,12 +99,43 @@ class TaskService:
         return task
 
     async def get_task(self, user: dict, task_id: str) -> Dict[str, Any]:
+        """
+        Retrieve a single task with organization scoping.
+
+        Args:
+            user: Authenticated user dict (must have organisation_id)
+            task_id: The task's MongoDB ObjectId as string
+
+        Returns:
+            Task document including audit_log, sr_no, status, etc.
+
+        Raises:
+            HTTPException(404): If task not found or user lacks org access
+        """
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
         return task
 
     async def update_status(self, user: dict, task_id: str, new_status: str) -> Dict[str, Any]:
+        """
+        Update task status with StateMachine-enforced transitions.
+
+        Validates transitions against the StateMachine. Closed is a terminal state.
+        Logs the transition in audit_log and invalidates project's cached summary.
+
+        Args:
+            user: Authenticated user dict
+            task_id: Task's MongoDB ObjectId as string
+            new_status: Target status (Open, In Progress, Completed, Closed)
+
+        Returns:
+            Updated task document with incremented version and new audit_log entry
+
+        Raises:
+            HTTPException(400): If transition is invalid per StateMachine
+            HTTPException(404): If task not found
+        """
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -104,6 +176,24 @@ class TaskService:
         return await self.repo.get_by_id(task_id)
 
     async def update_task_details(self, user: dict, task_id: str, data: TaskUpdate) -> Dict[str, Any]:
+        """
+        Update task field details with immutability enforcement.
+
+        Cannot update tasks in Closed state (terminal state). Increments version for
+        optimistic locking and logs all field changes in audit_log.
+
+        Args:
+            user: Authenticated user dict
+            task_id: Task's MongoDB ObjectId as string
+            data: TaskUpdate DTO with fields to update (only set fields are updated)
+
+        Returns:
+            Updated task document with new audit_log entry
+
+        Raises:
+            HTTPException(400): If task is in Closed/frozen state
+            HTTPException(404): If task not found
+        """
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -144,7 +234,16 @@ class TaskService:
         return await self.repo.get_by_id(task_id)
 
     async def get_tasks(self, user: dict, project_id: str) -> List[Dict[str, Any]]:
-        """List all tasks for a project scoped to the user's organisation."""
+        """
+        List all tasks for a project with organization scoping.
+
+        Args:
+            user: Authenticated user dict
+            project_id: The project ID to filter by
+
+        Returns:
+            List of task documents for the project
+        """
         return await self.repo.list({
             "organisation_id": user["organisation_id"],
             "project_id": project_id,
@@ -152,8 +251,21 @@ class TaskService:
 
     async def delete_task(self, user: dict, task_id: str) -> None:
         """
-        Hard-delete pristine Open tasks.
-        Tasks with work history are transitioned to Closed instead (preserves audit trail).
+        Delete or close a task based on its state.
+
+        Strategy:
+        - Pristine Open tasks (CREATE log only): Hard-deleted from database
+        - All other tasks: Transitioned to Closed status to preserve audit trail
+
+        Args:
+            user: Authenticated user dict
+            task_id: Task's MongoDB ObjectId as string
+
+        Returns:
+            None
+
+        Raises:
+            HTTPException(404): If task not found
         """
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
@@ -185,10 +297,30 @@ class TaskService:
             )
 
     async def get_task_summary_for_ai(self, user: dict, project_id: str) -> Dict[str, Any]:
-        """Aggregates metrics and generates AI summary with caching and timeout protection."""
+        """
+        Generate AI-powered task summary with intelligent caching.
+
+        Workflow:
+        1. Check cache (6-hour TTL) and return if valid
+        2. Aggregate task metrics (status distribution, overdue count, top assignees)
+        3. Call AI provider (OpenAI or mock) with 30-second timeout
+        4. Store result in cache for future requests
+        5. Invalidate cache when tasks change
+
+        Args:
+            user: Authenticated user dict
+            project_id: Project ID to summarize
+
+        Returns:
+            Dict with summary_text (AI-generated) and metrics (aggregated data)
+
+        Raises:
+            TaskSummaryGenerationError: If AI generation fails (not timeout)
+            HTTPException(500): On database errors
+        """
         summary_repo = TaskAISummaryRepository(self.db)
 
-        # 1. Check Cache (6-hour TTL)
+        # 1. Check Cache (TTL configured in constants)
         try:
             existing = await summary_repo.find_one(
                 {"project_id": project_id, "organisation_id": user["organisation_id"]},
@@ -196,7 +328,7 @@ class TaskService:
             )
             if existing:
                 created_at = existing.get("created_at")
-                if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < 21600:
+                if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < TASK_AI_SUMMARY_CACHE_TTL_SECONDS:
                     return existing
         except Exception as e:
             logger.error(f"Error checking cache for task summary: {str(e)}", exc_info=True)
@@ -231,7 +363,9 @@ class TaskService:
         for t in tasks:
             name = t.get("assigned_to_name", "Unassigned")
             assignees[name] = assignees.get(name, 0) + 1
-        top_assignees = dict(sorted(assignees.items(), key=lambda x: x[1], reverse=True)[:3])
+        top_assignees = dict(
+            sorted(assignees.items(), key=lambda x: x[1], reverse=True)[:MAX_TOP_ASSIGNEES_IN_SUMMARY]
+        )
 
         report_data = {
             "total": total,
@@ -257,13 +391,13 @@ class TaskService:
                 else MockSummaryProvider()
             )
 
-            # Add 30-second timeout for summary generation
+            # Add timeout for summary generation
             summary_text = await asyncio.wait_for(
                 provider.generate_summary(report_data, f"Task Management for {project_name}"),
-                timeout=30.0
+                timeout=TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS
             )
         except asyncio.TimeoutError:
-            logger.warning("Task summary generation timed out after 30 seconds")
+            logger.warning(f"Task summary generation timed out after {TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS} seconds")
             summary_text = f"Summary generation timed out. Report metrics: {report_data}"
         except Exception as e:
             logger.error(f"Error generating task summary: {str(e)}", exc_info=True)
