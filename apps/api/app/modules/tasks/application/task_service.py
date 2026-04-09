@@ -19,11 +19,10 @@ class TaskService:
 
     async def create_task(self, user: dict, data: TaskCreate) -> Dict[str, Any]:
         """Atomic creation with sequential sr_no."""
-        count = await self.repo.count({
-            "organisation_id": user["organisation_id"],
-            "project_id": data.project_id,
-        })
-        sr_no = count + 1
+        sr_no = await self.repo.get_next_sr_no(
+            user["organisation_id"],
+            data.project_id,
+        )
 
         task_dict = data.model_dump()
         task_dict.update({
