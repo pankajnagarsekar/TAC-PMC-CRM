@@ -243,10 +243,18 @@ async def get_ai_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AIServic
     return AIService(db)
 
 
+async def get_undo_redo_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    from app.modules.project.application.undo_redo_service import UndoRedoService
+    return UndoRedoService(db)
+
+
 async def get_scheduler_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    undo_redo_service = Depends(get_undo_redo_service),
 ) -> SchedulerService:
-    return SchedulerService(db)
+    return SchedulerService(db, undo_redo_service=undo_redo_service)
 
 
 async def get_alert_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AlertService:

@@ -20,10 +20,11 @@ class SchedulerService:
     Orchestrates deterministic scheduling logic.
     """
 
-    def __init__(self, db):
+    def __init__(self, db, undo_redo_service=None):
         self.db = db
         self.collection = db["project_schedules"]
         self.baseline_manager = BaselineManager(db)
+        self.undo_redo_service = undo_redo_service
 
 
     async def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
@@ -124,6 +125,45 @@ class SchedulerService:
     async def save_schedule(
         self, project_id: str, organisation_id: str, user_id: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """Save schedule with undo/redo snapshot capture (after-capture pattern)."""
+        schedule_doc = {
+            "project_id": project_id,
+            "organisation_id": organisation_id,
+            "tasks": data.get("tasks", []),
+            "project_start": data.get("project_start"),
+            "total_cost": data.get("total_cost"),
+            "updated_by": user_id,
+            "updated_at": datetime.now(timezone.utc),
+        }
+
+        await self.collection.update_one(
+            {"project_id": project_id, "organisation_id": organisation_id},
+            {"$set": schedule_doc},
+            upsert=True,
+        )
+
+        # Capture snapshot for undo/redo after successful save
+        if self.undo_redo_service:
+            new_tasks = data.get("tasks", [])
+            if new_tasks:  # only capture if there are tasks
+                await self.undo_redo_service.capture_snapshot(
+                    project_id=project_id,
+                    org_id=organisation_id,
+                    user_id=user_id,
+                    change_type="SAVE_SCHEDULE",
+                    summary=f"Schedule saved ({len(new_tasks)} tasks)",
+                    tasks=new_tasks,
+                )
+
+        return {"message": "Project schedule saved successfully"}
+
+    async def save_schedule_raw(
+        self, project_id: str, organisation_id: str, user_id: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Save schedule WITHOUT undo/redo snapshot capture.
+        Used internally by undo/redo routes to avoid capture loop.
+        """
         schedule_doc = {
             "project_id": project_id,
             "organisation_id": organisation_id,
@@ -142,7 +182,7 @@ class SchedulerService:
         return {"message": "Project schedule saved successfully"}
 
     async def delete_task(
-        self, project_id: str, organisation_id: str, task_id: str
+        self, project_id: str, organisation_id: str, task_id: str, user_id: str = None
     ) -> Dict[str, Any]:
         """Permanently remove a task and update project schedule."""
         schedule = await self.load_schedule(project_id, organisation_id)
@@ -150,10 +190,22 @@ class SchedulerService:
             raise ValidationError("Schedule not found")
 
         original_count = len(schedule["tasks"])
+
+        # Capture before-state snapshot for undo
+        if self.undo_redo_service and user_id:
+            await self.undo_redo_service.capture_snapshot(
+                project_id=project_id,
+                org_id=organisation_id,
+                user_id=user_id,
+                change_type="DELETE_TASK",
+                summary=f"Task {task_id} deleted",
+                tasks=schedule.get("tasks", []),
+            )
+
         schedule["tasks"] = [t for t in schedule["tasks"] if t.get("task_id") != task_id]
 
         if len(schedule["tasks"]) == original_count:
-             return {"message": "Task not found in schedule", "count": original_count}
+            return {"message": "Task not found in schedule", "count": original_count}
 
         await self.collection.update_one(
             {"project_id": project_id, "organisation_id": organisation_id},

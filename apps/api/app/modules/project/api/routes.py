@@ -272,7 +272,9 @@ async def delete_task(
     service: SchedulerService = Depends(get_scheduler_service),
 ):
     """Permanently remove a task from the project schedule."""
-    result = await service.delete_task(project_id, user["organisation_id"], task_id)
+    result = await service.delete_task(
+        project_id, user["organisation_id"], task_id, user["user_id"]
+    )
     return GenericResponse(data=result, message="Task deleted successfully")
 
 
