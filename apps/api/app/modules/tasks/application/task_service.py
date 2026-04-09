@@ -1,13 +1,18 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+import asyncio
+import logging
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.modules.shared.domain.state_machine import StateMachine
 from app.modules.tasks.infrastructure.repository import TaskRepository, TaskAISummaryRepository
 from app.modules.tasks.domain.authorization import TaskAuthorizationManager
+from app.modules.tasks.domain.exceptions import TaskSummaryGenerationError
 from app.modules.tasks.schemas.dto import TaskCreate, TaskUpdate
 from app.modules.project.infrastructure.repository import ProjectRepository
+
+logger = logging.getLogger(__name__)
 
 
 class TaskService:
@@ -143,11 +148,11 @@ class TaskService:
             await self.update_status(user, task_id, "Closed")
 
     async def get_task_summary_for_ai(self, user: dict, project_id: str) -> Dict[str, Any]:
-        """Aggregates metrics and generates AI summary with caching."""
-        try:
-            summary_repo = TaskAISummaryRepository(self.db)
+        """Aggregates metrics and generates AI summary with caching and timeout protection."""
+        summary_repo = TaskAISummaryRepository(self.db)
 
-            # 1. Check Cache (6-hour TTL)
+        # 1. Check Cache (6-hour TTL)
+        try:
             existing = await summary_repo.find_one(
                 {"project_id": project_id, "organisation_id": user["organisation_id"]},
                 sort=[("created_at", -1)],
@@ -156,8 +161,12 @@ class TaskService:
                 created_at = existing.get("created_at")
                 if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < 21600:
                     return existing
+        except Exception as e:
+            logger.error(f"Error checking cache for task summary: {str(e)}", exc_info=True)
+            # Continue to regenerate on cache lookup error
 
-            # 2. Aggregate task metrics
+        # 2. Aggregate task metrics
+        try:
             tasks = await self.repo.list({
                 "project_id": project_id,
                 "organisation_id": user["organisation_id"],
@@ -165,7 +174,8 @@ class TaskService:
             if not tasks:
                 return {"summary_text": "No tasks available to summarize.", "metrics": {}}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error aggregating task metrics: {str(e)}")
+            logger.error(f"Error aggregating task metrics: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to aggregate task metrics")
 
         total = len(tasks)
         open_tasks = [t for t in tasks if t.get("status") in ["Open", "In Progress"]]
@@ -195,20 +205,32 @@ class TaskService:
             "top_assignees": top_assignees,
         }
 
-        # 3. AI Generation with graceful fallback
-        from app.core.ai_summary_service import EmergentSummaryProvider, MockSummaryProvider
-        from app.core.config import settings
+        # 3. AI Generation with graceful fallback and timeout
+        try:
+            from app.core.ai_summary_service import EmergentSummaryProvider, MockSummaryProvider
+            from app.core.config import settings
 
-        project_repo = ProjectRepository(self.db)
-        project = await project_repo.get_by_id(project_id)
-        project_name = project.get("project_name", project_id) if project else project_id
+            project_repo = ProjectRepository(self.db)
+            project = await project_repo.get_by_id(project_id)
+            project_name = project.get("project_name", project_id) if project else project_id
 
-        provider = (
-            EmergentSummaryProvider(settings.OPENAI_API_KEY)
-            if settings.OPENAI_API_KEY
-            else MockSummaryProvider()
-        )
-        summary_text = await provider.generate_summary(report_data, f"Task Management for {project_name}")
+            provider = (
+                EmergentSummaryProvider(settings.OPENAI_API_KEY)
+                if settings.OPENAI_API_KEY
+                else MockSummaryProvider()
+            )
+
+            # Add 30-second timeout for summary generation
+            summary_text = await asyncio.wait_for(
+                provider.generate_summary(report_data, f"Task Management for {project_name}"),
+                timeout=30.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Task summary generation timed out after 30 seconds")
+            summary_text = f"Summary generation timed out. Report metrics: {report_data}"
+        except Exception as e:
+            logger.error(f"Error generating task summary: {str(e)}", exc_info=True)
+            raise TaskSummaryGenerationError(str(e))
 
         doc = {
             "project_id": project_id,
@@ -217,4 +239,9 @@ class TaskService:
             "metrics": report_data,
             "created_at": datetime.now(timezone.utc),
         }
-        return await summary_repo.create(doc)
+
+        try:
+            return await summary_repo.create(doc)
+        except Exception as e:
+            logger.error(f"Error saving task summary: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to save task summary")
