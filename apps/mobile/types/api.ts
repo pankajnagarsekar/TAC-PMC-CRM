@@ -800,6 +800,36 @@ export interface AuditLog {
 }
 
 // ============================================
+// SCHEDULER
+// ============================================
+export type ScheduleTaskStatus =
+  | "draft"
+  | "not_started"
+  | "in_progress"
+  | "completed"
+  | "closed";
+
+export interface ScheduleTask {
+  task_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  duration_days: number;
+  status: ScheduleTaskStatus;
+  is_critical: boolean;
+  predecessors?: Array<{ task_id: string; type: "FS" | "SS" | "FF" | "SF"; lag_days?: number }>;
+  progress_pct?: number;
+  baseline_start?: string | null;
+  baseline_end?: string | null;
+}
+
+export interface ScheduleLoadResponse {
+  tasks: ScheduleTask[];
+  project_start: string;
+  last_calculated_at?: string;
+}
+
+// ============================================
 // API RESPONSE WRAPPERS
 // ============================================
 export interface PaginatedResponse<T> {

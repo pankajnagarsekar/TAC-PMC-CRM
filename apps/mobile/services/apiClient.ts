@@ -7,6 +7,8 @@ import {
   LoginResponse,
   User,
   Project,
+  ScheduleTask,
+  ScheduleLoadResponse,
   CreateProjectRequest,
   Code,
   CreateCodeRequest,
@@ -494,6 +496,16 @@ export const tasksApi = {
 };
 
 // ============================================
+// SCHEDULER API
+// ============================================
+export { ScheduleTask, ScheduleLoadResponse };
+
+export const schedulerApi = {
+  loadSchedule: (projectId: string): Promise<ScheduleLoadResponse> =>
+    request(`/api/v1/projects/${projectId}/load-schedule`),
+};
+
+// ============================================
 // ISSUES
 // ============================================
 export const aiApi = {
@@ -745,6 +757,7 @@ export default {
   settings: settingsApi,
   reporting: reportingApi,
   tasks: tasksApi,
+  scheduler: schedulerApi,
   cash: cashApi,
   csa: csaApi,
   images: imagesApi,
