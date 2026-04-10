@@ -143,6 +143,13 @@ export default function AdminLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="scheduler"
+        options={{
+          href: null,
+          title: 'Scheduler',
+        }}
+      />
     </Tabs>
   );
 }

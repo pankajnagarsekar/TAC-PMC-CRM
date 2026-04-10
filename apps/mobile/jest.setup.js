@@ -1,3 +1,4 @@
+/* global jest */
 // Jest setup for React Native / Expo
 // Sets up gesture handler and reanimated mocks
 
