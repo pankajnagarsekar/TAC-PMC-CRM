@@ -2,10 +2,10 @@
 // Uses FlashList (NOT FlatList) for 60fps virtualization.
 
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import type { ScheduleTask } from '../../types/api';
 import { STATUS_COLORS, STATUS_LABELS, CRITICAL_COLOR } from './scheduler-constants';
 import { parseTaskDate } from './scheduler-utils';
@@ -26,10 +26,10 @@ function formatDate(value: string | null | undefined): string {
   }
 }
 
-function TaskRow({ item, colors }: { item: ScheduleTask; colors: any }) {
+function TaskRow({ item, colors, dynamicStyles }: { item: ScheduleTask; colors: any; dynamicStyles: any }) {
   const router = useRouter();
   const isCritical = item.is_critical;
-  const statusColor = STATUS_COLORS[item.status] ?? '#64748b';
+  const statusColor = STATUS_COLORS[item.status] ?? colors.textMuted;
   const statusLabel = STATUS_LABELS[item.status] ?? item.status;
 
   return (
@@ -37,22 +37,22 @@ function TaskRow({ item, colors }: { item: ScheduleTask; colors: any }) {
       testID={isCritical ? 'critical-task-row' : 'task-row'}
       onPress={() => router.push(`/scheduler/task/${item.task_id}`)}
       style={[
-        styles.row,
+        dynamicStyles.row,
         isCritical && { borderLeftColor: CRITICAL_COLOR, borderLeftWidth: 3 },
       ]}
     >
       <View style={styles.rowContent}>
-        <Text style={[styles.taskName, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[dynamicStyles.taskName, { color: colors.text }]} numberOfLines={1}>
           {item.name}
         </Text>
         <View style={styles.metaRow}>
           <View style={[styles.statusChip, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
           </View>
-          <Text style={[styles.dateRange, { color: colors.textSecondary }]}>
+          <Text style={dynamicStyles.dateRange}>
             {formatDate(item.start_date)} → {formatDate(item.end_date)}
           </Text>
-          <Text style={[styles.duration, { color: colors.textSecondary }]}>{item.duration_days}d</Text>
+          <Text style={dynamicStyles.duration}>{item.duration_days}d</Text>
         </View>
       </View>
     </Pressable>
@@ -66,7 +66,7 @@ export function SchedulerList({ tasks }: SchedulerListProps) {
   if (tasks.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No scheduled tasks yet</Text>
+        <Text style={dynamicStyles.emptyText}>No scheduled tasks yet</Text>
       </View>
     );
   }
@@ -75,7 +75,8 @@ export function SchedulerList({ tasks }: SchedulerListProps) {
     <FlashList
       data={tasks}
       keyExtractor={(item) => item.task_id}
-      renderItem={({ item }) => <TaskRow item={item} colors={colors} />}
+      estimatedItemSize={60}
+      renderItem={({ item }) => <TaskRow item={item} colors={colors} dynamicStyles={dynamicStyles} />}
     />
   );
 }
@@ -91,26 +92,30 @@ function createDynamicStyles(colors: any) {
       borderLeftWidth: 0,
       borderLeftColor: 'transparent',
     },
+    taskName: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    dateRange: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      flex: 1,
+    },
+    duration: {
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontSize: 16,
+    },
   });
 }
 
 const styles = StyleSheet.create({
-  row: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1e293b',
-    backgroundColor: '#0f172a',
-    borderLeftWidth: 0,
-    borderLeftColor: 'transparent',
-  },
   rowContent: {
     gap: 6,
-  },
-  taskName: {
-    color: '#f1f5f9',
-    fontSize: 14,
-    fontWeight: '500',
   },
   metaRow: {
     flexDirection: 'row',
@@ -127,24 +132,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  dateRange: {
-    color: '#94a3b8',
-    fontSize: 12,
-    flex: 1,
-  },
-  duration: {
-    color: '#64748b',
-    fontSize: 12,
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-  },
-  emptyText: {
-    color: '#64748b',
-    fontSize: 16,
   },
 });
 

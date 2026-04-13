@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { SchedulerScreen } from '../../components/scheduler/SchedulerScreen';
 import type { ScheduleTask } from '../../types/api';
 
@@ -51,6 +51,32 @@ jest.mock('react-native-reanimated', () => ({
   useAnimatedProps: (callback: () => any) => callback(),
   createAnimatedComponent: (component: any) => component,
 }));
+
+// Mock scheduler components to avoid internal dependency issues
+jest.mock('../../components/scheduler/SchedulerGantt', () => {
+  const { View, Text } = require('react-native');
+  return {
+    SchedulerGantt: ({ tasks }: { tasks: ScheduleTask[] }) => (
+      <View testID="scheduler-gantt">
+        <Text>Gantt View ({tasks.length} tasks)</Text>
+      </View>
+    ),
+  };
+});
+
+jest.mock('../../components/scheduler/SchedulerList', () => {
+  const { View, Text } = require('react-native');
+  return {
+    SchedulerList: ({ tasks }: { tasks: ScheduleTask[] }) => (
+      <View testID="scheduler-list">
+        {tasks.map((t: ScheduleTask) => (
+          <Text key={t.task_id}>{t.name}</Text>
+        ))}
+        {tasks.length === 0 && <Text>No scheduled tasks yet</Text>}
+      </View>
+    ),
+  };
+});
 
 // Mock contexts
 const mockProject = { project_id: 'p1', project_name: 'Test Project' };
@@ -109,41 +135,92 @@ jest.mock('../../hooks/useSchedulerData', () => ({
   })),
 }));
 
+import { useSchedulerData } from '../../hooks/useSchedulerData';
+const mockUseSchedulerData = useSchedulerData as jest.Mock;
+
 describe('SchedulerScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default mock implementation
+    mockUseSchedulerData.mockReturnValue({
+      tasks: mockTasks,
+      projectStart: '2025-01-01',
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
   });
 
-  it('renders project name in header', () => {
+  it('renders project name and task list in list view', () => {
     render(<SchedulerScreen />);
     expect(screen.getByText('Test Project')).toBeTruthy();
-  });
-
-  it('renders List and Gantt tab buttons', () => {
-    render(<SchedulerScreen />);
-    expect(screen.getByText('List')).toBeTruthy();
-    expect(screen.getByText('Gantt')).toBeTruthy();
-  });
-
-  it('shows List view by default', () => {
-    render(<SchedulerScreen />);
     expect(screen.getByText('Foundation Work')).toBeTruthy();
     expect(screen.getByText('Structural Steel')).toBeTruthy();
   });
 
-  it('toggles to Gantt view when Gantt button pressed', () => {
+  it('toggles between list and gantt view modes', () => {
     render(<SchedulerScreen />);
-    const ganttButton = screen.getByText('Gantt');
-    fireEvent.press(ganttButton);
-    // After toggle, Gantt view should be active
-    expect(ganttButton).toBeTruthy();
+
+    // Initially in list view
+    expect(screen.getByTestId('scheduler-list')).toBeTruthy();
+    expect(screen.queryByTestId('scheduler-gantt')).toBeFalsy();
+
+    // Press Gantt button
+    fireEvent.press(screen.getByText('Gantt'));
+    expect(screen.getByTestId('scheduler-gantt')).toBeTruthy();
+    expect(screen.queryByTestId('scheduler-list')).toBeFalsy();
+
+    // Press List button
+    fireEvent.press(screen.getByText('List'));
+    expect(screen.getByTestId('scheduler-list')).toBeTruthy();
+    expect(screen.queryByTestId('scheduler-gantt')).toBeFalsy();
   });
 
-  it('toggles back to List view when List button pressed', () => {
+  it('shows loading state while fetching data', () => {
+    mockUseSchedulerData.mockReturnValue({
+      tasks: [],
+      projectStart: null,
+      loading: true,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const { UNSAFE_getByType } = render(<SchedulerScreen />);
+    const { ActivityIndicator } = require('react-native');
+    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    expect(screen.queryByTestId('scheduler-list')).toBeFalsy();
+  });
+
+  it('shows error message with retry button and calls refetch', () => {
+    const mockRefetch = jest.fn();
+    mockUseSchedulerData.mockReturnValue({
+      tasks: [],
+      projectStart: null,
+      loading: false,
+      error: 'Failed to load tasks',
+      refetch: mockRefetch,
+    });
+
     render(<SchedulerScreen />);
-    const listButton = screen.getByText('List');
-    fireEvent.press(listButton);
-    // After toggle, List view should be active
-    expect(listButton).toBeTruthy();
+    expect(screen.getByText('Failed to load tasks')).toBeTruthy();
+
+    const retryButton = screen.getByText('Retry');
+    expect(retryButton).toBeTruthy();
+    fireEvent.press(retryButton);
+    expect(mockRefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders tasks in both list and gantt modes', () => {
+    render(<SchedulerScreen />);
+
+    // List mode should render tasks (both names appear in the list view)
+    const listView = screen.getByTestId('scheduler-list');
+    expect(screen.getByText('Foundation Work')).toBeTruthy();
+    expect(screen.getByText('Structural Steel')).toBeTruthy();
+
+    // Switch to Gantt mode
+    fireEvent.press(screen.getByText('Gantt'));
+    expect(screen.getByTestId('scheduler-gantt')).toBeTruthy();
+    expect(screen.queryByTestId('scheduler-list')).toBeFalsy();
   });
 });

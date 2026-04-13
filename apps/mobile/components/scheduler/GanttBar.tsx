@@ -6,7 +6,8 @@ import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { Svg, Rect } from 'react-native-svg';
 import { getBarLeft, getBarWidth } from './scheduler-utils';
-import { ROW_HEIGHT, CRITICAL_COLOR, BAR_COLOR_DEFAULT } from './scheduler-constants';
+import { ROW_HEIGHT, CRITICAL_COLOR, BAR_COLOR_DEFAULT, STATUS_COLORS } from './scheduler-constants';
+import { useTheme } from '../../contexts/ThemeContext';
 import type { ScheduleTask } from '../../types/api';
 
 // Create an animated version of Svg Rect for Reanimated animatedProps
@@ -19,6 +20,9 @@ interface GanttBarProps {
 }
 
 function GanttBarComponent({ task, dayWidth, timelineStart }: GanttBarProps) {
+  // useTheme available for future enhancements (e.g., theme-aware bar colors)
+  useTheme();
+
   // useAnimatedProps worklet: only reads dayWidth.value and closure-captured plain-JS values.
   // NEVER mutate JS state inside this worklet.
   const animatedProps = useAnimatedProps(() => {
@@ -28,7 +32,13 @@ function GanttBarComponent({ task, dayWidth, timelineStart }: GanttBarProps) {
     return { x, width: w };
   });
 
-  const fill = task.is_critical ? CRITICAL_COLOR : BAR_COLOR_DEFAULT;
+  // Use critical color if critical, else use status color, else default
+  let fill = BAR_COLOR_DEFAULT;
+  if (task.is_critical) {
+    fill = CRITICAL_COLOR;
+  } else if (task.status && STATUS_COLORS[task.status]) {
+    fill = STATUS_COLORS[task.status];
+  }
 
   return (
     <Svg height={ROW_HEIGHT} width="100%">
