@@ -27,10 +27,9 @@ export function TaskDetailModal({
 }: TaskDetailModalProps) {
   const { colors } = useTheme();
   const [isEditMode, setIsEditMode] = useState(false);
+  const taskEditor = useTaskEdit(task || ({} as ScheduleTask));
 
   if (!task) return null;
-
-  const taskEditor = useTaskEdit(task);
 
   const handleSave = async () => {
     const success = await taskEditor.save(projectId);
@@ -60,8 +59,6 @@ export function TaskDetailModal({
     setIsEditMode(false);
     onClose();
   };
-
-  const dynamicStyles = createDynamicStyles(colors);
 
   return (
     <Modal
