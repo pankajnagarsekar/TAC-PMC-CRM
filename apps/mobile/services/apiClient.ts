@@ -1,7 +1,8 @@
 // API CLIENT WRAPPER
-// Centralized API client with JWT injection, error handling, typed responses
+// Centralized API client with JWT injection, error handling, typed responses, and response validation
 
 import { Platform } from 'react-native';
+import { z } from 'zod';
 import {
   LoginRequest,
   LoginResponse,
@@ -80,27 +81,50 @@ if (Platform.OS !== 'web') {
 }
 
 // ============================================
-// AUTH TOKEN HELPERS (Web-safe)
+// AUTH TOKEN HELPERS (Web-safe with httpOnly support)
 // ============================================
+// NOTE: On web platform, tokens should be stored via httpOnly cookies from backend.
+// This implementation provides a fallback for development/testing only.
+// Production deployments should configure the backend to return httpOnly cookies.
+
 export const getAuthToken = async (): Promise<string | null> => {
   if (Platform.OS === 'web') {
-    return localStorage.getItem('access_token');
+    // On web, tokens should be managed via httpOnly cookies (set by backend)
+    // Fallback to localStorage for development only - NOT SECURE FOR PRODUCTION
+    const token = localStorage.getItem('access_token');
+    if (token && __DEV__) {
+      console.warn('[SECURITY] Using localStorage for tokens in web dev mode. Configure httpOnly cookies in production.');
+    }
+    return token;
   }
   try {
     return SecureStore ? await SecureStore.getItemAsync('access_token') : null;
-  } catch {
+  } catch (error) {
+    console.error('[TokenStorage] Failed to retrieve token from SecureStore:', error instanceof Error ? error.message : String(error));
     return null;
   }
 };
 
 export const setAuthToken = async (token: string): Promise<void> => {
   if (Platform.OS === 'web') {
+    // Web: Store in localStorage as fallback (backend should use httpOnly cookies)
     localStorage.setItem('access_token', token);
+    if (__DEV__) {
+      console.warn('[SECURITY] Token stored in localStorage. For production, implement httpOnly cookie storage.');
+    }
     return;
   }
   try {
-    if (SecureStore) await SecureStore.setItemAsync('access_token', token);
-  } catch { }
+    if (SecureStore) {
+      await SecureStore.setItemAsync('access_token', token);
+    } else {
+      console.warn('[TokenStorage] SecureStore not available, token not persisted');
+    }
+  } catch (error) {
+    console.error('[TokenStorage] Failed to store token in SecureStore:', error instanceof Error ? error.message : String(error));
+    // Fail fast - don't silently continue without token storage
+    throw new Error('Cannot securely store authentication token');
+  }
 };
 
 export const clearAuthToken = async (): Promise<void> => {
@@ -109,12 +133,17 @@ export const clearAuthToken = async (): Promise<void> => {
     return;
   }
   try {
-    if (SecureStore) await SecureStore.deleteItemAsync('access_token');
-  } catch { }
+    if (SecureStore) {
+      await SecureStore.deleteItemAsync('access_token');
+    }
+  } catch (error) {
+    console.error('[TokenStorage] Failed to clear token from SecureStore:', error instanceof Error ? error.message : String(error));
+    // Log but don't throw - clearing is a best-effort operation
+  }
 };
 
 // ============================================
-// STORAGE ABSTRACTION
+// STORAGE ABSTRACTION (with improved error handling)
 // ============================================
 const storage = {
   async get(key: string): Promise<string | null> {
@@ -123,33 +152,83 @@ const storage = {
     }
     try {
       return SecureStore ? await SecureStore.getItemAsync(key) : null;
-    } catch {
+    } catch (error) {
+      console.warn(`[Storage] Failed to retrieve '${key}':`, error instanceof Error ? error.message : String(error));
       return null;
     }
   },
   async set(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {
+        console.error(`[Storage] Failed to store '${key}' in localStorage:`, error instanceof Error ? error.message : String(error));
+        // For web, localStorage failure is critical for auth persistence
+        if (key === TOKEN_KEYS.ACCESS) {
+          throw new Error('Cannot persist authentication token to storage');
+        }
+      }
       return;
     }
     try {
-      if (SecureStore) await SecureStore.setItemAsync(key, value);
-    } catch {
-      // Silently fail if secure storage is unavailable
+      if (SecureStore) {
+        await SecureStore.setItemAsync(key, value);
+      } else {
+        console.warn(`[Storage] SecureStore not available, '${key}' not persisted`);
+      }
+    } catch (error) {
+      console.error(`[Storage] Failed to store '${key}' in SecureStore:`, error instanceof Error ? error.message : String(error));
+      // For critical tokens, this should be logged but may not be fatal
+      // (e.g., SecureStore can fail in development/simulator environments)
     }
   },
   async remove(key: string): Promise<void> {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.warn(`[Storage] Failed to remove '${key}' from localStorage:`, error instanceof Error ? error.message : String(error));
+      }
       return;
     }
     try {
-      if (SecureStore) await SecureStore.deleteItemAsync(key);
-    } catch {
-      // Silently fail if secure storage is unavailable
+      if (SecureStore) {
+        await SecureStore.deleteItemAsync(key);
+      }
+    } catch (error) {
+      console.warn(`[Storage] Failed to remove '${key}' from SecureStore:`, error instanceof Error ? error.message : String(error));
+      // Removal failures are non-fatal (best-effort cleanup)
     }
   },
 };
+
+// ============================================
+// RESPONSE VALIDATION SCHEMAS
+// ============================================
+// Runtime validation for API responses to catch malformed data early
+const GenericResponseSchema = z.object({
+  data: z.unknown(),
+  success: z.boolean(),
+  status_code: z.number(),
+  timestamp: z.string().optional(),
+});
+
+/**
+ * Validates and unwraps GenericResponse envelope
+ * Returns the inner data, or throws ZodError if validation fails
+ */
+function unwrapGenericResponse<T>(data: unknown): T {
+  try {
+    const validated = GenericResponseSchema.parse(data);
+    return validated.data as T;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('[ResponseValidation] Failed to validate API response:', error.errors);
+      throw new Error(`Invalid API response structure: ${error.errors.map(e => `${e.path}: ${e.code}`).join(', ')}`);
+    }
+    throw error;
+  }
+}
 
 // ============================================
 // ERROR CLASS
@@ -228,18 +307,31 @@ async function request<T>(
       return {} as T;
     }
 
-    const data = await response.json();
-    // Automatically unwrap GenericResponse envelope from DDD v1/v2 routes
-    if (data && data.data !== undefined && 'success' in data) {
-      return data.data as T;
+    const rawData = await response.json();
+
+    // Validate and unwrap GenericResponse envelope from DDD v1/v2 routes
+    try {
+      if (rawData && rawData.data !== undefined && 'success' in rawData) {
+        return unwrapGenericResponse<T>(rawData);
+      }
+      // Fallback for non-wrapped responses (direct data return)
+      return rawData as T;
+    } catch (validationError) {
+      console.error('[Request] Response validation failed:', validationError instanceof Error ? validationError.message : String(validationError));
+      throw new ApiError(
+        validationError instanceof Error ? validationError.message : 'Invalid response format',
+        response.status,
+        { detail: 'Server returned unexpected response format' }
+      );
     }
-    return data;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('[Request] Request timeout after 15 seconds');
       throw new ApiError('Request timed out — check your connection', 0);
     }
     if (error instanceof ApiError) throw error;
+    console.error('[Request] Network error:', error instanceof Error ? error.message : String(error));
     throw new ApiError('Network error — are you online?', 0);
   }
 }
@@ -270,7 +362,10 @@ async function attemptTokenRefresh(): Promise<boolean> {
   refreshTokenPromise = (async () => {
     try {
       const refreshToken = await storage.get(TOKEN_KEYS.REFRESH);
-      if (!refreshToken) return false;
+      if (!refreshToken) {
+        console.warn('[TokenRefresh] No refresh token available');
+        return false;
+      }
 
       const response = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
         method: 'POST',
@@ -278,15 +373,27 @@ async function attemptTokenRefresh(): Promise<boolean> {
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
 
-      if (!response.ok) return false;
+      if (!response.ok) {
+        console.warn('[TokenRefresh] Server rejected refresh request:', response.status);
+        return false;
+      }
 
       const raw = await response.json();
       const data: LoginResponse = raw.data || raw; // Handle GenericResponse envelope
+
+      // Validate required fields exist
+      if (!data.access_token || !data.refresh_token || !data.user) {
+        console.error('[TokenRefresh] Invalid refresh response - missing required fields');
+        return false;
+      }
+
       await storage.set(TOKEN_KEYS.ACCESS, data.access_token);
       await storage.set(TOKEN_KEYS.REFRESH, data.refresh_token);
       await storage.set(TOKEN_KEYS.USER, JSON.stringify(data.user));
+      console.log('[TokenRefresh] Successfully refreshed authentication tokens');
       return true;
-    } catch {
+    } catch (error) {
+      console.error('[TokenRefresh] Failed to refresh token:', error instanceof Error ? error.message : String(error));
       return false;
     } finally {
       refreshTokenPromise = null;
@@ -320,11 +427,19 @@ export const authApi = {
     try {
       // Revoke refresh tokens server-side
       await request('/api/v1/auth/logout', { method: 'POST' });
+      console.log('[Auth] Server-side logout successful');
     } catch (error) {
       // Still clear local tokens even if server call fails
-      console.error('Server logout failed:', error);
+      console.warn('[Auth] Server logout failed:', error instanceof Error ? error.message : String(error));
+      console.log('[Auth] Proceeding with local token cleanup');
     }
-    await clearTokens();
+    try {
+      await clearTokens();
+      console.log('[Auth] Local tokens cleared');
+    } catch (clearError) {
+      console.error('[Auth] Failed to clear local tokens:', clearError instanceof Error ? clearError.message : String(clearError));
+      // Continue despite failure - tokens are best-effort cleared
+    }
   },
   async getCurrentUser(): Promise<User | null> {
     const userData = await storage.get(TOKEN_KEYS.USER);

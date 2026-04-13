@@ -39,25 +39,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   const checkAuthStatus = useCallback(async () => {
-    if (__DEV__) console.log('Checking auth status...');
+    if (__DEV__) console.log('[Auth] Checking authentication status on app launch...');
     try {
       const isAuth = await authApi.isAuthenticated();
       if (isAuth) {
         const user = await authApi.getCurrentUser();
-        setState({
-          user,
-          isLoading: false,
-          isAuthenticated: !!user,
-        });
+        if (user) {
+          setState({
+            user,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+          if (__DEV__) console.log('[Auth] User session restored:', user.user_id);
+        } else {
+          // Token exists but user data missing
+          console.warn('[Auth] Token exists but user data unavailable');
+          setState({
+            user: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+        }
       } else {
         setState({
           user: null,
           isLoading: false,
           isAuthenticated: false,
         });
+        if (__DEV__) console.log('[Auth] No existing session found');
       }
-    } catch (error: any) {
-      console.error('Auth check failed:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('[Auth] Session check failed:', error.message);
+      } else {
+        console.error('[Auth] Session check failed:', String(error));
+      }
       setState({
         user: null,
         isLoading: false,
@@ -74,17 +90,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = useCallback(async (credentials: LoginRequest): Promise<User> => {
     setState((prev: AuthState) => ({ ...prev, isLoading: true }));
     try {
+      if (__DEV__) console.log('[Auth] Login attempt for user:', credentials.username);
       const response = await authApi.login(credentials);
       setState({
         user: response.user,
         isLoading: false,
         isAuthenticated: true,
       });
+      console.log('[Auth] Login successful for user:', response.user.user_id);
       return response.user;
-    } catch (error: any) {
-      console.error('Login failed:', error);
+    } catch (error: unknown) {
+      let errorMessage = 'Login failed';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error('[Auth] Login failed:', error.message);
+      } else {
+        console.error('[Auth] Login failed:', String(error));
+      }
       setState((prev: AuthState) => ({ ...prev, isLoading: false }));
-      throw error;
+      throw new Error(errorMessage);
     }
   }, []);
 
@@ -92,7 +116,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setState((prev: AuthState) => ({ ...prev, isLoading: true }));
 
     try {
+      if (__DEV__) console.log('[Auth] Logout initiated');
       await authApi.logout();
+      console.log('[Auth] Logout completed successfully');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('[Auth] Logout error:', error.message);
+      } else {
+        console.error('[Auth] Logout error:', String(error));
+      }
+      // Continue with local cleanup even if server logout fails
     } finally {
       setState({
         user: null,
@@ -106,8 +139,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const response = await authApi.checkCanLogout();
       return response;
-    } catch (error: any) {
-      console.error('Failed to check logout status:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.warn('[Auth] Failed to check logout status:', error.message);
+      } else {
+        console.warn('[Auth] Failed to check logout status:', String(error));
+      }
       // On error, allow logout (fail-safe)
       return { can_logout: true };
     }
