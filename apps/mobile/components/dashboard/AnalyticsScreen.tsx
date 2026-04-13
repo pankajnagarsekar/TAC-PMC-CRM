@@ -16,6 +16,7 @@ import { useDashboardData } from '../../hooks/useDashboardData';
 import { Card } from '../ui';
 import { MiniChart } from './MiniChart';
 import { MetricsDetail } from './MetricsDetail';
+import { MobileAISummary } from './MobileAISummary';
 
 export function AnalyticsScreen() {
   const { selectedProject } = useProject();
@@ -183,6 +184,9 @@ export function AnalyticsScreen() {
           }
           unit="%"
         />
+
+        {/* AI Insights */}
+        <MobileAISummary />
 
         {/* Expandable Details */}
         <Text style={[styles.sectionTitle, { color: Colors.textSecondary }]}>

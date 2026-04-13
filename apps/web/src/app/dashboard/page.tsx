@@ -9,6 +9,7 @@ import { ScheduleHealthChart } from "@/components/dashboard/ScheduleHealthChart"
 import ResourceUtilization from "@/components/dashboard/ResourceUtilization";
 import BudgetTrend from "@/components/dashboard/BudgetTrend";
 import TaskTimeline from "@/components/dashboard/TaskTimeline";
+import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 
 interface ScheduleHealthMetrics {
   days_remaining: number;
@@ -159,6 +160,11 @@ export default function DashboardPage() {
                   criticalPathDays={dashboardData.schedule.critical_path_days}
                 />
               </div>
+            </div>
+
+            {/* Row 1.5: AI Summary */}
+            <div>
+              <AISummaryCard projectId={activeProject.project_id} />
             </div>
 
             {/* Row 2: Budget Trend + Task Timeline */}
