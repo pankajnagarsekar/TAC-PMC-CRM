@@ -9,7 +9,7 @@ interface KPIMetric {
   value: string | number;
   unit?: string;
   icon: React.ReactNode;
-  status: "green" | "yellow" | "red";
+  status: "green" | "yellow" | "red" | "neutral";
   trend?: "up" | "down" | "neutral";
 }
 
