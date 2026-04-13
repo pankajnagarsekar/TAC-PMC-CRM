@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, AsyncGenerator
 from app.core.config import settings
 from app.modules.financial.infrastructure.repository import FinancialStateRepository
 from app.modules.project.infrastructure.repository import (
@@ -26,12 +26,21 @@ class MockSummaryProvider(SummaryProvider):
     async def generate_summary(
         self, report_data: Dict[str, Any], project_name: str
     ) -> str:
-        committed_pct = 0
-        if report_data.get("total_budget", 0) > 0:
-            committed_pct = round(
-                report_data["total_committed"] / report_data["total_budget"] * 100, 1
-            )
-        return f"[MOCK] Project {project_name} at {committed_pct}% budget commitment."
+        # Smart mock based on data type
+        if "status" in report_data:  # Schedule
+            status = report_data.get("status", "unknown")
+            at_risk = report_data.get("at_risk_tasks", 0)
+            return f"[MOCK] {project_name} is {status}. {at_risk} tasks at risk." if at_risk > 0 else f"[MOCK] {project_name} on track."
+        elif "total_budget" in report_data:  # Financial
+            spent = report_data.get("total_spent", 0)
+            budget = report_data.get("total_budget", 1)
+            pct = round(spent / budget * 100, 1) if budget > 0 else 0
+            return f"[MOCK] {project_name}: {pct}% of budget consumed."
+        elif "average_utilization_pct" in report_data:  # Resources
+            util = report_data.get("average_utilization_pct", 0)
+            over = report_data.get("over_allocated_count", 0)
+            return f"[MOCK] {project_name}: Team at {util}% utilization. {over} overallocated." if over > 0 else f"[MOCK] {project_name}: Team well-balanced."
+        return f"[MOCK] {project_name} summary not available."
 
 
 class EmergentSummaryProvider(SummaryProvider):
@@ -58,14 +67,81 @@ class EmergentSummaryProvider(SummaryProvider):
                 report_data, project_name
             )
 
+    async def stream_summary(
+        self, report_data: Dict[str, Any], project_name: str
+    ) -> AsyncGenerator[str, None]:
+        """Stream summary word-by-word via AsyncOpenAI."""
+        try:
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(api_key=self.api_key)
+            prompt = self._build_prompt(report_data, project_name)
+            stream = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                stream=True,
+            )
+
+            buffer = ""
+            async for event in stream:
+                if event.choices[0].delta.content:
+                    buffer += event.choices[0].delta.content
+                    # Yield complete words only
+                    words = buffer.split(" ")
+                    for word in words[:-1]:
+                        yield word + " "
+                    buffer = words[-1]
+
+            # Yield remaining buffer
+            if buffer:
+                yield buffer
+        except Exception as e:
+            logger.error(f"AI_STREAM_FAIL: {e}")
+            # Fallback: yield mock summary word-by-word
+            mock_text = await MockSummaryProvider().generate_summary(
+                report_data, project_name
+            )
+            for word in mock_text.split():
+                yield word + " "
+
     def _build_prompt(self, report_data, name):
-        return f"Executive summary for {name}. Data: {report_data}"
+        """Build a detailed prompt for AI summarization."""
+        if "status" in report_data:  # Schedule health
+            return (
+                f"Provide a brief 1-sentence executive summary of schedule health for {name}:\n"
+                f"- Status: {report_data.get('status', 'unknown')}\n"
+                f"- On Track Tasks: {report_data.get('on_track_tasks', 0)}\n"
+                f"- At Risk Tasks: {report_data.get('at_risk_tasks', 0)}\n"
+                f"- Critical Path: {report_data.get('critical_path_days', 0)} days\n"
+                f"Say concisely if on track or at risk, and why."
+            )
+        elif "total_budget" in report_data:  # Financial
+            return (
+                f"Provide a brief 1-sentence executive summary of financial status for {name}:\n"
+                f"- Total Budget: ${report_data.get('total_budget', 0):.2f}\n"
+                f"- Total Spent: ${report_data.get('total_spent', 0):.2f}\n"
+                f"- Remaining: ${report_data.get('remaining_budget', 0):.2f}\n"
+                f"- Burn Rate: {report_data.get('burn_rate_pct', 0)}%\n"
+                f"Say concisely: is budget healthy, at risk, or overrun?"
+            )
+        elif "average_utilization_pct" in report_data:  # Resources
+            return (
+                f"Provide a brief 1-sentence executive summary of resource allocation for {name}:\n"
+                f"- Average Utilization: {report_data.get('average_utilization_pct', 0)}%\n"
+                f"- Over-Allocated: {report_data.get('over_allocated_count', 0)} people\n"
+                f"- Total Resources: {report_data.get('total_resources', 0)}\n"
+                f"Say concisely: is team healthy, busy, or overloaded?"
+            )
+        else:
+            return f"Executive summary for {name}. Data: {report_data}"
 
 
 class AISummaryService:
-    def __init__(self, db, permission_checker):
+    def __init__(self, db, permission_checker, analytics_service=None):
         self.db = db
         self.permission_checker = permission_checker
+        self.analytics_service = analytics_service
         api_key = settings.OPENAI_API_KEY
         self.provider = (
             EmergentSummaryProvider(api_key) if api_key else MockSummaryProvider()
@@ -127,7 +203,7 @@ class AISummaryService:
         project = await self.project_repo.find_one(resilient_query)
         if not project:
             project = await self.db.projects.find_one(resilient_query)
-        
+
         project_name = (
             project.get("project_name", project_id) if project else project_id
         )
@@ -143,6 +219,124 @@ class AISummaryService:
             "date_key": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         }
         return await self.ai_repo.create(doc)
+
+    async def summarize_schedule(
+        self, project_id: str, organisation_id: str
+    ) -> str:
+        """Generate executive summary of schedule health."""
+        if not self.analytics_service:
+            return "[SCHEDULE] Analytics service not available."
+
+        try:
+            metrics = await self.analytics_service.calculate_schedule_health(
+                project_id, organisation_id
+            )
+            metrics_dict = metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+
+            report_data = {
+                "status": metrics_dict.get("status", "unknown"),
+                "on_track_tasks": metrics_dict.get("on_track_tasks", 0),
+                "at_risk_tasks": metrics_dict.get("at_risk_tasks", 0),
+                "critical_path_days": metrics_dict.get("critical_path_days", 0),
+            }
+
+            return await self.provider.generate_summary(report_data, "Schedule Health")
+        except Exception as e:
+            logger.error(f"Schedule summary failed: {e}")
+            return "[SCHEDULE] Unable to generate summary at this time."
+
+    async def summarize_financials(
+        self, project_id: str, organisation_id: str
+    ) -> str:
+        """Generate executive summary of financial status."""
+        if not self.analytics_service:
+            return "[FINANCIAL] Analytics service not available."
+
+        try:
+            data = await self.analytics_service.calculate_financial_summary(
+                project_id, organisation_id
+            )
+            fin_dict = data.to_dict() if hasattr(data, 'to_dict') else data
+
+            report_data = {
+                "total_budget": float(fin_dict.get("total_budget", 0)),
+                "total_spent": float(fin_dict.get("total_spent", 0)),
+                "remaining_budget": float(fin_dict.get("remaining_budget", 0)),
+                "burn_rate_pct": float(fin_dict.get("burn_rate_pct", 0)),
+            }
+
+            return await self.provider.generate_summary(report_data, "Financial Status")
+        except Exception as e:
+            logger.error(f"Financial summary failed: {e}")
+            return "[FINANCIAL] Unable to generate summary at this time."
+
+    async def summarize_resources(
+        self, project_id: str, organisation_id: str
+    ) -> str:
+        """Generate executive summary of resource allocation."""
+        if not self.analytics_service:
+            return "[RESOURCES] Analytics service not available."
+
+        try:
+            data = await self.analytics_service.calculate_resource_utilization(
+                project_id, organisation_id
+            )
+            res_dict = data.to_dict() if hasattr(data, 'to_dict') else data
+
+            report_data = {
+                "average_utilization_pct": float(res_dict.get("average_utilization_pct", 0)),
+                "over_allocated_count": res_dict.get("over_allocated_count", 0),
+                "total_resources": res_dict.get("total_resources", 0),
+            }
+
+            return await self.provider.generate_summary(report_data, "Resource Allocation")
+        except Exception as e:
+            logger.error(f"Resource summary failed: {e}")
+            return "[RESOURCES] Unable to generate summary at this time."
+
+    async def stream_summary(
+        self, project_type: str, project_id: str, organisation_id: str
+    ) -> AsyncGenerator[str, None]:
+        """Stream a summary word-by-word. Types: schedule, financial, resources."""
+        try:
+            if not self.analytics_service:
+                yield "[ERROR] Analytics service not available."
+                return
+
+            # Gather metrics based on type
+            if project_type == "schedule":
+                metrics = await self.analytics_service.calculate_schedule_health(
+                    project_id, organisation_id
+                )
+                report_data = metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+                project_name = "Schedule Health"
+            elif project_type == "financial":
+                metrics = await self.analytics_service.calculate_financial_summary(
+                    project_id, organisation_id
+                )
+                report_data = metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+                project_name = "Financial Status"
+            elif project_type == "resources":
+                metrics = await self.analytics_service.calculate_resource_utilization(
+                    project_id, organisation_id
+                )
+                report_data = metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+                project_name = "Resource Allocation"
+            else:
+                yield "Unknown summary type."
+                return
+
+            # Use provider's stream if available, else fallback to word-by-word
+            if hasattr(self.provider, 'stream_summary'):
+                async for chunk in self.provider.stream_summary(report_data, project_name):
+                    yield chunk
+            else:
+                summary = await self.provider.generate_summary(report_data, project_name)
+                for word in summary.split():
+                    yield word + " "
+        except Exception as e:
+            logger.error(f"Stream summary failed: {e}")
+            yield f"Error: {str(e)}"
 
     async def _aggregate_report_data(
         self, project_id: str, organisation_id: str

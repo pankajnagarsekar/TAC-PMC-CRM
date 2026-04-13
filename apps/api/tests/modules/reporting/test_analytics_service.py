@@ -265,9 +265,9 @@ async def test_calculate_financial_summary_fallback_aggregation(analytics_servic
         "spent": 300000.0,
     }
 
-    async def mock_agg(*args, **kwargs):
+    def mock_agg(*args, **kwargs):
         mock_cursor = AsyncMock()
-        mock_cursor.to_list.return_value = [agg_result]
+        mock_cursor.to_list = AsyncMock(return_value=[agg_result])
         return mock_cursor
 
     analytics_service.fin_state_repo.aggregate = mock_agg
@@ -315,8 +315,9 @@ async def test_empty_project_returns_zero_metrics(analytics_service):
 
     # No financial state
     analytics_service.fin_state_repo.find_one.return_value = None
-    analytics_service.fin_state_repo.aggregate = AsyncMock()
-    analytics_service.fin_state_repo.aggregate.return_value.to_list = AsyncMock(return_value=[])
+    mock_cursor = AsyncMock()
+    mock_cursor.to_list = AsyncMock(return_value=[])
+    analytics_service.fin_state_repo.aggregate = MagicMock(return_value=mock_cursor)
 
     # Mock project repo
     analytics_service.project_repo.get_by_id.return_value = {

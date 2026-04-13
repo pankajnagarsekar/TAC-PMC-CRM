@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, BackgroundTasks
+from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import (
     PermissionChecker,
@@ -184,6 +185,29 @@ async def refresh_ai_summary(
 ):
     result = await ai_service.refresh_summary(user, project_id)
     return GenericResponse(data=result, message="AI Summary refreshed successfully")
+
+
+@router.get(
+    "/reports/{project_id}/ai-summary/stream/{summary_type}",
+    tags=["Reporting"],
+)
+async def stream_summary(
+    project_id: str,
+    summary_type: str,
+    user: dict = Depends(get_authenticated_user),
+    ai_service: AISummaryService = Depends(get_ai_summary_service),
+    checker: PermissionChecker = Depends(get_permission_checker),
+):
+    """Stream a summary word-by-word (schedule, financial, resources)."""
+    await checker.check_project_access(user, project_id)
+
+    async def generate():
+        async for chunk in ai_service.stream_summary(
+            summary_type, project_id, user["organisation_id"]
+        ):
+            yield chunk
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 # --- PROJECT REPORTING ENDPOINTS ---
