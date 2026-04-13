@@ -7,7 +7,7 @@ from app.modules.project.infrastructure.repository import (
     BudgetRepository,
     ProjectRepository,
 )
-from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
+from app.modules.shared.domain.exceptions import ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
 from ..infrastructure.repository import AISummaryRepository
@@ -30,7 +30,9 @@ class MockSummaryProvider(SummaryProvider):
         if "status" in report_data:  # Schedule
             status = report_data.get("status", "unknown")
             at_risk = report_data.get("at_risk_tasks", 0)
-            return f"[MOCK] {project_name} is {status}. {at_risk} tasks at risk." if at_risk > 0 else f"[MOCK] {project_name} on track."
+            if at_risk > 0:
+                return f"[MOCK] {project_name} is {status}. {at_risk} tasks at risk."
+            return f"[MOCK] {project_name} on track."
         elif "total_budget" in report_data:  # Financial
             spent = report_data.get("total_spent", 0)
             budget = report_data.get("total_budget", 1)
@@ -39,7 +41,10 @@ class MockSummaryProvider(SummaryProvider):
         elif "average_utilization_pct" in report_data:  # Resources
             util = report_data.get("average_utilization_pct", 0)
             over = report_data.get("over_allocated_count", 0)
-            return f"[MOCK] {project_name}: Team at {util}% utilization. {over} overallocated." if over > 0 else f"[MOCK] {project_name}: Team well-balanced."
+            if over > 0:
+                msg = f"Team at {util}% utilization. {over} overallocated."
+                return f"[MOCK] {project_name}: {msg}"
+            return f"[MOCK] {project_name}: Team well-balanced."
         return f"[MOCK] {project_name} summary not available."
 
 
