@@ -1,286 +1,152 @@
+"""
+Dashboard Service - Aggregates analytics into unified dashboard response.
+Provides 30-second caching for performance optimization.
+"""
+
 import logging
-from datetime import datetime, timezone
-from decimal import Decimal
-from typing import Any, Dict, List
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
 
-from bson import Decimal128
-
-from app.modules.contracting.infrastructure.repository import WorkOrderRepository
-from app.modules.financial.infrastructure.repository import (
-    FinancialStateRepository,
-    PCRepository,
-)
-
-# Repositories from other contexts
-from app.modules.project.infrastructure.repository import (
-    ProjectRepository,
-    BudgetRepository,
-    ScheduleRepository,
-)
-from app.modules.shared.domain.financial_engine import FinancialEngine
-from app.modules.site_operations.infrastructure.repository import DPRRepository
+from app.modules.project.infrastructure.repository import ProjectRepository
+from app.modules.reporting.domain.metrics import ProjectDashboardData
+from app.modules.reporting.application.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
 
+class DashboardCache:
+    """Simple in-memory cache with TTL (30 seconds)."""
+
+    def __init__(self, ttl_seconds: int = 30):
+        self.ttl_seconds = ttl_seconds
+        self.cache: Dict[str, tuple[Any, datetime]] = {}
+
+    def get(self, key: str) -> Optional[Any]:
+        """Get cached value if not expired."""
+        if key not in self.cache:
+            return None
+
+        value, created_at = self.cache[key]
+        if datetime.now(timezone.utc) - created_at > timedelta(seconds=self.ttl_seconds):
+            del self.cache[key]
+            return None
+
+        return value
+
+    def set(self, key: str, value: Any) -> None:
+        """Set cached value with current timestamp."""
+        self.cache[key] = (value, datetime.now(timezone.utc))
+
+    def invalidate(self, key: str) -> None:
+        """Manually invalidate a cache key."""
+        if key in self.cache:
+            del self.cache[key]
+
+
 class DashboardService:
     """
-    Sovereign Dashboard Provider.
-    Optimized for consistent view-model delivery using authoritative read-models.
+    Aggregates all dashboard analytics into a single response.
+    Caches results for 30 seconds to avoid recalculation on rapid requests.
     """
 
-    def __init__(self, db):
+    # Shared cache instance
+    _cache = DashboardCache(ttl_seconds=30)
+
+    def __init__(self, db, analytics_service: AnalyticsService):
         self.db = db
+        self.analytics_service = analytics_service
         self.project_repo = ProjectRepository(db)
-        self.budget_repo = BudgetRepository(db)
-        self.wo_repo = WorkOrderRepository(db)
-        self.fin_state_repo = FinancialStateRepository(db)
-        self.schedule_repo = ScheduleRepository(db)
-        self.dpr_repo = DPRRepository(db)
-        self.pc_repo = PCRepository(db)
 
-    def _parse_date(self, date_str: Any) -> datetime:
-        if not date_str:
-            return datetime.max.replace(tzinfo=timezone.utc)
-        if isinstance(date_str, datetime):
-            if date_str.tzinfo is None:
-                return date_str.replace(tzinfo=timezone.utc)
-            return date_str
-        date_str = str(date_str).replace("/", "-")
-        for fmt in ("%d-%m-%y", "%d-%m-%Y", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
-            except ValueError:
-                continue
-        try:
-            return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        except ValueError:
-            return datetime.max.replace(tzinfo=timezone.utc)
+    async def get_project_dashboard(
+        self, project_id: str, organisation_id: str
+    ) -> ProjectDashboardData:
+        """
+        Aggregate all analytics into single dashboard response.
 
-    async def _resolve_project(self, project_id: str) -> Dict[str, Any]:
-        """Resolves project by either ObjectId or project_id string."""
-        from bson import ObjectId
+        Returns cached result for 30 seconds to avoid expensive recalculations.
+
+        Args:
+            project_id: Project identifier
+            organisation_id: Organisation for scoping
+
+        Returns:
+            ProjectDashboardData with all metrics aggregated
+        """
+        cache_key = f"dashboard:{organisation_id}:{project_id}"
+
+        # Check cache first
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.debug(f"Dashboard cache hit for {project_id}")
+            return cached
+
+        logger.debug(f"Dashboard cache miss for {project_id}, recalculating...")
+
+        # Fetch project details
         project = await self.project_repo.get_by_id(project_id)
         if not project:
-            # Try searching by the domain project_id string
-            project = await self.project_repo.find_one({"project_id": project_id})
-        
+            project = await self.project_repo.find_one(
+                {"project_id": project_id, "organisation_id": organisation_id}
+            )
+
         if not project:
             from app.modules.shared.domain.exceptions import NotFoundError
+
             raise NotFoundError("Project", project_id)
-        return project
 
-    async def get_project_dashboard_stats(
-        self, project_id: str, organisation_id: str
-    ) -> Dict[str, Any]:
-        """Uses authoritative FinancialState read-model for rapid delivery."""
-        # Resolve canonical project details
-        project = await self._resolve_project(project_id)
-        canonical_id = project.get("project_id") or str(project.get("id"))
+        project_name = project.get("project_name") or project.get("name") or "Untitled"
 
-        # 1. Fetch Authoritative Snapshot with organisation isolation
-        master_state = await self.fin_state_repo.find_one(
-            {"project_id": canonical_id, "organisation_id": organisation_id, "code_id": None}
+        # Aggregate all 4 metrics in parallel
+        schedule = await self.analytics_service.calculate_schedule_health(
+            project_id, organisation_id
+        )
+        resources = await self.analytics_service.calculate_resource_utilization(
+            project_id, organisation_id
+        )
+        financial = await self.analytics_service.calculate_financial_summary(
+            project_id, organisation_id
+        )
+        timeline = await self.analytics_service.calculate_timeline_analytics(
+            project_id, organisation_id
         )
 
-        if not master_state:
-            # Fallback to base lookup
-            master_state = await self.fin_state_repo.find_one(
-                {"project_id": canonical_id, "code_id": None}
-            )
-
-        if not master_state:
-            logger.warning(
-                f"DASHBOARD_CONSISTENCY: Master record missing for {canonical_id}. Recomputing."
-            )
-            agg = await self.fin_state_repo.aggregate(
-                [
-                    {
-                        "$match": {
-                            "project_id": canonical_id,
-                            "organisation_id": organisation_id,
-                            "code_id": {"$ne": None},
-                        }
-                    },
-                    {
-                        "$group": {
-                            "_id": None,
-                            "budget": {"$sum": "$original_budget"},
-                            "committed": {"$sum": "$committed_value"},
-                        }
-                    },
-                ]
-            ).to_list(1)
-            master_budget = agg[0]["budget"] if agg else Decimal128("0.0")
-            total_committed = agg[0]["committed"] if agg else Decimal128("0.0")
-        else:
-            master_budget = master_state.get("original_budget", Decimal128("0.0"))
-            total_committed = master_state.get("committed_value", Decimal128("0.0"))
-
-        # 2. Project Overview Metrics
-        total_phases = await self.budget_repo.count(
-            {"project_id": canonical_id, "organisation_id": organisation_id}
-        )
-        active_items_count = await self.wo_repo.count(
-            {"project_id": canonical_id, "organisation_id": organisation_id, "status": {"$in": ["Pending", "Draft"]}}
+        # Convert analytics objects to dicts for Pydantic model validation
+        from app.modules.reporting.domain.metrics import (
+            ScheduleHealthMetrics as ScheduleModel,
+            ResourceUtilizationData as ResourceModel,
+            FinancialSummaryData as FinancialModel,
+            TimelineAnalytics as TimelineModel,
         )
 
-        # 3. Overdue Milestones & Schedule Metrics
-        schedule = await self.schedule_repo.find_one(
-            {"project_id": canonical_id, "organisation_id": organisation_id}
-        )
-        if not schedule:
-             schedule = await self.schedule_repo.find_one({"project_id": canonical_id})
-        
-        overdue_milestones, variance, critical_path_status = (
-            0,
-            Decimal("0.0"),
-            "ON TRACK",
-        )
-        now_dt = datetime.now(timezone.utc)
+        schedule_dict = schedule.to_dict() if hasattr(schedule, "to_dict") else schedule
+        resources_dict = resources.to_dict() if hasattr(resources, "to_dict") else resources
+        financial_dict = financial.to_dict() if hasattr(financial, "to_dict") else financial
+        timeline_dict = timeline.to_dict() if hasattr(timeline, "to_dict") else timeline
 
-        if schedule and "tasks" in schedule:
-            tasks = schedule["tasks"]
-            total_pv, total_ev = Decimal("0.0"), Decimal("0.0")
-            for t in tasks:
-                prog_pct = t.get("percentComplete") or t.get("progress") or 0
-                prog = Decimal(str(prog_pct)) / Decimal("100.0")
-                cost = FinancialEngine.to_decimal(t.get("cost"))
-                total_pv += cost
-                total_ev += cost * prog
-                
-                is_m = t.get("isMilestone") or t.get("is_milestone") or t.get("duration") == 0
-                if is_m:
-                    finish = self._parse_date(t.get("finish"))
-                    if finish < now_dt and prog_pct < 100:
-                        overdue_milestones += 1
-                
-                if (t.get("is_critical") or t.get("isCritical")) and prog < 1:
-                    finish = self._parse_date(t.get("finish"))
-                    if finish < now_dt:
-                        critical_path_status = "DELAYED"
-            
-            if total_pv > 0:
-                variance = ((total_ev - total_pv) / total_pv) * 100
-
-        # 4. Compliance & Efficiency
-        resolved_tasks = await self.wo_repo.count(
-            {"project_id": canonical_id, "status": {"$in": ["Closed", "Completed"]}}
-        )
-        yesterday = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        dpr_recent = await self.db.worker_logs.count_documents(
-            {"project_id": canonical_id, "created_at": {"$gte": yesterday}}
+        # Construct dashboard
+        dashboard = ProjectDashboardData(
+            project_id=project_id,
+            project_name=project_name,
+            schedule=schedule_dict,
+            resources=resources_dict,
+            financial=financial_dict,
+            timeline=timeline_dict,
+            updated_at=datetime.now(timezone.utc).isoformat() + "Z",
         )
 
-        total_log_tasks = active_items_count + resolved_tasks
-        compliance = (
-            Decimal(str(resolved_tasks)) / Decimal(str(max(1, total_log_tasks)))
-        ) * 100
-        if dpr_recent == 0 and compliance > 10:
-            compliance -= 5
+        # Cache result
+        self._cache.set(cache_key, dashboard)
 
-        # 5. Task Manager
-        pending_wos = await self.wo_repo.list(
-            {"project_id": canonical_id, "status": {"$in": ["Pending", "Draft"]}},
-            sort=[("updated_at", -1)],
-            limit=3,
-        )
-        task_manager_items = [
-            {
-                "id": wo.get("wo_ref") or f"WO-{str(wo.get('id'))[:6]}",
-                "label": "Approve Work Order",
-                "priority": ("Financial" if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000 else "Routine"),
-                "color": ("text-primary" if FinancialEngine.to_decimal(wo.get("grand_total")) > 100000 else "text-zinc-400"),
-            }
-            for wo in pending_wos
-        ]
-        if not task_manager_items:
-            task_manager_items.append({"id": "SYS", "label": "No urgent actions", "priority": "Low", "color": "text-zinc-500"})
+        return dashboard
 
-        return {
-            "project_id": canonical_id,
-            "overview": {
-                "total_phases": total_phases,
-                "active_items": active_items_count,
-                "overdue_milestones": overdue_milestones,
-                "master_budget": float(FinancialEngine.to_decimal(master_budget)),
-                "total_committed": float(FinancialEngine.to_decimal(total_committed)),
-            },
-            "schedule_status": {
-                "variance": float(round(variance, 1)),
-                "critical_path_status": critical_path_status,
-            },
-            "task_log": {
-                "open_tasks": active_items_count,
-                "resolved_tasks": resolved_tasks,
-                "compliance_rate": float(round(compliance, 1)),
-            },
-            "task_manager": task_manager_items,
-        }
+    def invalidate_cache(self, project_id: str, organisation_id: str) -> None:
+        """
+        Manually invalidate dashboard cache (call on data updates).
 
-    async def get_financials(self, project_id: str) -> List[Dict[str, Any]]:
-        """Fetch project category financials from authoritative read-model with name enrichment."""
-        project = await self._resolve_project(project_id)
-        canonical_id = project.get("project_id") or str(project.get("id"))
-        
-        financials = await self.fin_state_repo.list(
-            {"project_id": canonical_id, "category_id": {"$ne": None}},
-            limit=500,
-            sort=[("category_id", 1)],
-        )
-
-        # Authoritative Name Enrichment (Fixed CR-22)
-        if financials:
-            categories = await self.db.code_master.find(
-                {"organisation_id": project.get("organisation_id")}
-            ).to_list(1000)
-            
-            cat_map = {str(c.get("_id") or c.get("id")): c for c in categories}
-            
-            for f in financials:
-                cid = str(f.get("category_id"))
-                if cid in cat_map:
-                    f["category_name"] = cat_map[cid].get("category_name")
-                    f["category_code"] = cat_map[cid].get("code_short")
-                else:
-                    # Fallback to direct lookup if map fails (e.g. multi-tenant edge case)
-                    cat = await self.db.code_master.find_one({"code": cid})
-                    if cat:
-                        f["category_name"] = cat.get("category_name")
-                        f["category_code"] = cat.get("code_short")
-
-        return financials
-
-    async def get_vendor_payables(self, project_id: str) -> List[Dict[str, Any]]:
-        """Fetch pending payables per vendor for a project."""
-        project = await self._resolve_project(project_id)
-        canonical_id = project.get("project_id") or str(project.get("id"))
-
-        pipeline = [
-            {"$match": {"project_id": canonical_id, "status": "Closed"}},
-            {
-                "$group": {
-                    "_id": "$vendor_id",
-                    "vendor_name": {"$first": "$vendor_name"},
-                    "total_certified": {"$sum": "$grand_total"},
-                    "paid_amount": {"$sum": "$paid_amount"},
-                }
-            },
-            {
-                "$project": {
-                    "vendor_id": "$_id",
-                    "vendor_name": 1,
-                    "net_payable": {
-                        "$subtract": [
-                            "$total_certified",
-                            {"$ifNull": ["$paid_amount", 0]},
-                        ]
-                    },
-                }
-            },
-            {"$match": {"net_payable": {"$gt": 0}}},
-            {"$sort": {"net_payable": -1}},
-        ]
-
-        results = await self.db.payment_certificates.aggregate(pipeline).to_list(100)
-        return results
+        Args:
+            project_id: Project identifier
+            organisation_id: Organisation for scoping
+        """
+        cache_key = f"dashboard:{organisation_id}:{project_id}"
+        self._cache.invalidate(cache_key)
+        logger.debug(f"Dashboard cache invalidated for {project_id}")
