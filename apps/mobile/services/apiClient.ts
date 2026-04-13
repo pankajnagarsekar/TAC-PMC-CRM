@@ -52,6 +52,7 @@ import {
   ApiErrorResponse,
   Task,
   TaskAISummary,
+  ProjectDashboardData,
 } from '../types/api';
 
 // ============================================
@@ -723,6 +724,8 @@ export interface ReportData {
 }
 
 export const reportingApi = {
+  getDashboard: (projectId: string): Promise<ProjectDashboardData> =>
+    request(`/api/v1/reporting/${projectId}/dashboard`),
   getReportData: (projectId: string, reportType: string, params?: { start_date?: string; end_date?: string }): Promise<ReportData> => {
     const query = new URLSearchParams();
     if (params?.start_date) query.append('start_date', params.start_date);

@@ -830,6 +830,64 @@ export interface ScheduleLoadResponse {
 }
 
 // ============================================
+// ANALYTICS & DASHBOARD
+// ============================================
+export interface ScheduleHealthMetrics {
+  days_remaining: number;
+  tasks_at_risk: number;
+  critical_path_days: number;
+  status: "green" | "yellow" | "red";
+}
+
+export interface ResourceMetrics {
+  resource_name: string;
+  allocation_percent: number;
+  allocated_hours: number;
+  available_hours: number;
+}
+
+export interface RoleMetrics {
+  role_name: string;
+  total_allocation_percent: number;
+  resource_count: number;
+}
+
+export interface ResourceUtilizationData {
+  by_resource: Record<string, ResourceMetrics>;
+  by_role: Record<string, RoleMetrics>;
+  over_allocated: string[];
+}
+
+export interface FinancialSummaryData {
+  budget_total: number;
+  budget_spent: number;
+  budget_remaining: number;
+  burn_rate_daily: number;
+  projected_overrun: number;
+}
+
+export interface DayMetric {
+  date: string;
+  value: number;
+}
+
+export interface TimelineAnalytics {
+  daily_completion: DayMetric[];
+  utilization_trend: DayMetric[];
+  budget_spent_trend: DayMetric[];
+}
+
+export interface ProjectDashboardData {
+  project_id: string;
+  project_name: string;
+  schedule: ScheduleHealthMetrics;
+  resources: ResourceUtilizationData;
+  financial: FinancialSummaryData;
+  timeline: TimelineAnalytics;
+  updated_at: string;
+}
+
+// ============================================
 // API RESPONSE WRAPPERS
 // ============================================
 export interface PaginatedResponse<T> {
