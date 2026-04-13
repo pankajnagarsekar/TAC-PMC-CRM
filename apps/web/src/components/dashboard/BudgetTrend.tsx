@@ -86,7 +86,7 @@ export default function BudgetTrend({
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "8px",
               }}
-              // @ts-ignore - Recharts typing issue with formatter
+              // @ts-expect-error - Recharts typing issue with formatter
               formatter={(value: number) => formatCurrency(value)}
               labelFormatter={(label) => `Date: ${label}`}
             />
