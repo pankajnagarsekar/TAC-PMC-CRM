@@ -2,12 +2,14 @@
 // Uses FlashList (NOT FlatList) for 60fps virtualization.
 
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { format, parseISO } from 'date-fns';
 import type { ScheduleTask } from '../../types/api';
 import { STATUS_COLORS, STATUS_LABELS, CRITICAL_COLOR } from './scheduler-constants';
 import { parseTaskDate } from './scheduler-utils';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface SchedulerListProps {
   tasks: ScheduleTask[];
@@ -24,7 +26,8 @@ function formatDate(value: string | null | undefined): string {
   }
 }
 
-function TaskRow({ item }: { item: ScheduleTask }) {
+function TaskRow({ item, colors }: { item: ScheduleTask; colors: any }) {
+  const router = useRouter();
   const isCritical = item.is_critical;
   const statusColor = STATUS_COLORS[item.status] ?? '#64748b';
   const statusLabel = STATUS_LABELS[item.status] ?? item.status;
@@ -32,24 +35,24 @@ function TaskRow({ item }: { item: ScheduleTask }) {
   return (
     <Pressable
       testID={isCritical ? 'critical-task-row' : 'task-row'}
-      onPress={() => console.log('task_id:', item.task_id)}
+      onPress={() => router.push(`/scheduler/task/${item.task_id}`)}
       style={[
         styles.row,
         isCritical && { borderLeftColor: CRITICAL_COLOR, borderLeftWidth: 3 },
       ]}
     >
       <View style={styles.rowContent}>
-        <Text style={styles.taskName} numberOfLines={1}>
+        <Text style={[styles.taskName, { color: colors.text }]} numberOfLines={1}>
           {item.name}
         </Text>
         <View style={styles.metaRow}>
           <View style={[styles.statusChip, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
           </View>
-          <Text style={styles.dateRange}>
+          <Text style={[styles.dateRange, { color: colors.textSecondary }]}>
             {formatDate(item.start_date)} → {formatDate(item.end_date)}
           </Text>
-          <Text style={styles.duration}>{item.duration_days}d</Text>
+          <Text style={[styles.duration, { color: colors.textSecondary }]}>{item.duration_days}d</Text>
         </View>
       </View>
     </Pressable>
@@ -57,10 +60,13 @@ function TaskRow({ item }: { item: ScheduleTask }) {
 }
 
 export function SchedulerList({ tasks }: SchedulerListProps) {
+  const { colors } = useTheme();
+  const dynamicStyles = createDynamicStyles(colors);
+
   if (tasks.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No scheduled tasks yet</Text>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No scheduled tasks yet</Text>
       </View>
     );
   }
@@ -69,9 +75,23 @@ export function SchedulerList({ tasks }: SchedulerListProps) {
     <FlashList
       data={tasks}
       keyExtractor={(item) => item.task_id}
-      renderItem={({ item }) => <TaskRow item={item} />}
+      renderItem={({ item }) => <TaskRow item={item} colors={colors} />}
     />
   );
+}
+
+function createDynamicStyles(colors: any) {
+  return StyleSheet.create({
+    row: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+      borderLeftWidth: 0,
+      borderLeftColor: 'transparent',
+    },
+  });
 }
 
 const styles = StyleSheet.create({

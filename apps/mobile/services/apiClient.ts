@@ -503,6 +503,8 @@ export { ScheduleTask, ScheduleLoadResponse };
 export const schedulerApi = {
   loadSchedule: (projectId: string): Promise<ScheduleLoadResponse> =>
     request(`/api/v1/projects/${projectId}/load-schedule`),
+  updateTask: (projectId: string, taskId: string, data: Record<string, unknown>): Promise<ScheduleTask> =>
+    request(`/api/v1/projects/${projectId}/tasks/${taskId}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ============================================

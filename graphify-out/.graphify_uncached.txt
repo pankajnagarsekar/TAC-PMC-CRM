@@ -1,0 +1,11 @@
+apps\mobile\tsc_errors.txt
+apps\mobile\assets\images\adaptive-icon.png
+apps\mobile\assets\images\app-image.png
+apps\mobile\assets\images\favicon.png
+apps\mobile\assets\images\icon.png
+apps\mobile\assets\images\IMG_2177.PNG
+apps\mobile\assets\images\logo.png
+apps\mobile\assets\images\partial-react-logo.png
+apps\mobile\assets\images\react-logo.png
+apps\mobile\assets\images\react-logo@3x.png
+apps\mobile\assets\images\splash-image.png

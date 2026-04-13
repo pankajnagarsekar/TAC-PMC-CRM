@@ -1,0 +1,949 @@
+{
+  "communities": {
+    "0": [
+      "apps_api_app_modules_scheduler_resource_calendar_py",
+      "apps_api_app_modules_scheduler_resource_calendar_service_py",
+      "resource_calendar_calendarexception",
+      "resource_calendar_calendarexception_contains",
+      "resource_calendar_calendarexception_to_dict",
+      "resource_calendar_calendarmanager",
+      "resource_calendar_calendarmanager_get",
+      "resource_calendar_calendarmanager_get_or_create",
+      "resource_calendar_calendarmanager_init",
+      "resource_calendar_calendarmanager_list_all",
+      "resource_calendar_calendarmanager_register",
+      "resource_calendar_calendarmanager_to_dict",
+      "resource_calendar_exceptiontype",
+      "resource_calendar_from_dict",
+      "resource_calendar_rationale_1",
+      "resource_calendar_rationale_116",
+      "resource_calendar_rationale_121",
+      "resource_calendar_rationale_147",
+      "resource_calendar_rationale_17",
+      "resource_calendar_rationale_179",
+      "resource_calendar_rationale_207",
+      "resource_calendar_rationale_228",
+      "resource_calendar_rationale_239",
+      "resource_calendar_rationale_249",
+      "resource_calendar_rationale_259",
+      "resource_calendar_rationale_287",
+      "resource_calendar_rationale_316",
+      "resource_calendar_rationale_340",
+      "resource_calendar_rationale_363",
+      "resource_calendar_rationale_369",
+      "resource_calendar_rationale_378",
+      "resource_calendar_rationale_388",
+      "resource_calendar_rationale_392",
+      "resource_calendar_rationale_396",
+      "resource_calendar_rationale_400",
+      "resource_calendar_rationale_81",
+      "resource_calendar_resourcecalendar",
+      "resource_calendar_resourcecalendar_add_exception",
+      "resource_calendar_resourcecalendar_add_holidays",
+      "resource_calendar_resourcecalendar_add_working_days",
+      "resource_calendar_resourcecalendar_add_working_override",
+      "resource_calendar_resourcecalendar_get_working_hours",
+      "resource_calendar_resourcecalendar_is_working_day",
+      "resource_calendar_resourcecalendar_next_working_day",
+      "resource_calendar_resourcecalendar_to_dict",
+      "resource_calendar_resourcecalendar_working_days_between",
+      "resource_calendar_service_apply_calendar_to_duration",
+      "resource_calendar_service_get_working_days_between",
+      "resource_calendar_service_rationale_1",
+      "resource_calendar_service_rationale_105",
+      "resource_calendar_service_rationale_116",
+      "resource_calendar_service_rationale_142",
+      "resource_calendar_service_rationale_156",
+      "resource_calendar_service_rationale_173",
+      "resource_calendar_service_rationale_18",
+      "resource_calendar_service_rationale_24",
+      "resource_calendar_service_rationale_30",
+      "resource_calendar_service_rationale_49",
+      "resource_calendar_service_rationale_67",
+      "resource_calendar_service_rationale_92",
+      "resource_calendar_service_resourcecalendarservice",
+      "resource_calendar_service_resourcecalendarservice_add_holiday",
+      "resource_calendar_service_resourcecalendarservice_add_working_override",
+      "resource_calendar_service_resourcecalendarservice_bulk_load_calendars",
+      "resource_calendar_service_resourcecalendarservice_get_calendar",
+      "resource_calendar_service_resourcecalendarservice_get_calendar_for_scheduling",
+      "resource_calendar_service_resourcecalendarservice_get_or_create_calendar",
+      "resource_calendar_service_resourcecalendarservice_init",
+      "resource_calendar_service_resourcecalendarservice_save_calendar",
+      "resource_calendar_total_hours"
+    ],
+    "1": [
+      "apps_api_app_modules_scheduler_resource_leveler_py",
+      "apps_api_app_modules_scheduler_resource_leveling_service_py",
+      "resource_leveler_available_units",
+      "resource_leveler_conflict",
+      "resource_leveler_conflict_lt",
+      "resource_leveler_is_over_allocated",
+      "resource_leveler_levelingresult",
+      "resource_leveler_levelingstatus",
+      "resource_leveler_rationale_1",
+      "resource_leveler_rationale_109",
+      "resource_leveler_rationale_120",
+      "resource_leveler_rationale_138",
+      "resource_leveler_rationale_239",
+      "resource_leveler_rationale_25",
+      "resource_leveler_rationale_307",
+      "resource_leveler_rationale_33",
+      "resource_leveler_rationale_333",
+      "resource_leveler_rationale_44",
+      "resource_leveler_rationale_54",
+      "resource_leveler_rationale_61",
+      "resource_leveler_rationale_67",
+      "resource_leveler_rationale_87",
+      "resource_leveler_rationale_98",
+      "resource_leveler_resourceassignment",
+      "resource_leveler_resourceassignment_hash",
+      "resource_leveler_resourcecapacity",
+      "resource_leveler_resourcecapacity_hash",
+      "resource_leveler_resourceleveler",
+      "resource_leveler_resourceleveler_build_histogram",
+      "resource_leveler_resourceleveler_detect_conflicts",
+      "resource_leveler_resourceleveler_init",
+      "resource_leveler_resourceleveler_level_schedule",
+      "resource_leveler_resourceleveler_resolve_conflict",
+      "resource_leveler_resourcelevelingcontext",
+      "resource_leveler_resourcelevelingcontext_init",
+      "resource_leveler_resourceusageday",
+      "resource_leveling_service_rationale_1",
+      "resource_leveling_service_rationale_113",
+      "resource_leveling_service_rationale_163",
+      "resource_leveling_service_rationale_209",
+      "resource_leveling_service_rationale_223",
+      "resource_leveling_service_rationale_237",
+      "resource_leveling_service_rationale_279",
+      "resource_leveling_service_rationale_29",
+      "resource_leveling_service_rationale_37",
+      "resource_leveling_service_rationale_50",
+      "resource_leveling_service_resourcelevelingservice",
+      "resource_leveling_service_resourcelevelingservice_compute_changes",
+      "resource_leveling_service_resourcelevelingservice_convert_assignments",
+      "resource_leveling_service_resourcelevelingservice_convert_capacities",
+      "resource_leveling_service_resourcelevelingservice_detect_conflicts",
+      "resource_leveling_service_resourcelevelingservice_get_leveling_status",
+      "resource_leveling_service_resourcelevelingservice_get_resource_histogram",
+      "resource_leveling_service_resourcelevelingservice_init",
+      "resource_leveling_service_resourcelevelingservice_level_project_schedule"
+    ],
+    "2": [
+      "apps_api_app_modules_scheduler_bulk_operations_py",
+      "bulk_operations_bulkoperationexecutor",
+      "bulk_operations_bulkoperationexecutor_apply_operation",
+      "bulk_operations_bulkoperationexecutor_get_operation_value",
+      "bulk_operations_bulkoperationresult",
+      "bulk_operations_bulkoperationservice",
+      "bulk_operations_bulkoperationservice_execute_bulk_operations",
+      "bulk_operations_bulkoperationservice_init",
+      "bulk_operations_bulkoperationservice_validate_operations_only",
+      "bulk_operations_bulkoperationvalidator_validate_operation",
+      "bulk_operations_operation",
+      "bulk_operations_operation_hash",
+      "bulk_operations_operationstatus",
+      "bulk_operations_operationtype",
+      "bulk_operations_partial_success",
+      "bulk_operations_rationale_1",
+      "bulk_operations_rationale_20",
+      "bulk_operations_rationale_215",
+      "bulk_operations_rationale_251",
+      "bulk_operations_rationale_258",
+      "bulk_operations_rationale_328",
+      "bulk_operations_rationale_34",
+      "bulk_operations_rationale_347",
+      "bulk_operations_rationale_354",
+      "bulk_operations_rationale_366",
+      "bulk_operations_rationale_44",
+      "bulk_operations_rationale_441",
+      "bulk_operations_rationale_61",
+      "bulk_operations_success",
+      "enum",
+      "str"
+    ],
+    "3": [
+      "apps_api_app_modules_scheduler_baseline_manager_py",
+      "baseline_manager_baselinemanager",
+      "baseline_manager_baselinemanager_calculate_duration",
+      "baseline_manager_baselinemanager_check_baseline_locked",
+      "baseline_manager_baselinemanager_create_snapshot",
+      "baseline_manager_baselinemanager_get_snapshot",
+      "baseline_manager_baselinemanager_init",
+      "baseline_manager_baselinemanager_list_snapshots",
+      "baseline_manager_baselinemanager_lock_baseline",
+      "baseline_manager_baselinemanager_unlock_baseline",
+      "baseline_manager_baselinemanager_validate_modifications",
+      "baseline_manager_rationale_1",
+      "baseline_manager_rationale_113",
+      "baseline_manager_rationale_149",
+      "baseline_manager_rationale_177",
+      "baseline_manager_rationale_18",
+      "baseline_manager_rationale_216",
+      "baseline_manager_rationale_254",
+      "baseline_manager_rationale_282",
+      "baseline_manager_rationale_318",
+      "baseline_manager_rationale_38",
+      "baseline_manager_rationale_50"
+    ],
+    "4": [
+      "bulk_operations_bulkoperationvalidator",
+      "bulk_operations_bulkoperationvalidator_validate_delete_task",
+      "bulk_operations_bulkoperationvalidator_validate_pause_task",
+      "bulk_operations_bulkoperationvalidator_validate_resume_task",
+      "bulk_operations_bulkoperationvalidator_validate_update_assignment",
+      "bulk_operations_bulkoperationvalidator_validate_update_cost",
+      "bulk_operations_bulkoperationvalidator_validate_update_duration",
+      "bulk_operations_bulkoperationvalidator_validate_update_finish_date",
+      "bulk_operations_bulkoperationvalidator_validate_update_progress",
+      "bulk_operations_bulkoperationvalidator_validate_update_start_date",
+      "bulk_operations_bulkoperationvalidator_validate_update_status",
+      "bulk_operations_rationale_112",
+      "bulk_operations_rationale_134",
+      "bulk_operations_rationale_156",
+      "bulk_operations_rationale_170",
+      "bulk_operations_rationale_178",
+      "bulk_operations_rationale_186",
+      "bulk_operations_rationale_204",
+      "bulk_operations_rationale_85",
+      "bulk_operations_rationale_88",
+      "bulk_operations_rationale_98"
+    ],
+    "5": [
+      "api_client_wrapper",
+      "error_handling_strategy",
+      "flashlist_virtualization",
+      "gantt_bar_component",
+      "gantt_timeline_header",
+      "phase2_track_a_definition",
+      "project_context",
+      "reanimated_gesture_patterns",
+      "scheduler_api_endpoint",
+      "scheduler_api_types",
+      "scheduler_constants",
+      "scheduler_gantt_component",
+      "scheduler_list_component",
+      "scheduler_screen_component",
+      "scheduler_screen_route",
+      "scheduler_utils",
+      "sport_design_luxury_industrial",
+      "task_row_rendering",
+      "theme_context",
+      "use_scheduler_data_hook"
+    ],
+    "6": [
+      "apps_mobile_app_admin_dpr_id_tsx",
+      "apps_mobile_app_admin_tasks_id_tsx",
+      "id_addphoto",
+      "id_addworkerentry",
+      "id_generatepdf",
+      "id_getprioritycolor",
+      "id_getstatuscolor",
+      "id_handleapprove",
+      "id_handlesave",
+      "id_handlesaveworkerlog",
+      "id_handlesubmit",
+      "id_handleversionselect",
+      "id_onrefresh",
+      "id_removeworkerentry",
+      "id_saveimagecaption",
+      "id_showalert",
+      "id_updateworkerentry"
+    ],
+    "7": [
+      "apps_mobile_components_dprform_tsx",
+      "dprform_cansubmit",
+      "dprform_collapsephoto",
+      "dprform_formatduration",
+      "dprform_gettodayformatted",
+      "dprform_gettoken",
+      "dprform_getvalidationmessage",
+      "dprform_handlesubmit",
+      "dprform_pickimage",
+      "dprform_removephoto",
+      "dprform_showalert",
+      "dprform_startrecording",
+      "dprform_stoprecording",
+      "dprform_takephoto",
+      "dprform_togglephotoexpand",
+      "dprform_transcribeaudio",
+      "dprform_updatecaption"
+    ],
+    "8": [
+      "apps_mobile_app_admin_settings_users_tsx",
+      "users_apirequest",
+      "users_getrolecolor",
+      "users_gettoken",
+      "users_handledelete",
+      "users_handlesave",
+      "users_opencreatemodal",
+      "users_openeditmodal",
+      "users_resetform",
+      "users_showalert",
+      "users_toggleassignedproject",
+      "users_togglescreenpermission"
+    ],
+    "9": [
+      "apps_mobile_app_admin_worker_log_tsx",
+      "apps_mobile_app_supervisor_worker_log_tsx",
+      "worker_log_addentry",
+      "worker_log_gettoken",
+      "worker_log_handlesave",
+      "worker_log_isentrycomplete",
+      "worker_log_loadvendors",
+      "worker_log_openvendormodal",
+      "worker_log_removeentry",
+      "worker_log_selectvendor",
+      "worker_log_togglecollapse",
+      "worker_log_updateentry"
+    ],
+    "10": [
+      "apiclient_apierror",
+      "apiclient_apierror_constructor",
+      "apiclient_appendparams",
+      "apiclient_attempttokenrefresh",
+      "apiclient_clearauthtoken",
+      "apiclient_cleartokens",
+      "apiclient_getauthtoken",
+      "apiclient_request",
+      "apiclient_setauthtoken",
+      "apps_mobile_services_apiclient_ts"
+    ],
+    "11": [
+      "resource_calendar_calendarexception_init",
+      "resource_calendar_rationale_164",
+      "resource_calendar_rationale_25",
+      "resource_calendar_rationale_28",
+      "resource_calendar_rationale_60",
+      "resource_calendar_rationale_91",
+      "resource_calendar_resourcecalendar_init",
+      "resource_calendar_workinghours",
+      "resource_calendar_workinghours_init",
+      "resource_calendar_workinghours_to_dict"
+    ],
+    "12": [
+      "apps_mobile_app_admin_attendance_view_tsx",
+      "attendance_view_changedate",
+      "attendance_view_formatdatelabel",
+      "attendance_view_formattime",
+      "attendance_view_handleexport",
+      "attendance_view_handleexportpdf",
+      "attendance_view_onenddatechange",
+      "attendance_view_onrefresh",
+      "attendance_view_onstartdatechange"
+    ],
+    "13": [
+      "apps_mobile_app_admin_settings_codes_tsx",
+      "codes_apirequest",
+      "codes_gettoken",
+      "codes_handledelete",
+      "codes_handlesave",
+      "codes_opencreatemodal",
+      "codes_openeditmodal",
+      "codes_resetform",
+      "codes_showalert"
+    ],
+    "14": [
+      "apps_mobile_app_admin_settings_organization_tsx",
+      "organization_apirequest",
+      "organization_gettoken",
+      "organization_handlesave",
+      "organization_loadsettings",
+      "organization_picklogo",
+      "organization_removelogo",
+      "organization_showalert",
+      "organization_updatefield"
+    ],
+    "15": [
+      "apps_api_app_modules_scheduler_calculate_critical_path_py",
+      "calculate_critical_path_apply_constraint",
+      "calculate_critical_path_compute_es_from_predecessors",
+      "calculate_critical_path_parse_date",
+      "calculate_critical_path_rationale_137",
+      "calculate_critical_path_rationale_29",
+      "calculate_critical_path_rationale_87",
+      "calculate_critical_path_rationale_9",
+      "calculate_critical_path_run_calculation"
+    ],
+    "16": [
+      "apps_mobile_app_admin_notifications_tsx",
+      "notifications_apirequest",
+      "notifications_getnotificationicon",
+      "notifications_gettimeago",
+      "notifications_gettoken",
+      "notifications_handlenotificationpress",
+      "notifications_markallasread",
+      "notifications_markasread"
+    ],
+    "17": [
+      "apps_mobile_app_admin_workers_report_tsx",
+      "workers_report_apirequest",
+      "workers_report_applyfilters",
+      "workers_report_clearfilters",
+      "workers_report_formatdate",
+      "workers_report_gettoken",
+      "workers_report_getweatheremoji",
+      "workers_report_openlogdetail"
+    ],
+    "18": [
+      "apps_mobile_app_admin_dpr_index_tsx",
+      "apps_mobile_app_admin_tasks_index_tsx",
+      "index_approvedpr",
+      "index_formatdate",
+      "index_getprioritycolor",
+      "index_getstatuscolor",
+      "index_onrefresh",
+      "index_renderdpr"
+    ],
+    "19": [
+      "apps_mobile_app_admin_projects_tsx",
+      "projects_formatcurrency",
+      "projects_getcompletioncolor",
+      "projects_handleprojectselect",
+      "projects_handleprojecttap",
+      "projects_onrefresh",
+      "projects_toggleexpand"
+    ],
+    "20": [
+      "apps_mobile_app_supervisor_attendance_tsx",
+      "attendance_getcurrentlocation",
+      "attendance_handlecheckin",
+      "attendance_handlecheckout",
+      "attendance_requestlocationpermission",
+      "attendance_showalert",
+      "attendance_takeselfie"
+    ],
+    "21": [
+      "apps_mobile_app_supervisor_dashboard_tsx",
+      "dashboard_handlecheckin",
+      "dashboard_handlecreatedpr",
+      "dashboard_handlelogout",
+      "dashboard_handleselectproject",
+      "dashboard_handleworkerlog"
+    ],
+    "22": [
+      "apps_mobile_components_transitionactions_tsx",
+      "transitionactions_apirequest",
+      "transitionactions_executetransition",
+      "transitionactions_fetchtransitions",
+      "transitionactions_handletransition",
+      "transitionactions_showalert"
+    ],
+    "23": [
+      "apps_mobile_components_scheduler_scheduler_utils_ts",
+      "scheduler_utils_buildtimelinerange",
+      "scheduler_utils_getbarleft",
+      "scheduler_utils_getbarwidth",
+      "scheduler_utils_parsetaskdate"
+    ],
+    "24": [
+      "apps_mobile_app_admin_ocr_tsx",
+      "ocr_handlescan",
+      "ocr_pickimage",
+      "ocr_takephoto"
+    ],
+    "25": [
+      "apps_mobile_app_admin_select_project_tsx",
+      "apps_mobile_app_supervisor_select_project_tsx",
+      "select_project_handleprojectselect",
+      "select_project_loadprojects"
+    ],
+    "26": [
+      "apps_mobile_app_login_tsx",
+      "login_error",
+      "login_handlelogin"
+    ],
+    "27": [
+      "apps_mobile_app_admin_dashboard_tsx",
+      "dashboard_formatcurrency",
+      "dashboard_projectdashboard"
+    ],
+    "28": [
+      "apps_mobile_app_admin_dpr_create_tsx",
+      "create_handlecancel",
+      "create_handlesuccess"
+    ],
+    "29": [
+      "apps_mobile_app_admin_settings_index_tsx",
+      "index_getstyles",
+      "index_handlelogout"
+    ],
+    "30": [
+      "apps_mobile_app_client_reports_tsx",
+      "reports_handleexport",
+      "reports_loadprojects"
+    ],
+    "31": [
+      "apps_mobile_app_supervisor_dpr_tsx",
+      "dpr_handlecancel",
+      "dpr_handlesuccess"
+    ],
+    "32": [
+      "apps_mobile_app_supervisor_profile_tsx",
+      "profile_gettoken",
+      "profile_handlechangepassword"
+    ],
+    "33": [
+      "apps_mobile_components_versionselector_tsx",
+      "versionselector_formatdate",
+      "versionselector_handleversionselect"
+    ],
+    "34": [
+      "apps_mobile_contexts_authcontext_tsx",
+      "authcontext_authprovider",
+      "authcontext_useauth"
+    ],
+    "35": [
+      "apps_mobile_contexts_projectcontext_tsx",
+      "projectcontext_projectprovider",
+      "projectcontext_useproject"
+    ],
+    "36": [
+      "apps_mobile_contexts_themecontext_tsx",
+      "themecontext_themeprovider",
+      "themecontext_usetheme"
+    ],
+    "37": [
+      "apps_mobile_app_html_tsx",
+      "html_root"
+    ],
+    "38": [
+      "apps_mobile_app_not_found_tsx",
+      "not_found_notfoundscreen"
+    ],
+    "39": [
+      "apps_mobile_app_index_tsx",
+      "index_index"
+    ],
+    "40": [
+      "apps_mobile_app_layout_tsx",
+      "layout_rootlayout"
+    ],
+    "41": [
+      "apps_mobile_app_admin_petty_cash_tsx",
+      "petty_cash_formatcurrency"
+    ],
+    "42": [
+      "apps_mobile_app_admin_dpr_layout_tsx",
+      "layout_dprlayout"
+    ],
+    "43": [
+      "appearance_updatesetting",
+      "apps_mobile_app_admin_settings_appearance_tsx"
+    ],
+    "44": [
+      "apps_mobile_app_admin_settings_currency_tsx",
+      "currency_currencysettingsscreen"
+    ],
+    "45": [
+      "apps_mobile_app_admin_settings_help_tsx",
+      "help_helpscreen"
+    ],
+    "46": [
+      "apps_mobile_app_admin_settings_notifications_tsx",
+      "notifications_notificationssettingsscreen"
+    ],
+    "47": [
+      "apps_mobile_app_admin_settings_privacy_tsx",
+      "privacy_privacyscreen"
+    ],
+    "48": [
+      "apps_mobile_app_admin_settings_terms_tsx",
+      "terms_termsscreen"
+    ],
+    "49": [
+      "apps_mobile_app_admin_settings_layout_tsx",
+      "layout_settingslayout"
+    ],
+    "50": [
+      "apps_mobile_app_admin_tasks_layout_tsx",
+      "layout_taskslayout"
+    ],
+    "51": [
+      "apps_mobile_app_client_dashboard_tsx",
+      "dashboard_onrefresh"
+    ],
+    "52": [
+      "apps_mobile_app_client_layout_tsx",
+      "layout_clientlayout"
+    ],
+    "53": [
+      "apps_mobile_components_scheduler_ganttbar_tsx",
+      "ganttbar_ganttbarcomponent"
+    ],
+    "54": [
+      "apps_mobile_components_scheduler_gantttimelineheader_tsx",
+      "gantttimelineheader_gantttimelineheader"
+    ],
+    "55": [
+      "apps_mobile_components_scheduler_schedulerlist_tsx",
+      "schedulerlist_formatdate"
+    ],
+    "56": [
+      "apps_mobile_components_ui_badge_tsx",
+      "badge_badge"
+    ],
+    "57": [
+      "apps_mobile_components_ui_card_tsx",
+      "card_card"
+    ],
+    "58": [
+      "apps_mobile_components_ui_loadingscreen_tsx",
+      "loadingscreen_loadingscreen"
+    ],
+    "59": [
+      "apps_mobile_hooks_useschedulerdata_ts",
+      "useschedulerdata_useschedulerdata"
+    ],
+    "60": [
+      "apps_mobile_jest_shims_expo_global_setup_js",
+      "expo_global_setup_definenonconfigurable"
+    ],
+    "61": [
+      "apps_mobile_tests_scheduler_scheduler_utils_test_ts",
+      "scheduler_utils_test_maketask"
+    ],
+    "62": [
+      "apps_mobile_babel_config_js"
+    ],
+    "63": [
+      "apps_mobile_eslint_config_js"
+    ],
+    "64": [
+      "apps_mobile_jest_config_js"
+    ],
+    "65": [
+      "apps_mobile_jest_setup_js"
+    ],
+    "66": [
+      "apps_mobile_metro_config_js"
+    ],
+    "67": [
+      "apps_mobile_app_admin_layout_tsx"
+    ],
+    "68": [
+      "apps_mobile_app_admin_scheduler_index_tsx"
+    ],
+    "69": [
+      "apps_mobile_app_supervisor_voice_log_tsx"
+    ],
+    "70": [
+      "apps_mobile_app_supervisor_layout_tsx"
+    ],
+    "71": [
+      "apps_mobile_components_screenheader_tsx"
+    ],
+    "72": [
+      "apps_mobile_components_scheduler_scheduler_constants_ts"
+    ],
+    "73": [
+      "apps_mobile_components_scheduler_schedulergantt_tsx"
+    ],
+    "74": [
+      "apps_mobile_components_scheduler_schedulerscreen_tsx"
+    ],
+    "75": [
+      "apps_mobile_components_ui_blueprintgrid_tsx"
+    ],
+    "76": [
+      "apps_mobile_components_ui_button_tsx"
+    ],
+    "77": [
+      "apps_mobile_components_ui_index_ts"
+    ],
+    "78": [
+      "apps_mobile_components_ui_input_tsx"
+    ],
+    "79": [
+      "apps_mobile_constants_theme_ts"
+    ],
+    "80": [
+      "apps_mobile_jest_shims_expo_winter_runtime_js"
+    ],
+    "81": [
+      "apps_mobile_types_api_ts"
+    ],
+    "82": [
+      "apps_mobile_tests_scheduler_schedulerlist_test_tsx"
+    ],
+    "83": [
+      "apps_mobile_tests_scheduler_useschedulerdata_test_ts"
+    ],
+    "84": [
+      "bulk_operations_rationale_75"
+    ],
+    "85": [
+      "bulk_operations_rationale_80"
+    ],
+    "86": [
+      "resource_calendar_rationale_51"
+    ],
+    "87": [
+      "resource_calendar_rationale_71"
+    ],
+    "88": [
+      "resource_calendar_rationale_132"
+    ],
+    "89": [
+      "resource_calendar_rationale_350"
+    ],
+    "90": [
+      "resource_leveler_rationale_76"
+    ],
+    "91": [
+      "resource_leveler_rationale_81"
+    ],
+    "92": [
+      "apps_api_app_modules_scheduler_init_py"
+    ],
+    "93": [
+      "packages_types_eslint_config_js"
+    ],
+    "94": [
+      "packages_types_src_index_ts"
+    ]
+  },
+  "cohesion": {
+    "0": 0.06,
+    "1": 0.1,
+    "2": 0.1,
+    "3": 0.1,
+    "4": 0.1,
+    "5": 0.17,
+    "6": 0.18,
+    "7": 0.18,
+    "8": 0.24,
+    "9": 0.33,
+    "10": 0.24,
+    "11": 0.2,
+    "12": 0.22,
+    "13": 0.36,
+    "14": 0.42,
+    "15": 0.33,
+    "16": 0.39,
+    "17": 0.29,
+    "18": 0.25,
+    "19": 0.29,
+    "20": 0.62,
+    "21": 0.33,
+    "22": 0.67,
+    "23": 0.6,
+    "24": 0.5,
+    "25": 0.67,
+    "26": 1.0,
+    "27": 0.67,
+    "28": 0.67,
+    "29": 0.67,
+    "30": 0.67,
+    "31": 0.67,
+    "32": 1.0,
+    "33": 0.67,
+    "34": 0.67,
+    "35": 0.67,
+    "36": 0.67,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 1.0,
+    "82": 1.0,
+    "83": 1.0,
+    "84": 1.0,
+    "85": 1.0,
+    "86": 1.0,
+    "87": 1.0,
+    "88": 1.0,
+    "89": 1.0,
+    "90": 1.0,
+    "91": 1.0,
+    "92": 1.0,
+    "93": 1.0,
+    "94": 1.0
+  },
+  "gods": [
+    {
+      "id": "resource_calendar_resourcecalendar",
+      "label": "ResourceCalendar",
+      "edges": 26
+    },
+    {
+      "id": "resource_calendar_calendarmanager",
+      "label": "CalendarManager",
+      "edges": 21
+    },
+    {
+      "id": "resource_calendar_calendarexception",
+      "label": "CalendarException",
+      "edges": 20
+    },
+    {
+      "id": "resource_calendar_exceptiontype",
+      "label": "ExceptionType",
+      "edges": 18
+    },
+    {
+      "id": "resource_leveler_resourceleveler",
+      "label": "ResourceLeveler",
+      "edges": 18
+    },
+    {
+      "id": "resource_leveling_service_resourcelevelingservice",
+      "label": "ResourceLevelingService",
+      "edges": 17
+    },
+    {
+      "id": "resource_leveler_levelingstatus",
+      "label": "LevelingStatus",
+      "edges": 15
+    },
+    {
+      "id": "resource_leveler_resourcecapacity",
+      "label": "ResourceCapacity",
+      "edges": 15
+    },
+    {
+      "id": "resource_leveler_conflict",
+      "label": "Conflict",
+      "edges": 15
+    },
+    {
+      "id": "resource_leveler_resourcelevelingcontext",
+      "label": "ResourceLevelingContext",
+      "edges": 15
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Phase 2 Track A: Mobile Scheduler Integration (11 tasks, 40+ tests)",
+      "target": "SchedulerScreen route entry point",
+      "source_files": [
+        "MEMORY.md",
+        "apps/mobile/app/(admin)/scheduler/index.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "participates_in",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories"
+    },
+    {
+      "source": "Phase 2 Track A: Mobile Scheduler Integration (11 tasks, 40+ tests)",
+      "target": "SchedulerGantt - pan/pinch gesture canvas with FlashList virtualization",
+      "source_files": [
+        "MEMORY.md",
+        "apps/mobile/components/scheduler/SchedulerGantt.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "participates_in",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories"
+    },
+    {
+      "source": "Phase 2 Track A: Mobile Scheduler Integration (11 tasks, 40+ tests)",
+      "target": "SchedulerList - virtualized task row list with critical-path highlighting",
+      "source_files": [
+        "MEMORY.md",
+        "apps/mobile/components/scheduler/SchedulerList.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "participates_in",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories"
+    },
+    {
+      "source": "ResourceCalendarService",
+      "target": "ExceptionType",
+      "source_files": [
+        "apps\\api\\app\\modules\\scheduler\\resource_calendar_service.py",
+        "apps\\api\\app\\modules\\scheduler\\resource_calendar.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Resource Calendar Service  Manages resource calendars for scheduling calculation",
+      "target": "ExceptionType",
+      "source_files": [
+        "apps\\api\\app\\modules\\scheduler\\resource_calendar_service.py",
+        "apps\\api\\app\\modules\\scheduler\\resource_calendar.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `BulkOperationValidator` connect `Community 4` to `Community 2`?",
+      "why": "High betweenness centrality (0.028) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `ExceptionType` connect `Community 0` to `Community 2`?",
+      "why": "High betweenness centrality (0.027) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `ResourceCalendar` connect `Community 0` to `Community 11`?",
+      "why": "High betweenness centrality (0.026) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 13 inferred relationships involving `ResourceCalendar` (e.g. with `ResourceCalendarService` and `Resource Calendar Service  Manages resource calendars for scheduling calculation`) actually correct?",
+      "why": "`ResourceCalendar` has 13 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 13 inferred relationships involving `CalendarManager` (e.g. with `ResourceCalendarService` and `Resource Calendar Service  Manages resource calendars for scheduling calculation`) actually correct?",
+      "why": "`CalendarManager` has 13 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 13 inferred relationships involving `CalendarException` (e.g. with `ResourceCalendarService` and `Resource Calendar Service  Manages resource calendars for scheduling calculation`) actually correct?",
+      "why": "`CalendarException` has 13 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 13 inferred relationships involving `ExceptionType` (e.g. with `ResourceCalendarService` and `Resource Calendar Service  Manages resource calendars for scheduling calculation`) actually correct?",
+      "why": "`ExceptionType` has 13 INFERRED edges - model-reasoned connections that need verification."
+    }
+  ]
+}

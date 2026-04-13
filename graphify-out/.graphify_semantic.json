@@ -1,0 +1,461 @@
+{
+  "nodes": [
+    {
+      "id": "scheduler_api_types",
+      "label": "ScheduleTask, ScheduleLoadResponse types",
+      "file_type": "code",
+      "source_file": "apps/mobile/types/api.ts",
+      "source_location": "lines 805-830"
+    },
+    {
+      "id": "scheduler_api_endpoint",
+      "label": "schedulerApi.loadSchedule endpoint wrapper",
+      "file_type": "code",
+      "source_file": "apps/mobile/services/apiClient.ts",
+      "source_location": "lines 503-506"
+    },
+    {
+      "id": "scheduler_screen_route",
+      "label": "SchedulerScreen route entry point",
+      "file_type": "code",
+      "source_file": "apps/mobile/app/(admin)/scheduler/index.tsx",
+      "source_location": "lines 1-2"
+    },
+    {
+      "id": "scheduler_screen_component",
+      "label": "SchedulerScreen - top-level guard + view mode toggle (Gantt/List)",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/SchedulerScreen.tsx",
+      "source_location": "lines 17-101"
+    },
+    {
+      "id": "scheduler_gantt_component",
+      "label": "SchedulerGantt - pan/pinch gesture canvas with FlashList virtualization",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/SchedulerGantt.tsx",
+      "source_location": "lines 30-87"
+    },
+    {
+      "id": "scheduler_list_component",
+      "label": "SchedulerList - virtualized task row list with critical-path highlighting",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/SchedulerList.tsx",
+      "source_location": "lines 59-131"
+    },
+    {
+      "id": "gantt_bar_component",
+      "label": "GanttBar - row-level SVG bar with Reanimated animatedProps",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/GanttBar.tsx",
+      "source_location": "lines 21-49"
+    },
+    {
+      "id": "gantt_timeline_header",
+      "label": "GanttTimelineHeader - sticky timeline header synced via scrollX",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/GanttTimelineHeader.tsx",
+      "source_location": null
+    },
+    {
+      "id": "use_scheduler_data_hook",
+      "label": "useSchedulerData - data fetch, loading, error state management",
+      "file_type": "code",
+      "source_file": "apps/mobile/hooks/useSchedulerData.ts",
+      "source_location": "lines 16-55"
+    },
+    {
+      "id": "scheduler_constants",
+      "label": "ROW_HEIGHT, DAY_WIDTH_*, STATUS_COLORS, CRITICAL_COLOR",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/scheduler-constants.ts",
+      "source_location": "lines 1-31"
+    },
+    {
+      "id": "scheduler_utils",
+      "label": "parseTaskDate, buildTimelineRange, getBarLeft, getBarWidth utilities",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/scheduler-utils.ts",
+      "source_location": "lines 1-98"
+    },
+    {
+      "id": "theme_context",
+      "label": "ThemeContext - color tokens, dark/light mode, appearance settings",
+      "file_type": "code",
+      "source_file": "apps/mobile/contexts/ThemeContext.tsx",
+      "source_location": "lines 47-163"
+    },
+    {
+      "id": "project_context",
+      "label": "ProjectContext - selectedProject state, persistence, auto-select logic",
+      "file_type": "code",
+      "source_file": "apps/mobile/contexts/ProjectContext.tsx",
+      "source_location": "lines 21-101"
+    },
+    {
+      "id": "api_client_wrapper",
+      "label": "request() function, token management, GenericResponse unwrapping",
+      "file_type": "code",
+      "source_file": "apps/mobile/services/apiClient.ts",
+      "source_location": "lines 171-244"
+    },
+    {
+      "id": "reanimated_gesture_patterns",
+      "label": "Gesture.Pan + Gesture.Pinch simultaneous handling (research pitfall 3)",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/SchedulerGantt.tsx",
+      "source_location": "lines 37-54"
+    },
+    {
+      "id": "flashlist_virtualization",
+      "label": "FlashList 60fps virtualization with keyExtractor",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/SchedulerGantt.tsx",
+      "source_location": "lines 72-83"
+    },
+    {
+      "id": "task_row_rendering",
+      "label": "TaskRow component - status chip, date range, duration, critical badge",
+      "file_type": "code",
+      "source_file": "apps/mobile/components/scheduler/SchedulerList.tsx",
+      "source_location": "lines 27-57"
+    },
+    {
+      "id": "phase2_track_a_definition",
+      "label": "Phase 2 Track A: Mobile Scheduler Integration (11 tasks, 40+ tests)",
+      "file_type": "document",
+      "source_file": "MEMORY.md",
+      "source_location": null
+    },
+    {
+      "id": "sport_design_luxury_industrial",
+      "label": "Luxury Industrial design language - dark mode colors, spacing, typography",
+      "file_type": "document",
+      "source_file": "ThemeContext.tsx",
+      "source_location": "lines 89-123"
+    },
+    {
+      "id": "error_handling_strategy",
+      "label": "ApiError class, GenericResponse envelope unwrapping, 401 token refresh",
+      "file_type": "code",
+      "source_file": "apps/mobile/services/apiClient.ts",
+      "source_location": "lines 156-243"
+    }
+  ],
+  "edges": [
+    {
+      "source": "scheduler_screen_route",
+      "target": "scheduler_screen_component",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_screen_component",
+      "target": "scheduler_gantt_component",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_screen_component",
+      "target": "scheduler_list_component",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_screen_component",
+      "target": "use_scheduler_data_hook",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_screen_component",
+      "target": "project_context",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_screen_component",
+      "target": "theme_context",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_gantt_component",
+      "target": "gantt_bar_component",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_gantt_component",
+      "target": "gantt_timeline_header",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_gantt_component",
+      "target": "reanimated_gesture_patterns",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_gantt_component",
+      "target": "scheduler_utils",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_gantt_component",
+      "target": "flashlist_virtualization",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_list_component",
+      "target": "task_row_rendering",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_list_component",
+      "target": "scheduler_constants",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_list_component",
+      "target": "scheduler_utils",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_list_component",
+      "target": "flashlist_virtualization",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "gantt_bar_component",
+      "target": "scheduler_utils",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "gantt_bar_component",
+      "target": "scheduler_constants",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "task_row_rendering",
+      "target": "scheduler_constants",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "use_scheduler_data_hook",
+      "target": "scheduler_api_endpoint",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "use_scheduler_data_hook",
+      "target": "scheduler_api_types",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_api_endpoint",
+      "target": "api_client_wrapper",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "scheduler_api_endpoint",
+      "target": "scheduler_api_types",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "scheduler_screen_component",
+      "target": "theme_context",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "api_client_wrapper",
+      "target": "error_handling_strategy",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "project_context",
+      "target": "scheduler_api_endpoint",
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.7
+    },
+    {
+      "source": "scheduler_gantt_component",
+      "target": "scheduler_constants",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "reanimated_gesture_patterns",
+      "target": "scheduler_constants",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8
+    },
+    {
+      "source": "scheduler_screen_component",
+      "target": "sport_design_luxury_industrial",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75
+    },
+    {
+      "source": "scheduler_list_component",
+      "target": "sport_design_luxury_industrial",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75
+    },
+    {
+      "source": "gantt_bar_component",
+      "target": "sport_design_luxury_industrial",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75
+    },
+    {
+      "source": "phase2_track_a_definition",
+      "target": "scheduler_screen_route",
+      "relation": "participates_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8
+    },
+    {
+      "source": "phase2_track_a_definition",
+      "target": "scheduler_gantt_component",
+      "relation": "participates_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8
+    },
+    {
+      "source": "phase2_track_a_definition",
+      "target": "scheduler_list_component",
+      "relation": "participates_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8
+    },
+    {
+      "source": "scheduler_utils",
+      "target": "scheduler_api_types",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "scheduler_ui_flow",
+      "label": "Mobile Scheduler UI Flow (SchedulerScreen -> Gantt/List view toggle)",
+      "nodes": [
+        "scheduler_screen_component",
+        "scheduler_gantt_component",
+        "scheduler_list_component",
+        "reanimated_gesture_patterns",
+        "flashlist_virtualization"
+      ],
+      "relation": "participates_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85
+    },
+    {
+      "id": "scheduler_data_pipeline",
+      "label": "Data Pipeline (API -> Hook -> Components -> Render)",
+      "nodes": [
+        "scheduler_api_endpoint",
+        "use_scheduler_data_hook",
+        "scheduler_screen_component",
+        "scheduler_gantt_component",
+        "scheduler_list_component"
+      ],
+      "relation": "participates_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95
+    },
+    {
+      "id": "scheduler_rendering_optimization",
+      "label": "Rendering Optimization (Reanimated worklet + FlashList virtualization)",
+      "nodes": [
+        "gantt_bar_component",
+        "reanimated_gesture_patterns",
+        "flashlist_virtualization",
+        "scheduler_constants"
+      ],
+      "relation": "participates_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8
+    },
+    {
+      "id": "context_providers",
+      "label": "React Context Integration (Theme + Project selection)",
+      "nodes": [
+        "theme_context",
+        "project_context",
+        "scheduler_screen_component"
+      ],
+      "relation": "participates_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9
+    },
+    {
+      "id": "mobile_scheduler_module",
+      "label": "Complete Mobile Scheduler Module (Phase 2 Track A foundation)",
+      "nodes": [
+        "scheduler_screen_route",
+        "scheduler_screen_component",
+        "scheduler_gantt_component",
+        "scheduler_list_component",
+        "use_scheduler_data_hook",
+        "api_client_wrapper",
+        "scheduler_api_types",
+        "scheduler_constants",
+        "scheduler_utils",
+        "theme_context",
+        "project_context"
+      ],
+      "relation": "participates_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

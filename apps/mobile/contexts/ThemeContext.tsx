@@ -153,7 +153,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     toggleTheme,
   }), [settings, colors, spacing, fontSizes, isDark, updateSettings, toggleTheme]);
 
-  if (!isLoaded) return null; // Wait for async storage
+  // FIX: Removed the 'return null' block. Always render children so Expo Router's <Stack> doesn't get unmounted and lose its __store.
 
   return (
     <ThemeContext.Provider value={value}>

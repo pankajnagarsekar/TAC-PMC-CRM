@@ -2,11 +2,12 @@
 // Uses Reanimated animated style for synchronized horizontal scroll with the Gantt body.
 
 import React from 'react';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useAnimatedProps } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { Svg, Line, Text as SvgText } from 'react-native-svg';
 import { format, addDays } from 'date-fns';
 import { DAY_WIDTH_MAX, HEADER_HEIGHT } from './scheduler-constants';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface TimelineRange {
   start: Date;
@@ -20,10 +21,13 @@ interface GanttTimelineHeaderProps {
   scrollX: SharedValue<number>;
 }
 
-export function GanttTimelineHeader({ timeline, scrollX }: GanttTimelineHeaderProps) {
-  // SVG width is fixed at max possible width (dayCount * DAY_WIDTH_MAX) so we never
-  // need to re-layout on zoom — bars shift, header shifts together.
-  const svgWidth = timeline.dayCount * DAY_WIDTH_MAX;
+export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimelineHeaderProps) {
+  const { colors } = useTheme();
+
+  // Compute SVG width dynamically based on dayWidth (responsive to pinch zoom)
+  const animatedSvgProps = useAnimatedProps(() => ({
+    width: timeline.dayCount * dayWidth.value,
+  }));
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: scrollX.value }],
@@ -33,8 +37,8 @@ export function GanttTimelineHeader({ timeline, scrollX }: GanttTimelineHeaderPr
   const ticks: { x: number; label: string }[] = [];
   for (let i = 0; i < timeline.dayCount; i += 7) {
     const date = addDays(timeline.start, i);
-    const x = i * DAY_WIDTH_MAX;
-    ticks.push({ x, label: format(date, 'dd MMM') });
+    // Tick x position scales with dayWidth
+    ticks.push({ dayIndex: i, label: format(date, 'dd MMM') });
   }
 
   return (
@@ -42,35 +46,37 @@ export function GanttTimelineHeader({ timeline, scrollX }: GanttTimelineHeaderPr
       style={[
         {
           height: HEADER_HEIGHT,
-          backgroundColor: '#1e293b',
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: '#334155',
+          borderBottomColor: colors.border,
         },
         animatedStyle,
       ]}
     >
-      <Svg width={svgWidth} height={HEADER_HEIGHT}>
-        {ticks.map(({ x, label }) => (
-          <React.Fragment key={x}>
-            <Line
-              x1={x}
-              y1={0}
-              x2={x}
-              y2={HEADER_HEIGHT}
-              stroke="#475569"
-              strokeWidth={1}
-            />
-            <SvgText
-              x={x + 2}
-              y={HEADER_HEIGHT - 8}
-              fill="#94a3b8"
-              fontSize={10}
-            >
-              {label}
-            </SvgText>
-          </React.Fragment>
-        ))}
-      </Svg>
+      <Animated.View animatedProps={animatedSvgProps} style={{ height: HEADER_HEIGHT }}>
+        <Svg height={HEADER_HEIGHT}>
+          {ticks.map(({ dayIndex, label }) => (
+            <React.Fragment key={dayIndex}>
+              <Line
+                x1={dayIndex * dayWidth.value}
+                y1={0}
+                x2={dayIndex * dayWidth.value}
+                y2={HEADER_HEIGHT}
+                stroke={colors.border}
+                strokeWidth={1}
+              />
+              <SvgText
+                x={dayIndex * dayWidth.value + 2}
+                y={HEADER_HEIGHT - 8}
+                fill={colors.textSecondary}
+                fontSize={10}
+              >
+                {label}
+              </SvgText>
+            </React.Fragment>
+          ))}
+        </Svg>
+      </Animated.View>
     </Animated.View>
   );
 }

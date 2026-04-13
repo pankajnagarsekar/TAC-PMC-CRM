@@ -21,6 +21,7 @@ import { buildTimelineRange } from './scheduler-utils';
 import { ROW_HEIGHT, DAY_WIDTH_INITIAL, DAY_WIDTH_MIN, DAY_WIDTH_MAX } from './scheduler-constants';
 import { GanttBar } from './GanttBar';
 import { GanttTimelineHeader } from './GanttTimelineHeader';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface SchedulerGanttProps {
   tasks: ScheduleTask[];
@@ -28,6 +29,7 @@ interface SchedulerGanttProps {
 }
 
 export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
+  const { colors } = useTheme();
   const scrollX = useSharedValue(0);
   // dayWidth clamped between DAY_WIDTH_MIN (8px) and DAY_WIDTH_MAX (80px) — see research pitfall 3
   const dayWidth = useSharedValue(DAY_WIDTH_INITIAL);
@@ -58,7 +60,7 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
   }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Sticky timeline header — scrolls in sync with body via scrollX */}
       <GanttTimelineHeader
         timeline={timeline}
@@ -72,6 +74,7 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
           <FlashList
             data={tasks}
             keyExtractor={(item) => item.task_id}
+            estimatedItemSize={ROW_HEIGHT}
             renderItem={({ item }) => (
               <GanttBar
                 task={item}
