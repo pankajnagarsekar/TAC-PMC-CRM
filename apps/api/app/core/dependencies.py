@@ -21,6 +21,7 @@ from app.modules.project.application.project_service import ProjectService
 from app.modules.project.application.scheduler_service import SchedulerService
 from app.modules.reporting.application.ai_service import AIService
 from app.modules.reporting.application.ai_summary_service import AISummaryService
+from app.modules.reporting.application.analytics_service import AnalyticsService
 from app.modules.reporting.application.dashboard_service import DashboardService
 from app.modules.reporting.application.reporting_service import ReportingService
 from app.modules.shared.application.alert_service import AlertService
@@ -211,10 +212,17 @@ async def get_cash_service(
     return CashService(db, perm, audit)
 
 
+async def get_analytics_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> AnalyticsService:
+    return AnalyticsService(db)
+
+
 async def get_dashboard_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
 ) -> DashboardService:
-    return DashboardService(db)
+    return DashboardService(db, analytics_service)
 
 
 async def get_master_data_service(

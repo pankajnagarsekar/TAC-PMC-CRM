@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, BackgroundTasks
 
@@ -7,18 +8,136 @@ from app.core.dependencies import (
     get_ai_service,
     get_ai_summary_service,
     get_authenticated_user,
+    get_analytics_service,
     get_dashboard_service,
     get_permission_checker,
     get_reporting_service,
 )
 from app.modules.shared.domain.schemas import GenericResponse
+from app.modules.reporting.domain.metrics import (
+    ProjectDashboardData,
+    ScheduleHealthMetrics,
+    ResourceUtilizationData,
+    FinancialSummaryData,
+    TimelineAnalytics,
+)
 
 from ..application.ai_service import AIService
 from ..application.ai_summary_service import AISummaryService
+from ..application.analytics_service import AnalyticsService
 from ..application.dashboard_service import DashboardService
 from ..application.reporting_service import ReportingService
 
 router = APIRouter()
+
+# --- ANALYTICS & DASHBOARD ENDPOINTS (B1.4) ---
+
+
+@router.get(
+    "/reporting/{project_id}/dashboard",
+    response_model=GenericResponse[ProjectDashboardData],
+    tags=["Analytics Dashboard"],
+)
+async def get_project_dashboard(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    dashboard_service: DashboardService = Depends(get_dashboard_service),
+    checker: PermissionChecker = Depends(get_permission_checker),
+):
+    """Get complete dashboard data (cached 30 seconds)."""
+    await checker.check_project_access(user, project_id)
+    data = await dashboard_service.get_project_dashboard(
+        project_id, user["organisation_id"]
+    )
+    return GenericResponse(data=data)
+
+
+@router.get(
+    "/reporting/{project_id}/analytics/schedule-health",
+    response_model=GenericResponse[ScheduleHealthMetrics],
+    tags=["Analytics Dashboard"],
+)
+async def get_schedule_health(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+    checker: PermissionChecker = Depends(get_permission_checker),
+):
+    """Get schedule health metrics."""
+    await checker.check_project_access(user, project_id)
+    metrics = await analytics_service.calculate_schedule_health(
+        project_id, user["organisation_id"]
+    )
+    return GenericResponse(data=metrics.to_dict())
+
+
+@router.get(
+    "/reporting/{project_id}/analytics/resource-utilization",
+    response_model=GenericResponse[ResourceUtilizationData],
+    tags=["Analytics Dashboard"],
+)
+async def get_resource_utilization(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+    checker: PermissionChecker = Depends(get_permission_checker),
+):
+    """Get resource utilization metrics."""
+    await checker.check_project_access(user, project_id)
+    data = await analytics_service.calculate_resource_utilization(
+        project_id, user["organisation_id"]
+    )
+    return GenericResponse(data=data.to_dict())
+
+
+@router.get(
+    "/reporting/{project_id}/analytics/financial-summary",
+    response_model=GenericResponse[FinancialSummaryData],
+    tags=["Analytics Dashboard"],
+)
+async def get_financial_summary(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+    checker: PermissionChecker = Depends(get_permission_checker),
+):
+    """Get financial summary metrics."""
+    await checker.check_project_access(user, project_id)
+    data = await analytics_service.calculate_financial_summary(
+        project_id, user["organisation_id"]
+    )
+    return GenericResponse(data=data.to_dict())
+
+
+@router.get(
+    "/reporting/{project_id}/analytics/timeline",
+    response_model=GenericResponse[TimelineAnalytics],
+    tags=["Analytics Dashboard"],
+)
+async def get_timeline_analytics(
+    project_id: str,
+    start: Optional[str] = Query(None, description="Start date (ISO format)"),
+    end: Optional[str] = Query(None, description="End date (ISO format)"),
+    user: dict = Depends(get_authenticated_user),
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+    checker: PermissionChecker = Depends(get_permission_checker),
+):
+    """Get timeline analytics over date range (default: last 30 days)."""
+    await checker.check_project_access(user, project_id)
+
+    # Parse dates
+    start_date = None
+    end_date = None
+    if start:
+        start_date = datetime.fromisoformat(start.replace("Z", "+00:00"))
+    if end:
+        end_date = datetime.fromisoformat(end.replace("Z", "+00:00"))
+
+    data = await analytics_service.calculate_timeline_analytics(
+        project_id, user["organisation_id"], start_date, end_date
+    )
+    return GenericResponse(data=data.to_dict())
+
 
 # --- AI ENDPOINTS ---
 
@@ -265,34 +384,3 @@ async def get_project_vendor_payables(
     await checker.check_project_access(user, project_id)
     payables = await dashboard_service.get_vendor_payables(project_id)
     return GenericResponse(data=payables)
-
-
-# --- AI SUMMARY ENDPOINTS ---
-
-
-@router.get(
-    "/reports/{project_id}/ai-summary",
-    response_model=GenericResponse[Dict[str, Any]],
-    tags=["Reporting"],
-)
-async def get_latest_ai_summary(
-    project_id: str,
-    user: dict = Depends(get_authenticated_user),
-    ai_service: AISummaryService = Depends(get_ai_summary_service),
-):
-    result = await ai_service.get_latest(user, project_id)
-    return GenericResponse(data=result)
-
-
-@router.post(
-    "/reports/{project_id}/ai-summary/refresh",
-    response_model=GenericResponse[Dict[str, Any]],
-    tags=["Reporting"],
-)
-async def refresh_ai_summary(
-    project_id: str,
-    user: dict = Depends(get_authenticated_user),
-    ai_service: AISummaryService = Depends(get_ai_summary_service),
-):
-    result = await ai_service.refresh_summary(user, project_id)
-    return GenericResponse(data=result, message="AI Summary refreshed successfully")
