@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.core.dependencies import (
     get_authenticated_user,
+    get_budget_service,
     get_cash_service,
     get_master_data_service,
     get_payment_service,
@@ -12,10 +13,15 @@ from app.core.dependencies import (
 from app.modules.contracting.application.vendor_service import VendorService
 from app.modules.shared.domain.schemas import GenericResponse
 
+from ..application.budget_service import BudgetService
 from ..application.cash_service import CashService
 from ..application.master_data_service import MasterDataService
 from ..application.payment_service import PaymentService
 from ..schemas.dto import (
+    Budget,
+    BudgetCreate,
+    BudgetForecast,
+    BudgetUpdate,
     CashTransactionCreate,
     CodeMaster,
     CodeMasterCreate,
@@ -359,3 +365,72 @@ async def get_project_cash_summary(
     """Get comprehensive cash summary per category for a project."""
     summary = await cash_service.get_cash_summary(user, project_id)
     return GenericResponse(data=summary)
+
+
+# --- BUDGET MANAGEMENT ENDPOINTS ---
+
+
+@router.post(
+    "/budgets",
+    response_model=GenericResponse[Budget],
+    status_code=status.HTTP_201_CREATED,
+    tags=["Budgets"],
+)
+async def create_budget(
+    budget_data: BudgetCreate,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Create a new budget for a project."""
+    result = await budget_service.create_budget(user, budget_data.project_id, budget_data)
+    return GenericResponse(data=result, message="Budget created successfully")
+
+
+@router.get(
+    "/budgets/{budget_id}",
+    response_model=GenericResponse[Budget],
+    tags=["Budgets"],
+)
+async def get_budget(
+    budget_id: str,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Get a specific budget by ID."""
+    result = await budget_service.get_budget(user, budget_id)
+    return GenericResponse(data=result)
+
+
+@router.put(
+    "/budgets/{budget_id}/allocations",
+    response_model=GenericResponse[Budget],
+    tags=["Budgets"],
+)
+async def update_budget_allocations(
+    budget_id: str,
+    allocation_data: BudgetUpdate,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Update budget allocations."""
+    result = await budget_service.update_allocations(user, budget_id, allocation_data)
+    return GenericResponse(data=result, message="Budget allocations updated successfully")
+
+
+@router.get(
+    "/budgets/{budget_id}/forecast",
+    response_model=GenericResponse[BudgetForecast],
+    tags=["Budgets"],
+)
+async def forecast_budget_eac(
+    budget_id: str,
+    percent_complete: float = Query(50, ge=0, le=100),
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Forecast budget EAC (Estimate at Completion)."""
+    from decimal import Decimal
+    result = await budget_service.forecast_eac(
+        user, budget_id, Decimal(str(percent_complete))
+    )
+    return GenericResponse(data=result)

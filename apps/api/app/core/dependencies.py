@@ -8,6 +8,7 @@ from app.core.resilience import NonceGuard
 from app.db.mongodb import get_db
 from app.modules.contracting.application.vendor_service import VendorService
 from app.modules.contracting.application.work_order_service import WorkOrderService
+from app.modules.financial.application.budget_service import BudgetService
 from app.modules.financial.application.cash_service import CashService
 from app.modules.financial.application.financial_service import FinancialService
 from app.modules.financial.application.master_data_service import MasterDataService
@@ -161,6 +162,13 @@ async def get_payment_service(
     perm: PermissionChecker = Depends(get_permission_checker),
 ) -> PaymentService:
     return PaymentService(db, audit, fin, perm)
+
+
+async def get_budget_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+) -> BudgetService:
+    return BudgetService(db, audit)
 
 
 async def get_site_service(

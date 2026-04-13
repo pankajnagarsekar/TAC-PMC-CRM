@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from bson import Decimal128
+
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
 
@@ -54,13 +56,13 @@ class BudgetAllocation:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "code": self.code,
-            "budgeted_amount": self.budgeted_amount,
-            "spent_amount": self.spent_amount,
-            "variance": self.variance,
-            "percent_spent": self.percent_spent,
+            "budgeted_amount": FinancialEngine.to_d128(self.budgeted_amount),
+            "spent_amount": FinancialEngine.to_d128(self.spent_amount),
+            "variance": FinancialEngine.to_d128(self.variance),
+            "percent_spent": FinancialEngine.to_d128(self.percent_spent),
             "threshold_percentage": self.threshold_percentage,
             "is_threshold_breached": self.is_threshold_breached,
-            "remaining": self.remaining,
+            "remaining": FinancialEngine.to_d128(self.remaining),
         }
 
     @staticmethod
@@ -251,11 +253,11 @@ class Budget:
             "id": self.id,
             "project_id": self.project_id,
             "organisation_id": self.organisation_id,
-            "total_budget": self.total_budget,
+            "total_budget": FinancialEngine.to_d128(self.total_budget),
             "allocations": [a.to_dict() for a in self.allocations],
-            "total_spent": self.get_total_spent(),
-            "total_budgeted": self.get_total_budgeted(),
-            "variance": self.get_total_variance(),
+            "total_spent": FinancialEngine.to_d128(self.get_total_spent()),
+            "total_budgeted": FinancialEngine.to_d128(self.get_total_budgeted()),
+            "variance": FinancialEngine.to_d128(self.get_total_variance()),
             "status": self.status,
             "version": self.version,
             "created_at": self.created_at,
