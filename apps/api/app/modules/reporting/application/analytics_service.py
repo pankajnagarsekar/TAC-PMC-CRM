@@ -355,7 +355,7 @@ class AnalyticsService:
 
         if not master_state:
             # Fallback aggregation
-            agg = await self.fin_state_repo.aggregate(
+            agg = await (await self.fin_state_repo.aggregate(
                 [
                     {
                         "$match": {
@@ -372,7 +372,7 @@ class AnalyticsService:
                         }
                     },
                 ]
-            ).to_list(1)
+            )).to_list(1)
 
             if agg:
                 data.budget_total = FinancialEngine.to_decimal(agg[0].get("budget"))

@@ -318,6 +318,12 @@ async def test_empty_project_returns_zero_metrics(analytics_service):
     analytics_service.fin_state_repo.aggregate = AsyncMock()
     analytics_service.fin_state_repo.aggregate.return_value.to_list = AsyncMock(return_value=[])
 
+    # Mock project repo
+    analytics_service.project_repo.get_by_id.return_value = {
+        "project_id": "proj-001",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=10)
+    }
+
     # Execute all metrics
     schedule_health = await analytics_service.calculate_schedule_health("proj-001", "org-001")
     resource_util = await analytics_service.calculate_resource_utilization("proj-001", "org-001")
