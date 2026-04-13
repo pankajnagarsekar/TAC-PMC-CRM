@@ -167,3 +167,54 @@ class VendorLedgerEntry(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# BUDGET DTOs
+class BudgetAllocationDTO(BaseModel):
+    code: str
+    budgeted_amount: Decimal = Field(..., ge=0)
+    spent_amount: Decimal = Field(Decimal("0.0"), ge=0)
+    variance: Optional[Decimal] = None
+    percent_spent: Optional[Decimal] = None
+    threshold_percentage: int = Field(80, ge=0, le=100)
+    is_threshold_breached: Optional[bool] = None
+    remaining: Optional[Decimal] = None
+
+
+class Budget(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    project_id: str
+    organisation_id: str
+    total_budget: Decimal = Field(..., gt=0)
+    allocations: List[BudgetAllocationDTO] = Field(default_factory=list)
+    total_spent: Optional[Decimal] = None
+    total_budgeted: Optional[Decimal] = None
+    variance: Optional[Decimal] = None
+    status: Literal["ACTIVE", "LOCKED", "CLOSED"] = "ACTIVE"
+    version: int = 1
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class BudgetCreate(BaseModel):
+    project_id: str
+    total_budget: Decimal = Field(..., gt=0)
+    allocations: List[BudgetAllocationDTO] = Field(default_factory=list)
+
+
+class BudgetAllocationUpdate(BaseModel):
+    code: str
+    budgeted_amount: Decimal = Field(..., ge=0)
+    threshold_percentage: int = Field(80, ge=0, le=100)
+
+
+class BudgetUpdate(BaseModel):
+    allocations: List[BudgetAllocationUpdate]
+
+
+class BudgetForecast(BaseModel):
+    eac: Decimal  # Estimate at Completion
+    projected_overrun: Decimal
+    variance_at_completion: Decimal

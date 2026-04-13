@@ -6,6 +6,7 @@ from pymongo import ASCENDING
 from app.modules.shared.infrastructure.base_repository import BaseRepository
 
 from ..schemas.dto import (
+    Budget,
     CashTransaction,
     CodeMaster,
     DerivedFinancialState,
@@ -90,3 +91,21 @@ class CashTransactionRepository(BaseRepository[CashTransaction]):
         await self.collection.create_index([("organisation_id", ASCENDING)])
         await self.collection.create_index([("project_id", ASCENDING)])
         await self.collection.create_index([("category_id", ASCENDING)])
+
+
+class BudgetRepository(BaseRepository[Budget]):
+    def __init__(self, db):
+        super().__init__(db, "budgets", Budget)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index(
+            [("project_id", ASCENDING), ("organisation_id", ASCENDING)]
+        )
+        await self.collection.create_index([("status", ASCENDING)])
+
+    async def list_by_project(
+        self, project_id: str, organisation_id: str, limit: int = 100
+    ) -> list:
+        query = {"project_id": project_id, "organisation_id": organisation_id}
+        return await self.list(query, limit=limit, sort=[("created_at", -1)])
