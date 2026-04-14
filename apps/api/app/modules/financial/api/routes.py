@@ -516,6 +516,22 @@ async def create_budget(
 
 
 @router.get(
+    "/budgets",
+    response_model=GenericResponse[List[Budget]],
+    tags=["Budgets"],
+)
+async def list_budgets(
+    project_id: str = Query(...),
+    limit: int = Query(100, ge=1, le=500),
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """List all budgets for a project (paginated)."""
+    result = await budget_service.list_budgets(user, project_id, limit)
+    return GenericResponse(data=result["items"])
+
+
+@router.get(
     "/budgets/{budget_id}",
     response_model=GenericResponse[Budget],
     tags=["Budgets"],

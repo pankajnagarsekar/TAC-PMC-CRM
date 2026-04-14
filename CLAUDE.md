@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+File guides Claude Code (claude.ai/code) for working with code in this repo.
 
 ---
 
 ## Project Overview
 
-**TAC-PMC-CRM** is a full-stack Customer Relationship Management system with a Luxury Industrial design language. The project uses a monorepo structure with clear separation between API, web, and mobile applications.
+**TAC-PMC-CRM** — full-stack CRM with Luxury Industrial design. Monorepo: API, web, mobile apps.
 
 - **Tech Stack**: Python (FastAPI) API | React 19 (Next.js 16) Web | React Native (Expo) Mobile | MongoDB
 - **Package Manager**: pnpm (workspace)
@@ -30,12 +30,21 @@ TAC-PMC-CRM/
 │   └── ui/            # Shared UI component library
 ├── scripts/           # Utility scripts
 ├── tools/             # Tools and CLI utilities
+├── graphify-out/      # Knowledge graph data for code flow analysis
 └── pnpm-workspace.yaml # Workspace configuration
 ```
 
+### Context & Knowledge Files (Root)
+
+Strategic docs for project sync:
+- **AwesomeGSD_Skills.md**: Mandatory skill stacking & verification
+- **SUPERPOWERS_GUIDE.md**: Framework for perfect, error-free code
+- **GSDGodScript.md**: Core directives for implementation
+- **Ruflo.md**: RuFlo V3 swarm coordination ref
+
 ### API Architecture (Strict DDD)
 
-The API strictly follows Domain-Driven Design with sovereign Bounded Contexts:
+API strict DDD. Sovereign Bounded Contexts:
 
 ```
 apps/api/app/
@@ -55,27 +64,27 @@ apps/api/app/
 ```
 
 **Module Anatomy:**
-- `api/`: Route handlers and dependencies
-- `application/`: Application services (Use cases)
-- `domain/`: Business logic, aggregators, and exceptions
-- `infrastructure/`: Repositories and external adapters
+- `api/`: Route handlers & deps
+- `application/`: App services (use cases)
+- `domain/`: Business logic, aggregators, exceptions
+- `infrastructure/`: Repos & external adapters
 - `schemas/`: Pydantic models (DTOs)
 
 **Key Patterns:**
-- **BaseRepository**: Hardened CRUD with optimistic locking and checksum integrity
-- **Async/Await**: Motor (async MongoDB driver) throughout
-- **Event Sourcing**: State changes tracked for audit trails
-- **Rate Limiting & Resilience**: slowapi, circuit breakers, retry patterns
-- **Idempotency**: Duplicate-safe financial operations via `core/idempotency.py`
+- **BaseRepository**: Hardened CRUD + optimistic locking & checksum integrity
+- **Async/Await**: Motor (async MongoDB) throughout
+- **Event Sourcing**: State changes tracked for audit
+- **Rate Limiting & Resilience**: slowapi, circuit breakers, retries
+- **Idempotency**: Duplicate-safe financial ops via `core/idempotency.py`
 - **Unit of Work**: Transactional consistency via `core/uow.py`
 
 **Core Services** (`apps/api/app/core/`):
 - `lifecycle.py`: App startup/shutdown, BackgroundGuardian
 - `middleware.py`: BackpressureMiddleware, StandardResponseMiddleware
-- `pdf_service.py`: PDF generation (WeasyPrint — requires system libs)
+- `pdf_service.py`: PDF generation (WeasyPrint — needs system libs)
 - `ai_summary_service.py`: LLM integration (OpenAI)
 - `storage.py`: S3 file storage (boto3)
-- `resilience.py`: Circuit breakers, retry patterns
+- `resilience.py`: Circuit breakers, retries
 - `concurrency.py`: Optimistic locking, version control
 - `financial_utils.py`: Monetary calculations (Decimal precision)
 
@@ -93,8 +102,8 @@ apps/web/src/
 
 **Key Patterns:**
 - **State Management**: Zustand for global state
-- **Styling**: Tailwind CSS 4 with Luxury Industrial design tokens
-- **Data Fetching**: SWR for client-side, Server Components where possible
+- **Styling**: Tailwind CSS 4 + Luxury Industrial tokens
+- **Data Fetching**: SWR (client), Server Components (where possible)
 - **UI Library**: Radix UI primitives + custom components
 
 ### Mobile Architecture (React Native + Expo)
@@ -209,7 +218,7 @@ npm run lint
 
 ### 1. **Skill-First Rule** (AwesomeGSD_Skills.md)
 
-**Every task MUST identify and document relevant skills before beginning work.** Stack skills strategically based on task type:
+**Every task must identify & document relevant skills before work.** Stack by task type:
 
 - **New API Module (DDD)**: @api-design-principles + @fastapi-pro + @ddd-tactical-patterns + @database-design
 - **New Web Feature**: @software-architecture + @react-best-practices + @tailwind-design-system + @typescript-pro
@@ -220,7 +229,16 @@ npm run lint
 - **State Machine/Workflow**: @ddd-tactical-patterns + @state-machine-design
 - **Integration Work**: @system-architect + @api-design-principles + @integration-patterns
 
-### 2. **RuFlo V3 Framework** (Ruflo.md)
+### 2. **Superpowers & Perfect Code** (SUPERPOWERS_GUIDE.md)
+
+**Every agent MUST follow Superpowers framework for perfect, error-free implementation.** Steps:
+1. **Brainstorming**: Refine design via Socratic dialogue before code.
+2. **Planning**: Use `@writing-plans` for atomic, test-first plans.
+3. **Multi-Agent Implementation**: Use `gstack` to coordinate agents.
+4. **Testing**: Enforce TDD (RED-GREEN-REFACTOR) for logic changes.
+5. **Verification**: Run exhaustive checks before completion.
+
+### 3. **RuFlo V3 Framework** (Ruflo.md)
 
 For complex tasks or new phases:
 
@@ -236,29 +254,29 @@ npx -y ruflo@latest hooks worker dispatch --trigger audit
 ```
 
 **Core Rules:**
-- Every major task starts with a literal swarm command
-- Context-first: Load ReasoningBank before proposing changes
-- Safety hooks: Audit all work against System Constitution before commit
-- No local agent simulation: Real agents must be spawned via CLI
+- Every major task starts with swarm command
+- Context-first: Load ReasoningBank before changes
+- Safety hooks: Audit work vs Constitution before commit
+- No local agent simulation: Real agents via CLI
 
-### 3. **Behavioral Rules**
+### 4. **Behavioral Rules**
 
-- **Read Before Edit**: Always read a file before modifying it
-- **No Unnecessary Files**: Only create files absolutely necessary for the task
-- **Prefer Editing**: Edit existing files rather than creating new ones
-- **No Secrets in Code**: Never hardcode API keys, credentials, or sensitive data
-- **One Message = All Concurrent Operations**: Batch all related file reads/writes, bash commands, and agent spawns in a single message
-- **Run Tests After Changes**: Always verify tests pass before committing
-- **Platform Neutrality (CRITICAL)**: Never use backslashes (`\`) or `.exe` in scripts; always use `/` and `python -m` for cross-platform CI safety
-- **Zero Error Policy**: No merges allowed if `pnpm lint` or `pytest` returns any ERRORS (Warnings allowed but monitored)
+- **Read Before Edit**: Always read file before modifying
+- **No Unnecessary Files**: Create only files essential for task
+- **Prefer Editing**: Edit existing files, don't create new
+- **No Secrets in Code**: Never hardcode keys, credentials, sensitive data
+- **One Message = All Concurrent Ops**: Batch file reads/writes, bash, agent spawns in one message
+- **Run Tests After Changes**: Verify tests pass before commit
+- **Platform Neutrality (CRITICAL)**: No backslashes (`\`) or `.exe` in scripts; use `/` & `python -m`
+- **Zero Error Policy**: No merges if `pnpm lint` or `pytest` return ERRORS (warnings OK)
 
-### 4. **File Organization**
+### 5. **File Organization**
 
 - **Source Code**: Use `/app` for API, `/src` for web/mobile
 - **Tests**: Use `/tests` for API, `__tests__` for JS/TS
-- **Configuration**: Keep config files at app root or in `/config`
+- **Configuration**: Keep config at app root or `/config`
 - **Scripts**: Use `/scripts` for utility scripts
-- **Never Save to Root**: Keep working files in appropriate directories
+- **Never Save to Root**: Keep working files in right directories
 
 ---
 
@@ -283,7 +301,7 @@ npx -y ruflo@latest hooks worker dispatch --trigger audit
 
 ### Routes & Endpoints
 
-Routes are organized within each Bounded Context in `apps/api/app/modules/[module]/api/`:
+Routes organized by Bounded Context in `apps/api/app/modules/[module]/api/`:
 - `identity/api/routes.py`: Auth and User management
 - `project/api/routes.py`: Projects and Timelines
 - `financial/api/routes.py`: Payments and Master Data
@@ -291,11 +309,11 @@ Routes are organized within each Bounded Context in `apps/api/app/modules/[modul
 - `site_operations/api/routes.py`: DPRs, Attendance, Worker Logs
 - `reporting/api/routes.py`: AI Summaries, Analytics
 
-**Aggregation**: The central `apps/api/app/api/router.py` imports and registers these modular routers.
+**Aggregation**: Central `apps/api/app/api/router.py` imports & registers modular routers.
 
 ### Services Layer
 
-Business logic resides in the `application/` layer of each module:
+Business logic in `application/` layer of each module:
 - `identity/application/auth_service.py`: Authentication logic
 - `financial/application/financial_service.py`: Core financial orchestration
 - `financial/application/master_data_service.py`: Reference data management (financial codes)
@@ -341,11 +359,11 @@ modules/{MODULE_NAME}/
 ```
 
 **Key Principles:**
-1. **Domain Model Owns Invariants**: Business rules enforced in `domain/models.py`, not in the service
-2. **Service Orchestrates**: Application service calls domain, repository, and shared services (audit, notification, permission)
-3. **Repository is Generic**: Extend `BaseRepository[T]` from `shared/infrastructure/base_repository.py` — handles CRUD, indexes, org-scoping via `**filters`
-4. **No Cross-Module Imports**: Modules are sovereign; communicate only via API (REST)
-5. **State Transitions via StateMachine**: All status changes validated by `StateMachine.validate_transition(entity_type, current, next)`
+1. **Domain Model Owns Invariants**: Rules in `domain/models.py`, not service
+2. **Service Orchestrates**: Service calls domain, repo, shared services (audit, notification, permission)
+3. **Repository is Generic**: Extend `BaseRepository[T]` from `shared/infrastructure/base_repository.py` — CRUD, indexes, org-scoping via `**filters`
+4. **No Cross-Module Imports**: Modules sovereign; communicate via API (REST) only
+5. **State Transitions via StateMachine**: Status changes validated by `StateMachine.validate_transition(...)`
 
 **Registration:**
 - Add router to `apps/api/app/api/router.py`: `v1_router.include_router(module_router)`
@@ -353,7 +371,7 @@ modules/{MODULE_NAME}/
 
 ### State Machine & Transitions
 
-All entities with lifecycle states (PROJECT, PAYMENT, DPR, TASK) use the centralized `StateMachine` class:
+All entities with lifecycle states (PROJECT, PAYMENT, DPR, TASK) use centralized `StateMachine` class:
 
 ```python
 # apps/api/app/modules/shared/domain/state_machine.py
@@ -362,9 +380,9 @@ StateMachine.check_modification_allowed("TASK", "Closed")  # Raises DataFreezeEr
 ```
 
 **Important States & Freezing:**
-- Entities with empty transition sets (e.g., `"Closed": set()`) are **frozen** — cannot be modified or transitioned further
-- Financial entities in final states (Paid, Cancelled) enforce immutability via DataFreezeError on any update attempt
-- Always call `StateMachine.check_modification_allowed()` before allowing field edits
+- Entities with empty transition sets (e.g., `"Closed": set()`) are **frozen** — no modify/transition
+- Financial entities in final states (Paid, Cancelled) enforce immutability via DataFreezeError
+- Call `StateMachine.check_modification_allowed()` before field edits
 
 ### Repository & BaseRepository Pattern
 
@@ -381,17 +399,17 @@ class TaskRepository(BaseRepository[Task]):
 ```
 
 **Key Methods:**
-- `get_by_id(id, **filters)` — Single document (with org-scoping filters)
-- `find(query, limit, skip)` — Multiple documents (cursor-based pagination)
-- `create(data)` — Insert (auto-timestamps: created_at, updated_at, version=1)
-- `update(id, data, **filters)` — Update (increments version, returns new doc)
-- `aggregate(pipeline)` — MongoDB aggregation for complex queries
+- `get_by_id(id, **filters)` — Single doc (org-scoped)
+- `find(query, limit, skip)` — Multiple docs (cursor pagination)
+- `create(data)` — Insert (auto-timestamps, version=1)
+- `update(id, data, **filters)` — Update (version++, returns new)
+- `aggregate(pipeline)` — MongoDB aggregation
 
-**Security:** The `**filters` parameter enforces org-scoping. All queries include `organisation_id` automatically.
+**Security:** `**filters` enforces org-scoping. All queries include `organisation_id` auto.
 
 ### Audit Trail & Change Logs
 
-Every state change is immutably logged via `AuditService`:
+Every state change logged immutably via `AuditService`:
 
 ```python
 await audit_service.log_action(
@@ -408,16 +426,16 @@ await audit_service.log_action(
 ```
 
 **Snapshots:**
-- `SnapshotService` creates full entity snapshots on terminal state transitions (Completed, Closed)
-- Used for archival and rollback analysis; not for every change (prevents storage bloat)
+- `SnapshotService` creates snapshots on terminal transitions (Completed, Closed)
+- Used for archival & rollback; not every change (prevents bloat)
 
 ### Assignment Patterns
 
 For entities with user assignment (Task, WorkOrder, etc.):
-- Store `assigned_to_user_id` (FK to users collection, nullable) for CRM users
-- Store `assigned_to_name` (always populated) for display — can be a CRM username or free text ("MEP", "Architect", etc.)
-- Store `assigned_to_type` ("user" | "external") to distinguish
-- This dual model allows assigning to external parties without requiring CRM accounts
+- Store `assigned_to_user_id` (FK users, nullable) for CRM users
+- Store `assigned_to_name` (always) for display — CRM username or free text
+- Store `assigned_to_type` ("user" | "external")
+- Dual model allows external assignment without CRM accounts
 
 ---
 
@@ -441,22 +459,22 @@ Components follow atomic design principles:
 ### State Management
 
 - **Global State**: Zustand in `src/store/`
-  - `useProjectStore` — Active project context (mandatory for project-scoped operations)
-  - `useScheduleStore` — Scheduler task data with optimistic updates
-  - `useAuthStore` — User authentication & role data
-- **Server State**: SWR for API data fetching (client-side, cache-aware)
-- **Component State**: React hooks for local state
-- **No Redux**: Zustand is preferred for its simplicity and performance
+  - `useProjectStore` — Active project (mandatory for scoped ops)
+  - `useScheduleStore` — Task data w/ optimistic updates
+  - `useAuthStore` — User auth & roles
+- **Server State**: SWR (client-side, cache-aware)
+- **Component State**: React hooks
+- **No Redux**: Zustand preferred (simple, fast)
 
 ### Web API Client Pattern
 
 File: `apps/web/src/lib/api.ts`
 
-The Axios client automatically injects headers and handles authentication:
-- Injects `X-Project-Id` header from `useProjectStore` for project-scoped requests
-- Injects `Authorization: Bearer {JWT}` token from `useAuthStore`
-- 401 responses trigger automatic token refresh via refresh-token endpoint
-- GenericResponse envelope unwrapping (v1 spec): `{ data, status_code, timestamp }`
+Axios auto-injects headers & auth:
+- `X-Project-Id` from `useProjectStore`
+- `Authorization: Bearer {JWT}` from `useAuthStore`
+- 401 → auto token refresh
+- GenericResponse unwrap (v1): `{ data, status_code, timestamp }`
 
 **Usage:**
 ```typescript
@@ -476,27 +494,27 @@ const { data: tasks } = useSWR(
 5. Row click → navigate to detail page
 
 **Detail Page Example** (reference: `work-orders/[id]/page.tsx`):
-1. Extract `id` from route params: `useParams()`
-2. Fetch single record + related data in parallel
-3. Implement optimistic updates with version conflict handling
+1. Extract `id` from params: `useParams()`
+2. Fetch record + related data in parallel
+3. Implement optimistic updates + version conflict handling
 4. Use `VersionConflictModal` for concurrency conflicts
-5. Sidebar shows change log (audit entries from API)
+5. Sidebar shows change log (audit entries)
 
 ### UI Component Library
 
 **Location:** `packages/ui/src/components/` + `apps/web/src/components/ui/`
 
 **Core Components:**
-- `GlassCard` — Frosted glassmorphism container (Luxury Industrial aesthetic)
-- `KPICard` — Metric display with status colors & trend arrows
-- `FinancialGrid` — AG Grid wrapper for financial tables (sortable, filterable)
-- Button, Input, Dialog, Breadcrumbs (shadcn + Radix UI primitives)
+- `GlassCard` — Glassmorphism (Luxury Industrial)
+- `KPICard` — Metrics + colors & trends
+- `FinancialGrid` — AG Grid wrapper (sortable, filterable)
+- Button, Input, Dialog, Breadcrumbs (shadcn + Radix)
 
 **Styling Approach:**
-- Tailwind CSS 4 with CSS variables for theme colors
-- `globals.css` defines Luxury Industrial color tokens
-- Dark mode support via `next-themes`
-- Mobile-first responsive design
+- Tailwind CSS 4 + CSS variables
+- `globals.css` defines tokens
+- Dark mode via `next-themes`
+- Mobile-first responsive
 
 ---
 
@@ -513,9 +531,9 @@ pytest --cov                     # Generate coverage report
 ```
 
 Test files in `apps/api/tests/`:
-- Integration tests use real database (test MongoDB)
+- Integration tests use real DB (MongoDB)
 - Fixtures in `conftest.py`
-- Mocking only for external services
+- Mock external services only
 
 ### Web Testing
 
@@ -525,7 +543,7 @@ cd apps/web
 npx tsc --noEmit
 ```
 
-Jest + React Testing Library available for component and integration tests. Test files use `__tests__` directory convention.
+Jest + React Testing Library for components & integration. Tests use `__tests__`.
 
 ---
 
@@ -535,12 +553,12 @@ Jest + React Testing Library available for component and integration tests. Test
 
 File: `apps/mobile/services/apiClient.ts`
 
-Similar to web but with mobile-specific features:
-- JWT stored in secure storage (native) or localStorage (web)
-- 15-second request timeout with AbortController
-- Token refresh on 401 with exponential backoff retry
-- GenericResponse envelope unwrapping (v1 spec)
-- Organized into domain-scoped API groups: `authApi`, `projectsApi`, `dprApi`, `tasksApi`, etc.
+Like web, mobile-specific:
+- JWT in secure storage (native) or localStorage
+- 15s timeout + AbortController
+- 401 → refresh (exponential backoff)
+- GenericResponse unwrap (v1)
+- Domain-scoped groups: `authApi`, `projectsApi`, etc.
 
 **Usage:**
 ```typescript
@@ -550,18 +568,18 @@ const task = await tasksApi.getById(taskId);
 
 ### Mobile Navigation & Role-Based Routing
 
-- **Root:** `index.tsx` checks `useAuth()` and redirects by role (admin, supervisor, client)
-- **Role Groups:** `(admin)/`, `(supervisor)/`, `(client)/` with separate layout + guards
-- **Project Context:** `useProjectContext()` provides selected project for supervisor workflow
-- **Tab Navigation:** Admin has 5 tabs (Dashboard, Projects, DPR, Attendance, More); Supervisor has 4 tabs
+- **Root:** `index.tsx` checks role, redirects
+- **Role Groups:** `(admin)/`, `(supervisor)/`, `(client)/` w/ layouts & guards
+- **Project Context:** `useProjectContext()`
+- **Tabs:** Admin 5 (Dashboard, Projects, DPR, Attendance, More); Supervisor 4
 
 ### Mobile Component Patterns
 
 **Base Components** (`apps/mobile/components/ui/`):
-- `Card` — Variant-based (default, outlined, elevated, glass) with padding options
-- `Button` — Variants (primary, secondary, outline, danger, ghost) with loading state
-- `Input` — Label, error, hint, icon support, password toggle
-- Theme context for dynamic styling
+- `Card` — Variants (default, outlined, elevated, glass) + padding
+- `Button` — Variants (primary, secondary, outline, danger, ghost) + loading
+- `Input` — Label, error, hint, icon, password toggle
+- Theme context for dynamic style
 
 **Screen Patterns:**
 - **List Screen:** FlatList + filters (search, date range, status chips) + pull-to-refresh
@@ -570,7 +588,7 @@ const task = await tasksApi.getById(taskId);
 
 ### Mobile Types
 
-File: `apps/mobile/types/api.ts` — Comprehensive TypeScript interfaces for all API contracts, mirroring `packages/types` + mobile-specific aggregates like `AdminDashboardData`, `SupervisorDashboardData`
+File: `apps/mobile/types/api.ts` — Comprehensive TypeScript interfaces mirroring `packages/types` + mobile aggregates (`AdminDashboardData`, `SupervisorDashboardData`)
 
 ---
 
@@ -597,22 +615,22 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 ### Build & Deployment
 
-- **API**: Python app, runs on port 8000 (uvicorn)
-- **Web**: Next.js app, runs on port 3000
-- **Mobile**: Expo web on port 3001
+- **API**: Python app, port 8000 (uvicorn)
+- **Web**: Next.js app, port 3000
+- **Mobile**: Expo web, port 3001
 
 **Docker & CI/CD**:
-- Docker support: `Dockerfile` in both `apps/api/` (Python 3.11-slim) and `apps/web/` (Node 20 multi-stage)
-- GitHub Actions CI/CD: `.github/workflows/ci.yml` — 4 jobs: API lint+test, Web lint+typecheck, Docker build API, Docker build Web
-- API container includes WeasyPrint system libs (libcairo2, libpango) for PDF generation
-- Web container uses Next.js standalone output with `NEXT_PUBLIC_BACKEND_URL` build arg
+Docker: `apps/api/` (Python 3.11-slim), `apps/web/` (Node 20)
+GitHub Actions (`.github/workflows/ci.yml`) — 4 jobs: API lint+test, Web lint+typecheck, Docker build
+API includes WeasyPrint libs (libcairo2, libpango)
+Web uses Next.js standalone w/ `NEXT_PUBLIC_BACKEND_URL` build arg
 
 **Production Seed Script**:
 ```bash
 cd apps/api
 MONGO_URL="mongodb+srv://..." DB_NAME="tac_pmc_crm_prod" python scripts/seed_production.py
 ```
-Creates: 1 org (TAC-PMC), 3 users (admin/supervisor/client), 5 financial codes, 1 project (Majorda Villa) with 45 scheduler tasks.
+Creates: 1 org (TAC-PMC), 3 users, 5 codes, 1 project (45 tasks)
 
 ---
 
@@ -620,10 +638,10 @@ Creates: 1 org (TAC-PMC), 3 users (admin/supervisor/client), 5 financial codes, 
 
 ### Module Resolution Issues
 
-If you see "module not found" errors:
-1. Ensure you're using workspace imports: `@tac-pmc/types`, `@tac-pmc/ui`
-2. Check `pnpm-lock.yaml` is up to date: `pnpm install`
-3. Clear caches: `turbo clean && pnpm install`
+Module not found errors:
+1. Use workspace imports: `@tac-pmc/types`, `@tac-pmc/ui`
+2. Update: `pnpm install`
+3. Clear: `turbo clean && pnpm install`
 
 ### API Connection Errors
 
@@ -666,71 +684,77 @@ npx @claude-flow/cli@latest memory search --query "authentication"
 npx @claude-flow/cli@latest swarm "Feature Name" --strategy adaptive
 ```
 
-See Ruflo.md for complete CLI reference.
+See Ruflo.md for CLI reference.
 
 ---
 
 ## Key Architectural Principles
 
-1. **Domain-Driven Design**: Every module owns its domain model; business rules live in `domain/models.py`, not services
-2. **Org Scoping**: All queries include `organisation_id` filter via BaseRepository `**filters` for multi-tenancy
-3. **State Immutability**: Final states (marked in StateMachine with empty transition sets) freeze data — no edits allowed
-4. **Audit Everything**: Every state change (CREATE, UPDATE, DELETE, TRANSITION) logged via AuditService
-5. **Idempotency**: Financial operations use idempotency keys (`core/idempotency.py`) to prevent duplicates
-6. **Project Scoping**: Web and mobile operations require `activeProject` context; no cross-project data leaks
-7. **No Soft Deletes**: Entities transitioned to final states (Closed, Cancelled) rather than soft-deleted
-8. **Cross-Module Communication**: Via REST API only; no direct database access or Python imports between modules
-9. **Type Safety**: End-to-end TypeScript (web, mobile) + Pydantic (API); shared types in `packages/types`
-10. **Zero Error Policy**: All merges require passing `pnpm lint` and `pytest` with zero ERRORS (warnings OK)
+1. **DDD**: Modules own models; rules in `domain/models.py`
+2. **Org Scoping**: All queries + `organisation_id` via `**filters`
+3. **State Immutability**: Final states freeze — no edits
+4. **Audit Everything**: All changes logged (CREATE, UPDATE, DELETE, TRANSITION)
+5. **Idempotency**: Financial ops use keys (`core/idempotency.py`)
+6. **Project Scoping**: Web/mobile require `activeProject`; no leaks
+7. **No Soft Deletes**: Transition to final (Closed, Cancelled)
+8. **Cross-Module**: REST API only; no direct DB or imports
+9. **Type Safety**: TypeScript + Pydantic; shared in `packages/types`
+10. **Zero Error Policy**: `pnpm lint` & `pytest` = zero ERRORS
 
 ## Additional Notes
 
-- **FastAPI interactive docs**: available at `http://localhost:8000/docs` when the API is running
-- **Financial codes** (master data): LABOR, MATERIAL, EQUIPMENT, OVERHEAD, CONTINGENCY
-- **Mobile OCR**: `(admin)/ocr.tsx` handles document scanning via camera
-- **Voice Logs**: Supervisor can submit voice-based site logs via `(supervisor)/voice-log.tsx`
-- **DPR flow**: Supervisor creates → Admin reviews/approves; status machine lives in `site_operations` module
-- **Tasks module**: New module for task management with Kanban board, change logs, and AI summaries
-- **Luxury Industrial Design**: All UI follows this aesthetic; check `packages/ui` for design tokens and component examples
+- **Docs**: `http://localhost:8000/docs`
+- **Codes**: LABOR, MATERIAL, EQUIPMENT, OVERHEAD, CONTINGENCY
+- **OCR**: `(admin)/ocr.tsx` (camera scan)
+- **Voice**: Supervisor logs via `(supervisor)/voice-log.tsx`
+- **DPR**: Supervisor create → Admin review/approve; `site_operations`
+- **Tasks**: Kanban + logs + summaries
+- **Design**: Luxury Industrial; see `packages/ui`
 
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
+## Knowledge Graph Tooling (graphiphy)
 
-**IMPORTANT: This project has a knowledge graph. ALWAYS use the
-code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
-the codebase.** The graph is faster, cheaper (fewer tokens), and gives
-you structural context (callers, dependents, test coverage) that file
-scanning cannot.
+**IMPORTANT:** Use knowledge graph in `graphify-out/` to understand flow & structure. Faster, cheaper, deep insights.
 
-### When to use graph tools FIRST
+### When to use graphiphy FIRST
 
-- **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
-- **Understanding impact**: `get_impact_radius` instead of manually tracing imports
-- **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
-- **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview` + `list_communities`
+- **Code flow**: Consult `graphify-out/graph.json` or `.html`
+- **Impact**: Analyze blast radius
+- **Review**: Verify consistency vs graph
+- **Architecture**: Community detection in `GRAPH_REPORT.md`
 
-Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
-
-### Key Tools
-
-| Tool | Use when |
-|------|----------|
-| `detect_changes` | Reviewing code changes � gives risk-scored analysis |
-| `get_review_context` | Need source snippets for review � token-efficient |
-| `get_impact_radius` | Understanding blast radius of a change |
-| `get_affected_flows` | Finding which execution paths are impacted |
-| `query_graph` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes` | Finding functions/classes by name or keyword |
-| `get_architecture_overview` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
+### Key Knowledge Files
+- `graphify-out/graph.json`: Structural data for programmatic analysis.
+- `graphify-out/graph.html`: Visual exploration of dependencies.
+- `graphify-out/GRAPH_REPORT.md`: Summary of communities, God nodes, and knowledge gaps.
 
 ### Workflow
 
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes` for code review.
-3. Use `get_affected_flows` to understand impact.
-4. Use `query_graph` pattern="tests_for" to check coverage.
+1. Refresh graph on structural changes
+2. Use graph before Grep/Glob
+3. Verify new code aligns w/ communities
+
+---
+
+## gstack Integration
+
+**Web Browsing**: Use `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+
+**Available Skills**:
+- `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review` — Planning & consultation
+- `/design-consultation`, `/design-shotgun`, `/design-html`, `/review` — Design & review
+- `/ship`, `/land-and-deploy`, `/canary` — Deployment workflows
+- `/benchmark` — Performance testing
+- `/browse` — Web browsing (use this, not MCP tools)
+- `/qa`, `/qa-only` — QA workflows
+- `/design-review`, `/setup-browser-cookies` — Design & browser setup
+- `/retro` — Retrospective
+- `/investigate` — Investigation & analysis
+- `/document-release` — Release documentation
+- `/codex`, `/cso`, `/autoplan` — Code & planning
+- `/plan-devex-review`, `/devex-review` — DevX review
+- `/careful`, `/freeze`, `/guard`, `/unfreeze` — Safety controls
+- `/gstack-upgrade` — Upgrade gstack
+- `/learn` — Learning
 
 ---
 
@@ -738,21 +762,21 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 
 Configure gstack opinionated engineering roles:
 
-- "is this worth building?" -> `/office-hours`
-- "i am stuck" -> `/office-hours`
-- "plan this" -> `/autoplan`
-- "build this" -> `/codex`
-- "careful now" -> `/careful`
-- "take a checkpoint" -> `/checkpoint`
-- "test this" -> `/qa`
-- "qa this" -> `/qa`
-- "review this" -> `/review`
-- "ship this" -> `/ship`
-- "check health" -> `/health`
-- "investigate this" -> `/investigate`
-- "reflect on this" -> `/retro`
-- "reflect on the last turn" -> `/retro`
-- "guard this" -> `/guard`
-- "unfreeze this" -> `/unfreeze`
-- "freeze this" -> `/freeze`
-- "upgrade gstack" -> `/gstack-upgrade`
+- "is this worth building?" → `/office-hours`
+- "i am stuck" → `/office-hours`
+- "plan this" → `/autoplan`
+- "build this" → `/codex`
+- "careful now" → `/careful`
+- "take a checkpoint" → `/checkpoint`
+- "test this" → `/qa`
+- "qa this" → `/qa`
+- "review this" → `/review`
+- "ship this" → `/ship`
+- "check health" → `/health`
+- "investigate this" → `/investigate`
+- "reflect on this" → `/retro`
+- "reflect on the last turn" → `/retro`
+- "guard this" → `/guard`
+- "unfreeze this" → `/unfreeze`
+- "freeze this" → `/freeze`
+- "upgrade gstack" → `/gstack-upgrade`
