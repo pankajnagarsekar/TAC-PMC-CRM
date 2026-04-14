@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 
+from app.core.idempotency import IdempotencyGuard
 from app.core.time import now
 from app.core.uow import UnitOfWork
 
@@ -12,6 +13,7 @@ from app.core.uow import UnitOfWork
 from app.modules.project.infrastructure.repository import ProjectRepository
 from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
+from app.modules.shared.domain.state_machine import StateMachine
 from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
 
 from ..infrastructure.repository import PCRepository
@@ -277,5 +279,220 @@ class PaymentService:
         # Ensure total_payable is populated for frontend (Point 3.3/75 consistency)
         if "total_payable" not in pc:
             pc["total_payable"] = pc.get("grand_total") or pc.get("total_after_retention", 0)
-            
+
         return pc
+
+    # -------------------------------------------------------------------------
+    # APPROVAL WORKFLOW METHODS
+    # -------------------------------------------------------------------------
+
+    async def submit_for_approval(
+        self, user: dict, payment_id: str, idempotency_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Submit payment for approval (Draft -> Submitted).
+        Validates state transition and records idempotency."""
+        organisation_id = user["organisation_id"]
+        user_id = user["user_id"]
+        idempotency_guard = IdempotencyGuard(self.db)
+
+        async with UnitOfWork(self.db) as uow:
+            # Check idempotency first
+            if idempotency_key:
+                recorded = await idempotency_guard.get_or_set(
+                    idempotency_key,
+                    {"payment_id": payment_id, "action": "SUBMIT"},
+                    session=uow.session,
+                )
+                if recorded:
+                    return recorded
+
+            payment = await uow.payments.get_by_id(
+                payment_id, organisation_id=organisation_id, session=uow.session
+            )
+            if not payment:
+                raise NotFoundError("Payment", payment_id)
+
+            current_status = payment.get("status", "Draft")
+            StateMachine.validate_transition("PAYMENT", current_status, "Submitted")
+
+            updated = await uow.payments.update(
+                payment_id,
+                {"status": "Submitted", "submitted_at": now()},
+                session=uow.session,
+            )
+
+            await self.audit_service.log_action(
+                organisation_id=organisation_id,
+                module_name="PAYMENT_CERTIFICATES",
+                entity_type="PAYMENT_CERTIFICATE",
+                entity_id=payment_id,
+                action_type="SUBMIT",
+                user_id=user_id,
+                project_id=payment.get("project_id"),
+                old_value=payment,
+                new_value=updated,
+                session=uow.session,
+            )
+
+            if idempotency_key:
+                await idempotency_guard.finalize(
+                    idempotency_key,
+                    {"payment_id": payment_id, "action": "SUBMIT"},
+                    response=updated,
+                    session=uow.session,
+                )
+
+            return updated
+
+    async def approve_payment(
+        self, user: dict, payment_id: str, comment: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Approve payment (Submitted -> Approved).
+        Role-based threshold: Supervisor max $10k, Finance Manager/Lead unlimited."""
+        organisation_id = user["organisation_id"]
+        approver_id = user["user_id"]
+        approver_role = user.get("role", "Unknown")
+
+        async with UnitOfWork(self.db) as uow:
+            payment = await uow.payments.get_by_id(
+                payment_id, organisation_id=organisation_id, session=uow.session
+            )
+            if not payment:
+                raise NotFoundError("Payment", payment_id)
+
+            current_status = payment.get("status", "Draft")
+            StateMachine.validate_transition("PAYMENT", current_status, "Approved")
+
+            amount = Decimal(str(payment.get("grand_total", 0)))
+            if approver_role == "Supervisor" and amount > Decimal("10000"):
+                raise ValidationError(
+                    f"Supervisor can only approve payments <= $10k. This payment is ${amount}."
+                )
+
+            approval_event = {
+                "approver_id": approver_id,
+                "approval_date": now(),
+                "status": "Approved",
+                "approver_role": approver_role,
+                "comment": comment,
+            }
+
+            approval_trail = list(payment.get("approval_trail", []))
+            approval_trail.append(approval_event)
+
+            updated = await uow.payments.update(
+                payment_id,
+                {
+                    "status": "Approved",
+                    "approved_at": now(),
+                    "approved_by": approver_id,
+                    "approval_trail": approval_trail,
+                },
+                session=uow.session,
+            )
+
+            await self.audit_service.log_action(
+                organisation_id=organisation_id,
+                module_name="PAYMENT_CERTIFICATES",
+                entity_type="PAYMENT_CERTIFICATE",
+                entity_id=payment_id,
+                action_type="APPROVE",
+                user_id=approver_id,
+                project_id=payment.get("project_id"),
+                old_value=payment,
+                new_value=updated,
+                session=uow.session,
+            )
+
+            return updated
+
+    async def reject_payment(
+        self, user: dict, payment_id: str, reason: str
+    ) -> Dict[str, Any]:
+        """Reject payment (Submitted -> Rejected)."""
+        organisation_id = user["organisation_id"]
+        rejecter_id = user["user_id"]
+        rejecter_role = user.get("role", "Unknown")
+
+        async with UnitOfWork(self.db) as uow:
+            payment = await uow.payments.get_by_id(
+                payment_id, organisation_id=organisation_id, session=uow.session
+            )
+            if not payment:
+                raise NotFoundError("Payment", payment_id)
+
+            current_status = payment.get("status", "Draft")
+            StateMachine.validate_transition("PAYMENT", current_status, "Rejected")
+
+            rejection_event = {
+                "approver_id": rejecter_id,
+                "approval_date": now(),
+                "status": "Rejected",
+                "approver_role": rejecter_role,
+                "comment": reason,
+            }
+
+            approval_trail = list(payment.get("approval_trail", []))
+            approval_trail.append(rejection_event)
+
+            updated = await uow.payments.update(
+                payment_id,
+                {
+                    "status": "Rejected",
+                    "rejected_at": now(),
+                    "rejected_reason": reason,
+                    "approval_trail": approval_trail,
+                },
+                session=uow.session,
+            )
+
+            await self.audit_service.log_action(
+                organisation_id=organisation_id,
+                module_name="PAYMENT_CERTIFICATES",
+                entity_type="PAYMENT_CERTIFICATE",
+                entity_id=payment_id,
+                action_type="REJECT",
+                user_id=rejecter_id,
+                project_id=payment.get("project_id"),
+                old_value=payment,
+                new_value=updated,
+                session=uow.session,
+            )
+
+            return updated
+
+    async def get_pending_approvals(
+        self, user: dict, project_id: str
+    ) -> List[Dict[str, Any]]:
+        """List payments pending approval for the current user (based on role + threshold)."""
+        organisation_id = user["organisation_id"]
+        approver_role = user.get("role", "Unknown")
+
+        query = {
+            "project_id": project_id,
+            "organisation_id": organisation_id,
+            "status": "Submitted",
+        }
+
+        docs = await self.pc_repo.list(query, limit=100)
+
+        filtered = []
+        for doc in docs:
+            amount = Decimal(str(doc.get("grand_total", 0)))
+            if approver_role == "Supervisor" and amount > Decimal("10000"):
+                continue
+            filtered.append(doc)
+
+        return filtered
+
+    async def get_approval_history(
+        self, user: dict, payment_id: str
+    ) -> List[Dict[str, Any]]:
+        """Return approval_trail for a payment."""
+        organisation_id = user["organisation_id"]
+
+        payment = await self.pc_repo.get_by_id(payment_id, organisation_id=organisation_id)
+        if not payment:
+            raise NotFoundError("Payment", payment_id)
+
+        return payment.get("approval_trail", [])
