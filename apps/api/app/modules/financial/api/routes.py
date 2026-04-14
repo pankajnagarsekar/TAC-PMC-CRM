@@ -18,6 +18,7 @@ from ..application.cash_service import CashService
 from ..application.master_data_service import MasterDataService
 from ..application.payment_service import PaymentService
 from ..schemas.dto import (
+    ApprovalEventSchema,
     Budget,
     BudgetCreate,
     BudgetForecast,
@@ -188,6 +189,85 @@ async def close_payment_certificate(
     return GenericResponse(
         data=result, message="Payment certificate closed effectively"
     )
+
+
+@router.post(
+    "/payments/{payment_id}/submit",
+    response_model=GenericResponse[PaymentCertificate],
+    tags=["Payments"],
+)
+async def submit_payment_for_approval(
+    payment_id: str,
+    request: Request,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Submit payment for approval (Draft -> Submitted)."""
+    idempotency_key = request.headers.get("X-Idempotency-Key")
+    result = await payment_service.submit_for_approval(user, payment_id, idempotency_key)
+    return GenericResponse(data=result, message="Payment submitted for approval")
+
+
+@router.post(
+    "/payments/{payment_id}/approve",
+    response_model=GenericResponse[PaymentCertificate],
+    tags=["Payments"],
+)
+async def approve_payment(
+    payment_id: str,
+    comment: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Approve a pending payment (Submitted -> Approved)."""
+    result = await payment_service.approve_payment(user, payment_id, comment)
+    return GenericResponse(data=result, message="Payment approved successfully")
+
+
+@router.post(
+    "/payments/{payment_id}/reject",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Payments"],
+)
+async def reject_payment(
+    payment_id: str,
+    reason: str = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Reject a pending payment (Submitted -> Rejected)."""
+    result = await payment_service.reject_payment(user, payment_id, reason)
+    return GenericResponse(data=result, message="Payment rejected successfully")
+
+
+@router.get(
+    "/payments/{project_id}/pending-approval",
+    response_model=GenericResponse[List[PaymentCertificate]],
+    tags=["Payments"],
+)
+async def get_pending_approvals(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """List payments pending approval for the current user."""
+    result = await payment_service.get_pending_approvals(user, project_id)
+    return GenericResponse(data=result)
+
+
+@router.get(
+    "/payments/{payment_id}/approval-history",
+    response_model=GenericResponse[List[ApprovalEventSchema]],
+    tags=["Payments"],
+)
+async def get_approval_history(
+    payment_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Get approval history for a payment."""
+    result = await payment_service.get_approval_history(user, payment_id)
+    return GenericResponse(data=result)
 
 
 # --- CASH MANAGEMENT ENDPOINTS ---
