@@ -7,6 +7,19 @@ from pydantic import BaseModel, Field
 from app.modules.shared.domain.types import PyObjectId
 
 
+# APPROVAL EVENT SCHEMA
+class ApprovalEventSchema(BaseModel):
+    action: Literal["SUBMITTED", "APPROVED", "REJECTED", "PAID"]
+    user_id: str
+    user_role: str
+    timestamp: datetime
+    comment: str
+    payment_state_before: str
+    payment_state_after: str
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 # CODE MASTER DTOs
 class CodeMaster(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -68,6 +81,12 @@ class PaymentCertificate(BaseModel):
     idempotency_key: Optional[str] = None
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    submitted_by: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    rejected_reason: Optional[str] = None
+    approval_trail: List[ApprovalEventSchema] = Field(default_factory=list)
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
