@@ -142,6 +142,9 @@ class PaymentService:
                     "sgst": FinancialEngine.to_d128(fin["sgst"]),
                     "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
                     "total_payable": FinancialEngine.to_d128(fin["grand_total"]),
+                    "retention_percent": FinancialEngine.to_d128(
+                        Decimal(str(pc_data.retention_percent or 0))
+                    ),
                     "status": "Draft",
                     "line_items": line_items_processed,
                     "version": 1,
@@ -380,6 +383,7 @@ class PaymentService:
             approval_trail = list(payment.get("approval_trail", []))
             approval_trail.append(approval_event)
 
+            new_version = payment.get("version", 1) + 1
             updated = await uow.payments.update(
                 payment_id,
                 {
@@ -387,6 +391,7 @@ class PaymentService:
                     "approved_at": now(),
                     "approved_by": approver_id,
                     "approval_trail": approval_trail,
+                    "version": new_version,
                 },
                 session=uow.session,
             )
