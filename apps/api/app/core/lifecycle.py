@@ -20,10 +20,16 @@ class BackgroundGuardian:
         self.guardian = ConsistencyGuardian(db)
         self.active = False
         self._task = None
+        self._concurrency_manager = None  # Lazy load (BUG-31)
 
     async def start(self):
         """Boot maintenance loops."""
         self.active = True
+        
+        # Lazy load ConcurrencyManager (Point 118, BUG-31)
+        from app.core.concurrency import ConcurrencyManager
+        self._concurrency_manager = ConcurrencyManager()
+        
         self._task = asyncio.create_task(self._run_loop())
         logger.info("BACKGROUND_GUARDIAN: Maintenance loops initiated.")
 
@@ -65,3 +71,58 @@ class BackgroundGuardian:
             except Exception as e:
                 logger.error(f"GUARDIAN_LOOP_FAULT: {e}")
                 await asyncio.sleep(60)  # Back off on error
+
+    @staticmethod
+    async def mongodb_health_check(db):
+        """Authoritative DB Health Probe (Point 6, BUG-06)."""
+        try:
+            await db.command("ping")
+            return True
+        except Exception as e:
+            logger.error(f"HEALTH_CHECK_FAILURE: MongoDB unreachable: {e}")
+            return False
+
+def register_exception_handlers(app):
+    """
+    Centralized Fault Normalization (Point 10, BUG-10).
+    Ensures all unhandled exceptions return structured JSON.
+    """
+    from fastapi import Request, status
+    from fastapi.responses import JSONResponse
+    from app.modules.shared.domain.exceptions import DomainError
+
+    @app.exception_handler(DomainError)
+    async def domain_fault_handler(request: Request, exc: DomainError):
+        from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
+        status_code = status.HTTP_400_BAD_REQUEST
+        if isinstance(exc, NotFoundError):
+            status_code = status.HTTP_404_NOT_FOUND
+        elif isinstance(exc, ValidationError):
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+            
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "success": False,
+                "error": {
+                    "code": "DOMAIN_FAULT",
+                    "message": str(exc),
+                    "type": exc.__class__.__name__
+                }
+            }
+        )
+
+    @app.exception_handler(Exception)
+    async def system_fault_handler(request: Request, exc: Exception):
+        logger.error(f"SYSTEM_FATAL: {exc}", exc_info=True)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": {
+                    "code": "INTERNAL_SYSTEM_FAULT",
+                    "message": "A critical system error occurred.",
+                    "type": "InternalError"
+                }
+            }
+        )

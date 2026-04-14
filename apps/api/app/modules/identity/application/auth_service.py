@@ -13,12 +13,13 @@ from app.modules.shared.domain.exceptions import (
     PermissionDeniedError,
 )
 
+from ..domain.exceptions import PasswordTooWeakError
 from ..infrastructure.repository import (
     RefreshTokenRepository,
     TokenBlacklistRepository,
     UserRepository,
 )
-from ..schemas.dto import LoginRequest, Token, UserResponse
+from ..schemas.dto import ChangePasswordRequest, LoginRequest, Token, UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +209,41 @@ class AuthService:
         await self.blacklist_repo.create(
             {"jti": jti, "token_type": token_type, "revoked_at": now()}
         )
+
+    def _validate_password_strength(self, password: str) -> None:
+        """Enforce min 8 chars, 1 uppercase, 1 lowercase, 1 digit."""
+        if len(password) < 8:
+            raise PasswordTooWeakError()
+        if not any(c.isupper() for c in password):
+            raise PasswordTooWeakError()
+        if not any(c.islower() for c in password):
+            raise PasswordTooWeakError()
+        if not any(c.isdigit() for c in password):
+            raise PasswordTooWeakError()
+
+    async def change_password(
+        self, user: dict, data: ChangePasswordRequest
+    ) -> Dict[str, str]:
+        """Change own password — verifies old, validates new, revokes all refresh tokens."""
+        user_doc = await self.user_repo.get_by_id(user["user_id"])
+        if not user_doc:
+            raise AuthenticationError("User not found")
+
+        if not self.verify_password(data.old_password, user_doc["hashed_password"]):
+            raise AuthenticationError("INVALID_CREDENTIALS")
+
+        self._validate_password_strength(data.new_password)
+
+        new_hash = self.hash_password(data.new_password)
+        await self.user_repo.update(user["user_id"], {"hashed_password": new_hash})
+
+        # Revoke all active refresh tokens for this user
+        await self.refresh_repo.collection.update_many(
+            {"user_id": user["user_id"], "is_revoked": False},
+            {"$set": {"is_revoked": True}},
+        )
+
+        return {"status": "PASSWORD_CHANGED"}
 
     async def logout(
         self, user_payload: dict, refresh_token: Optional[str]

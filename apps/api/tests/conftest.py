@@ -7,15 +7,17 @@ from app.core.config import settings
 from app.core.dependencies import get_authenticated_user, verify_nonce
 
 @pytest.fixture
-async def client():
-    # Use test database
-    settings.DB_NAME = "tac_pmc_test_db"
-    await db_manager.connect(settings.MONGO_URL, settings.DB_NAME)
-    
+async def client(request):
+    import uuid
+    # Use unique DB name per test to avoid concurrent drop conflicts
+    client_db_name = f"tac_pmc_client_{uuid.uuid4().hex[:8]}"
+    settings.DB_NAME = client_db_name
+    await db_manager.connect(settings.MONGO_URL, client_db_name)
+
     # Mock authentication
     async def mock_get_authenticated_user():
         return {"user_id": "test-user-id", "organisation_id": "test-org-123", "role": "Admin", "active_status": True}
-    
+
     async def mock_verify_nonce():
         return "test-nonce"
 
@@ -25,21 +27,32 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     # Cleanup
     app.dependency_overrides = {}
     if db_manager.client:
         try:
-            await db_manager.client.drop_database(settings.DB_NAME)
+            await db_manager.client.drop_database(client_db_name)
         except Exception:
             pass
     db_manager.close()
 
 @pytest.fixture
 def admin_token():
-    # In a real scenario, this would generate a valid JWT
-    # For integration tests, we might mock the auth dependency or use a static test token if the app supports it
     return "test-admin-token-supreme-2026"
+
+@pytest.fixture
+def supervisor_token():
+    return "test-supervisor-token-2026"
+
+@pytest.fixture
+def test_project():
+    return {
+        "id": "test-proj-456",
+        "project_id": "test-proj-456",
+        "project_name": "Test Site Ops Project",
+        "organisation_id": "test-org-123"
+    }
 
 @pytest.fixture
 def test_org_id():
@@ -51,19 +64,22 @@ def test_project_id():
 
 
 @pytest.fixture
-async def test_db():
-    """Async fixture providing test MongoDB database."""
-    settings.DB_NAME = "tac_pmc_test_db"
-    await db_manager.connect(settings.MONGO_URL, settings.DB_NAME)
+async def test_db(request):
+    """Async fixture providing test MongoDB database with unique name per test."""
+    import uuid
+    # Use unique DB name per test to avoid concurrent drop conflicts
+    test_db_name = f"tac_pmc_test_{uuid.uuid4().hex[:8]}"
+    settings.DB_NAME = test_db_name
+    await db_manager.connect(settings.MONGO_URL, test_db_name)
 
     db = db_manager.db
 
     yield db
 
-    # Cleanup after test
+    # Cleanup after test - drop unique test database
     if db_manager.client:
         try:
-            await db_manager.client.drop_database(settings.DB_NAME)
+            await db_manager.client.drop_database(test_db_name)
         except Exception:
             pass
 
