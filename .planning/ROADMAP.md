@@ -31,3 +31,7 @@
 - [ ] Phase 16: critical-fixes-restoration
 - [ ] Phase 17: Production Verification & Performance Tuning
 
+## Milestone 7: CRM Enterprise Features - Financial Track C (Active)
+- [x] C3-01: Payment Approval Workflow (5 methods, 5 routes, 8 tests) - 2026-04-14
+- [ ] C3-02: (next plan)
+
