@@ -350,3 +350,254 @@ class CashService:
                 "warnings": warnings,
                 "new_cash_in_hand": float(new_cash),
             }
+
+    async def create_fund_allocation(
+        self, user: dict, data: Dict[str, Any], idempotency_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Upsert fund allocation."""
+        project_id = data["project_id"]
+        category_id = data["category_id"]
+        await self.permission_checker.check_write_access_with_role(user, project_id)
+
+        async with UnitOfWork(self.db) as uow:
+            allocation_received = FinancialEngine.to_decimal(
+                data.get("allocation_received", 0)
+            )
+            allocation_original = FinancialEngine.to_decimal(
+                data.get("allocation_original", allocation_received)
+            )
+
+            alloc_doc = {
+                "project_id": project_id,
+                "organisation_id": user["organisation_id"],
+                "category_id": category_id,
+                "allocation_original": FinancialEngine.to_d128(allocation_original),
+                "allocation_received": FinancialEngine.to_d128(allocation_received),
+                "allocation_remaining": FinancialEngine.to_d128(
+                    allocation_original - allocation_received
+                ),
+                "cash_in_hand": FinancialEngine.to_d128(allocation_received),
+                "total_expenses": FinancialEngine.to_d128("0"),
+                "version": 1,
+            }
+
+            result = await uow.db.fund_allocations.find_one_and_update(
+                {
+                    "project_id": project_id,
+                    "category_id": category_id,
+                },
+                {
+                    "$set": alloc_doc,
+                    "$setOnInsert": {"created_at": now()},
+                },
+                upsert=True,
+                return_document=True,
+                session=uow.session,
+            )
+
+            formatted = self.fund_repo._format_id(result)
+
+            await self.audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="CASH_FLOWS",
+                entity_type="FUND_ALLOCATION",
+                entity_id=str(result["_id"]),
+                action_type="CREATE",
+                user_id=user["user_id"],
+                project_id=project_id,
+                new_value=formatted,
+                session=uow.session,
+            )
+
+            return formatted
+
+    async def get_transaction_by_id(self, user: dict, txn_id: str) -> Dict[str, Any]:
+        """Fetch single cash transaction with org-scoping."""
+        txn = await self.txn_repo.get_by_id(txn_id)
+        if not txn or txn.get("organisation_id") != user["organisation_id"]:
+            raise NotFoundError("CashTransaction", txn_id)
+
+        await self.permission_checker.check_project_access(user, txn["project_id"])
+
+        if txn.get("created_by"):
+            u = await self.user_repo.get_by_id(txn["created_by"])
+            if u:
+                txn["created_by_name"] = u.get("name") or u.get("email", "").split("@")[0]
+
+        if txn.get("category_id"):
+            cat = await self.code_repo.get_by_id(txn["category_id"])
+            if cat:
+                txn["category_name"] = cat.get("category_name")
+
+        if "amount" in txn:
+            txn["amount"] = float(FinancialEngine.to_decimal(txn["amount"]))
+        if "created_at" in txn and isinstance(txn["created_at"], datetime):
+            txn["created_at"] = txn["created_at"].isoformat()
+
+        return txn
+
+    async def reconcile_cash_flow(
+        self, user: dict, project_id: str
+    ) -> Dict[str, Any]:
+        """Compare transaction debits vs ledger expenses per category."""
+        await self.permission_checker.check_project_access(user, project_id)
+
+        # Aggregate debits by category
+        debit_pipeline = [
+            {
+                "$match": {
+                    "project_id": project_id,
+                    "organisation_id": user["organisation_id"],
+                    "type": "DEBIT",
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$category_id",
+                    "actual_expenses": {"$sum": "$amount"},
+                }
+            },
+        ]
+        debit_docs = await self.db.cash_transactions.aggregate(debit_pipeline).to_list(
+            None
+        )
+        debits_by_cat = {str(doc["_id"]): doc["actual_expenses"] for doc in debit_docs}
+
+        # Fetch all allocations for project
+        allocations = await self.fund_repo.list(
+            {"project_id": project_id, "organisation_id": user["organisation_id"]},
+            limit=500,
+        )
+
+        categories = []
+        total_variance = Decimal("0")
+
+        for alloc in allocations:
+            cat_id = str(alloc.get("category_id", ""))
+            ledger_expenses = FinancialEngine.to_decimal(alloc.get("total_expenses", 0))
+            actual_expenses = FinancialEngine.to_decimal(
+                debits_by_cat.get(cat_id, 0)
+            )
+            variance = ledger_expenses - actual_expenses
+            total_variance += variance
+
+            is_balanced = abs(variance) <= Decimal("0.01")
+
+            categories.append(
+                {
+                    "category_id": cat_id,
+                    "category_name": alloc.get("category_name"),
+                    "ledger_expenses": float(ledger_expenses),
+                    "actual_expenses": float(actual_expenses),
+                    "variance": float(variance),
+                    "is_balanced": is_balanced,
+                }
+            )
+
+        status = (
+            "BALANCED"
+            if all(c["is_balanced"] for c in categories)
+            else "DISCREPANCY_FOUND"
+        )
+
+        return {
+            "project_id": project_id,
+            "reconciled_at": now().isoformat(),
+            "status": status,
+            "categories": categories,
+            "total_variance": float(total_variance),
+        }
+
+    async def get_cash_flow_statement(
+        self, user: dict, project_id: str, from_date: str, to_date: str
+    ) -> Dict[str, Any]:
+        """Period-based cash flow statement with opening/closing balances."""
+        await self.permission_checker.check_project_access(user, project_id)
+
+        try:
+            from_dt = datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+            to_dt = datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValidationError("Invalid date format. Use ISO 8601 format.")
+
+        # Transactions before from_date (for opening balance)
+        pre_pipeline = [
+            {
+                "$match": {
+                    "project_id": project_id,
+                    "organisation_id": user["organisation_id"],
+                    "transaction_date": {"$lt": from_dt},
+                    "type": {"$in": ["DEBIT", "CREDIT"]},
+                }
+            },
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+        ]
+        pre_result = await self.db.cash_transactions.aggregate(pre_pipeline).to_list(1)
+        opening_balance = FinancialEngine.to_decimal(
+            pre_result[0]["total"] if pre_result else 0
+        )
+
+        # Period transactions
+        period_pipeline = [
+            {
+                "$match": {
+                    "project_id": project_id,
+                    "organisation_id": user["organisation_id"],
+                    "transaction_date": {"$gte": from_dt, "$lte": to_dt},
+                }
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%d",
+                            "date": "$transaction_date",
+                        }
+                    },
+                    "credits": {
+                        "$sum": {
+                            "$cond": [{"$eq": ["$type", "CREDIT"]}, "$amount", 0]
+                        }
+                    },
+                    "debits": {
+                        "$sum": {
+                            "$cond": [{"$eq": ["$type", "DEBIT"]}, "$amount", 0]
+                        }
+                    },
+                }
+            },
+            {"$sort": {"_id": 1}},
+        ]
+        period_docs = await self.db.cash_transactions.aggregate(
+            period_pipeline
+        ).to_list(None)
+
+        daily_data = []
+        running_balance = opening_balance
+
+        for doc in period_docs:
+            credits = FinancialEngine.to_decimal(doc.get("credits", 0))
+            debits = FinancialEngine.to_decimal(doc.get("debits", 0))
+            net = credits - debits
+            running_balance += net
+
+            daily_data.append(
+                {
+                    "date": doc["_id"],
+                    "credits": float(credits),
+                    "debits": float(debits),
+                    "net_flow": float(net),
+                    "closing_balance": float(running_balance),
+                }
+            )
+
+        closing_balance = running_balance
+
+        return {
+            "project_id": project_id,
+            "period": {"from_date": from_date, "to_date": to_date},
+            "opening_balance": float(opening_balance),
+            "closing_balance": float(closing_balance),
+            "net_flow": float(closing_balance - opening_balance),
+            "daily_data": daily_data,
+        }

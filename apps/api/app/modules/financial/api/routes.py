@@ -219,8 +219,9 @@ async def create_fund_allocation(
 ):
     """Allocate funds to a project category."""
     idempotency_key = request.headers.get("X-Idempotency-Key") or allocation_data.idempotency_key
-    allocation_data.idempotency_key = idempotency_key
-    result = await cash_service.create_fund_allocation(user, allocation_data)
+    result = await cash_service.create_fund_allocation(
+        user, allocation_data.dict(), idempotency_key
+    )
     return GenericResponse(data=result, message="Funds allocated successfully")
 
 
@@ -231,6 +232,7 @@ async def create_fund_allocation(
 )
 async def list_cash_transactions(
     project_id: str = Query(...),
+    category_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     cursor: Optional[str] = None,
     user: dict = Depends(get_authenticated_user),
@@ -238,7 +240,7 @@ async def list_cash_transactions(
 ):
     """List petty cash transactions with cursor pagination."""
     result = await cash_service.list_cash_transactions(
-        user, project_id, limit=limit, cursor=cursor
+        user, project_id, category_id=category_id, limit=limit, cursor=cursor
     )
     return GenericResponse(data=result)
 
@@ -365,6 +367,53 @@ async def get_project_cash_summary(
     """Get comprehensive cash summary per category for a project."""
     summary = await cash_service.get_cash_summary(user, project_id)
     return GenericResponse(data=summary)
+
+
+@router.get(
+    "/cash/transactions/{txn_id}",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Cash Management"],
+)
+async def get_cash_transaction(
+    txn_id: str,
+    user: dict = Depends(get_authenticated_user),
+    cash_service: CashService = Depends(get_cash_service),
+):
+    """Get a specific cash transaction by ID."""
+    txn = await cash_service.get_transaction_by_id(user, txn_id)
+    return GenericResponse(data=txn)
+
+
+@router.get(
+    "/cash/reconciliation/{project_id}",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Cash Management"],
+)
+async def reconcile_project_cash(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    cash_service: CashService = Depends(get_cash_service),
+):
+    """Reconcile cash transactions vs ledger entries."""
+    result = await cash_service.reconcile_cash_flow(user, project_id)
+    return GenericResponse(data=result)
+
+
+@router.get(
+    "/cash/statement/{project_id}",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Cash Management"],
+)
+async def get_project_cash_statement(
+    project_id: str,
+    from_date: str = Query(...),
+    to_date: str = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    cash_service: CashService = Depends(get_cash_service),
+):
+    """Get period-based cash flow statement."""
+    statement = await cash_service.get_cash_flow_statement(user, project_id, from_date, to_date)
+    return GenericResponse(data=statement)
 
 
 # --- BUDGET MANAGEMENT ENDPOINTS ---

@@ -73,3 +73,14 @@ async def baseline_manager(test_db):
     """Async fixture providing BaselineManager with test database."""
     from app.modules.scheduler.baseline_manager import BaselineManager
     return BaselineManager(test_db)
+
+
+@pytest.fixture
+def test_user():
+    """Test user fixture."""
+    return {
+        "user_id": "test-user-id",
+        "organisation_id": "test-org-123",
+        "role": "Admin",
+        "active_status": True,
+    }
