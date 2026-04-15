@@ -10,13 +10,10 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
-import { useProjectStore } from '@/store/useProjectStore';
-import { useScheduleStore } from '@/store/useScheduleStore';
+import { useProjectStore } from '@/store/projectStore';
+import SchedulerGrid from './SchedulerGrid';
 import { UndoRedoHistory } from './UndoRedoHistory';
-import { SchedulerGrid } from './SchedulerGrid';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 
 interface SchedulerWithUndoRedoProps {
   projectId?: string;
@@ -36,8 +33,8 @@ interface SchedulerWithUndoRedoProps {
 export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
   projectId,
 }) => {
-  const activeProject = useProjectStore((state) => state.activeProject);
-  const { tasks, setTasks } = useScheduleStore();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeProject = useProjectStore((state: any) => state.activeProject);
   const [showError, setShowError] = useState(false);
 
   const resolvedProjectId = projectId || activeProject?.project_id || null;
@@ -54,10 +51,7 @@ export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
     loadHistory,
     canUndo,
     canRedo,
-  } = useUndoRedo(resolvedProjectId, (newTasks) => {
-    // Update the schedule store when undo/redo changes tasks
-    setTasks(newTasks);
-  });
+  } = useUndoRedo(resolvedProjectId);
 
   // Handle errors
   const handleError = useCallback(
@@ -72,10 +66,9 @@ export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
   if (error && showError) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Alert variant="destructive" className="w-96">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="w-96 rounded-lg border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300">
+          {error}
+        </div>
       </div>
     );
   }
@@ -98,14 +91,7 @@ export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Scheduler Grid */}
         <div className="flex-1 overflow-auto">
-          <SchedulerGrid
-            tasks={tasks}
-            projectId={resolvedProjectId}
-            // Pass keyboard shortcut status for UI feedback
-            canUndo={canUndo}
-            canRedo={canRedo}
-            isUndoRedoLoading={isLoading}
-          />
+          <SchedulerGrid />
         </div>
 
         {/* Keyboard Shortcut Hint (optional) */}
@@ -143,11 +129,10 @@ export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
           <button
             onClick={undo}
             disabled={!canUndo || isLoading}
-            className={`p-2 rounded transition-colors ${
-              canUndo
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200'
-                : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-            }`}
+            className={`p-2 rounded transition-colors ${canUndo
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200'
+              : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+              }`}
             title="Undo (Ctrl+Z)"
           >
             ↶
@@ -155,11 +140,10 @@ export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
           <button
             onClick={redo}
             disabled={!canRedo || isLoading}
-            className={`p-2 rounded transition-colors ${
-              canRedo
-                ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-200'
-                : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-            }`}
+            className={`p-2 rounded transition-colors ${canRedo
+              ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-200'
+              : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
+              }`}
             title="Redo (Ctrl+Shift+Z)"
           >
             ↷
