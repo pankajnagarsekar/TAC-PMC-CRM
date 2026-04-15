@@ -24,6 +24,7 @@ class DatabaseManager:
                 waitQueueTimeoutMS=5000,
                 serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=10000,
+                tlsAllowInvalidCertificates=True,
             )
             self.db = self.client[db_name]
             # Hard Ping (Point 7)

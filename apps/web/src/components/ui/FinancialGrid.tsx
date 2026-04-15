@@ -169,9 +169,8 @@ export default function FinancialGrid<T>({
         fontSize: "13px",
         lineHeight: "1.5",
       },
-      onKeyDown: handleKeyDown,
     }),
-    [editable, handleKeyDown],
+    [editable],
   );
 
   // Check if enterprise features are enabled
@@ -254,6 +253,7 @@ export default function FinancialGrid<T>({
           enterNavigatesVertically={true}
           enterNavigatesVerticallyAfterEdit={true}
           tabToNextCell={tabToNextCell}
+          onCellKeyDown={handleKeyDown}
           suppressClickEdit={readOnly}
           getRowId={getRowId}
           getRowClass={getRowClass}
