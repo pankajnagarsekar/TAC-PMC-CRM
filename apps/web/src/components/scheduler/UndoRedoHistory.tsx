@@ -23,23 +23,7 @@ import {
   Loader,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-export interface HistoryEntry {
-  id: string;
-  change_type: string;
-  summary: string;
-  captured_by: string;
-  captured_at: string;
-  stack_position: number;
-}
-
-export interface StackInfo {
-  can_undo: boolean;
-  can_redo: boolean;
-  current_position: number;
-  total_entries: number;
-  total_reverted: number;
-}
+import type { HistoryEntry, StackInfo } from '@/types/schedule.types';
 
 export interface UndoRedoHistoryProps {
   projectId: string;
@@ -134,11 +118,10 @@ export const UndoRedoHistory: React.FC<UndoRedoHistoryProps> = ({
           <button
             onClick={onUndo}
             disabled={!stackInfo.can_undo || isLoading}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-medium text-sm transition-colors ${
-              stackInfo.can_undo
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-medium text-sm transition-colors ${stackInfo.can_undo
                 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600'
-            }`}
+              }`}
             title={stackInfo.can_undo ? 'Undo (Ctrl+Z)' : 'Nothing to undo'}
           >
             <RotateCcw className="w-4 h-4" />
@@ -149,11 +132,10 @@ export const UndoRedoHistory: React.FC<UndoRedoHistoryProps> = ({
           <button
             onClick={onRedo}
             disabled={!stackInfo.can_redo || isLoading}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-medium text-sm transition-colors ${
-              stackInfo.can_redo
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-medium text-sm transition-colors ${stackInfo.can_redo
                 ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600'
-            }`}
+              }`}
             title={stackInfo.can_redo ? 'Redo (Ctrl+Y)' : 'Nothing to redo'}
           >
             <RotateCw className="w-4 h-4" />
@@ -279,11 +261,10 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
   return (
     <button
       onClick={onRestore}
-      className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-        isSelected
+      className={`w-full text-left p-3 rounded-lg border-2 transition-all ${isSelected
           ? 'border-blue-400 bg-blue-50 dark:bg-blue-900 dark:border-blue-600'
           : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-      } ${isCurrent ? 'ring-2 ring-blue-400' : ''}`}
+        } ${isCurrent ? 'ring-2 ring-blue-400' : ''}`}
     >
       <div className="flex items-start gap-2">
         {/* Operation Badge */}

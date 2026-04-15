@@ -9,32 +9,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { apiClient } from '@/lib/api';
-
-export interface HistoryEntry {
-  id: string;
-  change_type: string;
-  summary: string;
-  captured_by: string;
-  captured_at: string;
-  stack_position: number;
-}
-
-export interface StackInfo {
-  can_undo: boolean;
-  can_redo: boolean;
-  current_position: number;
-  total_entries: number;
-  total_reverted: number;
-}
-
-export interface UndoRedoResponse {
-  data: {
-    tasks: any[];
-    stack_info: StackInfo;
-  };
-  message: string;
-}
+import apiClient from '@/lib/api';
+import type {
+  HistoryEntry,
+  StackInfo,
+  UndoRedoResponse
+} from '@/types/schedule.types';
 
 /**
  * Custom hook for undo/redo operations

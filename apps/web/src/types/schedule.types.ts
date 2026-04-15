@@ -208,3 +208,28 @@ export interface ScheduleStoreState {
   fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;
   clearComparison: () => void;
 }
+
+export type HistoryEntry = {
+  id: string;
+  change_type: string;
+  summary: string;
+  captured_by: string;
+  captured_at: string;
+  stack_position: number;
+};
+
+export type StackInfo = {
+  can_undo: boolean;
+  can_redo: boolean;
+  current_position: number;
+  total_entries: number;
+  total_reverted: number;
+};
+
+export type UndoRedoResponse = {
+  data: {
+    tasks: any[];
+    stack_info: StackInfo;
+  };
+  message: string;
+};
