@@ -41,8 +41,9 @@ class StateMachine:
     # TASK STATES
     TASK_TRANSITIONS: Dict[str, Set[str]] = {
         "Open": {"In Progress", "Closed"},
-        "In Progress": {"Completed", "Open", "Closed"},
-        "Completed": {"Closed"},
+        "In Progress": {"Review", "Completed", "Open", "Closed"},
+        "Review": {"Completed", "In Progress", "Closed"},
+        "Completed": {"Review", "Closed"},
         "Closed": set(),  # FINAL: Data Freeze
     }
 

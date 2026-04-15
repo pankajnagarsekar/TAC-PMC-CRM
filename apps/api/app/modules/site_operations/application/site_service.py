@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
@@ -73,7 +73,7 @@ class SiteService:
             user, project_id, require_write=True
         )
 
-        dpr_date = dpr_data.get("dpr_date")
+        dpr_date = dpr_data.get("dpr_date") or ts_now()
         existing = await self.dpr_repo.find_one(
             {"project_id": project_id, "dpr_date": dpr_date}
         )
@@ -81,17 +81,22 @@ class SiteService:
         if existing:
             return {
                 "exists": True,
-                "dpr_id": existing["id"],
+                "dpr_id": str(existing["id"]),
                 "message": "DPR already exists for this date",
             }
 
         dpr_doc = {
-            **dpr_data,
             "project_id": project_id,
             "organisation_id": user["organisation_id"],
             "supervisor_id": user["user_id"],
+            "dpr_date": dpr_date,
+            "progress_notes": dpr_data.get("progress_notes"),
+            "weather_conditions": dpr_data.get("weather_conditions", "Normal"),
             "status": "Draft",
+            "image_count": 0,
+            "images": [],
             "created_at": ts_now(),
+            "updated_at": ts_now(),
             "version": 1,
         }
 
@@ -388,7 +393,7 @@ class SiteService:
         )
 
         if existing:
-            return existing
+            raise ValidationError(f"Already checked in today at {existing.get('check_in_time')}")
 
         doc = {
             "project_id": project_id,
@@ -406,6 +411,61 @@ class SiteService:
         }
 
         return await self.attendance_repo.create(doc)
+
+    async def check_out(self, user: dict, project_id: str, data: dict) -> Dict[str, Any]:
+        """Record current supervisor check-out."""
+        await self.permission_checker.check_project_access(
+            user, project_id, require_write=True
+        )
+
+        today = ts_now().strftime("%Y-%m-%d")
+        existing = await self.attendance_repo.find_one(
+            {"project_id": project_id, "supervisor_id": user["user_id"], "date": today}
+        )
+
+        if not existing:
+            raise ValidationError("No check-in record found for today")
+
+        if existing.get("status") == "checked_out":
+            raise ValidationError("Already checked out today")
+
+        out_time = ts_now()
+        in_time = existing.get("check_in_timestamp")
+        
+        total_hours = 0
+        if in_time:
+            # Handle both datetime objects and string timestamps if any
+            if isinstance(in_time, str):
+                from dateutil import parser
+                in_time = parser.parse(in_time)
+            
+            if in_time.tzinfo is None:
+                in_time = in_time.replace(tzinfo=timezone.utc)
+            
+            delta = out_time - in_time
+            total_hours = round(delta.total_seconds() / 3600.0, 2)
+
+        update_data = {
+            "check_out_time": out_time.strftime("%I:%M %p"),
+            "check_out_timestamp": out_time,
+            "total_hours": total_hours,
+            "status": "checked_out",
+            "updated_at": ts_now(),
+        }
+
+        result = await self.attendance_repo.update(existing["id"], update_data)
+        
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="SITE_OPERATIONS",
+            entity_type="ATTENDANCE",
+            entity_id=existing["id"],
+            action_type="CHECK_OUT",
+            user_id=user["user_id"],
+            project_id=project_id,
+            new_value=update_data
+        )
+        return result
 
     async def add_dpr_image(
         self, user: dict, dpr_id: str, image_data: DPRImage
@@ -434,8 +494,8 @@ class SiteService:
             "uploaded_at": ts_now(),
         }
 
-        await self.dpr_repo.update(
-            dpr_id,
+        await self.dpr_repo.update_one(
+            {"_id": ObjectId(dpr_id)},
             {
                 "$push": {"images": image_doc},
                 "$inc": {"image_count": 1},
@@ -483,7 +543,7 @@ class SiteService:
             "verified_at": ts_now(),
             "verified_user_id": user["user_id"],
         }
-        await self.attendance_repo.update_by_id(log_id, update_data)
+        await self.attendance_repo.update(log_id, update_data)
         return {"status": "verified"}
 
     async def list_site_overheads(
@@ -491,6 +551,84 @@ class SiteService:
     ) -> List[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
         return await self.site_overhead_repo.list({"project_id": project_id})
+
+    async def update_site_overhead(
+        self, user: dict, entry_id: str, overhead_data: Any # SiteOverheadUpdate
+    ) -> Dict[str, Any]:
+        """Update site overhead with optimistic locking."""
+        existing = await self.site_overhead_repo.get_by_id(entry_id)
+        if not existing:
+            raise NotFoundError("Site overhead", entry_id)
+
+        await self.permission_checker.check_project_access(
+            user, existing.get("project_id"), require_write=True
+        )
+        await self.permission_checker.check_admin_role(user)
+
+        # Optimistic Locking check (BUG-31 context)
+        incoming_version = getattr(overhead_data, "version", None)
+        if incoming_version is not None and incoming_version != existing.get("version", 1):
+             from app.modules.shared.domain.exceptions import ValidationError
+             raise ValidationError(f"Version conflict. Expected {existing.get('version')}, got {incoming_version}")
+
+        update_dict = {k: v for k, v in overhead_data.model_dump().items() if v is not None}
+        update_dict["updated_at"] = ts_now()
+        update_dict["version"] = existing.get("version", 1) + 1
+
+        result = await self.site_overhead_repo.update(entry_id, update_dict)
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="SITE_OPERATIONS",
+            entity_type="SITE_OVERHEAD",
+            entity_id=entry_id,
+            action_type="UPDATE",
+            user_id=user["user_id"],
+            project_id=existing.get("project_id"),
+            old_value=existing,
+            new_value=result,
+        )
+        return result
+
+    async def delete_dpr_image(self, user: dict, dpr_id: str, image_id: str) -> Dict[str, Any]:
+        """Remove an image from a DPR."""
+        dpr = await self.dpr_repo.get_by_id(dpr_id)
+        if not dpr:
+            raise NotFoundError("DPR", dpr_id)
+
+        await self.permission_checker.check_project_access(
+            user, dpr["project_id"], require_write=True
+        )
+        
+        # Enforce StateMachine rules
+        dpr_model = DailyProgressReport(dpr)
+        dpr_model.can_modify()
+
+        # MongoDB $pull operation
+        result = await self.dpr_repo.update_one(
+            {"_id": ObjectId(dpr_id)},
+            {
+                "$pull": {"images": {"image_id": image_id}},
+                "$inc": {"image_count": -1},
+                "$set": {"updated_at": ts_now()}
+            }
+        )
+
+        if result.modified_count == 0:
+            raise NotFoundError("DPR Image", image_id)
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="SITE_OPERATIONS",
+            entity_type="DPR",
+            entity_id=dpr_id,
+            action_type="DELETE_IMAGE",
+            user_id=user["user_id"],
+            project_id=dpr["project_id"],
+            metadata={"image_id": image_id}
+        )
+        
+        return {"status": "deleted", "image_id": image_id}
 
     async def create_site_overhead(
         self, user: dict, overhead_data: SiteOverheadCreate
@@ -522,6 +660,47 @@ class SiteService:
         )
         return result
 
+    async def update_worker_log(
+        self, user: dict, log_id: str, log_data: Any # WorkersDailyLogUpdate
+    ) -> Dict[str, Any]:
+        """Partial update of a worker log."""
+        existing = await self.worker_log_repo.get_by_id(log_id)
+        if not existing:
+            raise NotFoundError("Worker log", log_id)
+
+        await self.permission_checker.check_project_access(
+            user, existing.get("project_id"), require_write=True
+        )
+
+        update_dict = {k: v for k, v in log_data.model_dump().items() if v is not None}
+        
+        # Recalculate totals if entries or workers changed
+        if "entries" in update_dict or "workers" in update_dict:
+            entries = update_dict.get("entries") or existing.get("entries", [])
+            workers = update_dict.get("workers") or existing.get("workers", [])
+            
+            # Using model logic to calculate totals
+            totals = WorkerLog.calculate_totals(entries, workers)
+            update_dict["total_workers"] = totals["total_workers"]
+            update_dict["total_hours"] = totals["total_hours"]
+
+        update_dict["updated_at"] = ts_now()
+        
+        result = await self.worker_log_repo.update(log_id, update_dict)
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="SITE_OPERATIONS",
+            entity_type="WORKER_LOG",
+            entity_id=log_id,
+            action_type="UPDATE",
+            user_id=user["user_id"],
+            project_id=existing.get("project_id"),
+            old_value=existing,
+            new_value=result,
+        )
+        return result
+
     async def create_worker_log(
         self, user: dict, log_data: WorkersDailyLogCreate
     ) -> Dict[str, Any]:
@@ -544,15 +723,27 @@ class SiteService:
         log_dict = log_data.model_dump()
         log_dict.update(
             {
-                "total_workers": log_data.total_workers or total_workers,
-                "total_hours": total_hours,
+                "total_workers": int(log_data.total_workers or total_workers),
+                "total_hours": float(total_hours),
                 "status": "Submitted",
                 "updated_at": ts_now(),
             }
         )
 
         if existing:
-            return await self.worker_log_repo.update(existing["id"], log_dict)
+            result = await self.worker_log_repo.update(existing["id"], log_dict)
+            await self.audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="SITE_OPERATIONS",
+                entity_type="WORKER_LOG",
+                entity_id=str(existing["id"]),
+                action_type="UPDATE",
+                user_id=user["user_id"],
+                project_id=log_data.project_id,
+                old_value=existing,
+                new_value=result,
+            )
+            return result
 
         log_dict.update(
             {
@@ -563,7 +754,18 @@ class SiteService:
                 "created_at": ts_now(),
             }
         )
-        return await self.worker_log_repo.create(log_dict)
+        result = await self.worker_log_repo.create(log_dict)
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="SITE_OPERATIONS",
+            entity_type="WORKER_LOG",
+            entity_id=result["id"],
+            action_type="CREATE",
+            user_id=user["user_id"],
+            project_id=log_data.project_id,
+            new_value=result,
+        )
+        return result
 
     async def _build_dpr_snapshot_data(self, dpr: dict) -> Dict[str, Any]:
         project = await self.db.projects.find_one({"project_id": dpr.get("project_id")})

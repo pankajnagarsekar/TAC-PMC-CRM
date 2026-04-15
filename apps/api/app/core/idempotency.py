@@ -62,3 +62,36 @@ class IdempotencyGuard:
             },
             session=session,
         )
+
+
+async def get_recorded_operation(
+    db: AsyncIOMotorDatabase, session, key: str, context: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, Any]]:
+    """Standalone wrapper for IdempotencyGuard.get_or_set (Point 81)."""
+    guard = IdempotencyGuard(db)
+    # If context is not provided, we only search by key (Legacy compatibility)
+    if not context:
+        existing = await db.idempotency_store.find_one(
+            {"operation_key": key}, session=session
+        )
+        return existing.get("response") if existing else None
+    
+    return await guard.get_or_set(key, context, session=session)
+
+
+async def record_operation(
+    db: AsyncIOMotorDatabase,
+    session,
+    key: str,
+    operation_type: str,
+    response_payload: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+):
+    """Standalone wrapper for IdempotencyGuard.finalize (Point 81)."""
+    guard = IdempotencyGuard(db)
+    # If context is not provided, use a dummy one to avoid hash failure
+    # and maintain key-based lookup
+    if not context:
+        context = {"key": key, "type": operation_type}
+    
+    await guard.finalize(key, context, response_payload, session=session)

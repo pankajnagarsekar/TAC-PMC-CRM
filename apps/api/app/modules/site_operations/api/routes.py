@@ -7,6 +7,7 @@ from app.modules.shared.domain.schemas import GenericResponse
 
 from ..application.site_service import SiteService
 from ..schemas.dto import (
+    DPR,
     DPRImage,
     DPRCreate,
     RejectDPRRequest,
@@ -14,6 +15,7 @@ from ..schemas.dto import (
     SiteOverheadCreate,
     SiteOverheadUpdate,
     UpdateImageCaptionRequest,
+    VoiceLogCreate,
     WorkersDailyLog,
     WorkersDailyLogCreate,
     WorkersDailyLogUpdate,
@@ -57,7 +59,7 @@ async def update_worker_log(
 
 
 @router.get(
-    "/worker-logs", response_model=GenericResponse[List[Any]], tags=["Site Operations"]
+    "/worker-logs/", response_model=GenericResponse[List[Any]], tags=["Site Operations"]
 )
 async def list_worker_logs(
     project_id: str,
@@ -116,7 +118,7 @@ async def delete_dpr(
 
 
 @router.get(
-    "/dprs/{dpr_id}", response_model=GenericResponse[Any], tags=["Site Operations"]
+    "/dprs/{dpr_id}", response_model=GenericResponse[DPR], tags=["Site Operations"]
 )
 async def get_dpr_detail(
     dpr_id: str,
@@ -158,7 +160,7 @@ async def reject_dpr(
 
 @router.post(
     "/dprs/{dpr_id}/images",
-    response_model=GenericResponse[Any],
+    response_model=GenericResponse[Dict[str, str]],
     status_code=status.HTTP_201_CREATED,
     tags=["Site Operations"],
 )
@@ -170,6 +172,21 @@ async def add_dpr_image(
 ):
     result = await site_service.add_dpr_image(user, dpr_id, image_data)
     return GenericResponse(data=result)
+
+
+@router.delete(
+    "/dprs/{dpr_id}/images/{image_id}",
+    response_model=GenericResponse[Any],
+    tags=["Site Operations"],
+)
+async def delete_dpr_image(
+    dpr_id: str,
+    image_id: str,
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    result = await site_service.delete_dpr_image(user, dpr_id, image_id)
+    return GenericResponse(data=result, message="Image deleted successfully")
 
 
 @router.put(
@@ -219,6 +236,30 @@ async def list_project_attendance(
 ):
     result = await site_service.list_project_attendance(user, project_id)
     return GenericResponse(data=result)
+
+
+@router.get(
+    "/attendance/",
+    response_model=GenericResponse[List[Any]],
+    tags=["Site Operations"],
+)
+async def list_attendance_records(
+    project_id: str,
+    date: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    """Admin/list endpoint for attendance records with filters."""
+    filters = {"project_id": project_id}
+    if date:
+        filters["date"] = date
+    if start_date and end_date:
+        filters["date_range"] = (start_date, end_date)
+
+    records = await site_service.list_project_attendance(user, project_id, filters=filters)
+    return GenericResponse(data=records)
 
 
 @router.get(
@@ -423,13 +464,12 @@ async def list_project_voice_logs(
     tags=["Site Operations"],
 )
 async def create_voice_log(
-    log_data: Dict[str, Any],
+    log_data: VoiceLogCreate,
     user: dict = Depends(get_authenticated_user),
     site_service: SiteService = Depends(get_site_service),
 ):
     """Saves a transcribed voice log to project activity."""
-    # Note: Using generic dict for flexibility, Service will validate
-    result = await site_service.create_voice_log(user, log_data)
+    result = await site_service.create_voice_log(user, log_data.dict())
     return GenericResponse(data=result)
 
 

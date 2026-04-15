@@ -148,6 +148,7 @@ export default function NewPaymentCertificatePage() {
         category_id: !isWoLinked ? selectedCategoryId : (wo?.category_id || undefined),
         vendor_id: wo?.vendor_id || null,
         fund_request: !isWoLinked,
+        pc_type: isWoLinked ? "WO_LINKED" : "PETTY_OVH",
         retention_percent: retentionPercent,
         line_items: lineItems.map((item, index) => ({
           sr_no: index + 1,
@@ -340,7 +341,7 @@ export default function NewPaymentCertificatePage() {
           ) : (
             <Save size={18} />
           )}
-          Generate Token
+          Create Certificate
         </button>
       </div>
 

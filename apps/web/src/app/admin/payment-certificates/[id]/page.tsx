@@ -358,6 +358,17 @@ export default function PaymentCertificateDetail({
                 </span>
               </div>
 
+              {pc.fund_request && (
+                <div className="flex justify-between items-end pt-2">
+                  <span className="text-sm text-amber-500/80 font-bold uppercase">
+                    Total for Injection
+                  </span>
+                  <span className="text-xl font-mono text-amber-400 font-bold">
+                    {formatCurrency(pc.grand_total)}
+                  </span>
+                </div>
+              )}
+
               {!pc.fund_request && (
                 <div className="flex justify-between items-end pt-2">
                   <span className="text-sm text-emerald-500/80 font-bold uppercase">

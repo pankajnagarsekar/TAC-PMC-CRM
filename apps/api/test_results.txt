@@ -1,0 +1,185 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\panka\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: D:\_repos\TAC-PMC-CRM\apps\api
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 4 items
+
+tests/modules/contracting/test_wo_lifecycle.py::test_work_order_update_recalculates_budget FAILED [ 25%]
+tests/modules/contracting/test_wo_lifecycle.py::test_work_order_delete_success FAILED [ 50%]
+tests/modules/contracting/test_wo_lifecycle.py::test_work_order_delete_blocked_if_not_draft PASSED [ 75%]
+tests/modules/contracting/test_wo_lifecycle.py::test_budget_validation_prevents_low_budget PASSED [100%]
+
+================================== FAILURES ===================================
+_________________ test_work_order_update_recalculates_budget __________________
+
+client = <httpx.AsyncClient object at 0x000001D1953286E0>
+test_db = AsyncIOMotorDatabase(Database(MongoClient(host=['ac-air4jfu-shard-00-02.8cbzigp.mongodb.net:27017', 'ac-air4jfu-shard-...000, connecttimeoutms=10000, driver=DriverInfo(name='Motor', version='3.3.1', platform='asyncio')), 'tac_pmc_test_db'))
+test_user = {'active_status': True, 'organisation_id': 'test-org-123', 'role': 'Admin', 'user_id': 'test-user-id'}
+test_project_id = 'test-proj-456'
+
+    @pytest.mark.asyncio
+    async def test_work_order_update_recalculates_budget(client: AsyncClient, test_db, test_user, test_project_id):
+        """Verify that updating a WO correctly updates the budget committed amount."""
+        # 1. Setup Vendor and Categories
+        vendor_id = str(ObjectId())
+        await test_db.vendors.insert_one({
+            "_id": ObjectId(vendor_id),
+            "organisation_id": test_user["organisation_id"],
+            "name": "Lifecycle Vendor",
+            "active_status": True
+        })
+    
+        # Initialize two categories with budgets
+        cat1_id = "C1_TEST"
+        cat2_id = "C2_TEST"
+        for cat_id in [cat1_id, cat2_id]:
+            await test_db.project_category_budgets.insert_one({
+                "project_id": test_project_id,
+                "category_id": cat_id,
+                "organisation_id": test_user["organisation_id"],
+                "original_budget": FinancialEngine.to_d128(10000.0),
+                "remaining_budget": FinancialEngine.to_d128(10000.0),
+                "committed_amount": FinancialEngine.to_d128(0.0)
+            })
+    
+        # 2. Create WO in Cat 1 (5000 units)
+        resp = await client.post(f"/api/v1/work-orders/{test_project_id}", json={
+            "project_id": test_project_id,
+            "category_id": cat1_id,
+            "vendor_id": vendor_id,
+            "line_items": [{"sr_no": 1, "qty": 1, "rate": 5000}],
+            "idempotency_key": "wo-upd-1"
+        }, headers={"X-Request-Nonce": "wo-upd-1"})
+        assert resp.status_code == 201
+        wo = resp.json()["data"]
+        wo_id = wo["id"]
+    
+        # Verify Cat 1 budget (5000 + 18% GST = 5900)
+        budget1 = await test_db.financial_state.find_one({"project_id": test_project_id, "category_id": cat1_id})
+        assert FinancialEngine.to_decimal(budget1["committed_value"]) == 5900
+    
+        # 3. Update WO: Change Category to Cat 2 and Increase Amount to 7000
+        resp = await client.put(f"/api/v1/work-orders/{wo_id}", json={
+            "category_id": cat2_id,
+            "line_items": [{"sr_no": 1, "qty": 1, "rate": 7000}],
+            "expected_version": wo["version"]
+        })
+>       assert resp.status_code == 200
+E       assert 405 == 200
+E        +  where 405 = <Response [405 Method Not Allowed]>.status_code
+
+tests\modules\contracting\test_wo_lifecycle.py:53: AssertionError
+---------------------------- Captured stderr setup ----------------------------
+INFO:app.db.mongodb:LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO:app.db.mongodb:LIFECYCLE: Enforcing database indexes...
+ERROR:app.db.mongodb:INDEX_OVERSIGHT: Failed for UserRepository: Cannot create collection tac_pmc_test_db.users - database is in the process of being dropped., full error: {'ok': 0.0, 'errmsg': 'Cannot create collection tac_pmc_test_db.users - database is in the process of being dropped.', 'code': 215, 'codeName': 'DatabaseDropPending', '$clusterTime': {'clusterTime': Timestamp(1776181723, 29), 'signature': {'hash': b'\xd6\xd5\xf2\x05\x0e\xa6\xfeQ\xd2\rW4(Rr\x96\tB\x954', 'keyId': 7573816072172732418}}, 'operationTime': Timestamp(1776181723, 28)}
+INFO:app.db.mongodb:LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO:app.db.mongodb:LIFECYCLE: Enforcing database indexes...
+----------------------------- Captured log setup ------------------------------
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+ERROR    app.db.mongodb:mongodb.py:138 INDEX_OVERSIGHT: Failed for UserRepository: Cannot create collection tac_pmc_test_db.users - database is in the process of being dropped., full error: {'ok': 0.0, 'errmsg': 'Cannot create collection tac_pmc_test_db.users - database is in the process of being dropped.', 'code': 215, 'codeName': 'DatabaseDropPending', '$clusterTime': {'clusterTime': Timestamp(1776181723, 29), 'signature': {'hash': b'\xd6\xd5\xf2\x05\x0e\xa6\xfeQ\xd2\rW4(Rr\x96\tB\x954', 'keyId': 7573816072172732418}}, 'operationTime': Timestamp(1776181723, 28)}
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+---------------------------- Captured stdout call -----------------------------
+DEBUG: BackpressureMiddleware checking /api/v1/work-orders/test-proj-456 | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+DEBUG: BackpressureMiddleware checking /api/v1/work-orders/69de61e8f2f59540823519e3 | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+---------------------------- Captured stderr call -----------------------------
+INFO:app.core.middleware:REQUEST START: POST /api/v1/work-orders/test-proj-456 | ID: 9d5fe8be-feca-41e3-9bfe-350ad7d975c9
+INFO:app.core.middleware:REQUEST END: POST /api/v1/work-orders/test-proj-456 | Status: 201 | ID: 9d5fe8be-feca-41e3-9bfe-350ad7d975c9
+INFO:httpx:HTTP Request: POST http://test/api/v1/work-orders/test-proj-456 "HTTP/1.1 201 Created"
+INFO:app.core.middleware:REQUEST START: PUT /api/v1/work-orders/69de61e8f2f59540823519e3 | ID: 080b56a6-fdb0-4395-9b05-82fb14e0c2c4
+INFO:app.core.middleware:REQUEST END: PUT /api/v1/work-orders/69de61e8f2f59540823519e3 | Status: 405 | ID: 080b56a6-fdb0-4395-9b05-82fb14e0c2c4
+INFO:httpx:HTTP Request: PUT http://test/api/v1/work-orders/69de61e8f2f59540823519e3 "HTTP/1.1 405 Method Not Allowed"
+------------------------------ Captured log call ------------------------------
+INFO     app.core.middleware:middleware.py:49 REQUEST START: POST /api/v1/work-orders/test-proj-456 | ID: 9d5fe8be-feca-41e3-9bfe-350ad7d975c9
+INFO     app.core.middleware:middleware.py:51 REQUEST END: POST /api/v1/work-orders/test-proj-456 | Status: 201 | ID: 9d5fe8be-feca-41e3-9bfe-350ad7d975c9
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/work-orders/test-proj-456 "HTTP/1.1 201 Created"
+INFO     app.core.middleware:middleware.py:49 REQUEST START: PUT /api/v1/work-orders/69de61e8f2f59540823519e3 | ID: 080b56a6-fdb0-4395-9b05-82fb14e0c2c4
+INFO     app.core.middleware:middleware.py:51 REQUEST END: PUT /api/v1/work-orders/69de61e8f2f59540823519e3 | Status: 405 | ID: 080b56a6-fdb0-4395-9b05-82fb14e0c2c4
+INFO     httpx:_client.py:1740 HTTP Request: PUT http://test/api/v1/work-orders/69de61e8f2f59540823519e3 "HTTP/1.1 405 Method Not Allowed"
+-------------------------- Captured stderr teardown ---------------------------
+INFO:app.db.mongodb:LIFECYCLE: MongoDB connection closed gracefully
+---------------------------- Captured log teardown ----------------------------
+INFO     app.db.mongodb:mongodb.py:146 LIFECYCLE: MongoDB connection closed gracefully
+_______________________ test_work_order_delete_success ________________________
+
+client = <httpx.AsyncClient object at 0x000001D19535A350>
+test_db = AsyncIOMotorDatabase(Database(MongoClient(host=['ac-air4jfu-shard-00-02.8cbzigp.mongodb.net:27017', 'ac-air4jfu-shard-...000, connecttimeoutms=10000, driver=DriverInfo(name='Motor', version='3.3.1', platform='asyncio')), 'tac_pmc_test_db'))
+test_user = {'active_status': True, 'organisation_id': 'test-org-123', 'role': 'Admin', 'user_id': 'test-user-id'}
+test_project_id = 'test-proj-456'
+
+    @pytest.mark.asyncio
+    async def test_work_order_delete_success(client: AsyncClient, test_db, test_user, test_project_id):
+        """Verify that deleting a Draft WO reverses the budget impact."""
+        # Setup
+        vendor_id = str(ObjectId())
+        await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "Del Vendor", "active_status": True})
+        cat_id = "DEL_CAT"
+        await test_db.project_category_budgets.insert_one({
+            "project_id": test_project_id, "category_id": cat_id, "organisation_id": test_user["organisation_id"],
+            "original_budget": FinancialEngine.to_d128(10000.0), "committed_amount": FinancialEngine.to_d128(0.0)
+        })
+    
+        # Create WO (3000)
+        resp = await client.post(f"/api/v1/work-orders/{test_project_id}", json={
+            "project_id": test_project_id, "category_id": cat_id, "vendor_id": vendor_id,
+            "line_items": [{"sr_no": 1, "qty": 1, "rate": 3000}], "idempotency_key": "wo-del-1"
+        }, headers={"X-Request-Nonce": "wo-del-1"})
+        wo_id = resp.json()["data"]["id"]
+    
+        # Check budget before delete (3000 + 18% GST = 3540)
+        budget = await test_db.financial_state.find_one({"category_id": cat_id})
+        assert FinancialEngine.to_decimal(budget["committed_value"]) == 3540
+    
+        # Delete WO
+        resp = await client.delete(f"/api/v1/work-orders/{wo_id}")
+>       assert resp.status_code == 200
+E       assert 400 == 200
+E        +  where 400 = <Response [400 Bad Request]>.status_code
+
+tests\modules\contracting\test_wo_lifecycle.py:89: AssertionError
+---------------------------- Captured stderr setup ----------------------------
+INFO:app.db.mongodb:LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO:app.db.mongodb:LIFECYCLE: Enforcing database indexes...
+INFO:app.db.mongodb:LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO:app.db.mongodb:LIFECYCLE: Enforcing database indexes...
+----------------------------- Captured log setup ------------------------------
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+---------------------------- Captured stdout call -----------------------------
+DEBUG: BackpressureMiddleware checking /api/v1/work-orders/test-proj-456 | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+DEBUG: BackpressureMiddleware checking /api/v1/work-orders/69de6247f2f59540823519ea | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+---------------------------- Captured stderr call -----------------------------
+INFO:app.core.middleware:REQUEST START: POST /api/v1/work-orders/test-proj-456 | ID: 9ce40c24-2114-4832-b96d-5d2782b57521
+INFO:app.core.middleware:REQUEST END: POST /api/v1/work-orders/test-proj-456 | Status: 201 | ID: 9ce40c24-2114-4832-b96d-5d2782b57521
+INFO:httpx:HTTP Request: POST http://test/api/v1/work-orders/test-proj-456 "HTTP/1.1 201 Created"
+INFO:app.core.middleware:REQUEST START: DELETE /api/v1/work-orders/69de6247f2f59540823519ea | ID: 8f4b6bbe-49f2-4000-a802-b70a941bc973
+WARNING:app.core.uow:UOW_ROLLBACK: Atomicity failure detected: ARCHITECTURAL GUARD: Cannot DELETE WORK_ORDER. Financial entities are immutable.
+INFO:app.core.middleware:REQUEST END: DELETE /api/v1/work-orders/69de6247f2f59540823519ea | Status: 400 | ID: 8f4b6bbe-49f2-4000-a802-b70a941bc973
+INFO:httpx:HTTP Request: DELETE http://test/api/v1/work-orders/69de6247f2f59540823519ea "HTTP/1.1 400 Bad Request"
+------------------------------ Captured log call ------------------------------
+INFO     app.core.middleware:middleware.py:49 REQUEST START: POST /api/v1/work-orders/test-proj-456 | ID: 9ce40c24-2114-4832-b96d-5d2782b57521
+INFO     app.core.middleware:middleware.py:51 REQUEST END: POST /api/v1/work-orders/test-proj-456 | Status: 201 | ID: 9ce40c24-2114-4832-b96d-5d2782b57521
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/work-orders/test-proj-456 "HTTP/1.1 201 Created"
+INFO     app.core.middleware:middleware.py:49 REQUEST START: DELETE /api/v1/work-orders/69de6247f2f59540823519ea | ID: 8f4b6bbe-49f2-4000-a802-b70a941bc973
+WARNING  app.core.uow:uow.py:86 UOW_ROLLBACK: Atomicity failure detected: ARCHITECTURAL GUARD: Cannot DELETE WORK_ORDER. Financial entities are immutable.
+INFO     app.core.middleware:middleware.py:51 REQUEST END: DELETE /api/v1/work-orders/69de6247f2f59540823519ea | Status: 400 | ID: 8f4b6bbe-49f2-4000-a802-b70a941bc973
+INFO     httpx:_client.py:1740 HTTP Request: DELETE http://test/api/v1/work-orders/69de6247f2f59540823519ea "HTTP/1.1 400 Bad Request"
+-------------------------- Captured stderr teardown ---------------------------
+INFO:app.db.mongodb:LIFECYCLE: MongoDB connection closed gracefully
+---------------------------- Captured log teardown ----------------------------
+INFO     app.db.mongodb:mongodb.py:146 LIFECYCLE: MongoDB connection closed gracefully
+=========================== short test summary info ===========================
+FAILED tests/modules/contracting/test_wo_lifecycle.py::test_work_order_update_recalculates_budget
+FAILED tests/modules/contracting/test_wo_lifecycle.py::test_work_order_delete_success
+=================== 2 failed, 2 passed in 465.74s (0:07:45) ===================

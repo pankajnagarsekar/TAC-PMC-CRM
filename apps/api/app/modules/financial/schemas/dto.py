@@ -77,6 +77,7 @@ class PaymentCertificate(BaseModel):
     status: Literal["Draft", "Submitted", "Approved", "Processing", "Paid", "Rejected", "Cancelled"] = "Draft"
     total_payable: Decimal = Field(Decimal("0.0"), ge=0)
     fund_request: bool = False
+    pc_type: Optional[Literal["WO_LINKED", "PETTY_OVH"]] = None
     line_items: List[PCLineItem] = Field(default_factory=list)
     idempotency_key: Optional[str] = None
     version: int = 1
@@ -99,6 +100,7 @@ class PaymentCertificateCreate(BaseModel):
     line_items: List[PCLineItem] = Field(default_factory=list)
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     fund_request: bool = False
+    pc_type: Optional[Literal["WO_LINKED", "PETTY_OVH"]] = None
     idempotency_key: Optional[str] = None
 
 

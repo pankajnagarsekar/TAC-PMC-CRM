@@ -1,0 +1,65 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\panka\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: D:\_repos\TAC-PMC-CRM\apps\api
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+apps\api\tests\modules\site_operations\test_track_b_completion.py::test_site_overhead_occ DEBUG: BackpressureMiddleware checking /api/v1/site-overheads | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+DEBUG: BackpressureMiddleware checking /api/v1/site-overheads/69de43f54bfa8eca12fe4c0e | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+FAILED
+
+================================== FAILURES ===================================
+___________________________ test_site_overhead_occ ____________________________
+
+client = <httpx.AsyncClient object at 0x000001BDBD3EF380>
+admin_token = 'test-admin-token-supreme-2026'
+test_project = {'id': 'test-proj-456', 'organisation_id': 'test-org-123', 'project_id': 'test-proj-456', 'project_name': 'Test Site Ops Project'}
+
+    @pytest.mark.asyncio
+    async def test_site_overhead_occ(client, admin_token, test_project):
+        """B4: Verify Site Overhead optimistic locking."""
+        # 1. Create overhead
+        payload = {"project_id": test_project["id"], "amount": 1500, "purpose": "Transport"}
+        resp = await client.post(
+            "/api/v1/site-overheads",
+            json=payload,
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        assert resp.status_code == 201
+        data = resp.json()["data"]
+        overhead_id = data.get("id") or data.get("_id")
+        version = resp.json()["data"].get("version", 1)
+    
+        # 2. Update with wrong version (OCC is validation error 422 in my implementation)
+        update_payload = {"amount": 2000, "version": version + 10}
+        resp = await client.put( # Using PUT as per routes.py
+            f"/api/v1/site-overheads/{overhead_id}",
+            json=update_payload,
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+>       assert resp.status_code == 422
+E       assert 400 == 422
+E        +  where 400 = <Response [400 Bad Request]>.status_code
+
+apps\api\tests\modules\site_operations\test_track_b_completion.py:94: AssertionError
+----------------------------- Captured log setup ------------------------------
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+------------------------------ Captured log call ------------------------------
+INFO     app.core.middleware:middleware.py:49 REQUEST START: POST /api/v1/site-overheads | ID: 09487bef-6925-47c1-8a8a-8e217efb232f
+INFO     app.core.middleware:middleware.py:51 REQUEST END: POST /api/v1/site-overheads | Status: 201 | ID: 09487bef-6925-47c1-8a8a-8e217efb232f
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/site-overheads "HTTP/1.1 201 Created"
+INFO     app.core.middleware:middleware.py:49 REQUEST START: PUT /api/v1/site-overheads/69de43f54bfa8eca12fe4c0e | ID: d19f9b2e-870e-4f4f-8a21-3c341ac12ae0
+INFO     app.core.middleware:middleware.py:51 REQUEST END: PUT /api/v1/site-overheads/69de43f54bfa8eca12fe4c0e | Status: 400 | ID: d19f9b2e-870e-4f4f-8a21-3c341ac12ae0
+INFO     httpx:_client.py:1740 HTTP Request: PUT http://test/api/v1/site-overheads/69de43f54bfa8eca12fe4c0e "HTTP/1.1 400 Bad Request"
+---------------------------- Captured log teardown ----------------------------
+INFO     app.db.mongodb:mongodb.py:146 LIFECYCLE: MongoDB connection closed gracefully
+=========================== short test summary info ===========================
+FAILED apps\api\tests\modules\site_operations\test_track_b_completion.py::test_site_overhead_occ - assert 400 == 422
+ +  where 400 = <Response [400 Bad Request]>.status_code
+============================== 1 failed in 0.45s ==============================

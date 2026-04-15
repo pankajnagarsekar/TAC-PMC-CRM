@@ -95,7 +95,7 @@ class CashTransactionRepository(BaseRepository[CashTransaction]):
 
 class BudgetRepository(BaseRepository[Budget]):
     def __init__(self, db):
-        super().__init__(db, "budgets", Budget)
+        super().__init__(db, "project_category_budgets", Budget)
 
     async def ensure_indexes(self):
         await super().ensure_indexes()

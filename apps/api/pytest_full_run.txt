@@ -1,0 +1,5 @@
+ERROR: usage: python.exe -m pytest [options] [file_or_dir] [file_or_dir] [...]
+python.exe -m pytest: error: unrecognized arguments: -n0
+  inifile: D:\_repos\tac-pmc-crm\apps\api\pytest.ini
+  rootdir: D:\_repos\tac-pmc-crm\apps\api
+

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -104,6 +104,52 @@ class VoiceLog(BaseModel):
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
 
+class VoiceLogCreate(BaseModel):
+    project_id: str
+    audio_url: str
+    transcription: str
+    duration_seconds: int
+
+    @field_validator("duration_seconds")
+    @classmethod
+    def validate_duration(cls, v):
+        if v <= 0:
+            raise ValueError("duration_seconds must be positive")
+        return v
+
+
+class AttendanceRecord(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    project_id: str
+    supervisor_id: str
+    date: str
+    check_in_time: str
+    check_in_timestamp: datetime
+    check_out_time: Optional[str] = None
+    check_out_timestamp: Optional[datetime] = None
+    total_hours: Optional[Decimal] = None
+    gps_lat: Optional[float] = None
+    gps_long: Optional[float] = None
+    selfie_image_id: Optional[str] = None
+    status: str
+    verified_by_admin: bool = False
+    created_at: datetime
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class CheckIn(BaseModel):
+    project_id: str
+    gps_lat: float
+    gps_long: float
+    selfie_image_id: Optional[str] = None
+
+
+class CheckOut(BaseModel):
+    project_id: str
+
+
 # DPR DTOs
 class DPRImageDetail(BaseModel):
     image_id: str
@@ -133,7 +179,7 @@ class RejectDPRRequest(BaseModel):
 class DPRCreate(BaseModel):
     project_id: str
     dpr_date: Optional[datetime] = None
-    progress_notes: Optional[str] = None
+    progress_notes: str = Field(..., min_length=1)
     weather_conditions: Optional[str] = "Normal"
     # Note: Images are uploaded separately via /dprs/{id}/images
 
@@ -145,6 +191,16 @@ class DPR(BaseModel):
     supervisor_id: str
     dpr_date: datetime
     progress_notes: Optional[str] = None
+
+    @field_validator("dpr_date", mode="before")
+    @classmethod
+    def ensure_timezone(cls, v):
+        if isinstance(v, str):
+            # Basic normalization for strings
+            if not v.endswith("Z") and "+" not in v:
+                v += "Z"
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        return v
     voice_summary: Optional[str] = None
     weather_conditions: str = "Normal"
     images: List[DPRImageDetail] = Field(default_factory=list)

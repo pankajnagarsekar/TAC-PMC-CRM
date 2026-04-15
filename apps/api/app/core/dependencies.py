@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -8,6 +9,7 @@ from app.core.resilience import NonceGuard
 from app.db.mongodb import get_db
 from app.modules.contracting.application.vendor_service import VendorService
 from app.modules.contracting.application.work_order_service import WorkOrderService
+from app.modules.contracting.application.contract_service import ContractService
 from app.modules.financial.application.budget_service import BudgetService
 from app.modules.financial.application.cash_service import CashService
 from app.modules.financial.application.financial_service import FinancialService
@@ -78,6 +80,12 @@ async def get_authenticated_user(
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
 
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
+
     # Authoritative active check via checker
     await PermissionChecker.validate_active_user(user)
 
@@ -101,6 +109,11 @@ async def verify_nonce(
     guard = NonceGuard(db)
     await guard.verify(nonce, user["user_id"])
     return nonce
+
+
+async def get_idempotency_key(request: Request) -> Optional[str]:
+    """Standardized retrieval of Idempotency Key (BUG-24)."""
+    return request.headers.get("X-Idempotency-Key") or request.headers.get("Idempotency-Key")
 
 
 # --- PERMISSION DEPENDENCIES ---
@@ -195,6 +208,14 @@ async def get_vendor_service(
     perm: PermissionChecker = Depends(get_permission_checker),
 ) -> VendorService:
     return VendorService(db, audit, perm)
+
+
+async def get_contract_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker),
+) -> ContractService:
+    return ContractService(db, audit, perm)
 
 
 async def get_settings_service(

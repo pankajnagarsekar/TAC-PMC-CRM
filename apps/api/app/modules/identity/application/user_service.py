@@ -1,9 +1,11 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from ..domain.authorization import IdentityAuthorizationManager
+from ..domain.exceptions import EmailAlreadyExistsError, UserNotFoundError
 from ..domain.models import User as UserModel
 from ..infrastructure.repository import UserRepository
-from ..schemas.dto import UserCreateAdmin
+from ..schemas.dto import UserCreateAdmin, UserUpdate
 
 # Note: Use AuthService for password hashing
 
@@ -59,6 +61,58 @@ class UserService:
         )
 
         return new_user
+
+    async def get_user(self, user: dict, target_user_id: str) -> Dict[str, Any]:
+        """Get a single user — admin can get any, others only self."""
+        IdentityAuthorizationManager.verify_self_or_admin(user, target_user_id)
+        doc = await self.user_repo.get_by_id(
+            target_user_id, organisation_id=user["organisation_id"]
+        )
+        if not doc:
+            raise UserNotFoundError(target_user_id)
+        doc.pop("hashed_password", None)
+        return doc
+
+    async def update_user(
+        self, user: dict, target_user_id: str, data: UserUpdate
+    ) -> Dict[str, Any]:
+        """Update user fields — admin can change role/permissions, self can change name only."""
+        existing = await self.user_repo.get_by_id(
+            target_user_id, organisation_id=user["organisation_id"]
+        )
+        if not existing:
+            raise UserNotFoundError(target_user_id)
+
+        update_dict = data.model_dump(exclude_none=True)
+
+        # Non-admin can only change their own name
+        if user.get("role") != "Admin":
+            IdentityAuthorizationManager.verify_self(user, target_user_id)
+            update_dict = {k: v for k, v in update_dict.items() if k == "name"}
+
+        if not update_dict:
+            return existing
+
+        old_value = {k: existing.get(k) for k in update_dict}
+        updated = await self.user_repo.update(
+            target_user_id, update_dict, organisation_id=user["organisation_id"]
+        )
+        if not updated:
+            raise UserNotFoundError(target_user_id)
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="USER_MANAGEMENT",
+            entity_type="USER",
+            entity_id=target_user_id,
+            action_type="UPDATE",
+            user_id=user["user_id"],
+            old_value=old_value,
+            new_value=update_dict,
+        )
+
+        updated.pop("hashed_password", None)
+        return updated
 
     async def deactivate_user(self, user, target_user_id: str) -> Dict[str, Any]:
         """Business logic for deactivating a user"""

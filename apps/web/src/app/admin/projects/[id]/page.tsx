@@ -97,23 +97,27 @@ export default function ProjectDetailPage() {
         cellClass: "font-mono text-orange-600 dark:text-orange-400 bg-orange-600/5 dark:bg-orange-500/5",
         valueFormatter: (params) => formatCurrency(params.value),
         onCellValueChanged: async (params: NewValueParams<DerivedFinancialState>) => {
-          const { _id, original_budget, version } = params.data;
-          if (!_id) return;
+          const { _id, project_id, category_id, original_budget } = params.data;
+          if (!project_id || !category_id) return;
 
-          setSavingId(_id);
+          setSavingId(_id || category_id);
           try {
-            await api.put(`/api/v1/budgets/${_id}`, {
+            await api.patch(`/api/v1/budgets/project/${project_id}/category/${category_id}`, {
               original_budget: parseFloat(String(original_budget)),
-              version: version,
             });
-            mutateFinancials();
+            await mutateFinancials();
+            await mutateProject(); // Refresh master totals
           } catch (error: unknown) {
-            const err = error as { response?: { status?: number } };
+            const err = error as { response?: { status?: number; data?: { error?: { message?: string } } } };
             if (err.response?.status === 409) {
               setIsConflictModalOpen(true);
+            } else if (err.response?.status === 422) {
+              const msg = err.response.data?.error?.message || "Budget cannot be below committed amount.";
+              alert(msg);
             } else {
               alert("Failed to update budget. Please check permissions.");
             }
+            // Restore old value on failure
             params.node?.setDataValue("original_budget", params.oldValue);
           } finally {
             setSavingId(null);

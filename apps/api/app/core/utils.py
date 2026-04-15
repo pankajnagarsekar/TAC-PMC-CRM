@@ -30,26 +30,36 @@ def serialize_doc(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         elif isinstance(value, dict):
             result[key] = serialize_doc(value)
         elif isinstance(value, list):
-            serialized_list = []
-            for item in value:
-                if isinstance(item, dict):
-                    serialized_list.append(serialize_doc(item))
-                elif isinstance(item, Decimal128):
-                    try:
-                        serialized_list.append(float(item.to_decimal()))
-                    except Exception:
-                        serialized_list.append(str(item))
-                elif isinstance(item, Decimal):
-                    serialized_list.append(float(item))
-                elif isinstance(item, ObjectId):
-                    serialized_list.append(str(item))
-                else:
-                    serialized_list.append(item)
-            result[key] = serialized_list
+            result[key] = [
+                serialize_doc(item) if isinstance(item, dict)
+                else float(item) if isinstance(item, Decimal)
+                else str(item) if isinstance(item, (ObjectId, datetime))
+                else item
+                for item in value
+            ]
         else:
             result[key] = value
 
     return result
+
+
+def prepare_for_db(data: Any) -> Any:
+    """
+    Recursively convert Decimal to float for MongoDB storage.
+    Ensures datetimes are offset-aware if they aren't.
+    """
+    from datetime import timezone
+    if isinstance(data, Decimal):
+        return float(data)
+    if isinstance(data, datetime):
+        if data.tzinfo is None:
+            return data.replace(tzinfo=timezone.utc)
+        return data
+    if isinstance(data, dict):
+        return {k: prepare_for_db(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [prepare_for_db(i) for i in data]
+    return data
 
 
 def serialize_list(docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

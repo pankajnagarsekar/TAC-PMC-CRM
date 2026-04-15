@@ -10,6 +10,7 @@ from app.modules.contracting.infrastructure.repository import (
 )
 from app.modules.financial.infrastructure.repository import (
     CashTransactionRepository,
+    CodeMasterRepository,
     FundAllocationRepository,
     PCRepository,
 )
@@ -45,31 +46,59 @@ class UnitOfWork:
         self.vendors = VendorRepository(db)
         self.ledger = LedgerRepository(db)
         self.sequences = SequenceRepository(db)
+        self.code_master = CodeMasterRepository(db)
 
     async def __aenter__(self):
         """Start transaction session."""
-        self.session = await self.client.start_session()
-        self.session.start_transaction()
-        # Inject session into all managed repos (Stateful UOW)
-        # Note: Repos should support optional session in their methods
+        try:
+            self.session = await self.client.start_session()
+            self.session.start_transaction()
+            # Force validation with a supported command (Point 75: Hardened Probe)
+            # find_one is supported in transactions, ping is NOT.
+            await self.db.idempotency_store.find_one({"_id": "probe"}, session=self.session)
+        except Exception as e:
+            # Fallback for standalone MongoDB (Testing context - Point 75)
+            # Transaction numbers are only allowed on replica sets
+            print(f"UOW DEBUG: start_transaction failed: {e}")
+            if "Transaction numbers" in str(e) or "IllegalOperation" in str(type(e).__name__):
+                logger.warning("UOW: MongoDB Transactions NOT SUPPORTED (Standalone mode). Proceeding without session/transaction.")
+                # If transactions fail, we probably can't use sessions reliably for atomicity here
+                # Nullify session so repositories don't use it
+                self.session = None 
+            else:
+                raise e
+        
+        # Inject session into all managed repos (Stateful UOW - BUG-04)
+        repo_names = [
+            'projects', 'work_orders', 'payments', 'budgets', 
+            'cash_transactions', 'fund_allocations', 'dprs', 
+            'vendors', 'ledger', 'sequences', 'code_master'
+        ]
+        for name in repo_names:
+            repo = getattr(self, name)
+            if repo:
+                repo.session = self.session
+                
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Finalize transaction."""
-        if exc_type:
-            logger.warning(f"UOW_ROLLBACK: Atomicity failure detected: {exc_val}")
-            await self.session.abort_transaction()
-        else:
-            await self.session.commit_transaction()
+        if self.session and self.session.in_transaction:
+            if exc_type:
+                logger.warning(f"UOW_ROLLBACK: Atomicity failure detected: {exc_val}")
+                await self.session.abort_transaction()
+            else:
+                await self.session.commit_transaction()
 
-        await self.session.end_session()
+        if self.session:
+            await self.session.end_session()
 
     async def commit(self):
         """Manually commit."""
-        if self.session:
+        if self.session and self.session.in_transaction:
             await self.session.commit_transaction()
 
     async def rollback(self):
         """Manually rollback."""
-        if self.session:
+        if self.session and self.session.in_transaction:
             await self.session.abort_transaction()

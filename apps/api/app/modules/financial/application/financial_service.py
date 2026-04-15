@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 
 
 from app.core.time import now
@@ -18,6 +19,7 @@ from ..domain.models import FinancialState
 from ..infrastructure.repository import (
     CodeMasterRepository,
     FinancialStateRepository,
+    FundAllocationRepository,
     PCRepository,
 )
 from app.modules.shared.domain.exceptions import ValidationError
@@ -40,6 +42,7 @@ class FinancialService:
         self.code_master_repo = CodeMasterRepository(db)
         self.project_repo = ProjectRepository(db)
         self.vendor_repo = VendorRepository(db)
+        self.fund_allocations_repo = FundAllocationRepository(db)
 
     async def recalculate_project_code_financials(
         self, project_id: str, category_id: str, session=None
@@ -128,7 +131,7 @@ class FinancialService:
 
     async def recalculate_master_budget(self, project_id: str, session=None):
         """Aggregates all project categories into a single Master Snapshot."""
-        budgets = await self.budget_repo.list({"project_id": project_id}, limit=1000)
+        budgets = await self.budget_repo.list({"project_id": project_id}, limit=1000, session=session)
 
         totals = {
             "total_budget": FinancialEngine.round(0),
@@ -149,44 +152,55 @@ class FinancialService:
                 totals["total_budget"] += FinancialEngine.to_decimal(
                     res["original_budget"]
                 )
-                totals["total_committed"] += FinancialEngine.to_decimal(
-                    res["committed_value"]
-                )
+                
+                # CALC-4: For fund transfer categories, Certified amount acts as a commitment
+                cat = await self.code_master_repo.get_by_id(cat_id, session=session)
+                if not cat:
+                    cat = await self.code_master_repo.find_one({"code": cat_id}, session=session)
+                
+                if cat and cat.get("budget_type") == "fund_transfer":
+                    totals["total_committed"] += FinancialEngine.to_decimal(
+                        res["certified_value"]
+                    )
+                else:
+                    totals["total_committed"] += FinancialEngine.to_decimal(
+                        res["committed_value"]
+                    )
+                
                 totals["total_certified"] += FinancialEngine.to_decimal(
                     res["certified_value"]
                 )
                 totals["categories_recalculated"] += 1
 
-        master_doc = {
+        # Final snapshot for executive dashboard
+        master_snapshot = {
             "project_id": project_id,
-            "category_id": None,
+            "category_id": "MASTER",
             "original_budget": FinancialEngine.to_d128(totals["total_budget"]),
             "committed_value": FinancialEngine.to_d128(totals["total_committed"]),
             "certified_value": FinancialEngine.to_d128(totals["total_certified"]),
-            "balance_budget_remaining": FinancialEngine.to_d128(
+            "balance_remaining": FinancialEngine.to_d128(
                 totals["total_budget"] - totals["total_committed"]
             ),
-            "categories_recalculated": totals["categories_recalculated"],
+            "recalculated_at": now(),
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
-            "last_recalculated": now(),
         }
 
         await self.financial_state_repo.update_one(
-            {"project_id": project_id, "category_id": None},
-            {"$set": master_doc},
+            {"project_id": project_id, "category_id": "MASTER"},
+            {"$set": master_snapshot},
             session=session,
             upsert=True,
         )
 
-        return master_doc
+        return master_snapshot
 
     async def check_threshold_breach(
         self, project_id: str, category_id: str, session=None
     ) -> bool:
         """System Gate: Prevent unauthorized spending on depleted funds."""
-        allocation = await self.db.fund_allocations.find_one(
+        allocation = await self.fund_allocations_repo.find_one(
             {"project_id": project_id, "category_id": category_id},
-            {"cash_in_hand": 1},
             session=session,
         )
         if not allocation:
@@ -228,4 +242,57 @@ class FinancialService:
                 raise ValidationError("Work order requires a vendor")
             if not data.get("category_id"):
                 raise ValidationError("Work order requires a category")
+        elif doc_type == "PAYMENT_CERTIFICATE":
+            if not data.get("line_items"):
+                raise ValidationError("Payment Certificate requires at least one line item")
+            if data.get("fund_request"):
+                if data.get("work_order_id"):
+                    raise ValidationError("Fund request cannot be linked to a Work Order")
+                if not data.get("category_id"):
+                    raise ValidationError("Fund request requires a category")
+            else:
+                if not data.get("work_order_id"):
+                    raise ValidationError("Non-fund request requires a Work Order")
+                if not data.get("vendor_id"):
+                    raise ValidationError("Non-fund request requires a vendor")
         # Add more doc_type validations as needed
+
+    async def update_budget(
+        self,
+        user: dict,
+        project_id: str,
+        category_id: str,
+        original_budget: Decimal,
+        session=None,
+    ) -> dict:
+        """Atomic Update for Category Budget with validation (Track H1)."""
+        organisation_id = user["organisation_id"]
+
+        # 1. Fetch current status (Recalculate first to be sure)
+        status = await self.recalculate_project_code_financials(
+            project_id, category_id, session=session
+        )
+        if not status:
+            raise ValidationError(f"Budget for category {category_id} not found.")
+
+        committed = FinancialEngine.to_decimal(status.get("committed_value", 0))
+
+        # 2. H1: Backend Validation
+        if original_budget < committed:
+            raise ValidationError(
+                f"Budget cannot be reduced below committed amount of ₹{committed:,.2f}"
+            )
+
+        # 3. Update the budget record
+        update_data = {
+            "original_budget": FinancialEngine.to_d128(original_budget),
+            "updated_at": now(),
+        }
+        await self.budget_repo.update_one(
+            {"project_id": project_id, "category_id": category_id},
+            {"$set": update_data},
+            session=session,
+        )
+
+        # 4. Trigger Master Recalculation (H3)
+        return await self.recalculate_master_budget(project_id, session=session)

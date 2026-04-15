@@ -73,8 +73,14 @@ class PaymentService:
         await self.permission_checker.check_project_access(
             user, project_id, require_write=True
         )
-        # Note: financial_service should expose validation
-        # await self.financial_service.validate_financial_document("PAYMENT_CERTIFICATE", pc_data.dict(), project_id)
+
+        fund_request = pc_data.fund_request
+        pc_type = "PETTY_OVH" if fund_request else "WO_LINKED"
+        
+        # BUG-29: Validate document schema and project invariants via authoritative service
+        doc_data = pc_data.dict()
+        doc_data["pc_type"] = pc_type
+        await self.financial_service.validate_financial_document("PAYMENT_CERTIFICATE", doc_data, project_id)
 
         async with UnitOfWork(self.db) as uow:
             if idempotency_key:
@@ -99,6 +105,33 @@ class PaymentService:
                 if project
                 else Decimal("9.0")
             )
+
+            # J1: Mode B Category/Allocation Validation
+            if fund_request:
+                # 1. Verify Category budget_type
+                category = await uow.code_master.get_by_id(pc_data.category_id, session=uow.session)
+                if not category:
+                    category = await uow.code_master.find_one({"code": pc_data.category_id}, session=uow.session)
+                
+                if not category:
+                    raise ValidationError(f"Category {pc_data.category_id} not found")
+                
+                if category.get("budget_type") != "fund_transfer":
+                    raise ValidationError("Fund request category must be of type 'fund_transfer'")
+                
+                pc_data.category_id = category["code"] # Store the Code for consistent lookups (Point 75)
+                
+                # 2. CALC-5: allocation_remaining > 0
+                allocation = await uow.fund_allocations.find_one(
+                    {"project_id": project_id, "category_id": pc_data.category_id},
+                    session=uow.session
+                )
+                if not allocation:
+                    raise ValidationError(f"Fund allocation for category {pc_data.category_id} not initialized")
+                
+                remaining = FinancialEngine.to_decimal(allocation.get("allocation_remaining", 0))
+                if remaining <= 0:
+                    raise ValidationError("Cannot raise PC: no allocation remaining")
 
             subtotal = Decimal("0.0")
             line_items_processed = []
@@ -131,6 +164,7 @@ class PaymentService:
                 {
                     "organisation_id": organisation_id,
                     "pc_ref": pc_ref,
+                    "pc_type": pc_type, # Mode identification
                     "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
                     "retention_amount": FinancialEngine.to_d128(
                         fin["retention_amount"]
@@ -222,8 +256,9 @@ class PaymentService:
                 )
 
             if pc_type == "PETTY_OVH":
+                category_id = pc.get("category_id")
                 fund_alloc = await uow.fund_allocations.find_one(
-                    {"project_id": project_id}, session=uow.session
+                    {"project_id": project_id, "category_id": category_id}, session=uow.session
                 )
                 if fund_alloc:
                     alloc_original = FinancialEngine.to_decimal(
@@ -256,6 +291,18 @@ class PaymentService:
                         session=uow.session,
                     )
 
+                    # CALC-4: Insert cash_transaction CREDIT
+                    await uow.cash_transactions.create({
+                        "project_id": project_id,
+                        "category_id": category_id,
+                        "amount": FinancialEngine.to_d128(grand_total),
+                        "type": "CREDIT",
+                        "description": f"Replenishment via PC {pc['pc_ref']}",
+                        "transaction_date": now(),
+                        "created_by": user["user_id"],
+                        "organisation_id": organisation_id
+                    }, session=uow.session)
+
                     await self.financial_service.recalculate_master_budget(
                         project_id, session=uow.session
                     )
@@ -271,6 +318,29 @@ class PaymentService:
                 new_value=pc,
                 session=uow.session,
             )
+
+            # C2: Write Vendor Ledger Entry (PAYMENT_MADE)
+            if pc_type == "WO_LINKED" and pc.get("vendor_id"):
+                await uow.ledger.create({
+                    "vendor_id": str(pc["vendor_id"]),
+                    "project_id": project_id,
+                    "ref_id": str(pc_id),
+                    "entry_type": "PAYMENT_MADE",
+                    "amount": FinancialEngine.to_d128(grand_total),
+                    "created_at": now()
+                }, session=uow.session)
+
+                # J2: If retention, track it
+                if retention_amount > 0:
+                    await uow.ledger.create({
+                        "vendor_id": str(pc["vendor_id"]),
+                        "project_id": project_id,
+                        "ref_id": str(pc_id),
+                        "entry_type": "RETENTION_HELD",
+                        "amount": FinancialEngine.to_d128(retention_amount),
+                        "created_at": now()
+                    }, session=uow.session)
+
             return {"status": "success", "message": "PC closed and financials updated"}
 
     async def get_payment_certificate(self, user: dict, pc_id: str) -> Dict[str, Any]:
@@ -408,6 +478,17 @@ class PaymentService:
                 new_value=updated,
                 session=uow.session,
             )
+
+            # C2: Write Vendor Ledger Entry (PC_CERTIFIED)
+            if updated.get("vendor_id"):
+                await uow.ledger.create({
+                    "vendor_id": str(updated["vendor_id"]),
+                    "project_id": updated["project_id"],
+                    "ref_id": str(updated["id"]),
+                    "entry_type": "PC_CERTIFIED",
+                    "amount": FinancialEngine.to_d128(amount),
+                    "created_at": now()
+                }, session=uow.session)
 
             return updated
 

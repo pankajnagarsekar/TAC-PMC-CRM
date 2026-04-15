@@ -43,6 +43,12 @@ export default function TasksPage() {
     fetchTasks();
   }, [fetchTasks]);
 
+  const handleTaskUpdate = useCallback((updatedTask: Task) => {
+    setItems((prev) =>
+      prev.map((t) => (t._id === updatedTask._id ? updatedTask : t))
+    );
+  }, []);
+
   const filteredItems = items.filter((task) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -69,7 +75,7 @@ export default function TasksPage() {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-           <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1 mr-2">
+          <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1 mr-2">
             <button
               onClick={() => router.push("/admin/tasks?tab=list")}
               className={`p-1.5 rounded flex items-center gap-2 text-sm transition-colors ${currentTab === "list" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}
@@ -137,7 +143,7 @@ export default function TasksPage() {
           </p>
         </div>
       ) : currentTab === "board" ? (
-        <TaskKanbanBoard tasks={filteredItems} />
+        <TaskKanbanBoard tasks={filteredItems} onTaskUpdate={handleTaskUpdate} />
       ) : (
         <PastTasksTable tasks={filteredItems} />
       )}

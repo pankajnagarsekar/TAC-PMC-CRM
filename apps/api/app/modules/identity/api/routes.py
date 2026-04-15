@@ -15,12 +15,14 @@ from ..application.auth_service import AuthService
 from ..application.settings_service import SettingsService
 from ..application.user_service import UserService
 from ..schemas.dto import (
+    ChangePasswordRequest,
     GlobalSettings,
     LoginRequest,
     RefreshTokenRequest,
     Token,
     UserCreateAdmin,
     UserResponse,
+    UserUpdate,
 )
 
 # Create one router for the Identity Context
@@ -109,6 +111,40 @@ async def create_user_admin(
     """Admin creates a new user."""
     new_user = await user_service.create_user_admin(user, user_data)
     return GenericResponse(data=new_user, message="User created successfully")
+
+
+@router.get("/users/{user_id}", response_model=GenericResponse[UserResponse])
+async def get_user(
+    user_id: str,
+    user: dict = Depends(get_authenticated_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    """Get a single user by ID (admin or self)."""
+    result = await user_service.get_user(user, user_id)
+    return GenericResponse(data=result)
+
+
+@router.patch("/users/{user_id}", response_model=GenericResponse[UserResponse])
+async def update_user(
+    user_id: str,
+    data: UserUpdate,
+    user: dict = Depends(get_authenticated_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    """Update user fields (admin: all fields; self: name only)."""
+    result = await user_service.update_user(user, user_id, data)
+    return GenericResponse(data=result, message="User updated successfully")
+
+
+@router.post("/auth/change-password", response_model=GenericResponse[dict])
+async def change_password(
+    data: ChangePasswordRequest,
+    user: dict = Depends(get_authenticated_user),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Change own password. Revokes all existing refresh tokens."""
+    result = await auth_service.change_password(user, data)
+    return GenericResponse(data=result, message="Password changed successfully")
 
 
 @router.delete("/users/{user_id}", response_model=GenericResponse[dict])

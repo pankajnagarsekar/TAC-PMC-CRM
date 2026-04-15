@@ -42,6 +42,7 @@ class AuditService:
         project_id: Optional[str] = None,
         old_value: Optional[Dict[str, Any]] = None,
         new_value: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
         session=None,
     ):
         """Log an action to audit trail (INSERT ONLY)."""
@@ -57,6 +58,7 @@ class AuditService:
                 "action_type": action_type,
                 "old_value_json": old_value,
                 "new_value_json": new_value,
+                "metadata": metadata,
                 "user_id": user_id,
                 "timestamp": datetime.now(timezone.utc),
             }

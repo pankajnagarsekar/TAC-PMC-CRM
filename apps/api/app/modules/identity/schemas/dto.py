@@ -133,4 +133,9 @@ class GlobalSettings(BaseModel):
     client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=8)
+
+
 Token.model_rebuild()

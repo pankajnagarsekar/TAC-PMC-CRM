@@ -32,6 +32,24 @@ class WorkOrder:
             )
             raise DomainError(msg)
 
+    def submit(self):
+        """Transition from Draft to Pending."""
+        if self.status != "Draft":
+            raise DomainError(f"Only Draft Work Orders can be submitted. Current: {self.status}")
+        self.status = "Pending"
+
+    def approve(self):
+        """Transition from Pending to Approved."""
+        if self.status != "Pending":
+            raise DomainError(f"Only Pending Work Orders can be approved. Current: {self.status}")
+        self.status = "Approved"
+
+    def cancel(self):
+        """Transition to Cancelled status."""
+        if self.status in ["Completed", "Closed"]:
+            raise DomainError(f"Cannot cancel a {self.status} Work Order.")
+        self.status = "Cancelled"
+
 
 class Vendor:
     """Aggregate Root for Vendors."""

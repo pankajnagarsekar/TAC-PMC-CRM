@@ -1,0 +1,137 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\panka\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: D:\_repos\TAC-PMC-CRM\apps\api
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 2 items
+
+tests/modules/financial/test_pc_spec_compliance.py::test_pc_mode_b_creation_and_close DEBUG: BackpressureMiddleware checking /api/v1/payments | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+DEBUG: PC after creation: {'_id': '69de8b508e13661eb1f479bb', 'organisation_id': 'test-org-123', 'project_id': 'test-proj-456', 'work_order_id': None, 'category_id': 'PETTY_UNIQUE_1', 'vendor_id': None, 'pc_ref': 'PC-0001', 'subtotal': '200.0', 'retention_percent': '0.0', 'retention_amount': '0.0', 'total_after_retention': '200.0', 'cgst': '18.0', 'sgst': '18.0', 'grand_total': '236.0', 'status': 'Draft', 'total_payable': '236.0', 'fund_request': True, 'pc_type': 'PETTY_OVH', 'line_items': [{'sr_no': 1, 'scope_of_work': 'Tea and snacks', 'rate': '200.0', 'qty': '1.0', 'unit': 'LS', 'total': '200.0'}], 'idempotency_key': 'pc-mode-b-1', 'version': 1, 'created_at': '2026-04-14T18:45:36.007491Z', 'submitted_by': None, 'submitted_at': None, 'approved_by': None, 'approved_at': None, 'rejected_reason': None, 'approval_trail': []}
+DEBUG: PC in Database: None
+DEBUG: Allocation BEFORE close: {'_id': ObjectId('69de8b4f8e13661eb1f479ba'), 'organisation_id': 'test-org-123', 'project_id': 'test-proj-456', 'category_id': 'PETTY_UNIQUE_1', 'allocation_original': Decimal128('1000.00'), 'allocation_received': Decimal128('0.00'), 'allocation_remaining': Decimal128('1000.00'), 'cash_in_hand': Decimal128('0.00')}
+DEBUG: BackpressureMiddleware checking /api/v1/payments/69de8b508e13661eb1f479bb/close | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+DEBUG: MasterRecalc - Querying budgets for project test-proj-456. Found: 1
+FAILED
+tests/modules/financial/test_pc_spec_compliance.py::test_pc_mode_b_validation_failure DEBUG: BackpressureMiddleware checking /api/v1/payments | Sem Locked: False
+DEBUG: BackpressureMiddleware PASSED - acquiring semaphore
+PASSED
+
+================================== FAILURES ===================================
+______________________ test_pc_mode_b_creation_and_close ______________________
+
+client = <httpx.AsyncClient object at 0x000001C8C3FC3380>
+test_db = AsyncIOMotorDatabase(Database(MongoClient(host=['ac-air4jfu-shard-00-02.8cbzigp.mongodb.net:27017', 'ac-air4jfu-shard-...000, connecttimeoutms=10000, driver=DriverInfo(name='Motor', version='3.3.1', platform='asyncio')), 'tac_pmc_test_db'))
+test_user = {'active_status': True, 'organisation_id': 'test-org-123', 'role': 'Admin', 'user_id': 'test-user-id'}
+test_project_id = 'test-proj-456'
+
+    @pytest.mark.asyncio
+    async def test_pc_mode_b_creation_and_close(client, test_db, test_user, test_project_id):
+        """Verify Mode B (Fund Request) creation, validations, and closure logic."""
+        # 0. Cleanup
+        await test_db.code_master.delete_many({})
+        await test_db.fund_allocations.delete_many({})
+        await test_db.payments.delete_many({})
+        await test_db.financial_state.delete_many({})
+    
+        # 1. Setup Category (Fund Transfer)
+        c_id = "PETTY_UNIQUE_1"
+        await test_db.code_master.insert_one({
+            "organisation_id": test_user["organisation_id"],
+            "category_name": "Petty Cash",
+            "code": c_id,
+            "budget_type": "fund_transfer",
+            "active_status": True
+        })
+    
+        # 1.1 Setup Budget (1000)
+        await test_db.project_category_budgets.insert_one({
+            "organisation_id": test_user["organisation_id"],
+            "project_id": test_project_id,
+            "category_id": c_id,
+            "original_budget": FinancialEngine.to_d128(1000),
+            "active_status": True
+        })
+    
+        # 2. Initialize Fund Allocation (1000)
+        await test_db.fund_allocations.insert_one({
+            "organisation_id": test_user["organisation_id"],
+            "project_id": test_project_id,
+            "category_id": c_id,
+            "allocation_original": FinancialEngine.to_d128(1000),
+            "allocation_received": FinancialEngine.to_d128(0),
+            "allocation_remaining": FinancialEngine.to_d128(1000),
+            "cash_in_hand": FinancialEngine.to_d128(0)
+        })
+    
+        # 3. Create Mode B PC (Fund Request)
+        pc_data = {
+            "project_id": test_project_id,
+            "category_id": c_id,
+            "fund_request": True,
+            "line_items": [
+                {"sr_no": 1, "scope_of_work": "Tea and snacks", "qty": 1, "rate": 200, "unit": "LS"}
+            ],
+            "idempotency_key": "pc-mode-b-1"
+        }
+        response = await client.post("/api/v1/payments", json=pc_data)
+        assert response.status_code == 201
+        pc = response.json()["data"]
+        print(f"DEBUG: PC after creation: {pc}")
+        pc_id_val = pc.get("id") or pc.get("_id")
+        db_pc = await test_db.payments.find_one({"_id": ObjectId(pc_id_val)})
+        print(f"DEBUG: PC in Database: {db_pc}")
+    
+        # 4. Close PC and Verify CALC-4/5
+        alloc_before = await test_db.fund_allocations.find_one({"project_id": test_project_id, "category_id": c_id})
+        print(f"DEBUG: Allocation BEFORE close: {alloc_before}")
+    
+        pc_id = str(pc.get("id") or pc.get("_id"))
+        close_res = await client.post(f"/api/v1/payments/{pc_id}/close")
+        assert close_res.status_code == 200
+    
+        # 5. Verify Fund Allocation Updates (Expect 200 + 18% GST = 236)
+        alloc = await test_db.fund_allocations.find_one({"project_id": test_project_id, "category_id": c_id})
+        all_allocs = await test_db.fund_allocations.find({}).to_list(10)
+        msg = f"PC after creation: {pc}\nAll Fund Allocations in DB: {all_allocs}\nPC Category: {pc.get('category_id')}\nPC Project: {pc.get('project_id')}"
+    
+        val_received = FinancialEngine.to_decimal(alloc["allocation_received"]) if alloc else None
+        assert val_received == Decimal("236"), f"Expected 236 but got {val_received}. Info: {msg}"
+    
+        assert FinancialEngine.to_decimal(alloc["allocation_remaining"]) == Decimal("764")
+        assert FinancialEngine.to_decimal(alloc["cash_in_hand"]) == Decimal("236")
+    
+        # Verify Cash Transaction
+        tx = await test_db.cash_transactions.find_one({"project_id": test_project_id, "category_id": c_id})
+        assert tx["type"] == "CREDIT"
+        assert FinancialEngine.to_decimal(tx["amount"]) == Decimal("236")
+    
+        # Verify Master Balance Impact (CALC-4)
+        master = await test_db.financial_state.find_one({"project_id": test_project_id, "category_id": "MASTER"})
+>       assert FinancialEngine.to_decimal(master["balance_remaining"]) == Decimal("-236")
+E       AssertionError: assert Decimal('764.00') == Decimal('-236')
+E        +  where Decimal('764.00') = <function FinancialEngine.to_decimal at 0x000001C8C2ACDE80>(Decimal128('764.00'))
+E        +    where <function FinancialEngine.to_decimal at 0x000001C8C2ACDE80> = FinancialEngine.to_decimal
+E        +  and   Decimal('-236') = Decimal('-236')
+
+tests\modules\financial\test_pc_spec_compliance.py:89: AssertionError
+----------------------------- Captured log setup ------------------------------
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+INFO     app.db.mongodb:mongodb.py:31 LIFECYCLE: Connected to MongoDB (tac_pmc_test_db)
+INFO     app.db.mongodb:mongodb.py:45 LIFECYCLE: Enforcing database indexes...
+------------------------------ Captured log call ------------------------------
+INFO     app.core.middleware:middleware.py:49 REQUEST START: POST /api/v1/payments | ID: 4fad2f3b-b7e5-4681-9fe5-c3e1d58ea6fa
+INFO     app.core.middleware:middleware.py:51 REQUEST END: POST /api/v1/payments | Status: 201 | ID: 4fad2f3b-b7e5-4681-9fe5-c3e1d58ea6fa
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/payments "HTTP/1.1 201 Created"
+INFO     app.core.middleware:middleware.py:49 REQUEST START: POST /api/v1/payments/69de8b508e13661eb1f479bb/close | ID: 9ee0f63f-9134-482b-9f44-40a483959e7b
+INFO     app.core.middleware:middleware.py:51 REQUEST END: POST /api/v1/payments/69de8b508e13661eb1f479bb/close | Status: 200 | ID: 9ee0f63f-9134-482b-9f44-40a483959e7b
+INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/payments/69de8b508e13661eb1f479bb/close "HTTP/1.1 200 OK"
+---------------------------- Captured log teardown ----------------------------
+INFO     app.db.mongodb:mongodb.py:146 LIFECYCLE: MongoDB connection closed gracefully
+=========================== short test summary info ===========================
+FAILED tests/modules/financial/test_pc_spec_compliance.py::test_pc_mode_b_creation_and_close
+======================== 1 failed, 1 passed in 38.34s =========================

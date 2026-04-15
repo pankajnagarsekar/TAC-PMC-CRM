@@ -50,15 +50,20 @@ class WorkerLog:
 
     @classmethod
     def calculate_totals(
-        cls, entries: List[Dict[str, Any]], workers: List[Dict[str, Any]]
+        cls, entries: List[Any], workers: List[Any]
     ) -> Dict[str, Any]:
-        """Domain logic to aggregate worker counts and hours."""
+        """Domain logic to aggregate worker counts and hours. Handles both dicts and Pydantic objects."""
+        def get_val(obj, key, default=0):
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
         total_workers = (
-            sum(e.get("workers_count", 0) for e in entries)
+            sum(get_val(e, "workers_count") for e in entries)
             if entries
             else len(workers or [])
         )
         total_hours = (
-            sum(float(w.get("hours_worked", 0)) for w in workers) if workers else 0
+            sum(float(get_val(w, "hours_worked")) for w in workers) if workers else 0
         )
         return {"total_workers": total_workers, "total_hours": total_hours}

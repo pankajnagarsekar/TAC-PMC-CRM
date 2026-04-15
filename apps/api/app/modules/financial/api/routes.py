@@ -6,6 +6,7 @@ from app.core.dependencies import (
     get_authenticated_user,
     get_budget_service,
     get_cash_service,
+    get_financial_service,
     get_master_data_service,
     get_payment_service,
     get_vendor_service,
@@ -15,6 +16,7 @@ from app.modules.shared.domain.schemas import GenericResponse
 
 from ..application.budget_service import BudgetService
 from ..application.cash_service import CashService
+from ..application.financial_service import FinancialService
 from ..application.master_data_service import MasterDataService
 from ..application.payment_service import PaymentService
 from ..schemas.dto import (
@@ -154,7 +156,7 @@ async def list_payment_certificates(
 
 
 @router.post(
-    "/payments/",
+    "/payments",
     response_model=GenericResponse[PaymentCertificate],
     status_code=status.HTTP_201_CREATED,
     tags=["Payments"],
@@ -579,3 +581,25 @@ async def forecast_budget_eac(
         user, budget_id, Decimal(str(percent_complete))
     )
     return GenericResponse(data=result)
+
+
+@router.patch(
+    "/budgets/project/{project_id}/category/{category_id}",
+    response_model=GenericResponse[dict],
+    tags=["Budgets"],
+)
+async def update_category_budget(
+    project_id: str,
+    category_id: str,
+    budget_req: Dict[str, Any],
+    user: dict = Depends(get_authenticated_user),
+    financial_service: FinancialService = Depends(get_financial_service),
+):
+    """Update category budget (Track H1)."""
+    from decimal import Decimal
+    original_budget = Decimal(str(budget_req.get("original_budget", 0)))
+    
+    result = await financial_service.update_budget(
+        user, project_id, category_id, original_budget
+    )
+    return GenericResponse(data=result, message="Budget updated successfully")

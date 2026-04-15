@@ -25,7 +25,7 @@ async def client(request):
     app.dependency_overrides[verify_nonce] = mock_verify_nonce
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=True) as ac:
         yield ac
 
     # Cleanup

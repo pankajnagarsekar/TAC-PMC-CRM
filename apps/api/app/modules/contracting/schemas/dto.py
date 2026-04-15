@@ -15,9 +15,11 @@ class WOLineItem(BaseModel):
     rate: Decimal = Field(Decimal("0.0"), ge=0)
     total: Decimal = Field(Decimal("0.0"), ge=0)
 
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
 
 class WorkOrder(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    id: Optional[PyObjectId] = Field(default=None, alias="_id", serialization_alias="id")
     organisation_id: Optional[str] = None
     project_id: str
     category_id: str
@@ -33,7 +35,7 @@ class WorkOrder(BaseModel):
     retention_amount: Decimal = Field(Decimal("0.0"), ge=0)
     total_payable: Decimal = Field(Decimal("0.0"), ge=0)
     actual_payable: Decimal = Field(Decimal("0.0"), ge=0)
-    status: Literal["Draft", "Pending", "Completed", "Closed", "Cancelled"] = "Draft"
+    status: Literal["Draft", "Pending", "Approved", "Completed", "Closed", "Cancelled"] = "Draft"
     line_items: List[WOLineItem] = Field(default_factory=list)
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -64,7 +66,7 @@ class WorkOrderUpdate(BaseModel):
 
 # VENDOR DTOs
 class Vendor(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    id: Optional[PyObjectId] = Field(default=None, alias="_id", serialization_alias="id")
     organisation_id: str
     name: str
     gstin: Optional[str] = None
@@ -100,12 +102,49 @@ class VendorUpdate(BaseModel):
 
 # LEDGER DTOs (Part of Contracting Domain)
 class VendorLedgerEntry(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    id: Optional[PyObjectId] = Field(default=None, alias="_id", serialization_alias="id")
     vendor_id: str
     project_id: str
     ref_id: str
-    entry_type: Literal["PC_CERTIFIED", "PAYMENT_MADE", "RETENTION_HELD"]
+    entry_type: Literal["COMMITTED", "PC_CERTIFIED", "PAYMENT_MADE", "RETENTION_HELD"]
     amount: Decimal = Decimal("0.0")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+# CONTRACT DTOs
+class Contract(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id", serialization_alias="id")
+    work_order_id: str
+    organisation_id: str
+    vendor_id: str
+    contract_value: Decimal = Field(Decimal("0.0"), ge=0)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    terms: str = ""
+    status: Literal["DRAFT", "ACTIVE", "EXPIRED", "TERMINATED"] = "DRAFT"
+    signed_by: Optional[str] = None
+    signed_at: Optional[datetime] = None
+    document_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class ContractCreate(BaseModel):
+    work_order_id: str
+    vendor_id: str
+    contract_value: Decimal = Field(..., ge=0)
+    start_date: datetime
+    end_date: datetime
+    terms: str
+
+
+class ContractUpdate(BaseModel):
+    terms: Optional[str] = None
+    status: Optional[Literal["DRAFT", "ACTIVE", "EXPIRED", "TERMINATED"]] = None
+    document_url: Optional[str] = None
+    signed_by: Optional[str] = None
+    signed_at: Optional[datetime] = None

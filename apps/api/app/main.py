@@ -12,6 +12,7 @@ from app.core.lifecycle import BackgroundGuardian
 from app.core.middleware import BackpressureMiddleware, StandardResponseMiddleware
 from app.db.mongodb import db_manager
 from app.modules.shared.domain.exceptions import DomainError
+from app.core.lifecycle import register_exception_handlers
 
 # Logging Configuration
 logging.basicConfig(level=logging.INFO)
@@ -45,44 +46,8 @@ def create_app() -> FastAPI:
     # REGISTRY: Central Routing
     app.include_router(api_router, prefix="/api")
 
-    # ERROR HANDLING: Domain → HTTP (Strict Layer Separation)
-    @app.exception_handler(DomainError)
-    async def domain_error_handler(request: Request, exc: DomainError):
-        from app.modules.shared.domain.exceptions import (
-            AuthenticationError,
-            NotFoundError,
-            PermissionDeniedError,
-        )
-
-        status_code = 400
-        if isinstance(exc, NotFoundError):
-            status_code = 404
-        elif isinstance(exc, PermissionDeniedError):
-            status_code = 403
-        elif isinstance(exc, AuthenticationError):
-            status_code = 401
-
-        return JSONResponse(
-            status_code=status_code,
-            content={
-                "status": "error",
-                "message": str(exc),
-                "entity_id": getattr(exc, "entity_id", "none"),
-                "error_type": exc.__class__.__name__,
-            },
-        )
-
-    @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):
-        logger.error(f"SYSTEM_FAULT: {exc}", exc_info=True)
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "status": "error",
-                "message": "An internal system error occurred.",
-                "error_type": "InternalError",
-            },
-        )
+    # ERROR HANDLING: Hardened Centralized Handlers (BUG-10)
+    register_exception_handlers(app)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -115,24 +80,22 @@ def create_app() -> FastAPI:
 
     @app.get("/system/health", tags=["System"])
     async def health_check():
-        db_status = "connected"
-        try:
-            # Ping MongoDB
-            await db_manager.client.admin.command("ping")
-        except Exception:
-            db_status = "disconnected"
+        db = db_manager.get_db()
+        db_healthy = await BackgroundGuardian.mongodb_health_check(db)
+        
+        if not db_healthy:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={
                     "status": "degraded",
-                    "db": db_status,
+                    "db": "disconnected",
                     "environment": settings.ENVIRONMENT,
                 },
             )
 
         return {
             "status": "online",
-            "db": db_status,
+            "db": "connected",
             "environment": settings.ENVIRONMENT,
             "version": "2.2.0-hardened",
             "timestamp": time.time(),

@@ -20,6 +20,7 @@ class BaseRepository(Generic[T]):
         self.db = db
         self.collection = db[collection_name]
         self.model_class = model_class
+        self.session: Optional[AsyncIOMotorClientSession] = None
 
     async def ensure_indexes(self):
         """Authoritative index enforcement hook (Point 118)."""
@@ -29,6 +30,7 @@ class BaseRepository(Generic[T]):
         self, id: str, session: Optional[AsyncIOMotorClientSession] = None, **filters
     ) -> Optional[Dict[str, Any]]:
         """Retrieve a single document by its hex ID or string ID with optional filtering."""
+        effective_session = session or self.session
         try:
             query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
         except Exception:
@@ -38,7 +40,7 @@ class BaseRepository(Generic[T]):
         if filters:
             query.update(filters)
 
-        doc = await self.collection.find_one(query, session=session)
+        doc = await self.collection.find_one(query, session=effective_session)
         return self._format_id(doc)
 
     async def find_one(
@@ -48,20 +50,24 @@ class BaseRepository(Generic[T]):
         sort=None,
     ) -> Optional[Dict[str, Any]]:
         """Find the first matching document."""
+        effective_session = session or self.session
         if sort:
-            doc = await self.collection.find_one(query, session=session, sort=sort)
+            doc = await self.collection.find_one(query, session=effective_session, sort=sort)
         else:
-            doc = await self.collection.find_one(query, session=session)
+            doc = await self.collection.find_one(query, session=effective_session)
         return self._format_id(doc)
 
     async def create(
         self, data: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None
     ) -> Dict[str, Any]:
         """Atomic document insertion with timestamping (Point 75)."""
+        effective_session = session or self.session
+        from app.core.utils import prepare_for_db
+        data = prepare_for_db(data)
         data["created_at"] = datetime.now(timezone.utc)
         data["updated_at"] = data["created_at"]
 
-        result = await self.collection.insert_one(data, session=session)
+        result = await self.collection.insert_one(data, session=effective_session)
         data["_id"] = result.inserted_id
         return self._format_id(data)
 
@@ -73,6 +79,9 @@ class BaseRepository(Generic[T]):
         **filters,
     ) -> Optional[Dict[str, Any]]:
         """Update a document and return the new version with optional filtering."""
+        effective_session = session or self.session
+        from app.core.utils import prepare_for_db
+        data = prepare_for_db(data)
         data["updated_at"] = datetime.now(timezone.utc)
 
         try:
@@ -84,7 +93,7 @@ class BaseRepository(Generic[T]):
             query.update(filters)
 
         result = await self.collection.find_one_and_update(
-            query, {"$set": data}, return_document=True, session=session
+            query, {"$set": data}, return_document=True, session=effective_session
         )
         return self._format_id(result)
 
@@ -97,7 +106,8 @@ class BaseRepository(Generic[T]):
         session: Optional[AsyncIOMotorClientSession] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve multiple documents with optional sorting and pagination."""
-        cursor = self.collection.find(query, session=session).skip(skip).limit(limit)
+        effective_session = session or self.session
+        cursor = self.collection.find(query, session=effective_session).skip(skip).limit(limit)
         if sort:
             cursor = cursor.sort(sort)
         docs = await cursor.to_list(length=limit)
@@ -109,13 +119,15 @@ class BaseRepository(Generic[T]):
         session: Optional[AsyncIOMotorClientSession] = None,
     ):
         """Authoritative aggregation hook (Point 118)."""
-        return self.collection.aggregate(pipeline, session=session)
+        effective_session = session or self.session
+        return self.collection.aggregate(pipeline, session=effective_session)
 
     async def count(
         self, query: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None
     ) -> int:
         """Atomic document counting."""
-        return await self.collection.count_documents(query, session=session)
+        effective_session = session or self.session
+        return await self.collection.count_documents(query, session=effective_session)
 
     async def update_one(
         self,
@@ -124,31 +136,33 @@ class BaseRepository(Generic[T]):
         upsert: bool = False,
         session: Optional[AsyncIOMotorClientSession] = None,
     ):
-        """Atomic single document update with automatic ID conversion."""
+        """Atomic single document update with automatic ID conversion (Point 75)."""
+        effective_session = session or self.session
         if "_id" in query and isinstance(query["_id"], str) and ObjectId.is_valid(query["_id"]):
             query["_id"] = ObjectId(query["_id"])
         
-        # Ensure updated_at is set if using $set
-        if "$set" in update:
-            update["$set"]["updated_at"] = datetime.now(timezone.utc)
-        elif "$set" not in update and not any(k.startswith("$") for k in update.keys()):
-            # If it's a direct replacement (unlikely in update_one but for safety)
-            update["updated_at"] = datetime.now(timezone.utc)
+        from app.core.utils import prepare_for_db
+        update = prepare_for_db(update)
+        # ENSURE updated_at is always set (Fixes BUG-35 for $inc/other operators)
+        if "$set" not in update:
+            update["$set"] = {}
+        update["$set"]["updated_at"] = datetime.now(timezone.utc)
 
         return await self.collection.update_one(
-            query, update, upsert=upsert, session=session
+            query, update, upsert=upsert, session=effective_session
         )
 
     async def delete(
         self, id: str, session: Optional[AsyncIOMotorClientSession] = None
     ) -> bool:
         """Physical deletion (Use with caution - Point 87)."""
+        effective_session = session or self.session
         try:
             query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
         except Exception:
             query = {"_id": id}
 
-        result = await self.collection.delete_one(query, session=session)
+        result = await self.collection.delete_one(query, session=effective_session)
         return result.deleted_count > 0
 
     def _format_id(self, doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
