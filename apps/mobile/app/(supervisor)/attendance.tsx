@@ -278,7 +278,7 @@ export default function SupervisorAttendance() {
     setCheckingOut(true);
     try {
       const projectId = (selectedProject as any).project_id || (selectedProject as any).id || (selectedProject as any)._id;
-      await attendanceApi.checkOut(projectId);
+      await attendanceApi.checkOut(projectId, {});
 
       setTodayAttendance(prev => prev ? {
         ...prev,

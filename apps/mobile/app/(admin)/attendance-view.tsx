@@ -140,6 +140,7 @@ export default function AttendanceViewScreen() {
       const end = endDate || dateFilter;
 
       const token = await authApi.getToken();
+      if (!token) throw new Error('Not authenticated');
 
       const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/v1/attendance/export?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}&vendor=${vendorFilter}&token=${token}`;
 
@@ -159,6 +160,7 @@ export default function AttendanceViewScreen() {
       const start = startDate || dateFilter;
       const end = endDate || dateFilter;
       const token = await authApi.getToken();
+      if (!token) throw new Error('Not authenticated');
 
       const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/v1/attendance/export-pdf?project_id=${projectId}&start_date=${start}&end_date=${end}&search=${supervisorSearch}&vendor=${vendorFilter}&token=${token}`;
 

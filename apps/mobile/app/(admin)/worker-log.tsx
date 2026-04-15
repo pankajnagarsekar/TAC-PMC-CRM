@@ -13,7 +13,6 @@ import {
   FlatList,
   Modal,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +20,8 @@ import { useRouter } from 'expo-router';
 import { useProject } from '../../contexts/ProjectContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
-
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { vendorsApi, workerLogsApi } from '../../services/apiClient';
+import type { Vendor as ApiVendor } from '../../types/api';
 
 interface Vendor {
   code_id: string;
@@ -54,16 +53,6 @@ export default function WorkerLogScreen() {
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState('');
 
-  // Get token helper
-  const getToken = async () => {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem('access_token');
-    }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SecureStore = require('expo-secure-store');
-    return await SecureStore.getItemAsync('access_token');
-  };
-
   // Load vendors
   useEffect(() => {
     loadVendors();
@@ -72,22 +61,15 @@ export default function WorkerLogScreen() {
 
   const loadVendors = async () => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${BASE_URL}/api/vendors`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const formattedVendors = (data || []).map((v: any) => ({
-          code_id: v.vendor_id,
-          code: v.vendor_type || '',
-          first_name: v.vendor_name || '',
-          last_name: '',
-          display_name: v.vendor_name || v.display_name || '',
-        }));
-        setVendors(formattedVendors);
-      }
+      const data = await vendorsApi.getAll(true);
+      const formattedVendors = (data || []).map((v: ApiVendor) => ({
+        code_id: v.vendor_id,
+        code: v.vendor_code || '',
+        first_name: v.vendor_name || '',
+        last_name: '',
+        display_name: v.vendor_name || '',
+      }));
+      setVendors(formattedVendors);
     } catch (error) {
       console.error('Failed to load vendors:', error);
     } finally {
@@ -172,8 +154,7 @@ export default function WorkerLogScreen() {
 
     try {
       setIsSaving(true);
-      const token = await getToken();
-      
+
       const payload = {
         project_id: selectedProject?.project_id,
         date: new Date().toISOString().split('T')[0],
@@ -186,28 +167,16 @@ export default function WorkerLogScreen() {
         total_workers: totalWorkers,
       };
 
-      const response = await fetch(`${BASE_URL}/api/worker-logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        Alert.alert(
-          'Success',
-          'Worker log saved successfully!',
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-      } else {
-        const error = await response.json();
-        Alert.alert('Error', error.detail || 'Failed to save worker log');
-      }
-    } catch (error) {
+      await workerLogsApi.create(payload);
+      Alert.alert(
+        'Success',
+        'Worker log saved successfully!',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } catch (error: unknown) {
+      const err = error as { message?: string };
       console.error('Save error:', error);
-      Alert.alert('Error', 'Failed to save worker log');
+      Alert.alert('Error', err.message || 'Failed to save worker log');
     } finally {
       setIsSaving(false);
     }
