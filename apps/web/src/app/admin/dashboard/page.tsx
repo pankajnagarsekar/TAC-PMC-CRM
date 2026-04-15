@@ -125,7 +125,7 @@ export default function AdminDashboard() {
   }, [tasks]);
 
   const totalBudget = React.useMemo(() => {
-    if (stats?.overview.master_budget) return stats.overview.master_budget;
+    if (stats?.overview?.master_budget) return stats.overview.master_budget;
     if (activeProject?.master_original_budget) return activeProject.master_original_budget;
     return (financials ?? []).reduce((sum, f) => sum + normalizeFinancial(f.original_budget), 0);
   }, [financials, activeProject, stats]);
@@ -300,11 +300,11 @@ export default function AdminDashboard() {
 
         <div className="flex items-end gap-10 mb-6 pb-6 border-b border-muted">
           <div>
-            <p className="text-4xl font-black leading-none tracking-tighter">{stats?.task_log.open_tasks ?? 0}</p>
+            <p className="text-4xl font-black leading-none tracking-tighter">{stats?.task_log?.open_tasks ?? 0}</p>
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">Open Tasks</p>
           </div>
           <div className="pb-1">
-            <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{stats?.task_log.resolved_tasks ?? 0}</p>
+            <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{stats?.task_log?.resolved_tasks ?? 0}</p>
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Resolved</p>
           </div>
         </div>
@@ -312,10 +312,10 @@ export default function AdminDashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
             <span className="text-zinc-500">Compliance Rate</span>
-            <span className="text-emerald-500">{stats?.task_log.compliance_rate ?? 0}%</span>
+            <span className="text-emerald-500">{stats?.task_log?.compliance_rate ?? 0}%</span>
           </div>
           <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000" style={{ width: `${stats?.task_log.compliance_rate ?? 0}%` }} />
+            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000" style={{ width: `${stats?.task_log?.compliance_rate ?? 0}%` }} />
           </div>
         </div>
         <Link href="/admin/scheduler?tab=analytics" className="block w-full mt-6 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
@@ -562,11 +562,11 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-4 pb-4 border-b border-muted">
                 <div>
                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Total Phases</p>
-                  <p className="text-xl font-bold">{stats?.overview.total_phases ?? '-'}</p>
+                  <p className="text-xl font-bold">{stats?.overview?.total_phases ?? '-'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Active Items</p>
-                  <p className="text-xl font-bold text-primary">{stats?.overview.active_items ?? '-'}</p>
+                  <p className="text-xl font-bold text-primary">{stats?.overview?.active_items ?? '-'}</p>
                 </div>
               </div>
 
@@ -575,7 +575,7 @@ export default function AdminDashboard() {
                   <AlertTriangle size={14} className="text-rose-500" />
                   <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">Overdue Milestones</span>
                 </div>
-                <span className="text-sm font-black text-rose-500">{stats?.overview.overdue_milestones ?? 0}</span>
+                <span className="text-sm font-black text-rose-500">{stats?.overview?.overdue_milestones ?? 0}</span>
               </div>
             </div>
           </GlassCard>

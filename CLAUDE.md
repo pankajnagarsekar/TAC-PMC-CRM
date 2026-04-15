@@ -737,6 +737,8 @@ See Ruflo.md for CLI reference.
 
 ## gstack Integration
 
+**Local Tooling**: This project uses a local copy of gstack stored in `.gstack/`.
+
 **Web Browsing**: Use `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 
 **Available Skills**:
