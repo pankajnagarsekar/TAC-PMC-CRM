@@ -5,8 +5,9 @@ Provides 30-second caching for performance optimization.
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
-
+from typing import Any, Dict, List, Optional
+from bson import ObjectId
+from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.project.infrastructure.repository import ProjectRepository
 from app.modules.reporting.domain.metrics import ProjectDashboardData
 from app.modules.reporting.application.analytics_service import AnalyticsService
@@ -138,6 +139,159 @@ class DashboardService:
         self._cache.set(cache_key, dashboard)
 
         return dashboard
+
+    async def get_project_dashboard_stats(
+        self, project_id: str, organisation_id: str
+    ) -> Dict[str, Any]:
+        """Returns aggregated statistics for the project dashboard."""
+        # 1. Fetch Master Financial State
+        master_state = await self.db.financial_state.find_one(
+            {"project_id": project_id, "category_id": "MASTER"}
+        )
+
+        # 2. Fetch Project Metadata
+        project = await self.project_repo.get_by_id(project_id)
+
+        # 3. Fetch Schedule Metadata (count tasks)
+        schedule = await self.db.project_schedules.find_one({"project_id": project_id})
+        tasks_count = len(schedule.get("tasks", [])) if schedule else 0
+
+        # 4. Construct high-level stats
+        stats = {
+            "total_budget": float(
+                FinancialEngine.to_decimal(master_state.get("original_budget", 0))
+                if master_state
+                else 0
+            ),
+            "net_committed": float(
+                FinancialEngine.to_decimal(master_state.get("committed_value", 0))
+                if master_state
+                else 0
+            ),
+            "net_certified": float(
+                FinancialEngine.to_decimal(master_state.get("certified_value", 0))
+                if master_state
+                else 0
+            ),
+            "tasks_count": tasks_count,
+            "completion_percentage": float(
+                project.get("completion_percentage", 0) if project else 0
+            ),
+            "status": project.get("status", "active") if project else "active",
+        }
+
+        return stats
+
+    async def get_financials(self, project_id: str) -> List[Any]:
+        """Fetch category-wise financial status for a project."""
+        # Fetch all financial states for this project (excluding MASTER)
+        states_cursor = self.db.financial_state.find(
+            {"project_id": project_id, "category_id": {"$ne": "MASTER"}}
+        )
+        states = await states_cursor.to_list(length=100)
+
+        # Join with category names
+        results = []
+        for s in states:
+            cat_id = s.get("category_id")
+            category = await self.db.code_master.find_one({"code": cat_id})
+            if not category and ObjectId.is_valid(str(cat_id)):
+                category = await self.db.code_master.find_one({"_id": ObjectId(str(cat_id))})
+
+            results.append(
+                {
+                    "category_id": cat_id,
+                    "category_name": category.get("category_name", "Unknown")
+                    if category
+                    else "Unknown",
+                    "budget": float(
+                        FinancialEngine.to_decimal(s.get("original_budget", 0))
+                    ),
+                    "committed": float(
+                        FinancialEngine.to_decimal(s.get("committed_value", 0))
+                    ),
+                    "certified": float(
+                        FinancialEngine.to_decimal(s.get("certified_value", 0))
+                    ),
+                    "remaining": float(
+                        FinancialEngine.to_decimal(s.get("balance_budget_remaining", 0))
+                    ),
+                    "over_commit": s.get("over_commit_flag", False),
+                }
+            )
+
+        return results
+
+    async def get_vendor_payables(self, project_id: str) -> List[Any]:
+        """Fetch outstanding amounts per vendor for a project."""
+        # Aggregate from vendor_ledger
+        pipeline = [
+            {"$match": {"project_id": project_id}},
+            {
+                "$group": {
+                    "_id": "$vendor_id",
+                    "total_certified": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$entry_type", "PC_CERTIFIED"]},
+                                "$amount",
+                                0,
+                            ]
+                        }
+                    },
+                    "total_paid": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$entry_type", "PAYMENT_MADE"]},
+                                "$amount",
+                                0,
+                            ]
+                        }
+                    },
+                    "retention_held": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$entry_type", "RETENTION_HELD"]},
+                                "$amount",
+                                0,
+                            ]
+                        }
+                    },
+                }
+            },
+        ]
+
+        agg_results = await self.db.vendor_ledger.aggregate(pipeline).to_list(length=100)
+
+        results = []
+        for r in agg_results:
+            vendor_id = r["_id"]
+            vendor = None
+            if vendor_id:
+                vendor = await self.db.vendors.find_one({"_id": vendor_id})
+                if not vendor and ObjectId.is_valid(str(vendor_id)):
+                    vendor = await self.db.vendors.find_one({"_id": ObjectId(str(vendor_id))})
+
+            certified = FinancialEngine.to_decimal(r["total_certified"])
+            paid = FinancialEngine.to_decimal(r["total_paid"])
+            outstanding = certified - paid
+
+            results.append(
+                {
+                    "vendor_id": str(vendor_id),
+                    "vendor_name": vendor.get("name", "Unknown Vendor")
+                    if vendor
+                    else "Unknown Vendor",
+                    "total_certified": float(certified),
+                    "total_paid": float(paid),
+                    "outstanding": float(outstanding),
+                    "retention_held": float(
+                        FinancialEngine.to_decimal(r["retention_held"])
+                    ),
+                }
+            )
+
+        return results
 
     def invalidate_cache(self, project_id: str, organisation_id: str) -> None:
         """
