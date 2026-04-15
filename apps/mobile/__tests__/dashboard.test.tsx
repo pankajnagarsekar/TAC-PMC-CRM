@@ -80,6 +80,8 @@ describe('Analytics Dashboard', () => {
       isDark: false,
       toggleTheme: jest.fn(),
       spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 },
+      borderRadius: { sm: 4, md: 8, lg: 12 },
+      shadows: { sm: {}, md: {}, lg: {} },
     });
     (useProject as jest.Mock).mockReturnValue({
       selectedProject: {
@@ -181,7 +183,7 @@ describe('Analytics Dashboard', () => {
       );
 
       expect(screen.getByText('Test Chart')).toBeTruthy();
-      expect(screen.getByText('120K')).toBeTruthy();
+      expect(screen.getByText('120.0K')).toBeTruthy();
     });
 
     test('calculates trend correctly', () => {

@@ -4,6 +4,12 @@
 
 require('react-native-gesture-handler/jestSetup');
 
+// AsyncStorage native module is null in Jest (no native bridge)
+// Mock it to prevent suite-level failures in components that import ThemeContext
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 // Reanimated v4 built-in mock
 jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock')

@@ -2,7 +2,7 @@
 // Uses Reanimated animated style for synchronized horizontal scroll with the Gantt body.
 
 import React from 'react';
-import Animated, { useAnimatedStyle, useAnimatedProps } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { Svg, Line, Text as SvgText } from 'react-native-svg';
 import { format, addDays } from 'date-fns';
@@ -25,7 +25,7 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
   const { colors } = useTheme();
 
   // Compute SVG width dynamically based on dayWidth (responsive to pinch zoom)
-  const animatedSvgProps = useAnimatedProps(() => ({
+  const animatedWidthStyle = useAnimatedStyle(() => ({
     width: timeline.dayCount * dayWidth.value,
   }));
 
@@ -34,7 +34,7 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
   }));
 
   // Render tick marks every 7 days for clarity at all zoom levels
-  const ticks: { x: number; label: string }[] = [];
+  const ticks: { dayIndex: number; label: string }[] = [];
   for (let i = 0; i < timeline.dayCount; i += 7) {
     const date = addDays(timeline.start, i);
     // Tick x position scales with dayWidth
@@ -53,7 +53,7 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
         animatedStyle,
       ]}
     >
-      <Animated.View animatedProps={animatedSvgProps} style={{ height: HEADER_HEIGHT }}>
+      <Animated.View style={[{ height: HEADER_HEIGHT }, animatedWidthStyle]}>
         <Svg height={HEADER_HEIGHT}>
           {ticks.map(({ dayIndex, label }) => (
             <React.Fragment key={dayIndex}>

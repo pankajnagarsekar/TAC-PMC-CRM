@@ -74,7 +74,6 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
           <FlashList
             data={tasks}
             keyExtractor={(item) => item.task_id}
-            estimatedItemSize={ROW_HEIGHT}
             renderItem={({ item }) => (
               <GanttBar
                 task={item}

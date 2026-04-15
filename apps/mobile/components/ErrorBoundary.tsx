@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   devSection: {
     width: '100%',
-    backgroundColor: Colors.light,
+    backgroundColor: Colors.background,
     borderRadius: 8,
     padding: Spacing.md,
     marginBottom: Spacing.md,

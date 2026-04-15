@@ -223,8 +223,8 @@ function unwrapGenericResponse<T>(data: unknown): T {
     return validated.data as T;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('[ResponseValidation] Failed to validate API response:', error.errors);
-      throw new Error(`Invalid API response structure: ${error.errors.map(e => `${e.path}: ${e.code}`).join(', ')}`);
+      console.error('[ResponseValidation] Failed to validate API response:', error.issues);
+      throw new Error(`Invalid API response structure: ${error.issues.map((e: { path: unknown; code: string }) => `${e.path}: ${e.code}`).join(', ')}`);
     }
     throw error;
   }

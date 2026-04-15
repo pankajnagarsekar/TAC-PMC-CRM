@@ -90,7 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = useCallback(async (credentials: LoginRequest): Promise<User> => {
     setState((prev: AuthState) => ({ ...prev, isLoading: true }));
     try {
-      if (__DEV__) console.log('[Auth] Login attempt for user:', credentials.username);
+      if (__DEV__) console.log('[Auth] Login attempt for user:', credentials.email);
       const response = await authApi.login(credentials);
       setState({
         user: response.user,

@@ -75,7 +75,6 @@ export function SchedulerList({ tasks }: SchedulerListProps) {
     <FlashList
       data={tasks}
       keyExtractor={(item) => item.task_id}
-      estimatedItemSize={60}
       renderItem={({ item }) => <TaskRow item={item} colors={colors} dynamicStyles={dynamicStyles} />}
     />
   );

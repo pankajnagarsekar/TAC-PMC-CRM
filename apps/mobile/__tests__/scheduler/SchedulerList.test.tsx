@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { SchedulerList } from '../../components/scheduler/SchedulerList';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 import type { ScheduleTask } from '../../types/api';
 
 // Mock @shopify/flash-list to render children as a plain View to avoid native measurement
@@ -50,14 +51,14 @@ const fixture3: ScheduleTask[] = [
 
 describe('SchedulerList', () => {
   it('renders all 3 task names', () => {
-    render(<SchedulerList tasks={fixture3} />);
+    render(<ThemeProvider><SchedulerList tasks={fixture3} /></ThemeProvider>);
     expect(screen.getByText('Foundation Work')).toBeTruthy();
     expect(screen.getByText('Structural Steel')).toBeTruthy();
     expect(screen.getByText('Roof Tiling')).toBeTruthy();
   });
 
   it('critical task row has red left border style applied', () => {
-    const { getByTestId } = render(<SchedulerList tasks={fixture3} />);
+    const { getByTestId } = render(<ThemeProvider><SchedulerList tasks={fixture3} /></ThemeProvider>);
     const criticalRow = getByTestId('critical-task-row');
     const style = Array.isArray(criticalRow.props.style)
       ? Object.assign({}, ...criticalRow.props.style)
@@ -67,7 +68,7 @@ describe('SchedulerList', () => {
   });
 
   it('shows empty state when no tasks', () => {
-    render(<SchedulerList tasks={[]} />);
+    render(<ThemeProvider><SchedulerList tasks={[]} /></ThemeProvider>);
     expect(screen.getByText('No scheduled tasks yet')).toBeTruthy();
   });
 });

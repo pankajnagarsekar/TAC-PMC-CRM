@@ -2,7 +2,8 @@
 // Input fields: name (TextInput), status (Picker), duration (TextInput)
 
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, Picker } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import type { ScheduleTask, ScheduleTaskStatus } from '../../types/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import { STATUS_LABELS } from './scheduler-constants';
@@ -54,7 +55,7 @@ export function TaskForm({
         <View style={[styles.pickerContainer, dynamicStyles.pickerContainer]}>
           <Picker
             selectedValue={editState.status ?? task.status}
-            onValueChange={(value) => onEditStateChange({ status: value })}
+            onValueChange={(value: ScheduleTaskStatus) => onEditStateChange({ status: value })}
             style={[styles.picker, { color: colors.text }]}
           >
             {STATUS_OPTIONS.map((status) => (

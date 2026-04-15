@@ -5,6 +5,9 @@ module.exports = {
   setupFiles: [
     require.resolve('./jest-shims/expo-global-setup.js'),
   ],
+  setupFilesAfterEnv: [
+    require.resolve('./jest.setup.js'),
+  ],
   transformIgnorePatterns: [
     '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@shopify/flash-list|react-native-svg|react-native-gesture-handler|react-native-reanimated|react-native-worklets))',
     '/node_modules/react-native-reanimated/plugin/',
