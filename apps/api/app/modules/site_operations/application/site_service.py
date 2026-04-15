@@ -153,7 +153,6 @@ class SiteService:
             entity_id=dpr_id,
             data=snapshot_data,
             organisation_id=user["organisation_id"],
-            pdf_bytes=pdf_bytes,
             user_id=user["user_id"],
         )
 
@@ -280,13 +279,20 @@ class SiteService:
         )
 
     async def list_project_dprs(
-        self, user: dict, project_id: str, limit: int = 100
+        self, user: dict, project_id: str, limit: int = 100, filters: dict = None
     ) -> List[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
+        query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
+
+        if filters:
+            if filters.get("date_range"):
+                start, end = filters["date_range"]
+                query["dpr_date"] = {"$gte": start, "$lte": end}
+
         return await self.dpr_repo.list(
-            {"project_id": project_id, "organisation_id": user["organisation_id"]},
+            query,
             limit=limit,
-            sort=[("date", -1)],
+            sort=[("dpr_date", -1)],
         )
 
     async def get_dpr_detail(self, user: dict, dpr_id: str) -> Dict[str, Any]:

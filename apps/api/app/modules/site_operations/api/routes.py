@@ -89,6 +89,26 @@ async def list_project_dprs(
     return GenericResponse(data=result)
 
 
+@router.get(
+    "/dprs/",
+    response_model=GenericResponse[List[Any]],
+    tags=["Site Operations"],
+)
+async def list_dprs(
+    project_id: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    """List DPRs for a project with optional date range filter."""
+    filters = {}
+    if start_date and end_date:
+        filters["date_range"] = (start_date, end_date)
+    result = await site_service.list_project_dprs(user, project_id, filters=filters)
+    return GenericResponse(data=result)
+
+
 @router.post(
     "/dprs/",
     response_model=GenericResponse[Any],
