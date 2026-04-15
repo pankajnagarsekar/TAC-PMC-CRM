@@ -209,7 +209,7 @@ const storage = {
 const GenericResponseSchema = z.object({
   data: z.unknown(),
   success: z.boolean(),
-  status_code: z.number(),
+  status_code: z.number().optional(),
   timestamp: z.string().optional(),
 });
 
@@ -609,6 +609,11 @@ export const tasksApi = {
     request(`/api/v1/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   getAISummary: (projectId: string): Promise<TaskAISummary> =>
     request(`/api/v1/tasks/ai-summary?project_id=${projectId}`),
+  create: (projectId: string, data: Partial<Task>): Promise<Task> =>
+    request(`/api/v1/tasks/?project_id=${projectId}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
 };
 
 // ============================================

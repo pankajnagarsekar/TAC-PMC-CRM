@@ -114,11 +114,6 @@ class AuthService:
 
     async def login(self, login_data: LoginRequest) -> Token:
         user = await self.user_repo.get_by_email(login_data.email)
-        print(f"DEBUG_LOGIN: Email: {login_data.email} | Found: {bool(user)}")
-        if user:
-            verified = self.verify_password(login_data.password, user["hashed_password"])
-            print(f"DEBUG_LOGIN: Verification result: {verified}")
-            
         if not user or not self.verify_password(
             login_data.password, user["hashed_password"]
         ):

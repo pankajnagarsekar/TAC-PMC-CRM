@@ -116,7 +116,7 @@ export default function AdminProjectsScreen() {
   };
 
   const toggleExpand = (projectId: string) => {
-    setExpandedProject(expandedProject === projectId ? null : projectId);
+    setExpandedProject(prev => prev === projectId ? null : projectId);
   };
 
   const getCompletionColor = (pct: number) => {
@@ -143,13 +143,11 @@ export default function AdminProjectsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Page Header */}
         <View style={styles.pageHeader}>
           <Text style={styles.pageTitle}>Projects Overview</Text>
           <Text style={styles.pageSubtitle}>Tap a project to set it as active</Text>
         </View>
 
-        {/* Summary Strip */}
         <Card variant="glass" style={styles.summaryStrip} padding="none">
           <View style={styles.summaryItem}>
             <Ionicons name="business" size={20} color={Colors.primary} />
@@ -176,7 +174,6 @@ export default function AdminProjectsScreen() {
           </View>
         </Card>
 
-        {/* Project Cards */}
         {fetchError ? (
           <View style={styles.emptyState}>
             <Ionicons name="warning-outline" size={64} color="#ef4444" />
@@ -202,7 +199,6 @@ export default function AdminProjectsScreen() {
                 style={[styles.projectCard, isSelected && styles.projectCardSelected]}
                 padding="none"
               >
-                {/* Card Header */}
                 <Pressable
                   style={styles.cardHeader}
                   onPress={() => {
@@ -217,14 +213,12 @@ export default function AdminProjectsScreen() {
                     )}
                   </View>
                   <View style={styles.cardHeaderRight}>
-                    {/* Selected badge */}
                     {isSelected && (
                       <View style={[styles.selectedBadge, { backgroundColor: Colors.primary }]}>
                         <Ionicons name="checkmark-circle" size={16} color="white" />
                         <Text style={styles.selectedBadgeText}>Active</Text>
                       </View>
                     )}
-                    {/* Completion badge */}
                     <View style={[styles.completionBadge, { backgroundColor: completionColor + '15' }]}>
                       <Text style={[styles.completionText, { color: completionColor }]}>
                         {project.completion_pct}%
@@ -238,7 +232,6 @@ export default function AdminProjectsScreen() {
                   </View>
                 </Pressable>
 
-                {/* Completion Progress Bar */}
                 <View style={styles.progressBarContainer}>
                   <View style={styles.progressBarBg}>
                     <View
@@ -253,7 +246,6 @@ export default function AdminProjectsScreen() {
                   </View>
                 </View>
 
-                {/* Quick Stats Row */}
                 <View style={styles.quickStats}>
                   <View style={styles.quickStatItem}>
                     <Text style={styles.quickStatValue}>{formatCurrency(project.budget.total_master)}</Text>
@@ -280,12 +272,9 @@ export default function AdminProjectsScreen() {
                   </View>
                 </View>
 
-                {/* Expanded Detail Section */}
                 {isExpanded && (
                   <View style={styles.expandedSection}>
                     <View style={styles.divider} />
-
-                    {/* Budget Breakdown */}
                     <Text style={styles.sectionLabel}>Budget Breakdown</Text>
                     <View style={styles.budgetGrid}>
                       <View style={styles.budgetRow}>
@@ -306,15 +295,8 @@ export default function AdminProjectsScreen() {
                           {formatCurrency(project.budget.total_remaining)}
                         </Text>
                       </View>
-                      {project.petty_cash_total > 0 && (
-                        <View style={styles.budgetRow}>
-                          <Text style={styles.budgetRowLabel}>Petty Cash Used</Text>
-                          <Text style={[styles.budgetRowValue, { color: Colors.warning }]}>{formatCurrency(project.petty_cash_total)}</Text>
-                        </View>
-                      )}
                     </View>
 
-                    {/* Category Breakdown */}
                     {project.budget.categories.length > 0 && (
                       <>
                         <Text style={[styles.sectionLabel, { marginTop: Spacing.md }]}>Category Wise</Text>
@@ -334,7 +316,6 @@ export default function AdminProjectsScreen() {
 
                     <View style={styles.divider} />
 
-                    {/* Action Buttons */}
                     <View style={styles.actionRow}>
                       <Pressable
                         style={styles.actionBtn}
@@ -388,13 +369,9 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: Spacing.md, color: Colors.textSecondary, fontFamily: 'Inter_500Medium' },
   scrollContent: { padding: Spacing.md, paddingBottom: 100 },
-
-  // Page header
   pageHeader: { marginBottom: Spacing.lg },
   pageTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
   pageSubtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 4, fontFamily: 'Inter_400Regular' },
-
-  // Summary strip
   summaryStrip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -405,12 +382,9 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   summaryValue: { fontSize: FontSizes.lg, fontWeight: '800', color: Colors.text, fontFamily: 'Inter_800ExtraBold' },
   summaryLabel: { fontSize: 9, color: Colors.textSecondary, textTransform: 'uppercase', fontWeight: '800', fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.5 },
   summaryDivider: { width: 1, height: 24, backgroundColor: Colors.border, opacity: 0.5 },
-
-  // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 80 },
   emptyTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.md, fontFamily: 'Inter_600SemiBold' },
   emptySubtitle: { fontSize: FontSizes.md, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center', fontFamily: 'Inter_400Regular' },
-
   projectCard: {
     marginBottom: Spacing.lg,
     borderWidth: 0,
@@ -424,43 +398,30 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   projectName: { fontSize: FontSizes.lg, fontWeight: '800', color: Colors.text, fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.5 },
   projectCode: { fontSize: 10, color: Colors.textSecondary, marginTop: 2, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 },
-
-  // Selection badge
   selectedBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full, gap: 4 },
   selectedBadgeText: { fontSize: 10, fontWeight: '700', color: 'white', fontFamily: 'Inter_700Bold' },
-  // Completion
   completionBadge: { paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.full },
   completionText: { fontSize: FontSizes.sm, fontWeight: '800', fontFamily: 'Inter_800ExtraBold' },
   progressBarContainer: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
   progressBarBg: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
   progressBarFill: { height: 8, borderRadius: 0, minWidth: 4 },
-
-  // Quick stats
   quickStats: { flexDirection: 'row', paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.xs },
   quickStatItem: { flex: 1, alignItems: 'center' },
   quickStatValue: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, fontFamily: 'Inter_700Bold' },
   quickStatLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 4, textTransform: 'uppercase', fontFamily: 'Inter_600SemiBold' },
-
-  // Expanded section
   expandedSection: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg },
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
   sectionLabel: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', marginBottom: Spacing.md, fontFamily: 'Inter_700Bold' },
-
-  // Budget grid
   budgetGrid: { gap: Spacing.sm },
   budgetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   budgetRowLabel: { fontSize: FontSizes.sm, color: Colors.textSecondary, fontFamily: 'Inter_400Regular' },
   budgetRowValue: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
-
-  // Category breakdown
   categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   categoryNameCol: { flex: 2 },
   categoryName: { fontSize: FontSizes.sm, color: Colors.text, fontFamily: 'Inter_500Medium' },
   categoryValCol: { flex: 1, alignItems: 'flex-end' },
   categoryApproved: { fontSize: FontSizes.xs, fontWeight: '600', color: Colors.text, fontFamily: 'Inter_600SemiBold' },
   categoryRemaining: { fontSize: 10, color: Colors.textMuted, marginTop: 2, fontFamily: 'Inter_400Regular' },
-
-  // Action Row
   actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
   actionBtn: {
     flex: 1,

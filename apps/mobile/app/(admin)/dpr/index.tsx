@@ -68,6 +68,14 @@ export default function AdminDPRListScreen() {
     if (projectId) loadDPRs();
   }, [loadDPRs, projectId]);
 
+  // Refresh when screen focused
+  const { useFocusEffect } = require('expo-router');
+  useFocusEffect(
+    React.useCallback(() => {
+      if (projectId) loadDPRs();
+    }, [projectId, loadDPRs])
+  );
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'approved': return Colors.success;
@@ -79,6 +87,7 @@ export default function AdminDPRListScreen() {
   };
 
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   };
@@ -89,7 +98,7 @@ export default function AdminDPRListScreen() {
       await dprApi.approve(dprId);
       // Immediate UI update
       setDprs(prev => prev.map(dpr =>
-        dpr.dpr_id === dprId ? { ...dpr, status: 'Approved' } : dpr
+        (dpr.dpr_id === dprId || (dpr as any).id === dprId) ? { ...dpr, status: 'Approved' } : dpr
       ));
     } catch (error: any) {
       console.error('Error approving DPR:', error);
@@ -99,53 +108,63 @@ export default function AdminDPRListScreen() {
     }
   };
 
-  const renderDPR = ({ item }: { item: DPR }) => (
-    <TouchableOpacity onPress={() => router.push(`/(admin)/dpr/${item.dpr_id}`)}>
-      <Card style={styles.dprCard}>
-        <View style={styles.dprHeader}>
-          <View>
-            <Text style={styles.dprDate}>{formatDate(item.dpr_date)}</Text>
-            <Text style={styles.dprCreator}>
-              by {item.created_by_name || 'Unknown'} ({item.created_by_role || 'N/A'})
-            </Text>
-          </View>
-          <View style={styles.statusContainer}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                {item.status}
+  const renderDPR = ({ item }: { item: DPR }) => {
+    const dprId = item.dpr_id || (item as any).id || (item as any)._id;
+
+    return (
+      <TouchableOpacity onPress={() => {
+        if (!dprId) {
+          Alert.alert('Error', 'Invalid DPR ID');
+          return;
+        }
+        router.push(`/(admin)/dpr/${dprId}`);
+      }}>
+        <Card style={styles.dprCard}>
+          <View style={styles.dprHeader}>
+            <View>
+              <Text style={styles.dprDate}>{formatDate(item.dpr_date)}</Text>
+              <Text style={styles.dprCreator}>
+                by {item.created_by_name || 'Unknown'} ({item.created_by_role || 'N/A'})
               </Text>
             </View>
-            {item.status?.toLowerCase() === 'submitted' && (
-              <TouchableOpacity
-                style={styles.quickApproveBtn}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  approveDPR(item.dpr_id);
-                }}
-                disabled={approvingId === item.dpr_id}
-              >
-                {approvingId === item.dpr_id ? (
-                  <ActivityIndicator size="small" color={Colors.success} />
-                ) : (
-                  <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
-                )}
-              </TouchableOpacity>
-            )}
+            <View style={styles.statusContainer}>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                  {item.status}
+                </Text>
+              </View>
+              {item.status?.toLowerCase() === 'submitted' && (
+                <TouchableOpacity
+                  style={styles.quickApproveBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (dprId) approveDPR(dprId);
+                  }}
+                  disabled={approvingId === dprId}
+                >
+                  {approvingId === dprId ? (
+                    <ActivityIndicator size="small" color={Colors.success} />
+                  ) : (
+                    <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
-        {item.progress_notes && (
-          <Text style={styles.dprNotes} numberOfLines={2}>{item.progress_notes}</Text>
-        )}
-        <View style={styles.dprMeta}>
-          <View style={styles.metaItem}>
-            <Ionicons name="camera" size={16} color={Colors.textMuted} />
-            <Text style={styles.metaText}>{item.images_count || 0} photos</Text>
+          {item.progress_notes && (
+            <Text style={styles.dprNotes} numberOfLines={2}>{item.progress_notes}</Text>
+          )}
+          <View style={styles.dprMeta}>
+            <View style={styles.metaItem}>
+              <Ionicons name="camera" size={16} color={Colors.textMuted} />
+              <Text style={styles.metaText}>{item.images_count || 0} photos</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
           </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
   if (!selectedProject) {
     return (

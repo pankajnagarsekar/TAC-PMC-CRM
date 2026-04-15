@@ -28,7 +28,7 @@
 
 ## Milestone 6: Application Stabilization & Scheduler Remediation (Active)
 - [/] Phase 15: project-scheduler-redesign
-- [ ] Phase 16: critical-fixes-restoration
+- [x] Phase 16: critical-fixes-restoration
 - [ ] Phase 17: Production Verification & Performance Tuning
 
 ## Milestone 7: CRM Enterprise Features - Financial Track C (Active)

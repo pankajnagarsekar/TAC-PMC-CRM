@@ -63,6 +63,7 @@ export default function AdminSettings() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Work Management</Text>
           <Card padding="none">
+            <SettingsItem icon="calendar" title="Scheduler" onPress={() => router.push('/(admin)/scheduler')} Colors={Colors} styles={styles} />
             <SettingsItem icon="checkmark-circle" title="Tasks" onPress={() => router.push('/(admin)/tasks')} Colors={Colors} styles={styles} />
           </Card>
         </View>

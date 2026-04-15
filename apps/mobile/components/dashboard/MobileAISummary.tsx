@@ -41,13 +41,14 @@ export function MobileAISummary() {
       setLoading((prev) => ({ ...prev, [type]: true }));
       try {
         // Stream AI summary from backend
+        const token = await apiClient.auth.getToken();
         const response = await fetch(
           `${process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/v1/reporting/${selectedProject.project_id}/ai-summary/stream/${type}`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
+              Authorization: `Bearer ${token || ''}`,
             },
           }
         );
@@ -115,8 +116,8 @@ export function MobileAISummary() {
                   type === 'schedule'
                     ? 'calendar-outline'
                     : type === 'financial'
-                    ? 'trending-up-outline'
-                    : 'people-outline'
+                      ? 'trending-up-outline'
+                      : 'people-outline'
                 }
                 size={16}
                 color={Colors.primary}

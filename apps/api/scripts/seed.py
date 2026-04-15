@@ -46,6 +46,12 @@ async def seed():
         },
         {
             "name": "Amit - Admin",
+            "email": "amit@thirdangleconcepts.com",
+            "password": "Admin@1234",
+            "role": "Admin",
+        },
+        {
+            "name": "Amit - Admin (Singular)",
             "email": "amit@thirdangleconcept.com",
             "password": "Admin@1234",
             "role": "Admin",

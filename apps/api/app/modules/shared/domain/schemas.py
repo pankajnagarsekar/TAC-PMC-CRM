@@ -99,6 +99,7 @@ T = TypeVar("T")
 
 class GenericResponse(BaseModel, Generic[T]):
     success: bool = True
+    status_code: int = 200
     message: Optional[str] = None
     data: Optional[T] = None
 
