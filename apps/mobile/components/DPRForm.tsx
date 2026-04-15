@@ -383,20 +383,22 @@ export default function DPRForm({
                 }
 
                 showAlert('Success', `DPR submitted!\n\nFilename: ${fileName}`, onSuccess);
-              } catch (mobileError) {
+              } catch (mobileError: unknown) {
+                const mErr = mobileError as { message?: string };
                 console.error('Mobile PDF error:', mobileError);
                 showAlert(
-                  'Success',
-                  `DPR submitted successfully!\n\nFilename: ${submitData.file_name}`,
+                  'DPR Submitted',
+                  `DPR submitted but PDF could not be saved: ${mErr.message || 'unknown error'}`,
                   onSuccess
                 );
               }
             }
-          } catch (downloadError) {
+          } catch (downloadError: unknown) {
+            const dErr = downloadError as { message?: string };
             console.error('PDF download error:', downloadError);
             showAlert(
-              'Success',
-              `DPR submitted successfully!\n\nFilename: ${submitData.file_name}`,
+              'DPR Submitted',
+              `DPR submitted but PDF download failed: ${dErr.message || 'unknown error'}`,
               onSuccess
             );
           }

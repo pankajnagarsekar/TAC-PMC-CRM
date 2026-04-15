@@ -497,6 +497,7 @@ export interface CreateVoiceLogRequest {
   project_id: string;
   code_id: string;
   audio_base64: string;
+  duration_seconds: number;
 }
 
 // ============================================
