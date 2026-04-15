@@ -34,12 +34,16 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
             # 2. PATH EXCLUSION CHECK
             if request.url.path not in ["/docs", "/redoc", "/openapi.json"]:
                 try:
-                    # Custom tiering could be added based on route
-                    tier = (
-                        "Heavy"
-                        if "export" in request.url.path or "report" in request.url.path
-                        else "Standard"
-                    )
+                    # Tier routing: PDF/Excel file downloads → Export (30/min)
+                    # Report/analytics data endpoints → Heavy (200/min)
+                    # Everything else → Standard (60/s)
+                    path = request.url.path
+                    if "export/pdf" in path or "export/excel" in path or "export-pdf" in path:
+                        tier = "Export"
+                    elif "export" in path or "report" in path:
+                        tier = "Heavy"
+                    else:
+                        tier = "Standard"
                     await limiter.check(identity, tier=tier)
                 except HTTPException as he:
                     return self._standard_error(
@@ -85,6 +89,7 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
                 logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
                 error_msg = f"SYSTEM_FAULT: {str(exc)}"
                 
+            logger.error(f"API_ERROR: {error_msg} | Path: {request.url.path} | ID: {request_id}")
             return self._standard_error(
                 status_code,
                 error_msg,

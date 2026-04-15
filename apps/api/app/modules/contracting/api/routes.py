@@ -220,37 +220,57 @@ async def export_work_order_pdf(
     from app.core.template_export_service import TemplateExportService
     from app.core.dependencies import get_db, get_settings_service
 
+    from fastapi import HTTPException as _HTTPException
     wo = await wo_service.get_work_order(user, wo_id)
-    
-    # Bridge data for exact export
-    vendor = await vendor_service.get_vendor(user, wo.get("vendor_id"))
-    wo["vendor"] = vendor
-    
-    # Fetch Category (CodeMaster) info
+
+    # Vendor — guard None vendor_id
+    vendor_id = wo.get("vendor_id")
+    if vendor_id:
+        try:
+            wo["vendor"] = await vendor_service.get_vendor(user, vendor_id)
+        except Exception:
+            wo["vendor"] = {"name": wo.get("vendor_name", ""), "gst_no": ""}
+    else:
+        wo["vendor"] = {"name": wo.get("vendor_name", ""), "gst_no": ""}
+
+    # Category (CodeMaster) — guard None category_id
     from app.modules.financial.application.master_data_service import MasterDataService
     db = await get_db()
-    md_service = MasterDataService(db, None, None) # Minimal instantiation for code fetch
-    category = await md_service.get_code_by_id(user, wo.get("category_id"))
-    wo["category"] = category
-    wo["code"] = category.get("code", "") if category else ""
-    
-    # Set default dates for template
+    category_id = wo.get("category_id")
+    if category_id:
+        try:
+            md_service = MasterDataService(db, None, None)
+            category = await md_service.get_code_by_id(user, category_id)
+            wo["category"] = category
+            wo["code"] = category.get("code", "") if category else ""
+        except Exception:
+            wo["category"] = {}
+            wo["code"] = wo.get("code", "")
+    else:
+        wo["category"] = {}
+        wo["code"] = wo.get("code", "")
+
+    # Default date
     if "wo_date" not in wo:
-        wo["wo_date"] = wo.get("created_at")
-    
-    # Get Company/Organisation details
+        wo["wo_date"] = wo.get("created_at", "")
+
+    # Company / Organisation details
     settings = await db.organisation_settings.find_one({"organisation_id": user["organisation_id"]})
     if settings and "company_profile" in settings:
         wo["company"] = settings["company_profile"]
     else:
-        # Try finding the organisation name directly as a fallback
         from bson import ObjectId
         query = {"_id": ObjectId(user["organisation_id"])} if ObjectId.is_valid(user["organisation_id"]) else {"organisation_id": user["organisation_id"]}
         org = await db.organisations.find_one(query)
-        wo["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": "Site Address"}
-    
-    pdf_bytes = TemplateExportService.export_work_order_exact(wo, fmt="pdf")
-    
+        wo["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": ""}
+
+    try:
+        pdf_bytes = TemplateExportService.export_work_order_exact(wo, fmt="pdf")
+    except Exception as exc:
+        import logging as _logging
+        _logging.getLogger(__name__).error(f"WO PDF generation failed for {wo_id}: {exc}", exc_info=True)
+        raise _HTTPException(status_code=500, detail=f"PDF generation failed: {exc}")
+
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

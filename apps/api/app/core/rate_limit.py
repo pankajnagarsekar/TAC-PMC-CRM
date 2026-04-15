@@ -18,7 +18,8 @@ class RateLimiter:
         # TIERS (Point 5)
         self.TIERS = {
             "Standard": {"rate": 60, "window": 1.0},
-            "Heavy": {"rate": 20, "window": 60.0},  # For exports/reports
+            "Heavy": {"rate": 200, "window": 60.0},   # Reports/analytics pages (raised: was 20)
+            "Export": {"rate": 30, "window": 60.0},    # PDF/Excel file downloads
             "Admin": {"rate": 100, "window": 1.0},
         }
 
