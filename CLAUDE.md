@@ -711,6 +711,18 @@ See Ruflo.md for CLI reference.
 - **Tasks**: Kanban + logs + summaries
 - **Design**: Luxury Industrial; see `packages/ui`
 
+## Context Navigation
+
+**When you need to understand the codebase, docs, or any files in this project:**
+
+1. **ALWAYS query the knowledge graph first:** `/graphify query "your question"`
+2. **Only read raw files** if you explicitly say "read the file" or "look at the raw file"
+3. **Use `graphify-out/wiki/index.md`** as your navigation entrypoint for browsing structure
+
+**Why?** Knowledge graph is 100x cheaper, faster, and gives better insights than grepping/reading files.
+
+---
+
 ## Knowledge Graph Tooling (graphiphy)
 
 **IMPORTANT:** Use knowledge graph in `graphify-out/` to understand flow & structure. Faster, cheaper, deep insights.
@@ -723,15 +735,16 @@ See Ruflo.md for CLI reference.
 - **Architecture**: Community detection in `GRAPH_REPORT.md`
 
 ### Key Knowledge Files
-- `graphify-out/graph.json`: Structural data for programmatic analysis.
-- `graphify-out/graph.html`: Visual exploration of dependencies.
-- `graphify-out/GRAPH_REPORT.md`: Summary of communities, God nodes, and knowledge gaps.
+- `graphify-out/graph.json`: Structural data for programmatic analysis (33K nodes, 131K edges, 566 communities).
+- `graphify-out/graph.html`: Interactive D3 visualization (draggable nodes, hover for labels).
+- `graphify-out/GRAPH_REPORT.md`: Executive summary with god nodes, centrality analysis, architectural insights.
 
 ### Workflow
 
-1. Refresh graph on structural changes
-2. Use graph before Grep/Glob
+1. Query graph before grepping/reading files
+2. Use graph to understand impact & dependencies
 3. Verify new code aligns w/ communities
+4. Refresh graph after major structural changes
 
 ---
 
