@@ -1,0 +1,16 @@
+node_modules/
+.next/
+dist/
+build/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+apps/api/Python/
+test-results/
+.turbo/
+.git/
+.env*
+*.log
+coverage/
