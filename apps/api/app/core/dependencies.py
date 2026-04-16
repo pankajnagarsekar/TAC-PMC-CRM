@@ -99,6 +99,10 @@ async def get_authenticated_user(
     if user and "user_id" not in user:
         user["user_id"] = user.get("id") or user_id
 
+    # Ensure organisation_id exists (prevents downstream 500 on list_clients)
+    if user and "organisation_id" not in user:
+        user["organisation_id"] = user.get("organisation_id") or ""
+
     return user
 
 

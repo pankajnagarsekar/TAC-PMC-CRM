@@ -140,8 +140,14 @@ async def list_clients(
     client_service: ClientService = Depends(get_client_service),
 ):
     """List all clients within the organisation with pagination support."""
-    clients = await client_service.list_clients(user["organisation_id"], skip=skip, limit=limit)
-    return GenericResponse(data=clients)
+    try:
+        if not user or not user.get("organisation_id"):
+            raise ValueError("Missing organisation_id in user context")
+        clients = await client_service.list_clients(user["organisation_id"], skip=skip, limit=limit)
+        return GenericResponse(data=clients)
+    except Exception as e:
+        logger.error(f"LIST_CLIENTS_ERROR: {str(e)}", exc_info=True)
+        raise
 
 
 @router.post(
