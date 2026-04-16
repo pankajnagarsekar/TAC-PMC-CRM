@@ -82,3 +82,6 @@ desktop.ini
 
 # GStack
 .gstack/
+
+# Graphify
+graphify-out/
