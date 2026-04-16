@@ -241,6 +241,29 @@ async def submit_dpr(
     return GenericResponse(data=result, message="DPR submitted successfully")
 
 
+@router.get(
+    "/dprs/{dpr_id}/generate-pdf",
+    tags=["Site Operations"],
+)
+async def generate_dpr_pdf(
+    dpr_id: str,
+    token: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    site_service: SiteService = Depends(get_site_service),
+):
+    """Generate and download DPR PDF."""
+    from fastapi.responses import StreamingResponse
+    import io
+    
+    pdf_bytes = await site_service.get_dpr_pdf(user, dpr_id)
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=DPR_{dpr_id}.pdf"}
+    )
+
+
 # --- ATTENDANCE ENDPOINTS ---
 
 

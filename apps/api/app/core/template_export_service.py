@@ -64,7 +64,7 @@ class TemplateExportService(ExportService):
         ws["B3"] = vendor.get("address_line1", "")
         ws["B4"] = vendor.get("address_line2", "")
         ws["B5"] = vendor.get("address_line3", "")
-        ws["C7"] = vendor.get("gst_no", "-")
+        ws["C7"] = vendor.get("gstin") or vendor.get("gst_no") or "-"
         
         ws["E4"] = data.get("wo_ref", "")
         wo_date = data.get("wo_date", "")
@@ -152,7 +152,7 @@ class TemplateExportService(ExportService):
         pc_date = data.get("pc_date", "")
         ws["G6"] = pc_date.strftime("%d-%b-%Y") if isinstance(pc_date, datetime) else str(pc_date)
         
-        ws["C7"] = vendor.get("gst_no", "-")
+        ws["C7"] = vendor.get("gstin") or vendor.get("gst_no") or "-"
         ws["G7"] = data.get("wo_ref", "")
         
         # PC Items typically start at row 10 (Sr No is row 9)

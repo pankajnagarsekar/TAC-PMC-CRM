@@ -237,16 +237,22 @@ class ExportService:
                 </html>
             """)
  
-        html_out = template.render(
-            report_title=report_data.get("title", report_type.replace("_", " ").title()),
-            rows=report_data.get("rows", []),
-            columns=config.get("columns", []),
-            totals=report_data.get("totals", {}),
-            metadata=report_data.get("metadata", {}),
-            company=company_info or {"name": "TAC PMC", "address": "Sovereign HQ"},
-            now=now().strftime("%Y-%m-%d %H:%M:%S"),
-            **report_data # Pass all other fields (tasks, months, etc.) for specialized templates
-        )
+        # Build context — explicit keys take priority; extra keys from report_data
+        # (e.g. tasks, months for specialized templates) are merged in without
+        # duplicating the named keys (which would cause a TypeError).
+        context: dict = {
+            "report_title": report_data.get("title", report_type.replace("_", " ").title()),
+            "rows": report_data.get("rows", []),
+            "columns": config.get("columns", []),
+            "totals": report_data.get("totals", {}),
+            "metadata": report_data.get("metadata", {}),
+            "company": company_info or {"name": "TAC PMC", "address": "Sovereign HQ"},
+            "now": now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for k, v in report_data.items():
+            if k not in context:
+                context[k] = v
+        html_out = template.render(**context)
  
         try:
             # Check if WeasyPrint is likely to work before attempting import

@@ -300,10 +300,11 @@ export default function DPRForm({
       const today = new Date();
 
       // Create DPR payload
+      const notes = voiceSummary.trim();
       const dprPayload = {
         project_id: projectId,
         dpr_date: today.toISOString().split('T')[0],
-        progress_notes: voiceSummary || 'Daily progress report',
+        progress_notes: notes.length >= 5 ? notes : 'Daily progress report',
         weather_conditions: extraPayload.weather_conditions || 'Normal',
         manpower_count: extraPayload.manpower_count || 0,
         issues_encountered: extraPayload.issues_encountered,
@@ -319,7 +320,7 @@ export default function DPRForm({
         dprData = await dprApi.create(dprPayload);
       }
 
-      dprId = dprData.dpr_id || dprData.id || '';
+      dprId = dprData.dpr_id || dprData.id || (dprData as any)._id || '';
 
       // Upload photos with captions
       for (const photo of photos) {
@@ -454,6 +455,7 @@ export default function DPRForm({
           <View style={styles.sectionHeader}>
             <Ionicons name="mic" size={20} color={Colors.info} />
             <Text style={styles.sectionTitle}>Voice Summary</Text>
+            {!!voiceSummary && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success }} />}
             <Text style={styles.languageNote}>(Any language → English)</Text>
           </View>
 
@@ -517,7 +519,7 @@ export default function DPRForm({
                   onPress={() => togglePhotoExpand(photo.id)}
                 >
                   <View style={styles.photoHeaderLeft}>
-                    {photo.caption.trim() && (
+                    {!!photo.caption.trim() && (
                       <Ionicons
                         name="checkmark-circle"
                         size={18}
@@ -525,8 +527,7 @@ export default function DPRForm({
                         style={{ marginRight: 6 }}
                       />
                     )}
-                    <Text style={styles.photoNumber}>Photo {index + 1}</Text>
-                    {photo.isCollapsed && photo.caption.trim() && (
+                    {!!(photo.isCollapsed && photo.caption.trim()) && (
                       <Text style={styles.photoPreview} numberOfLines={1}>
                         {' '}
                         - {photo.caption}
@@ -560,7 +561,7 @@ export default function DPRForm({
                     {!photo.caption.trim() && (
                       <Text style={styles.captionWarning}>Caption required</Text>
                     )}
-                    {photo.caption.trim() && (
+                    {!!photo.caption.trim() && (
                       <TouchableOpacity
                         style={styles.doneButton}
                         onPress={() => collapsePhoto(photo.id)}
@@ -589,7 +590,7 @@ export default function DPRForm({
         </Card>
 
         {/* Validation Message */}
-        {getValidationMessage() && (
+        {!!getValidationMessage() && (
           <View style={styles.validationBanner}>
             <Ionicons name="information-circle" size={20} color={Colors.warning} />
             <Text style={styles.validationText}>{getValidationMessage()}</Text>

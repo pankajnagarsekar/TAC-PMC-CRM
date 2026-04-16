@@ -153,10 +153,39 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="tasks/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="tasks/new"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="tasks/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="scheduler"
         options={{
           href: null,
-          title: 'Scheduler',
+        }}
+      />
+      <Tabs.Screen
+        name="scheduler/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="scheduler/task/[taskId]"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

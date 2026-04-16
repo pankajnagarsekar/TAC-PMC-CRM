@@ -49,10 +49,11 @@ class AIService:
 
             try:
                 with open(tmp_path, "rb") as audio_file:
-                    transcription = await client.audio.transcriptions.create(
+                    # Use translations endpoint to ensure English output regardless of input language
+                    translation = await client.audio.translations.create(
                         model="whisper-1", file=audio_file
                     )
-                return transcription.text
+                return translation.text
             finally:
                 os.unlink(tmp_path)
         except Exception as e:

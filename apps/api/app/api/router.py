@@ -10,6 +10,7 @@ from app.modules.shared.api.routes import router as shared_router
 from app.modules.site_operations.api.routes import router as site_operations_router
 from app.modules.tasks.api.routes import router as tasks_router
 from app.api.v1.jobs import router as jobs_router
+from app.api.v1.snapshots import router as snapshots_router
 
 api_router = APIRouter()
 v1_router = APIRouter()
@@ -17,6 +18,7 @@ v1_router = APIRouter()
 
 # ... (HAS_V2 logic)
 v1_router.include_router(jobs_router)
+v1_router.include_router(snapshots_router, prefix="/snapshots", tags=["Snapshots"])
 v1_router.include_router(identity_router)  # Handles /auth, /users, /settings
 v1_router.include_router(contracting_router)  # Handles /vendors, /work-orders
 v1_router.include_router(project_router)  # Handles /projects, /clients, /scheduler

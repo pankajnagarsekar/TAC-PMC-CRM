@@ -46,18 +46,24 @@ async def get_auth_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AuthSe
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict:
     """Retrieve user from token with revocation and skew checks (Point 101, 102)"""
-    if not credentials:
+    token = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        # Fallback to query parameter 'token' for browser-initiated downloads
+        token = request.query_params.get("token")
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    token = credentials.credentials
     try:
         payload = await auth_service.decode_token(token, "access")
         user_id: str = payload.get("user_id")

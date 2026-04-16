@@ -123,10 +123,12 @@ export function AnalyticsScreen() {
           <View style={[styles.lastUpdated, { backgroundColor: Colors.surface }]}>
             <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
             <Text style={[styles.updatedTime, { color: Colors.textSecondary }]}>
-              {new Date(data.updated_at).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              {data.updated_at && !isNaN(new Date(data.updated_at).getTime())
+                ? new Date(data.updated_at).toLocaleTimeString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+                : 'Recent'}
             </Text>
           </View>
         </View>
@@ -178,10 +180,12 @@ export function AnalyticsScreen() {
           data={data.timeline.utilization_trend}
           label="Resource Utilization"
           metric="utilization"
-          value={
-            Object.values(data.resources.by_resource || {}).reduce((sum, r) => sum + r.allocation_percent, 0) /
-            Object.keys(data.resources.by_resource || {}).length
-          }
+          value={(() => {
+            const values = Object.values(data.resources.by_resource || {});
+            if (values.length === 0) return 0;
+            const avg = values.reduce((sum, r) => sum + (r.allocation_percent || 0), 0) / values.length;
+            return isNaN(avg) ? 0 : avg;
+          })()}
           unit="%"
         />
 

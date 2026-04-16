@@ -167,10 +167,10 @@ function TaskDetailView({ task, colors }: { task: ScheduleTask; colors: any }) {
       {task.progress_pct !== undefined && (
         <DetailRow label="Progress" value={`${task.progress_pct}%`} colors={colors} />
       )}
-      {task.baseline_start && (
+      {!!task.baseline_start && (
         <DetailRow label="Baseline Start" value={formatDate(task.baseline_start)} colors={colors} />
       )}
-      {task.baseline_end && (
+      {!!task.baseline_end && (
         <DetailRow label="Baseline End" value={formatDate(task.baseline_end)} colors={colors} />
       )}
     </View>

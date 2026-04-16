@@ -54,15 +54,18 @@ class SiteService:
 
     async def _enrich_with_user_names(self, doc: dict, fields: List[str]) -> dict:
         for field in fields:
-            user_id = doc.get(field)
-            if user_id:
-                u = await self.user_repo.get_by_id(user_id)
-                if u:
-                    doc[f"{field}_name"] = (
-                        u.get("name")
-                        or u.get("full_name")
-                        or u.get("email", "").split("@")[0]
-                    )
+            try:
+                user_id = doc.get(field)
+                if user_id:
+                    u = await self.user_repo.get_by_id(user_id)
+                    if u:
+                        doc[f"{field}_name"] = (
+                            u.get("name")
+                            or u.get("full_name")
+                            or u.get("email", "").split("@")[0]
+                        )
+            except Exception as e:
+                logger.warning(f"Failed to enrich user name for field {field}: {e}")
         return doc
 
     async def create_dpr(
@@ -168,10 +171,14 @@ class SiteService:
         }
 
         await self.dpr_repo.update(dpr_id, update_data)
+        
+        # Return PDF data as base64 for mobile apps to download/share immediately
+        import base64
         return {
             "status": "Submitted",
             "snapshot_version": snapshot.get("version"),
             "file_name": file_name,
+            "pdf_data": base64.b64encode(pdf_bytes).decode('utf-8') if pdf_bytes else None
         }
 
     async def approve_dpr(self, user: dict, dpr_id: str) -> Dict[str, Any]:
@@ -296,13 +303,47 @@ class SiteService:
         )
 
     async def get_dpr_detail(self, user: dict, dpr_id: str) -> Dict[str, Any]:
-        dpr = await self.dpr_repo.get_by_id(dpr_id)
-        if not dpr:
-            raise NotFoundError("DPR", dpr_id)
-        await self.permission_checker.check_project_access(user, dpr["project_id"])
-        return await self._enrich_with_user_names(
-            dpr, ["approved_by", "rejected_by", "supervisor_id"]
-        )
+        try:
+            dpr = await self.dpr_repo.get_by_id(dpr_id)
+            if not dpr:
+                raise NotFoundError("DPR", dpr_id)
+            await self.permission_checker.check_project_access(user, dpr["project_id"])
+            return await self._enrich_with_user_names(
+                dpr, ["approved_by", "rejected_by", "supervisor_id"]
+            )
+        except (NotFoundError, ValidationError):
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching DPR detail: {e}")
+            raise ValidationError(f"Failed to load DPR details: {str(e)}")
+
+    async def get_dpr_pdf(self, user: dict, dpr_id: str) -> bytes:
+        """Generate/Retrieve PDF for a DPR."""
+        try:
+            dpr = await self.dpr_repo.get_by_id(dpr_id)
+            if not dpr:
+                raise NotFoundError("DPR", dpr_id)
+
+            await self.permission_checker.check_project_access(user, dpr["project_id"])
+
+            snapshot_data = await self._build_dpr_snapshot_data(dpr)
+            
+            pdf_bytes = pdf_generator.generate_pdf(
+                project_data=snapshot_data["project"],
+                dpr_data={
+                    "dpr_date": dpr.get("dpr_date"),
+                    "progress_notes": dpr.get("progress_notes", ""),
+                    "supervisor_name": dpr.get("supervisor_id_name", "Supervisor"),
+                },
+                worker_log=snapshot_data["worker_log"],
+                images=dpr.get("images", []),
+            )
+            if not pdf_bytes:
+                raise ValidationError("Failed to generate PDF content")
+            return pdf_bytes
+        except Exception as e:
+            logger.error(f"PDF_GENERATION_FAILURE: {e}")
+            raise ValidationError(f"Failed to generate DPR PDF: {str(e)}")
 
     async def list_project_attendance(
         self, user: dict, project_id: str, limit: int = 100, filters: dict = None
@@ -775,7 +816,17 @@ class SiteService:
 
     async def _build_dpr_snapshot_data(self, dpr: dict) -> Dict[str, Any]:
         project = await self.db.projects.find_one({"project_id": dpr.get("project_id")})
-        project = serialize_doc(project)
+        if not project:
+            # Fallback to finding by _id if project_id field is missing or different
+            try:
+                project = await self.db.projects.find_one({"_id": ObjectId(dpr.get("project_id"))})
+            except Exception:
+                project = None
+        
+        project = serialize_doc(project) or {
+            "project_name": "Project",
+            "project_code": "N/A"
+        }
 
         dpr_date = dpr.get("dpr_date")
         date_str = (

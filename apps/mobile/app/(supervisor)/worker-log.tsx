@@ -56,18 +56,18 @@ export default function WorkerLogScreen() {
   // Load vendors
   useEffect(() => {
     loadVendors();
-     
+
   }, []);
 
   const loadVendors = async () => {
     try {
       const data = await vendorsApi.getAll();
       const formattedVendors = (data || []).map((v: any) => ({
-        code_id: v.vendor_id || '',
-        code: v.vendor_type || '',
-        first_name: v.vendor_name || '',
+        code_id: v.id || v.vendor_id || v._id || '',
+        code: v.gstin || v.vendor_type || v.vendor_id || '',
+        first_name: v.name || v.vendor_name || '',
         last_name: '',
-        display_name: v.vendor_name || v.display_name || '',
+        display_name: v.name || v.vendor_name || v.display_name || '',
       }));
       setVendors(formattedVendors);
     } catch (error: any) {
@@ -214,85 +214,85 @@ export default function WorkerLogScreen() {
         {entries.map((entry: WorkerEntry, index: number) => (
           <View key={entry.id}>
             <Card style={{ padding: Spacing.md, marginBottom: Spacing.md }}>
-            {/* Collapsible Header */}
-            <TouchableOpacity
-              style={styles.entryHeader}
-              onPress={() => toggleCollapse(entry.id)}
-            >
-              <View style={styles.entryHeaderLeft}>
-                {isEntryComplete(entry) && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.success} style={{ marginRight: 8 }} />
-                )}
-                <Text style={styles.entryNumber}>Entry #{index + 1}</Text>
-                {entry.isCollapsed && entry.vendor && (
-                  <Text style={styles.entryPreview} numberOfLines={1}>
-                    • {entry.vendor.display_name} ({entry.workers_count})
-                  </Text>
-                )}
-              </View>
-              <View style={styles.entryHeaderRight}>
-                <Ionicons
-                  name={entry.isCollapsed ? "chevron-down" : "chevron-up"}
-                  size={20}
-                  color={Colors.textMuted}
-                />
-                <TouchableOpacity onPress={() => removeEntry(entry.id)} style={styles.removeButton}>
-                  <Ionicons name="trash-outline" size={20} color={Colors.error} />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-
-            {/* Collapsible Content */}
-            {!entry.isCollapsed && (
-              <>
-                {/* Vendor Selection */}
-                <Text style={styles.fieldLabel}>Vendor Name</Text>
-                <TouchableOpacity
-                  style={styles.selectField}
-                  onPress={() => openVendorModal(entry.id)}
-                >
-                  <Text style={entry.vendor ? styles.selectFieldText : styles.selectFieldPlaceholder}>
-                    {entry.vendor ? entry.vendor.display_name : 'Select Vendor'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
-                </TouchableOpacity>
-
-                {/* Workers Count */}
-                <Text style={styles.fieldLabel}>No. of Workers Present</Text>
-                <TextInput
-                  style={styles.numberInput}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  value={entry.workers_count ? entry.workers_count.toString() : ''}
-                  onChangeText={(text: string) => {
-                    const num = parseInt(text) || 0;
-                    updateEntry(entry.id, 'workers_count', num);
-                  }}
-                />
-
-                {/* Purpose of Work */}
-                <Text style={styles.fieldLabel}>Purpose of Work</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter work description..."
-                  value={entry.purpose}
-                  onChangeText={(text: string) => updateEntry(entry.id, 'purpose', text)}
-                  multiline
-                  numberOfLines={2}
-                />
-
-                {/* Done button to collapse */}
-                {isEntryComplete(entry) && (
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => toggleCollapse(entry.id)}
-                  >
-                    <Ionicons name="checkmark" size={18} color={Colors.white} />
-                    <Text style={styles.doneButtonText}>Done</Text>
+              {/* Collapsible Header */}
+              <TouchableOpacity
+                style={styles.entryHeader}
+                onPress={() => toggleCollapse(entry.id)}
+              >
+                <View style={styles.entryHeaderLeft}>
+                  {isEntryComplete(entry) && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.success} style={{ marginRight: 8 }} />
+                  )}
+                  <Text style={styles.entryNumber}>Entry #{index + 1}</Text>
+                  {entry.isCollapsed && entry.vendor && (
+                    <Text style={styles.entryPreview} numberOfLines={1}>
+                      • {entry.vendor.display_name} ({entry.workers_count})
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.entryHeaderRight}>
+                  <Ionicons
+                    name={entry.isCollapsed ? "chevron-down" : "chevron-up"}
+                    size={20}
+                    color={Colors.textMuted}
+                  />
+                  <TouchableOpacity onPress={() => removeEntry(entry.id)} style={styles.removeButton}>
+                    <Ionicons name="trash-outline" size={20} color={Colors.error} />
                   </TouchableOpacity>
-                )}
-              </>
-            )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Collapsible Content */}
+              {!entry.isCollapsed && (
+                <>
+                  {/* Vendor Selection */}
+                  <Text style={styles.fieldLabel}>Vendor Name</Text>
+                  <TouchableOpacity
+                    style={styles.selectField}
+                    onPress={() => openVendorModal(entry.id)}
+                  >
+                    <Text style={entry.vendor ? styles.selectFieldText : styles.selectFieldPlaceholder}>
+                      {entry.vendor ? entry.vendor.display_name : 'Select Vendor'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
+                  </TouchableOpacity>
+
+                  {/* Workers Count */}
+                  <Text style={styles.fieldLabel}>No. of Workers Present</Text>
+                  <TextInput
+                    style={styles.numberInput}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    value={entry.workers_count ? entry.workers_count.toString() : ''}
+                    onChangeText={(text: string) => {
+                      const num = parseInt(text) || 0;
+                      updateEntry(entry.id, 'workers_count', num);
+                    }}
+                  />
+
+                  {/* Purpose of Work */}
+                  <Text style={styles.fieldLabel}>Purpose of Work</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter work description..."
+                    value={entry.purpose}
+                    onChangeText={(text: string) => updateEntry(entry.id, 'purpose', text)}
+                    multiline
+                    numberOfLines={2}
+                  />
+
+                  {/* Done button to collapse */}
+                  {isEntryComplete(entry) && (
+                    <TouchableOpacity
+                      style={styles.doneButton}
+                      onPress={() => toggleCollapse(entry.id)}
+                    >
+                      <Ionicons name="checkmark" size={18} color={Colors.white} />
+                      <Text style={styles.doneButtonText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
             </Card>
           </View>
         ))}

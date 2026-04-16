@@ -75,8 +75,11 @@ export default function DPRDetailScreen() {
       setWorkerLogs(logs);
 
       const editable: Record<string, WorkerLogEntry[]> = {};
-      logs.forEach((log: WorkerLog) => {
-        editable[log.log_id] = (log.entries || []).map((e: any) => ({
+      logs.forEach((log: any) => {
+        const logId = log.log_id || log.id || log._id;
+        if (!logId) return;
+
+        editable[logId] = (log.entries || []).map((e: any) => ({
           vendor_name: e.vendor_name || '',
           workers_count: e.workers_count || 0,
           skill_type: e.skill_type || '',
@@ -291,9 +294,10 @@ export default function DPRDetailScreen() {
       // Use Linking to open the PDF URL which triggers the download
       const supported = await Linking.canOpenURL(url);
       if (supported) {
+        // Force opening in browser to ensure download headers are respected
         await Linking.openURL(url);
       } else {
-        Alert.alert('Error', 'Cannot open download URL');
+        showAlert('Error', 'Could not open the download URL in your browser.');
       }
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to trigger PDF download');
@@ -304,8 +308,23 @@ export default function DPRDetailScreen() {
 
   // UI-3: Handle version selection
   const handleVersionSelect = (version: number, snapshotData: any | null) => {
-    if (snapshotData && snapshotData.data_json) {
-      const historicalDpr = JSON.parse(snapshotData.data_json);
+    if (snapshotData) {
+      // Backend returns the data object directly now
+      // Check if it's a string (old format) or object (new format)
+      let historicalDpr = snapshotData;
+      if (typeof snapshotData === 'string') {
+        try {
+          historicalDpr = JSON.parse(snapshotData);
+        } catch (e) {
+          console.error('Failed to parse historical DPR string', e);
+        }
+      } else if (snapshotData.data_json) {
+        // Handle case where it's wrapped (original expectation)
+        historicalDpr = typeof snapshotData.data_json === 'string'
+          ? JSON.parse(snapshotData.data_json)
+          : snapshotData.data_json;
+      }
+
       setDpr(historicalDpr);
       setProgressNotes(historicalDpr.progress_notes || '');
       setIsViewingHistorical(true);
@@ -453,96 +472,100 @@ export default function DPRDetailScreen() {
               <Text style={styles.emptyText}>No worker logs submitted for this date</Text>
             </View>
           ) : (
-            workerLogs.map((log) => (
-              <View key={log.log_id} style={styles.workerLogCard}>
-                <View style={styles.workerLogHeader}>
-                  <View>
-                    <Text style={styles.workerLogSupervisor}>
-                      <Ionicons name="person" size={14} color={Colors.accent} /> {log.supervisor_name || 'Supervisor'}
-                    </Text>
-                    <Text style={styles.workerLogMeta}>
-                      {(editableEntries[log.log_id] || []).length} entries • {
-                        (editableEntries[log.log_id] || []).reduce((s, e) => s + (e.workers_count || 0), 0)
-                      } workers
-                    </Text>
+            workerLogs.map((log: any) => {
+              const logId = log.log_id || log.id || log._id;
+              const entries = editableEntries[logId] || [];
+              return (
+                <View key={logId} style={styles.workerLogCard}>
+                  <View style={styles.workerLogHeader}>
+                    <View>
+                      <Text style={styles.workerLogSupervisor}>
+                        <Ionicons name="person" size={14} color={Colors.accent} /> {log.supervisor_name || 'Supervisor'}
+                      </Text>
+                      <Text style={styles.workerLogMeta}>
+                        {entries.length} entries • {
+                          entries.reduce((s, e) => s + (e.workers_count || 0), 0)
+                        } workers
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                {/* Grid Header */}
-                <View style={styles.gridHeader}>
-                  <Text style={[styles.gridHeaderText, { flex: 2 }]}>Vendor</Text>
-                  <Text style={[styles.gridHeaderText, { flex: 1 }]}>Workers</Text>
-                  <Text style={[styles.gridHeaderText, { flex: 2 }]}>Purpose</Text>
-                  {!isViewingHistorical && <Text style={[styles.gridHeaderText, { width: 36 }]}></Text>}
-                </View>
-
-                {/* Grid Rows */}
-                {(editableEntries[log.log_id] || []).map((entry, idx) => (
-                  <View key={idx} style={styles.gridRow}>
-                    <TextInput
-                      style={[styles.gridCell, { flex: 2 }]}
-                      value={entry.vendor_name}
-                      onChangeText={(v) => updateWorkerEntry(log.log_id, idx, 'vendor_name', v)}
-                      placeholder="Vendor"
-                      placeholderTextColor={Colors.textMuted}
-                      editable={!isViewingHistorical}
-                    />
-                    <TextInput
-                      style={[styles.gridCell, { flex: 1, textAlign: 'center' }]}
-                      value={entry.workers_count?.toString() || ''}
-                      onChangeText={(v) => updateWorkerEntry(log.log_id, idx, 'workers_count', parseInt(v) || 0)}
-                      keyboardType="number-pad"
-                      placeholder="0"
-                      placeholderTextColor={Colors.textMuted}
-                      editable={!isViewingHistorical}
-                    />
-                    <TextInput
-                      style={[styles.gridCell, { flex: 2 }]}
-                      value={entry.remarks}
-                      onChangeText={(v) => updateWorkerEntry(log.log_id, idx, 'remarks', v)}
-                      placeholder="Purpose"
-                      placeholderTextColor={Colors.textMuted}
-                      editable={!isViewingHistorical}
-                    />
-                    {!isViewingHistorical && (
-                      <TouchableOpacity
-                        style={styles.removeEntryBtn}
-                        onPress={() => removeWorkerEntry(log.log_id, idx)}
-                      >
-                        <Ionicons name="close-circle" size={20} color={Colors.error} />
-                      </TouchableOpacity>
-                    )}
+                  {/* Grid Header */}
+                  <View style={styles.gridHeader}>
+                    <Text style={[styles.gridHeaderText, { flex: 2 }]}>Vendor</Text>
+                    <Text style={[styles.gridHeaderText, { flex: 1 }]}>Workers</Text>
+                    <Text style={[styles.gridHeaderText, { flex: 2 }]}>Purpose</Text>
+                    {!isViewingHistorical && <Text style={[styles.gridHeaderText, { width: 36 }]}></Text>}
                   </View>
-                ))}
 
-                {/* Add Entry + Save Row */}
-                {!isViewingHistorical && (
-                  <View style={styles.workerLogActions}>
-                    <TouchableOpacity
-                      style={styles.addEntryBtn}
-                      onPress={() => addWorkerEntry(log.log_id)}
-                    >
-                      <Ionicons name="add-circle-outline" size={18} color={Colors.accent} />
-                      <Text style={styles.addEntryText}>Add Entry</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.saveWorkerLogBtn, savingWorkerLog && styles.buttonDisabled]}
-                      onPress={() => handleSaveWorkerLog(log.log_id)}
-                      disabled={savingWorkerLog}
-                    >
-                      {savingWorkerLog ? (
-                        <ActivityIndicator size="small" color={Colors.white} />
-                      ) : (
-                        <>
-                          <Ionicons name="checkmark" size={16} color={Colors.white} />
-                          <Text style={styles.saveWorkerLogText}>Save</Text>
-                        </>
+                  {/* Grid Rows */}
+                  {entries.map((entry, idx) => (
+                    <View key={`${logId}-entry-${idx}`} style={styles.gridRow}>
+                      <TextInput
+                        style={[styles.gridCell, { flex: 2 }]}
+                        value={entry.vendor_name}
+                        onChangeText={(v) => updateWorkerEntry(logId, idx, 'vendor_name', v)}
+                        placeholder="Vendor"
+                        placeholderTextColor={Colors.textMuted}
+                        editable={!isViewingHistorical}
+                      />
+                      <TextInput
+                        style={[styles.gridCell, { flex: 1, textAlign: 'center' }]}
+                        value={entry.workers_count?.toString() || ''}
+                        onChangeText={(v) => updateWorkerEntry(logId, idx, 'workers_count', parseInt(v) || 0)}
+                        keyboardType="number-pad"
+                        placeholder="0"
+                        placeholderTextColor={Colors.textMuted}
+                        editable={!isViewingHistorical}
+                      />
+                      <TextInput
+                        style={[styles.gridCell, { flex: 2 }]}
+                        value={entry.remarks}
+                        onChangeText={(v) => updateWorkerEntry(logId, idx, 'remarks', v)}
+                        placeholder="Purpose"
+                        placeholderTextColor={Colors.textMuted}
+                        editable={!isViewingHistorical}
+                      />
+                      {!isViewingHistorical && (
+                        <TouchableOpacity
+                          style={styles.removeEntryBtn}
+                          onPress={() => removeWorkerEntry(logId, idx)}
+                        >
+                          <Ionicons name="close-circle" size={20} color={Colors.error} />
+                        </TouchableOpacity>
                       )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            ))
+                    </View>
+                  ))}
+
+                  {/* Add Entry + Save Row */}
+                  {!isViewingHistorical && (
+                    <View style={styles.workerLogActions}>
+                      <TouchableOpacity
+                        style={styles.addEntryBtn}
+                        onPress={() => addWorkerEntry(logId)}
+                      >
+                        <Ionicons name="add-circle-outline" size={18} color={Colors.accent} />
+                        <Text style={styles.addEntryText}>Add Entry</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.saveWorkerLogBtn, savingWorkerLog && styles.buttonDisabled]}
+                        onPress={() => handleSaveWorkerLog(logId)}
+                        disabled={savingWorkerLog}
+                      >
+                        {savingWorkerLog ? (
+                          <ActivityIndicator size="small" color={Colors.white} />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark" size={16} color={Colors.white} />
+                            <Text style={styles.saveWorkerLogText}>Save</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })
           )}
         </View>
 
@@ -572,8 +595,9 @@ export default function DPRDetailScreen() {
             <View style={styles.photoGrid}>
               {dpr.images.map((img, idx) => {
                 const isExpanded = expandedImageId === img.image_id;
+                const photoKey = img.image_id || `photo-${idx}`;
                 return (
-                  <View key={img.image_id || idx} style={styles.photoCard}>
+                  <View key={photoKey} style={styles.photoCard}>
                     <TouchableOpacity
                       style={styles.photoHeader}
                       onPress={() => setExpandedImageId(isExpanded ? null : img.image_id)}

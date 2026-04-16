@@ -42,12 +42,12 @@ interface WorkerEntry {
 export default function WorkerLogScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
-  
+
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [entries, setEntries] = useState<WorkerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Modal state for vendor selection
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
@@ -62,12 +62,12 @@ export default function WorkerLogScreen() {
   const loadVendors = async () => {
     try {
       const data = await vendorsApi.getAll(true);
-      const formattedVendors = (data || []).map((v: ApiVendor) => ({
-        code_id: v.vendor_id,
-        code: v.vendor_code || '',
-        first_name: v.vendor_name || '',
+      const formattedVendors = (data || []).map((v: any) => ({
+        code_id: v.id || v.vendor_id || v._id || '',
+        code: v.gstin || v.vendor_code || v.vendor_id || '',
+        first_name: v.name || v.vendor_name || '',
         last_name: '',
-        display_name: v.vendor_name || '',
+        display_name: v.name || v.vendor_name || v.display_name || '',
       }));
       setVendors(formattedVendors);
     } catch (error) {
@@ -92,7 +92,7 @@ export default function WorkerLogScreen() {
 
   // Toggle entry collapse
   const toggleCollapse = (id: string) => {
-    setEntries(entries.map(e => 
+    setEntries(entries.map(e =>
       e.id === id ? { ...e, isCollapsed: !e.isCollapsed } : e
     ));
   };
@@ -109,7 +109,7 @@ export default function WorkerLogScreen() {
 
   // Update entry
   const updateEntry = (id: string, field: keyof WorkerEntry, value: any) => {
-    setEntries(entries.map(e => 
+    setEntries(entries.map(e =>
       e.id === id ? { ...e, [field]: value } : e
     ));
   };
@@ -131,7 +131,7 @@ export default function WorkerLogScreen() {
   };
 
   // Filter vendors based on search
-  const filteredVendors = vendors.filter(v => 
+  const filteredVendors = vendors.filter(v =>
     v.display_name.toLowerCase().includes(vendorSearch.toLowerCase())
   );
 
@@ -214,13 +214,13 @@ export default function WorkerLogScreen() {
         {entries.map((entry, index) => (
           <Card key={entry.id} style={styles.entryCard}>
             {/* Collapsible Header */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.entryHeader}
               onPress={() => toggleCollapse(entry.id)}
             >
               <View style={styles.entryHeaderLeft}>
                 {isEntryComplete(entry) && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.success} style={{marginRight: 8}} />
+                  <Ionicons name="checkmark-circle" size={20} color={Colors.success} style={{ marginRight: 8 }} />
                 )}
                 <Text style={styles.entryNumber}>Entry #{index + 1}</Text>
                 {entry.isCollapsed && entry.vendor && (
@@ -230,10 +230,10 @@ export default function WorkerLogScreen() {
                 )}
               </View>
               <View style={styles.entryHeaderRight}>
-                <Ionicons 
-                  name={entry.isCollapsed ? "chevron-down" : "chevron-up"} 
-                  size={20} 
-                  color={Colors.textMuted} 
+                <Ionicons
+                  name={entry.isCollapsed ? "chevron-down" : "chevron-up"}
+                  size={20}
+                  color={Colors.textMuted}
                 />
                 <TouchableOpacity onPress={() => removeEntry(entry.id)} style={styles.removeButton}>
                   <Ionicons name="trash-outline" size={20} color={Colors.error} />
@@ -246,7 +246,7 @@ export default function WorkerLogScreen() {
               <>
                 {/* Vendor Selection */}
                 <Text style={styles.fieldLabel}>Vendor Name</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.selectField}
                   onPress={() => openVendorModal(entry.id)}
                 >
@@ -279,10 +279,10 @@ export default function WorkerLogScreen() {
                   multiline
                   numberOfLines={2}
                 />
-                
+
                 {/* Done button to collapse */}
                 {isEntryComplete(entry) && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.doneButton}
                     onPress={() => toggleCollapse(entry.id)}
                   >
@@ -315,7 +315,7 @@ export default function WorkerLogScreen() {
 
       {/* Save Button */}
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={isSaving}
@@ -364,7 +364,7 @@ export default function WorkerLogScreen() {
               data={filteredVendors}
               keyExtractor={(item) => item.code_id}
               renderItem={({ item }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.vendorItem}
                   onPress={() => selectVendor(item)}
                 >
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.white,
   },
-  
+
   // Modal Styles
   modalOverlay: {
     flex: 1,
