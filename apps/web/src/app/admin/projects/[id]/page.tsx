@@ -94,7 +94,9 @@ export default function ProjectDetailPage() {
           min: 0,
           precision: 2,
         },
-        cellClass: "font-mono text-orange-600 dark:text-orange-400 bg-orange-600/5 dark:bg-orange-500/5",
+        cellClass: (params) => params.value > 0
+          ? "font-mono text-orange-600 dark:text-orange-400 bg-orange-600/5 dark:bg-orange-500/5"
+          : "font-mono text-slate-400 dark:text-slate-500",
         valueFormatter: (params) => formatCurrency(params.value),
         onCellValueChanged: async (params: NewValueParams<DerivedFinancialState>) => {
           const { _id, project_id, category_id, original_budget } = params.data;

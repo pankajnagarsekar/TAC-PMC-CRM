@@ -83,11 +83,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .map((segment) => {
             let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
 
-            // If segment is a MongoDB ID and matches active project, use its name
+            // If segment is a MongoDB ID, try to use project name or shorten to ref
             if (activeProject && (segment === activeProject.project_id || segment === activeProject._id)) {
                 label = activeProject.project_name;
             } else if (segment.match(/^[0-9a-fA-F]{24}$/)) {
-                label = "Loading Project...";
+                // Non-project ID (WO, PC, task, etc.) — show short ref
+                label = `#${segment.slice(-6).toUpperCase()}`;
             }
 
             return {

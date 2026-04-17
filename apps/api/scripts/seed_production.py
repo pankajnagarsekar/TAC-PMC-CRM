@@ -119,11 +119,11 @@ async def seed_production():
         print("\n[STEP 3] Creating Financial Codes & Master Data...")
         codes = [
             {"code": "CIV", "description": "Civil Works", "category": "Construction"},
-            {"code": "PLB", "description": "Plumbing Works", "category": "Services"},
-            {"code": "ELC", "description": "Electrical Works", "category": "Services"},
+            {"code": "PLB", "description": "Plumbing Works", "category": "MEP"},
+            {"code": "ELC", "description": "Electrical Works", "category": "MEP"},
             {"code": "DWG", "description": "Doors, Windows & Glazing", "category": "Finishing"},
             {"code": "SWP", "description": "Swimming Pool Works", "category": "Specialized"},
-            {"code": "HVC", "description": "HVAC / Air Conditioning", "category": "Services"},
+            {"code": "HVC", "description": "HVAC / Air Conditioning", "category": "MEP"},
             {"code": "FIN", "description": "Finishing Works", "category": "Finishing"},
             {"code": "LAN", "description": "Landscapping & External Works", "category": "External"},
             {"code": "FAB", "description": "Metal & Steel Fabrication", "category": "Construction"},
@@ -149,20 +149,71 @@ async def seed_production():
         else:
             client_id = str(client_doc["_id"])
             
-        vendors_to_create = ["Default Vendor", "SS Construction", "Suraj Electrician", "Rajesh Construction", "CDSP Global"]
+        vendors_to_create = [
+            {
+                "name": "Default Vendor",
+                "contact_person": "Pankaj Nagarsekar",
+                "phone": "+91 98225 12345",
+                "gstin": "30AABCT3518Q1ZZ",
+                "address": "Panaji, Goa"
+            },
+            {
+                "name": "SS Construction",
+                "contact_person": "Suresh Sawant",
+                "phone": "+91 98221 44567",
+                "gstin": "30BBBCS1234P1Z5",
+                "address": "Margao, South Goa"
+            },
+            {
+                "name": "Suraj Electrician",
+                "contact_person": "Suraj Naik",
+                "phone": "+91 99234 78901",
+                "gstin": "30CCCT2341Q1ZZ",
+                "address": "Mapusa, North Goa"
+            },
+            {
+                "name": "Rajesh Construction",
+                "contact_person": "Rajesh Patel",
+                "phone": "+91 98234 56789",
+                "gstin": "30DDDR5678P2Z1",
+                "address": "Ponda, Goa"
+            },
+            {
+                "name": "CDSP Global",
+                "contact_person": "Carlos D'Souza",
+                "phone": "+91 97654 32100",
+                "gstin": "30EEEC9012Q3ZZ",
+                "address": "Calangute, North Goa"
+            },
+        ]
         vendor_map = {}
-        for v_name in vendors_to_create:
+        for v_info in vendors_to_create:
+            v_name = v_info["name"]
             v_doc = await db.vendors.find_one({"name": v_name})
             if not v_doc:
                 result = await db.vendors.insert_one({
                     "organisation_id": org_id,
                     "name": v_name,
+                    "contact_person": v_info["contact_person"],
+                    "phone": v_info["phone"],
+                    "gstin": v_info["gstin"],
+                    "address": v_info.get("address", ""),
                     "active_status": True,
                     "created_at": datetime.now(timezone.utc),
                     "updated_at": datetime.now(timezone.utc)
                 })
                 vendor_map[v_name] = str(result.inserted_id)
             else:
+                # Update existing vendor with contact details
+                await db.vendors.update_one(
+                    {"_id": v_doc["_id"]},
+                    {"$set": {
+                        "contact_person": v_info["contact_person"],
+                        "phone": v_info["phone"],
+                        "gstin": v_info["gstin"],
+                        "address": v_info.get("address", ""),
+                    }}
+                )
                 vendor_map[v_name] = str(v_doc["_id"])
         vendor_id = vendor_map["Default Vendor"]
 
@@ -204,6 +255,7 @@ async def seed_production():
             await db.projects.update_one(
                 {"_id": project["_id"]},
                 {"$set": {
+                    "project_id": project_id,
                     "organisation_id": org_id,
                     "master_original_budget": original_budget,
                     "master_remaining_budget": remaining_budget,
@@ -218,7 +270,7 @@ async def seed_production():
             project_oid = ObjectId()
             await db.projects.insert_one(
                 {
-                    "_id": project_oid,
+                    "project_id": str(project_oid),
                     "project_code": "MV-01",
                     "project_name": "Majorda Villa - Civil Works",
                     "client_id": client_id,
@@ -1023,12 +1075,16 @@ async def seed_production():
             {"category_id": "PTC", "original": 85000, "committed": 81300, "certified": 81300},
         ]
 
+        total_budget = 0
+        total_committed = 0
+        total_certified = 0
         for fc in financial_categories:
             code_id = code_map.get(fc["category_id"])
             if not code_id: continue
             await db.financial_state.update_one(
                 {"project_id": project_id, "category_id": code_id},
                 {"$set": {
+                    "organisation_id": org_id,
                     "code_id": code_id,
                     "category_id": code_id,
                     "original_budget": fc["original"],
@@ -1039,14 +1095,60 @@ async def seed_production():
                 }},
                 upsert=True
             )
-        print(f"  Projected financial states for {len(financial_categories)} categories")
+            total_budget += fc["original"]
+            total_committed += fc["committed"]
+            total_certified += fc["certified"]
+        # Seed MASTER rollup state for dashboard KPIs
+        await db.financial_state.update_one(
+            {"project_id": project_id, "category_id": "MASTER"},
+            {"$set": {
+                "organisation_id": org_id,
+                "category_id": "MASTER",
+                "original_budget": total_budget,
+                "committed_value": total_committed,
+                "certified_value": total_certified,
+                "balance_remaining": total_budget - total_committed,
+                "last_updated": datetime.now(timezone.utc)
+            }},
+            upsert=True
+        )
+        print(f"  Projected financial states for {len(financial_categories)} categories + MASTER rollup")
 
         print("\n[STEP 7] Seeding Missing WOs, PCs and Site Tasks...")
         await db.work_orders.delete_many({"project_id": project_id})
         await db.payment_certificates.delete_many({"project_id": project_id})
         
-        await db.work_orders.insert_many([
+        from bson import ObjectId as WO_OID
+        wo_civ_id = WO_OID()
+        wo_elc_id = WO_OID()
+        wo_prf_id = WO_OID()
+        wo_result = await db.work_orders.insert_many([
             {
+                "_id": wo_civ_id,
+                "wo_ref": "TAC_WO_25_002",
+                "organisation_id": org_id,
+                "project_id": project_id,
+                "category_id": code_map.get("CIV"),
+                "vendor_id": vendor_map.get("SS Construction"),
+                "subtotal": 10072425,
+                "discount": 0,
+                "total_before_tax": 10072425,
+                "cgst": 906518.25,
+                "sgst": 906518.25,
+                "grand_total": 11885461.5,
+                "retention_percent": 5,
+                "retention_amount": 503621.25,
+                "total_payable": 11381840.25,
+                "line_items": [
+                    {"sr_no": 1, "description": "Civil works — Foundation & Structure", "qty": 1, "rate": 10072425, "total": 10072425}
+                ],
+                "status": "Approved",
+                "version": 1,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            },
+            {
+                "_id": wo_elc_id,
                 "wo_ref": "TAC_WO_25_003",
                 "organisation_id": org_id,
                 "project_id": project_id,
@@ -1070,6 +1172,7 @@ async def seed_production():
                 "updated_at": datetime.now(timezone.utc),
             },
             {
+                "_id": wo_prf_id,
                 "wo_ref": "TAC_WO_25_004",
                 "organisation_id": org_id,
                 "project_id": project_id,
@@ -1101,9 +1204,17 @@ async def seed_production():
                 "project_id": project_id,
                 "category_id": code_map.get("CIV"),
                 "vendor_id": vendor_map.get("SS Construction"),
+                "work_order_id": str(wo_civ_id),
+                "work_order_ref": "TAC_WO_25_002",
                 "subtotal": 1000000,
-                "grand_total": 1000000,
-                "status": "Approved"
+                "total_before_tax": 1000000,
+                "cgst": 90000,
+                "sgst": 90000,
+                "grand_total": 1180000,
+                "status": "Approved",
+                "version": 1,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
             },
             {
                 "pc_ref": "TAC_PC_25_002",
@@ -1111,9 +1222,17 @@ async def seed_production():
                 "project_id": project_id,
                 "category_id": code_map.get("CIV"),
                 "vendor_id": vendor_map.get("Rajesh Construction"),
+                "work_order_id": str(wo_civ_id),
+                "work_order_ref": "TAC_WO_25_002",
                 "subtotal": 535000,
-                "grand_total": 535000,
-                "status": "Approved"
+                "total_before_tax": 535000,
+                "cgst": 48150,
+                "sgst": 48150,
+                "grand_total": 631300,
+                "status": "Approved",
+                "version": 1,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
             }
         ])
         

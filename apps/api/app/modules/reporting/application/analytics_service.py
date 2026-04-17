@@ -344,24 +344,22 @@ class AnalyticsService:
         """
         data = FinancialSummaryData()
 
-        # Fetch master financial state
+        # Fetch master financial state (project_id is sufficient; project is org-scoped)
         master_state = await self.fin_state_repo.find_one(
             {
                 "project_id": project_id,
-                "organisation_id": organisation_id,
-                "code_id": None,
+                "category_id": "MASTER",
             }
         )
 
         if not master_state:
-            # Fallback aggregation
+            # Fallback: sum all per-category states
             agg = await self.fin_state_repo.aggregate(
                 [
                     {
                         "$match": {
                             "project_id": project_id,
-                            "organisation_id": organisation_id,
-                            "code_id": {"$ne": None},
+                            "category_id": {"$ne": "MASTER"},
                         }
                     },
                     {

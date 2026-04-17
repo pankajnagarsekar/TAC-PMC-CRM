@@ -1,9 +1,13 @@
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from bson import Decimal128, ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from ..infrastructure.audit_repo import AuditRepository
+
+logger = logging.getLogger(__name__)
 
 # ARCHITECTURAL GUARD: Financial entity types that CANNOT be deleted
 FINANCIAL_ENTITY_TYPES = [
@@ -31,6 +35,21 @@ class AuditService:
                 f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type}. Financial entities are immutable."
             )
 
+    @staticmethod
+    def _sanitize_for_audit(value: Any) -> Any:
+        """Recursively convert BSON types to JSON-safe primitives for audit storage."""
+        if value is None:
+            return None
+        if isinstance(value, ObjectId):
+            return str(value)
+        if isinstance(value, Decimal128):
+            return float(value.to_decimal())
+        if isinstance(value, dict):
+            return {k: AuditService._sanitize_for_audit(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [AuditService._sanitize_for_audit(i) for i in value]
+        return value
+
     async def log_action(
         self,
         organisation_id: str,
@@ -42,11 +61,17 @@ class AuditService:
         project_id: Optional[str] = None,
         old_value: Optional[Dict[str, Any]] = None,
         new_value: Optional[Dict[str, Any]] = None,
+        old_value_json: Optional[Dict[str, Any]] = None,
+        new_value_json: Optional[Dict[str, Any]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         session=None,
     ):
         """Log an action to audit trail (INSERT ONLY)."""
         self.enforce_financial_delete_guard(entity_type, action_type)
+
+        # Support both old_value/new_value and old_value_json/new_value_json kwargs
+        effective_old = old_value or old_value_json
+        effective_new = new_value or new_value_json
 
         try:
             audit_entry = {
@@ -54,20 +79,18 @@ class AuditService:
                 "project_id": project_id,
                 "module_name": module_name,
                 "entity_type": entity_type,
-                "entity_id": entity_id,
+                "entity_id": str(entity_id),
                 "action_type": action_type,
-                "old_value_json": old_value,
-                "new_value_json": new_value,
-                "metadata": metadata,
-                "user_id": user_id,
+                "old_value_json": self._sanitize_for_audit(effective_old),
+                "new_value_json": self._sanitize_for_audit(effective_new),
+                "metadata": self._sanitize_for_audit(metadata),
+                "user_id": str(user_id),
                 "timestamp": datetime.now(timezone.utc),
             }
 
             await self.audit_repo.create(audit_entry, session=session)
-        except Exception:
-            # Silent fail for audit logging to prevent blocking main business flows
-            # In a production system, this would be queued or go to an error log
-            pass
+        except Exception as exc:
+            logger.error("AuditService.log_action failed: %s", exc, exc_info=True)
 
     async def get_audit_logs(
         self,
