@@ -187,8 +187,12 @@ export default function CategoriesPage() {
       mutate();
       setIsModalOpen(false);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      setError(err.response?.data?.detail || "Failed to save category");
+      const err = error as { response?: { data?: { detail?: unknown } } };
+      const detail = err.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? (detail as Array<{ msg?: string }>).map((d) => d.msg || String(d)).join("; ")
+        : (typeof detail === "string" ? detail : "Failed to save category");
+      setError(msg);
     } finally {
       setLoading(false);
     }

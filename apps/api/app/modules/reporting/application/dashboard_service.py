@@ -198,25 +198,30 @@ class DashboardService:
             if not category and ObjectId.is_valid(str(cat_id)):
                 category = await self.db.code_master.find_one({"_id": ObjectId(str(cat_id))})
 
+            code_str = category.get("code", "") if category else ""
+            original_budget = float(FinancialEngine.to_decimal(s.get("original_budget", 0)))
+            committed_value = float(FinancialEngine.to_decimal(s.get("committed_value", 0)))
+            certified_value = float(FinancialEngine.to_decimal(s.get("certified_value", 0)))
             results.append(
                 {
+                    "_id": str(s.get("_id", "")),
+                    "project_id": project_id,
                     "category_id": cat_id,
                     "category_name": category.get("category_name", "Unknown")
                     if category
                     else "Unknown",
-                    "budget": float(
-                        FinancialEngine.to_decimal(s.get("original_budget", 0))
-                    ),
-                    "committed": float(
-                        FinancialEngine.to_decimal(s.get("committed_value", 0))
-                    ),
-                    "certified": float(
-                        FinancialEngine.to_decimal(s.get("certified_value", 0))
-                    ),
-                    "remaining": float(
+                    "category_code": code_str,
+                    "original_budget": original_budget,
+                    "committed_value": committed_value,
+                    "certified_value": certified_value,
+                    "balance_budget_remaining": float(
                         FinancialEngine.to_decimal(s.get("balance_budget_remaining", 0))
                     ),
-                    "over_commit": s.get("over_commit_flag", False),
+                    "over_commit_flag": s.get("over_commit_flag", False),
+                    # Legacy aliases kept for backward compat
+                    "budget": original_budget,
+                    "committed": committed_value,
+                    "certified": certified_value,
                 }
             )
 

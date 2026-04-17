@@ -27,14 +27,23 @@ export const useProjectStore = create<ProjectState>()(
         const newId = project._id || project.project_id;
 
         if (currentId !== newId) {
-          // CRITICAL: Purge all SWR caches on project switch
-          mutate(() => true, undefined, { revalidate: false });
+          // Purge project-scoped SWR caches (keep /projects/ list for registry)
+          mutate(
+            (key) => typeof key === 'string' && key !== '/api/v1/projects/',
+            undefined,
+            { revalidate: false }
+          );
         }
         set({ activeProject: project });
       },
 
       clearProject: () => {
-        mutate(() => true, undefined, { revalidate: false });
+        // Purge project-scoped caches; keep /projects/ list so registry can search
+        mutate(
+          (key) => typeof key === 'string' && key !== '/api/v1/projects/',
+          undefined,
+          { revalidate: false }
+        );
         set({ activeProject: null });
       },
 

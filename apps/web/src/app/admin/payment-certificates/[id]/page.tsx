@@ -112,11 +112,11 @@ export default function PaymentCertificateDetail({
   };
 
   const getCategoryName = (cid: string) =>
-    categories?.find((c) => c._id === cid)?.category_name || cid;
+    categories?.find((c) => (c.id ?? c._id) === cid)?.category_name || cid;
   const getVendorName = (vid: string) =>
-    vendors?.find((v) => v._id === vid)?.name || vid;
+    vendors?.find((v) => (v.id ?? v._id) === vid)?.name || vid;
   const getWoRef = (woid: string) =>
-    workOrders.find((w) => w._id === woid)?.wo_ref || woid;
+    workOrders.find((w) => (w.id ?? w._id) === woid)?.wo_ref || woid;
 
   const columnDefs: ColDef[] = useMemo(() => [
     { field: "sr_no", headerName: "Sr No", width: 80, filter: false },
