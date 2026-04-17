@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -40,6 +42,16 @@ class CodeMasterCreate(BaseModel):
     code: str
     description: Optional[str] = None
     budget_type: Literal["commitment", "fund_transfer"] = "commitment"
+
+    @field_validator("code", mode="before")
+    @classmethod
+    def validate_code_format(cls, v: str) -> str:
+        normalized = str(v).upper().strip()
+        if not re.match(r"^[A-Z0-9]{2,6}$", normalized):
+            raise ValueError(
+                "Category code must be 2–6 uppercase alphanumeric characters (A-Z, 0-9)"
+            )
+        return normalized
 
 
 class CodeMasterUpdate(BaseModel):

@@ -104,6 +104,28 @@ class MasterDataService:
             raise NotFoundError("Master code", code_id)
         return code
 
+    async def deactivate_code(self, user: dict, code_id: str) -> Dict[str, Any]:
+        """Deactivate (soft-delete) a category code. Admin only."""
+        await self.permission_checker.check_admin_role(user)
+
+        existing = await self.code_repo.get_by_id(code_id)
+        if not existing or existing.get("organisation_id") != user["organisation_id"]:
+            raise NotFoundError("Master code", code_id)
+
+        updated = await self.code_repo.update(code_id, {"active_status": False})
+
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="MASTER_DATA",
+            entity_type="CODE_MASTER",
+            entity_id=code_id,
+            action_type="DELETE",
+            user_id=user["user_id"],
+            old_value=existing,
+            new_value=updated,
+        )
+        return updated
+
     async def list_units(self, user: dict) -> List[str]:
         """List standard units of measurement."""
         return ["Rft", "Sft", "Cum", "No", "Lot", "Kg", "Mt", "Hr", "Day", "Month"]

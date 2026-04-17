@@ -27,7 +27,7 @@ export default function PaymentCertificatesPage() {
   const { data: vendors } = useSWR<Vendor[]>('/api/v1/vendors/', fetcher);
 
   const getCategoryName = (id: string) => categories?.find(c => c._id === id)?.category_name || id;
-  const getVendorName = (id: string) => vendors?.find(v => v._id === id)?.name || id;
+  const getVendorName = (id: string) => vendors?.find((v: any) => (v._id || v.id) === id)?.name || id;
 
   const fetchPCs = useCallback(async (cursor?: string | null) => {
     if (!activeProject) return;

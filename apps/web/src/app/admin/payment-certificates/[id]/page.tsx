@@ -214,7 +214,7 @@ export default function PaymentCertificateDetail({
         </div>
 
         <div className="flex gap-3">
-          {pc.status !== "Closed" && pc.status !== "Cancelled" && (
+          {!["Closed", "Cancelled", "Approved", "Paid"].includes(pc.status) && (
             <button
               onClick={() => setShowCloseDialog(true)}
               disabled={isClosing}

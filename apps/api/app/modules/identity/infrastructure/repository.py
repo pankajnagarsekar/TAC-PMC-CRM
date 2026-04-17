@@ -33,7 +33,7 @@ class UserRepository(BaseRepository[User]):
         await self.collection.create_index([("organisation_id", ASCENDING)])
 
     async def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
-        doc = await self.collection.find_one({"email": email})
+        doc = await self.collection.find_one({"email": email.lower().strip()})
         from app.core.utils import serialize_doc
 
         return serialize_doc(doc) if doc else None

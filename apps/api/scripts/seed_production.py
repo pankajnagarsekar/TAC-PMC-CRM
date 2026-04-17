@@ -140,10 +140,8 @@ async def seed_production():
         if not client_doc:
             client_result = await db.clients.insert_one({
                 "organisation_id": org_id,
-                "name": "Mr. Sanjay Rao",
-                "address": "Majorda",
-                "city": "South Goa",
-                "state": "Goa",
+                "client_name": "Mr. Sanjay Rao",
+                "client_address": "Majorda, South Goa, Goa",
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc)
             })
@@ -202,11 +200,12 @@ async def seed_production():
         if project:
             project_id = str(project["_id"])
             print(f"  Project exists: {project_id}")
-            # Ensure budget is updated
+            # Ensure budget and org_id are updated (org_id may have changed on re-seed)
             await db.projects.update_one(
                 {"_id": project["_id"]},
                 {"$set": {
-                    "master_original_budget": original_budget, 
+                    "organisation_id": org_id,
+                    "master_original_budget": original_budget,
                     "master_remaining_budget": remaining_budget,
                     "completion_percentage": 18,
                     "client_id": client_id,
@@ -1054,8 +1053,21 @@ async def seed_production():
                 "category_id": code_map.get("ELC"),
                 "vendor_id": vendor_map.get("Suraj Electrician"),
                 "subtotal": 13530,
-                "grand_total": 13530,
-                "status": "Completed"
+                "discount": 0,
+                "total_before_tax": 13530,
+                "cgst": 1217.70,
+                "sgst": 1217.70,
+                "grand_total": 15965.40,
+                "retention_percent": 0,
+                "retention_amount": 0,
+                "total_payable": 15965.40,
+                "line_items": [
+                    {"sr_no": 1, "description": "Electrical wiring — Phase 1", "qty": 1, "rate": 13530, "total": 13530}
+                ],
+                "status": "Completed",
+                "version": 1,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
             },
             {
                 "wo_ref": "TAC_WO_25_004",
@@ -1063,9 +1075,22 @@ async def seed_production():
                 "project_id": project_id,
                 "category_id": code_map.get("PRF"),
                 "vendor_id": vendor_map.get("CDSP Global"),
-                "subtotal": 14000,
-                "grand_total": 14000,
-                "status": "Completed"
+                "subtotal": 14600,
+                "discount": 0,
+                "total_before_tax": 14600,
+                "cgst": 1314,
+                "sgst": 1314,
+                "grand_total": 17228,
+                "retention_percent": 0,
+                "retention_amount": 0,
+                "total_payable": 17228,
+                "line_items": [
+                    {"sr_no": 1, "description": "Plumbing works — Phase 1", "qty": 1, "rate": 14600, "total": 14600}
+                ],
+                "status": "Completed",
+                "version": 1,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
             }
         ])
         
@@ -1093,6 +1118,43 @@ async def seed_production():
         ])
         
         print("  Created missing entities.")
+
+        # Seed action tasks into `tasks` collection (task management module)
+        print("\n[STEP 8] Seeding action tasks into tasks collection...")
+        await db.tasks.delete_many({"project_id": project_id})
+        admin_user = await db.users.find_one({"email": "admin@tacpmc.com"})
+        admin_id = str(admin_user["_id"]) if admin_user else "system"
+        admin_name = admin_user.get("full_name", "Admin") if admin_user else "Admin"
+
+        from bson import ObjectId as BsonObjectId
+        seed_tasks = [
+            {"task_description": "Confirm foundation inspection with civil engineer", "priority": "High", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external"},
+            {"task_description": "Submit revised BOQ for Phase 2 electrical works", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user", "assigned_to_user_id": admin_id},
+            {"task_description": "Collect invoices from Rajesh Construction for March", "priority": "Medium", "status": "In Progress", "assigned_to_name": admin_name, "assigned_to_type": "user"},
+            {"task_description": "Schedule weekly progress photo documentation", "priority": "Low", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external"},
+            {"task_description": "Update client on waterproofing completion timeline", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user"},
+        ]
+        task_docs = []
+        for idx, t in enumerate(seed_tasks):
+            task_docs.append({
+                "_id": BsonObjectId(),
+                "organisation_id": org_id,
+                "project_id": project_id,
+                "sr_no": idx + 1,
+                "task_description": t["task_description"],
+                "priority": t["priority"],
+                "status": t["status"],
+                "assigned_to_name": t["assigned_to_name"],
+                "assigned_to_type": t["assigned_to_type"],
+                "assigned_to_user_id": t.get("assigned_to_user_id"),
+                "created_by": admin_id,
+                "created_by_name": admin_name,
+                "version": 1,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            })
+        await db.tasks.insert_many(task_docs)
+        print(f"  Seeded {len(task_docs)} action tasks")
 
         print("\n" + "=" * 70)
         print("SEED COMPLETE - PRODUCTION READY")

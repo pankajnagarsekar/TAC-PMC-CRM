@@ -113,7 +113,7 @@ class AuthService:
             )
 
     async def login(self, login_data: LoginRequest) -> Token:
-        user = await self.user_repo.get_by_email(login_data.email)
+        user = await self.user_repo.get_by_email(login_data.email.lower().strip())
         if not user or not self.verify_password(
             login_data.password, user["hashed_password"]
         ):

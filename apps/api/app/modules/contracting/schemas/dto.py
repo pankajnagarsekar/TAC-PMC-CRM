@@ -2,7 +2,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+import html
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -87,6 +90,15 @@ class VendorCreate(BaseModel):
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        # Strip HTML tags to prevent stored XSS
+        v = re.sub(r"<[^>]+>", "", str(v)).strip()
+        if not v:
+            raise ValueError("Vendor name cannot be empty")
+        return html.escape(v)
     address: Optional[str] = None
 
 

@@ -50,8 +50,9 @@ export default function KPICards() {
       }
     });
 
-    const spi = plannedValue > 0 ? earnedValue / plannedValue : 1;
-    const cpi = actualCost > 0 ? earnedValue / actualCost : 1;
+    // Null when no data — prevents misleading "1.00 perfect performance" on empty project
+    const spi = plannedValue > 0 ? earnedValue / plannedValue : null;
+    const cpi = actualCost > 0 ? earnedValue / actualCost : null;
 
     return {
       totalBaselineCost,
@@ -107,21 +108,21 @@ export default function KPICards() {
       />
       <KPICard
         label="SPI"
-        value={stats.spi.toFixed(2)}
+        value={stats.spi !== null ? stats.spi.toFixed(2) : "N/A"}
         subtitle="Schedule Performance (EV/PV)"
-        status={getSpiStatus(stats.spi)}
+        status={stats.spi !== null ? getSpiStatus(stats.spi) : "neutral"}
         icon={<Gauge size={18} />}
-        trend={`${((stats.spi - 1) * 100).toFixed(1)}%`}
-        trendUp={stats.spi >= 1}
+        trend={stats.spi !== null ? `${((stats.spi - 1) * 100).toFixed(1)}%` : undefined}
+        trendUp={stats.spi !== null ? stats.spi >= 1 : undefined}
       />
       <KPICard
         label="CPI"
-        value={stats.cpi.toFixed(2)}
+        value={stats.cpi !== null ? stats.cpi.toFixed(2) : "N/A"}
         subtitle="Cost Performance (EV/AC)"
-        status={getCpiStatus(stats.cpi)}
+        status={stats.cpi !== null ? getCpiStatus(stats.cpi) : "neutral"}
         icon={<BarChart3 size={18} />}
-        trend={`${((stats.cpi - 1) * 100).toFixed(1)}%`}
-        trendUp={stats.cpi >= 1}
+        trend={stats.cpi !== null ? `${((stats.cpi - 1) * 100).toFixed(1)}%` : undefined}
+        trendUp={stats.cpi !== null ? stats.cpi >= 1 : undefined}
       />
     </div>
   );

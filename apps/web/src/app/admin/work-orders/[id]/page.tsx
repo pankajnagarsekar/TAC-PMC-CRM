@@ -254,7 +254,7 @@ export default function WorkOrderDetailPage() {
 
   const detailCgst = (wo.cgst ?? 9);
   const detailSgst = (wo.sgst ?? 9);
-  const isClosed = wo.status === "Closed" || wo.status === "Cancelled";
+  const isClosed = wo.status === "Closed" || wo.status === "Cancelled" || wo.status === "Completed";
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-24 animate-in fade-in duration-500">

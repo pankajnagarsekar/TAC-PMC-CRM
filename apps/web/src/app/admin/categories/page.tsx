@@ -354,9 +354,10 @@ export default function CategoriesPage() {
                 </div>
               )}
               <p className="text-slate-300">
-                Are you sure you want to delete{" "}
+                Are you sure you want to deactivate{" "}
                 <strong>{deleteCode.category_name}</strong> ({deleteCode.code})?
-                This action cannot be undone and will deactivate the category.
+                This will mark the category as inactive. It will no longer appear in new
+                work orders or payment certificates.
               </p>
             </div>
             <DialogFooter>
@@ -370,7 +371,7 @@ export default function CategoriesPage() {
                 onClick={confirmDelete}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all"
               >
-                Delete
+                Deactivate
               </button>
             </DialogFooter>
           </DialogContent>

@@ -66,8 +66,10 @@ export default function WorkOrdersPage() {
 
   const vendorMap = useMemo(() => {
     const map: Record<string, string> = {};
-    vendors.forEach((v) => {
-      map[v._id] = v.name || v._id;
+    vendors.forEach((v: any) => {
+      // API serializes _id as "id" (serialization_alias); support both
+      const vid = v._id || v.id;
+      if (vid) map[vid] = v.name || vid;
     });
     return map;
   }, [vendors]);

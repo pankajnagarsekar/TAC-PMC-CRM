@@ -440,6 +440,21 @@ async def update_category(
     return GenericResponse(data=result, message="Category code updated successfully")
 
 
+@router.delete(
+    "/settings/codes/{code_id}",
+    response_model=GenericResponse[CodeMaster],
+    tags=["Settings"],
+)
+async def delete_category(
+    code_id: str,
+    user: dict = Depends(get_authenticated_user),
+    master_service: MasterDataService = Depends(get_master_data_service),
+):
+    """Deactivate (soft-delete) a category code (Admin only)."""
+    result = await master_service.deactivate_code(user, code_id)
+    return GenericResponse(data=result, message="Category deactivated successfully")
+
+
 @router.get(
     "/cash/balance/{project_id}",
     response_model=GenericResponse[Dict[str, Any]],

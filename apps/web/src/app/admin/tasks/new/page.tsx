@@ -31,11 +31,19 @@ export default function NewTaskPage() {
     setIsLoading(true);
     try {
       const projectId = activeProject.project_id || activeProject._id;
-      
-      await api.post("/api/v1/tasks/", {
-        ...formData,
+
+      const payload: Record<string, unknown> = {
         project_id: projectId,
-      });
+        task_description: formData.task_description,
+        assigned_to_name: formData.assigned_to_name || "Unassigned",
+        assigned_to_type: formData.assigned_to_type || "external",
+        priority: formData.priority,
+      };
+      if (formData.assigned_to_user_id) payload.assigned_to_user_id = formData.assigned_to_user_id;
+      if (formData.deadline) payload.deadline = formData.deadline;
+      if (formData.notes) payload.notes = formData.notes;
+
+      await api.post("/api/v1/tasks/", payload);
       
       toast({
         title: "Task Created",
@@ -123,6 +131,9 @@ export default function NewTaskPage() {
                 onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
               />
+              {formData.deadline && new Date(formData.deadline) < new Date(new Date().toDateString()) && (
+                <p className="mt-1 text-xs text-amber-400">Warning: deadline is in the past</p>
+              )}
             </div>
 
              <div>

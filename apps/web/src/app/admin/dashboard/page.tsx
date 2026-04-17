@@ -61,7 +61,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const { activeProject, setActiveProject } = useProjectStore();
+  const { activeProject, setActiveProject, clearProject } = useProjectStore();
   const [projectSearch, setProjectSearch] = React.useState("");
   const loadSchedule = useScheduleStore((state) => state.loadSchedule);
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -73,6 +73,18 @@ export default function AdminDashboard() {
     "/api/v1/projects/",
     fetcher
   );
+
+  // Validate stored project against available projects — clears stale DB references
+  React.useEffect(() => {
+    if (!projects || projects.length === 0 || !activeProject) return;
+    const storedId = activeProject.project_id || (activeProject as any)._id;
+    const exists = projects.some(
+      (p) => p.project_id === storedId || (p as any)._id === storedId
+    );
+    if (!exists) {
+      clearProject();
+    }
+  }, [projects, activeProject, clearProject]);
 
   // Hydrate schedule store for widgets if project is active
   React.useEffect(() => {

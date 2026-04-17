@@ -31,7 +31,7 @@ class UserService:
         await self.permission_checker.check_admin_role(user)
 
         # Check if email exists
-        existing = await self.user_repo.get_by_email(user_data.email)
+        existing = await self.user_repo.get_by_email(user_data.email.lower().strip())
         if existing:
             raise ValidationError("Email already registered")
 
