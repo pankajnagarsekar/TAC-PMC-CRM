@@ -140,10 +140,11 @@ api.interceptors.response.use(
       const isLoginRequest = originalRequest.url?.includes('/auth/login');
       const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
 
-      // Do not show global toast for login or refresh as they handle the UI locally or by full redirect
-      if (!isLoginRequest && !isRefreshRequest) {
+      // Do not show global toast for: login/refresh (handled locally), 409/422 (form validation shown inline)
+      const isFormError = error.response.status === 409 || error.response.status === 422;
+      if (!isLoginRequest && !isRefreshRequest && !isFormError) {
         toast.error("Endpoint Synchronization Failed", {
-          description: error.response.status === 403 
+          description: error.response.status === 403
             ? "Administrative bypass required to perform this action."
             : "The server encountered an error processing this request.",
         });

@@ -226,6 +226,7 @@ async def seed_production():
                         "code": code["code"],
                         "code_short": code["code"],
                         "code_description": code["description"],
+                        "description": code["description"],
                         "category_name": code["category"],
                         "organisation_id": org_id,
                         "active_status": True,
@@ -237,7 +238,7 @@ async def seed_production():
             else:
                 code_map[code["code"]] = str(existing_master["_id"])
                 # update fields if exists
-                await db.code_master.update_one({"_id": existing_master["_id"]}, {"$set": {"code_description": code["description"], "category_name": code["category"], "active_status": True}})
+                await db.code_master.update_one({"_id": existing_master["_id"]}, {"$set": {"code_description": code["description"], "description": code["description"], "category_name": code["category"], "active_status": True}})
         print(f"  Created/verified {len(codes)} financial codes in code_master")
 
         # 4. PROJECT: MAJORDA VILLA

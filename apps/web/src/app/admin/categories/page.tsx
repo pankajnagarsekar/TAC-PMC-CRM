@@ -56,11 +56,17 @@ export default function CategoriesPage() {
         headerName: "Code",
         field: "code",
         width: 120,
-        cellRenderer: (params: ICellRendererParams<CodeMaster>) => (
-          <code className="text-[11px] bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 text-orange-500 font-mono font-bold">
-            {params.value}
-          </code>
-        ),
+        cellRenderer: (params: ICellRendererParams<CodeMaster>) => {
+          const budgetType = params.data?.budget_type;
+          const colorClass = budgetType === "fund_transfer"
+            ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+            : "bg-orange-500/10 border-orange-500/20 text-orange-500";
+          return (
+            <code className={`text-[11px] px-2 py-0.5 rounded border font-mono font-bold ${colorClass}`}>
+              {params.value}
+            </code>
+          );
+        },
       },
       {
         headerName: "Category Name",

@@ -47,8 +47,8 @@ export default function WorkOrdersPage() {
         setCategories(catRes.data || []);
         setVendors(venRes.data || []);
       } catch (err) {
+        // Lookup failure is non-fatal — grid still works, just shows raw IDs
         console.error("Failed to fetch lookups", err);
-        setFetchError("Failed to load lookup data.");
       }
     };
 

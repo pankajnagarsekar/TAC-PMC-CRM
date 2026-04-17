@@ -89,7 +89,14 @@ export default function AdminDashboard() {
   // Hydrate schedule store for widgets if project is active
   React.useEffect(() => {
     if (activeProject?.project_id) {
-      schedulerApi.load(activeProject.project_id).then(loadSchedule);
+      schedulerApi.load(activeProject.project_id)
+        .then((response) => {
+          console.log("[Dashboard] Schedule loaded — tasks:", response?.tasks?.length ?? 0, "project_id:", response?.project_id);
+          loadSchedule(response);
+        })
+        .catch((err) => {
+          console.error("[Dashboard] Failed to load schedule:", err?.response?.status, err?.message);
+        });
     }
   }, [activeProject?.project_id, loadSchedule]);
 

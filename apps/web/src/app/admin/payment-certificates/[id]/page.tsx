@@ -318,63 +318,63 @@ export default function PaymentCertificateDetail({
             </h2>
 
             <div className="space-y-4">
-              <div className="flex justify-between items-end">
-                <span className="text-sm text-slate-400">
+              <div className="flex justify-between items-end gap-4">
+                <span className="text-sm text-slate-400 flex-1">
                   Subtotal Accumulate
                 </span>
-                <span className="font-mono text-white tracking-tight">
+                <span className="font-mono text-white tracking-tight flex-shrink-0">
                   {formatCurrency(pc.subtotal)}
                 </span>
               </div>
 
               {!pc.fund_request && pc.retention_amount > 0 && (
-                <div className="flex justify-between items-end text-amber-500/80">
-                  <span className="text-sm">Held Retention</span>
-                  <span className="font-mono tracking-tight">
+                <div className="flex justify-between items-end gap-4 text-amber-500/80">
+                  <span className="text-sm flex-1">Held Retention</span>
+                  <span className="font-mono tracking-tight flex-shrink-0">
                     -{formatCurrency(pc.retention_amount)}
                   </span>
                 </div>
               )}
 
-              <div className="flex justify-between items-end text-slate-500">
-                <span className="text-sm">CGST Base</span>
-                <span className="font-mono tracking-tight">
+              <div className="flex justify-between items-end gap-4 text-slate-500">
+                <span className="text-sm flex-1">CGST Base</span>
+                <span className="font-mono tracking-tight flex-shrink-0">
                   {formatCurrency(pc.cgst)}
                 </span>
               </div>
-              <div className="flex justify-between items-end text-slate-500 pb-4 border-b border-slate-800">
-                <span className="text-sm">SGST Base</span>
-                <span className="font-mono tracking-tight">
+              <div className="flex justify-between items-end gap-4 text-slate-500 pb-4 border-b border-slate-800">
+                <span className="text-sm flex-1">SGST Base</span>
+                <span className="font-mono tracking-tight flex-shrink-0">
                   {formatCurrency(pc.sgst)}
                 </span>
               </div>
 
-              <div className="flex justify-between items-end pt-2">
-                <span className="text-sm text-white font-medium">
+              <div className="flex justify-between items-end gap-4 pt-2">
+                <span className="text-sm text-white font-medium flex-1">
                   Grand Execution
                 </span>
-                <span className="text-xl font-mono text-white font-bold">
+                <span className="text-xl font-mono text-white font-bold flex-shrink-0">
                   {formatCurrency(pc.grand_total)}
                 </span>
               </div>
 
               {pc.fund_request && (
-                <div className="flex justify-between items-end pt-2">
-                  <span className="text-sm text-amber-500/80 font-bold uppercase">
+                <div className="flex justify-between items-end gap-4 pt-2">
+                  <span className="text-sm text-amber-500/80 font-bold uppercase flex-1">
                     Total for Injection
                   </span>
-                  <span className="text-xl font-mono text-amber-400 font-bold">
+                  <span className="text-xl font-mono text-amber-400 font-bold flex-shrink-0">
                     {formatCurrency(pc.grand_total)}
                   </span>
                 </div>
               )}
 
               {!pc.fund_request && (
-                <div className="flex justify-between items-end pt-2">
-                  <span className="text-sm text-emerald-500/80 font-bold uppercase">
+                <div className="flex justify-between items-end gap-4 pt-2">
+                  <span className="text-sm text-emerald-500/80 font-bold uppercase flex-1">
                     Total Payable
                   </span>
-                  <span className="text-xl font-mono text-emerald-400 font-bold">
+                  <span className="text-xl font-mono text-emerald-400 font-bold flex-shrink-0">
                     {formatCurrency(pc.total_payable)}
                   </span>
                 </div>

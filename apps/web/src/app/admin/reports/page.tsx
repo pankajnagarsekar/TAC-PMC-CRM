@@ -95,6 +95,7 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reportData, setReportData] = useState<any>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<"excel" | "pdf" | null>(null);
   // Removed redirect - using conditional render instead
@@ -123,6 +124,7 @@ export default function ReportsPage() {
 
     try {
       setIsLoading(true);
+      setReportError(null);
       const url = `/api/v1/reports/${activeProject.project_id}/${selectedReport}`;
       const params = new URLSearchParams();
 
@@ -134,11 +136,13 @@ export default function ReportsPage() {
       );
       setReportData(response.data);
       toast({ title: "Intelligence Ready", description: "Report datasets successfully generated." });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Report generation failed:", error);
+      const msg = error?.response?.data?.detail || error?.message || "Failed to assemble report.";
+      setReportError(msg);
       toast({
         title: "Interface Error",
-        description: "Failed to assemble report. Service may be under maintenance.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -252,6 +256,7 @@ export default function ReportsPage() {
     setStartDate("");
     setEndDate("");
     setReportData(null);
+    setReportError(null);
   };
 
   // Dynamic column definitions based on report type
@@ -489,10 +494,20 @@ export default function ReportsPage() {
       )}
 
       {!reportData && !isLoading && (
-        <div className="p-20 text-center glass-panel-luxury rounded-[2.5rem] border border-dashed border-white/5">
-          <BarChart3 size={48} className="mx-auto text-slate-800 mb-6 opacity-20" />
-          <p className="text-slate-500 font-bold tracking-tight uppercase text-xs">Waiting for Engine Initialization</p>
-          <p className="text-slate-700 text-[10px] mt-1 uppercase tracking-widest">Select target parameters above to begin assembling data.</p>
+        <div className={`p-20 text-center glass-panel-luxury rounded-[2.5rem] border border-dashed ${reportError ? 'border-red-500/20' : 'border-white/5'}`}>
+          <BarChart3 size={48} className={`mx-auto mb-6 opacity-20 ${reportError ? 'text-red-500' : 'text-slate-800'}`} />
+          {reportError ? (
+            <>
+              <p className="text-red-400 font-bold tracking-tight uppercase text-xs">Report Generation Failed</p>
+              <p className="text-red-700 text-[10px] mt-1 uppercase tracking-widest">{reportError}</p>
+              <button onClick={resetFilters} className="mt-4 text-[10px] text-slate-500 underline uppercase tracking-widest">Clear & Retry</button>
+            </>
+          ) : (
+            <>
+              <p className="text-slate-500 font-bold tracking-tight uppercase text-xs">Waiting for Engine Initialization</p>
+              <p className="text-slate-700 text-[10px] mt-1 uppercase tracking-widest">Select target parameters above to begin assembling data.</p>
+            </>
+          )}
         </div>
       )}
     </div>
