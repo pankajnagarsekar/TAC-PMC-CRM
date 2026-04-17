@@ -249,7 +249,16 @@ class SchedulerService:
                     "total_cost": 0,
                 }
 
-            return serialize_doc(schedule)
+            serialized = serialize_doc(schedule)
+            # Normalize task_id to string (seed data uses integers; frontend expects strings)
+            for task in serialized.get("tasks", []):
+                if "task_id" in task and not isinstance(task["task_id"], str):
+                    task["task_id"] = str(task["task_id"])
+                # Normalize predecessor task_ids too
+                for pred in task.get("predecessors", []) or []:
+                    if isinstance(pred, dict) and "task_id" in pred and not isinstance(pred["task_id"], str):
+                        pred["task_id"] = str(pred["task_id"])
+            return serialized
         except Exception as e:
             logger.error(f"FATAL_SCHEDULER_LOAD: {str(e)}")
             # Fallback to default instead of 500 to keep UI functional

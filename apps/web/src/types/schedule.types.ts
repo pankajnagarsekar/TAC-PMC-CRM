@@ -93,6 +93,7 @@ export type ScheduleTask = {
   ai_status_flag?: string | null;
   calc_reason?: string;
   project_scheduled_start?: string | null;  // Cached project anchor date for stable full-recalc
+  crm_task_ids?: string[];  // Optional links to Tasks module (operational Kanban tasks)
   [key: string]: unknown;
 };
 

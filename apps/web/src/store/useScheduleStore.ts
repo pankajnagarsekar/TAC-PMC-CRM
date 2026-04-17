@@ -16,8 +16,9 @@ let calculationTimer: ReturnType<typeof setTimeout> | null = null;
 
 const buildTaskMap = (tasks: ScheduleTask[]): ScheduleTaskMap => {
   return (tasks || []).reduce<ScheduleTaskMap>((acc, task) => {
-    if (task && task.task_id) {
-      acc[task.task_id] = { ...task };
+    if (task && task.task_id != null) {
+      const key = String(task.task_id);
+      acc[key] = { ...task, task_id: key };
     }
     return acc;
   }, {});
@@ -25,17 +26,19 @@ const buildTaskMap = (tasks: ScheduleTask[]): ScheduleTaskMap => {
 
 const buildTaskOrder = (tasks: ScheduleTask[]) =>
   (tasks || [])
-    .filter(t => t && t.task_id)
-    .map((task) => task.task_id);
+    .filter(t => t && t.task_id != null)
+    .map((task) => String(task.task_id));
 
 const buildDependencyGraph = (tasks: ScheduleTask[]) => {
   const graph: Record<string, { predecessors: string[]; successors: string[] }> = {};
   tasks.forEach((task) => {
-    graph[task.task_id] = graph[task.task_id] ?? { predecessors: [], successors: [] };
+    const tid = String(task.task_id);
+    graph[tid] = graph[tid] ?? { predecessors: [], successors: [] };
     task.predecessors?.forEach((pred) => {
-      graph[task.task_id].predecessors.push(pred.task_id);
-      graph[pred.task_id] = graph[pred.task_id] ?? { predecessors: [], successors: [] };
-      graph[pred.task_id].successors.push(task.task_id);
+      const pid = String(pred.task_id);
+      graph[tid].predecessors.push(pid);
+      graph[pid] = graph[pid] ?? { predecessors: [], successors: [] };
+      graph[pid].successors.push(tid);
     });
   });
   return graph;
