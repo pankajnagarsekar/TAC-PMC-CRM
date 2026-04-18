@@ -95,8 +95,9 @@ export default function ProjectDetailPage() {
           precision: 2,
         },
         cellClass: (params) => params.value > 0
-          ? "font-mono text-orange-600 dark:text-orange-400 bg-orange-600/5 dark:bg-orange-500/5"
+          ? "font-mono text-foreground"
           : "font-mono text-slate-400 dark:text-slate-500",
+        minWidth: 160,
         valueFormatter: (params) => formatCurrency(params.value),
         onCellValueChanged: async (params: NewValueParams<DerivedFinancialState>) => {
           const { _id, project_id, category_id, original_budget } = params.data;
@@ -132,6 +133,7 @@ export default function ProjectDetailPage() {
         flex: 1.2,
         cellClass: "text-zinc-600 dark:text-slate-300 font-mono",
         valueFormatter: (params) => formatCurrency(params.value),
+        minWidth: 160,
       },
       {
         headerName: "Certified (PCs)",
@@ -139,6 +141,7 @@ export default function ProjectDetailPage() {
         flex: 1.2,
         cellClass: "text-zinc-400 dark:text-slate-400 font-mono",
         valueFormatter: (params) => formatCurrency(params.value),
+        minWidth: 160,
       },
       {
         headerName: "Remaining",
@@ -154,6 +157,7 @@ export default function ProjectDetailPage() {
             </span>
           );
         },
+        minWidth: 160,
       },
     ],
     [mutateFinancials, savingId],

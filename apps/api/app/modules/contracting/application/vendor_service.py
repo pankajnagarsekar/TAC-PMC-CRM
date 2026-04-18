@@ -41,8 +41,11 @@ class VendorService:
         """Admin-initiated vendor creation with uniqueness check."""
         await self.permission_checker.check_admin_role(user)
 
+        import re
+        sanitized_name = re.sub('<[^<]+?>', '', vendor_data.name)
+        
         existing_name = await self.vendor_repo.get_by_name(
-            vendor_data.name, user["organisation_id"]
+            sanitized_name, user["organisation_id"]
         )
         if existing_name:
             raise ValidationError(
@@ -50,6 +53,7 @@ class VendorService:
             )
 
         vendor_dict = vendor_data.dict()
+        vendor_dict["name"] = sanitized_name
         vendor_dict["organisation_id"] = user["organisation_id"]
         vendor_dict["active_status"] = True
 
@@ -86,14 +90,18 @@ class VendorService:
 
         update_data = vendor_update.dict(exclude_unset=True)
 
-        if "name" in update_data and update_data["name"] != existing["name"]:
-            duplicate = await self.vendor_repo.get_by_name(
-                update_data["name"], user["organisation_id"]
-            )
-            if duplicate:
-                raise ValidationError(
-                    "VENDOR_NAME_CONFLICT: Another vendor already uses this name."
+        if "name" in update_data:
+            import re
+            update_data["name"] = re.sub('<[^<]+?>', '', update_data["name"])
+            
+            if update_data["name"] != existing["name"]:
+                duplicate = await self.vendor_repo.get_by_name(
+                    update_data["name"], user["organisation_id"]
                 )
+                if duplicate:
+                    raise ValidationError(
+                        "VENDOR_NAME_CONFLICT: Another vendor already uses this name."
+                    )
 
         updated_vendor = await self.vendor_repo.update(
             vendor_id, update_data, organisation_id=user["organisation_id"]

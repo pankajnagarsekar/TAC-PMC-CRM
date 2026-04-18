@@ -152,27 +152,61 @@ class DashboardService:
         # 2. Fetch Project Metadata
         project = await self.project_repo.get_by_id(project_id)
 
-        # 3. Fetch Schedule Metadata (count tasks)
+        # 3. Fetch counts for active items (Tasks + Work Orders)
+        active_tasks_count = await self.db.tasks.count_documents(
+            {
+                "project_id": project_id,
+                "organisation_id": organisation_id,
+                "status": {"$in": ["Open", "In Progress"]},
+            }
+        )
+        active_wos_count = await self.db.work_orders.count_documents(
+            {
+                "project_id": project_id,
+                "organisation_id": organisation_id,
+                "status": {"$in": ["Draft", "Pending", "Approved"]},
+            }
+        )
+
         schedule = await self.db.project_schedules.find_one({"project_id": project_id})
         tasks_count = len(schedule.get("tasks", [])) if schedule else 0
 
-        # 4. Construct high-level stats
+        # 4. Filter overdue milestones from schedule
+        overdue_milestones_count = 0
+        if schedule:
+            now_str = datetime.now(timezone.utc).date().isoformat()
+            for t in schedule.get("tasks", []):
+                finish_date = t.get("scheduled_finish")
+                if (
+                    t.get("is_milestone")
+                    and finish_date
+                    and finish_date < now_str
+                    and float(t.get("percent_complete", 0)) < 100
+                ):
+                    overdue_milestones_count += 1
+
+        # 5. Construct high-level stats
         stats = {
-            "total_budget": float(
-                FinancialEngine.to_decimal(master_state.get("original_budget", 0))
-                if master_state
-                else 0
-            ),
-            "net_committed": float(
-                FinancialEngine.to_decimal(master_state.get("committed_value", 0))
-                if master_state
-                else 0
-            ),
-            "net_certified": float(
-                FinancialEngine.to_decimal(master_state.get("certified_value", 0))
-                if master_state
-                else 0
-            ),
+            "overview": {
+                "total_phases": tasks_count,
+                "active_items": active_tasks_count + active_wos_count,
+                "overdue_milestones": overdue_milestones_count,
+                "total_budget": float(
+                    FinancialEngine.to_decimal(master_state.get("original_budget", 0))
+                    if master_state
+                    else 0
+                ),
+                "net_committed": float(
+                    FinancialEngine.to_decimal(master_state.get("committed_value", 0))
+                    if master_state
+                    else 0
+                ),
+                "net_certified": float(
+                    FinancialEngine.to_decimal(master_state.get("certified_value", 0))
+                    if master_state
+                    else 0
+                ),
+            },
             "tasks_count": tasks_count,
             "completion_percentage": float(
                 project.get("completion_percentage", 0) if project else 0

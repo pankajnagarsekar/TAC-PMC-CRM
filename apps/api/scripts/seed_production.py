@@ -120,7 +120,7 @@ async def seed_production():
         codes = [
             {"code": "CIV", "description": "Civil Works", "category": "Construction"},
             {"code": "PLB", "description": "Plumbing Works", "category": "MEP"},
-            {"code": "ELC", "description": "Electrical Works", "category": "MEP"},
+            {"code": "ELC", "description": "Electrical Works", "category": "Electrical"},
             {"code": "DWG", "description": "Doors, Windows & Glazing", "category": "Finishing"},
             {"code": "SWP", "description": "Swimming Pool Works", "category": "Specialized"},
             {"code": "HVC", "description": "HVAC / Air Conditioning", "category": "MEP"},
@@ -1279,12 +1279,13 @@ async def seed_production():
         admin_name = admin_user.get("full_name", "Admin") if admin_user else "Admin"
 
         from bson import ObjectId as BsonObjectId
+        from datetime import timedelta
         seed_tasks = [
-            {"task_description": "Confirm foundation inspection with civil engineer", "priority": "High", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external"},
-            {"task_description": "Submit revised BOQ for Phase 2 electrical works", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user", "assigned_to_user_id": admin_id},
-            {"task_description": "Collect invoices from Rajesh Construction for March", "priority": "Medium", "status": "In Progress", "assigned_to_name": admin_name, "assigned_to_type": "user"},
-            {"task_description": "Schedule weekly progress photo documentation", "priority": "Low", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external"},
-            {"task_description": "Update client on waterproofing completion timeline", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user"},
+            {"task_description": "Confirm foundation inspection with civil engineer", "priority": "High", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external", "deadline": datetime.now(timezone.utc) + timedelta(days=2)},
+            {"task_description": "Submit revised BOQ for Phase 2 electrical works", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user", "assigned_to_user_id": admin_id, "deadline": datetime.now(timezone.utc) + timedelta(days=5)},
+            {"task_description": "Collect invoices from Rajesh Construction for March", "priority": "Medium", "status": "In Progress", "assigned_to_name": admin_name, "assigned_to_type": "user", "deadline": datetime.now(timezone.utc) + timedelta(days=3)},
+            {"task_description": "Schedule weekly progress photo documentation", "priority": "Low", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external", "deadline": datetime.now(timezone.utc) + timedelta(days=7)},
+            {"task_description": "Update client on waterproofing completion timeline", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user", "deadline": datetime.now(timezone.utc) + timedelta(days=1)},
         ]
         task_docs = []
         for idx, t in enumerate(seed_tasks):
@@ -1299,6 +1300,7 @@ async def seed_production():
                 "assigned_to_name": t["assigned_to_name"],
                 "assigned_to_type": t["assigned_to_type"],
                 "assigned_to_user_id": t.get("assigned_to_user_id"),
+                "deadline": t.get("deadline"),
                 "created_by": admin_id,
                 "created_by_name": admin_name,
                 "version": 1,

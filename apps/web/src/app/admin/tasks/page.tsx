@@ -72,6 +72,12 @@ export default function TasksPage() {
               ? ` Showing records for ${activeProject.project_name}.`
               : " Select a project."}
           </p>
+          {activeProject && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[11px] font-medium text-blue-400">
+              <ListIcon size={12} />
+              <span>Note: Construction tasks are managed in the <button onClick={() => router.push(`/admin/projects/${activeProject.project_id || (activeProject as any)._id}`)} className="underline hover:text-blue-300">Project Planner</button>.</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">

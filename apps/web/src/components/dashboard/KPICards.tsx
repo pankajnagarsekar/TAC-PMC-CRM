@@ -51,8 +51,8 @@ export default function KPICards() {
     });
 
     // Null when no data — prevents misleading "1.00 perfect performance" on empty project
-    const spi = plannedValue > 0 ? earnedValue / plannedValue : null;
-    const cpi = actualCost > 0 ? earnedValue / actualCost : null;
+    const spi = (plannedValue > 0 && earnedValue >= 0) ? earnedValue / plannedValue : null;
+    const cpi = (totalBaselineCost > 0 && actualCost > 0) ? earnedValue / actualCost : null;
 
     return {
       totalBaselineCost,
