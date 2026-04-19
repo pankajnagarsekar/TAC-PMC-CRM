@@ -382,7 +382,7 @@ export default function WorkOrderDetailPage() {
                 </select>
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                  {categories?.find((c) => (c.id ?? c._id) === wo.category_id)?.category_name || wo.category_id}
+                  {categories?.find((c) => c._id === wo.category_id)?.category_name || wo.category_id}
                 </div>
               )}
             </div>
@@ -406,7 +406,7 @@ export default function WorkOrderDetailPage() {
                 </select>
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                  {vendors?.find((v) => (v.id ?? v._id) === wo.vendor_id)?.name || wo.vendor_id}
+                  {vendors?.find((v) => v._id === wo.vendor_id)?.name || wo.vendor_id}
                 </div>
               )}
             </div>
