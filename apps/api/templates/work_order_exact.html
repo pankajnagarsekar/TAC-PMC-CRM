@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>{{ title }}</title>
@@ -8,7 +9,11 @@
             size: A4;
             margin: 1.5cm 1.5cm 2cm 1.5cm;
         }
-        * { box-sizing: border-box; }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             font-size: 10px;
@@ -16,6 +21,7 @@
             margin: 0;
             padding: 0;
         }
+
         .page-title {
             font-size: 16px;
             font-weight: bold;
@@ -26,23 +32,46 @@
             margin-bottom: 10px;
             background: #f7f7f7;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
+            page-break-inside: auto;
         }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        tfoot {
+            display: table-footer-group;
+        }
+
         .info-table td {
             padding: 3px 6px;
             vertical-align: top;
             font-size: 10px;
         }
+
         .info-label {
             font-weight: bold;
             white-space: nowrap;
         }
+
         .section-divider {
             border-top: 1px solid #555;
             margin: 8px 0;
         }
+
+        .items-table {
+            margin-bottom: 20px;
+        }
+
         .items-table th {
             background: #e8e8e8;
             font-weight: bold;
@@ -51,43 +80,65 @@
             padding: 5px 4px;
             font-size: 10px;
         }
+
         .items-table td {
             border: 1px solid #aaa;
             padding: 4px 5px;
             font-size: 10px;
             vertical-align: top;
         }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .text-left { text-align: left; }
-        .bold { font-weight: bold; }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
         .totals-block {
             width: 45%;
             margin-left: auto;
             margin-top: 4px;
+            page-break-inside: avoid;
         }
+
         .totals-block table {
             border-collapse: collapse;
             width: 100%;
         }
+
         .totals-block td {
             border: 1px solid #aaa;
             padding: 4px 6px;
             font-size: 10px;
         }
+
         .totals-block .label-cell {
             font-weight: bold;
             background: #f0f0f0;
             width: 60%;
         }
+
         .totals-block .grand-total-row td {
             font-weight: bold;
             background: #ddeeff;
             font-size: 11px;
         }
+
         .notes-totals-row {
             margin-top: 6px;
+            page-break-inside: avoid;
         }
+
         .notes-block {
             display: inline-block;
             width: 50%;
@@ -95,55 +146,67 @@
             padding-right: 10px;
             font-size: 9.5px;
         }
+
         .timeline-warranty {
             margin-top: 8px;
             border: 1px solid #bbb;
             padding: 6px 8px;
             font-size: 10px;
+            page-break-inside: avoid;
         }
+
         .tc-section {
             margin-top: 8px;
         }
+
         .tc-section h4 {
             font-size: 10px;
             margin: 4px 0;
             font-weight: bold;
         }
+
         .tc-section ol {
             font-size: 9px;
             text-align: justify;
             padding-left: 18px;
             margin: 0;
         }
+
         .tc-section ol li {
             margin-bottom: 2px;
         }
+
         .signature-row {
             margin-top: 20px;
             page-break-inside: avoid;
         }
+
         .sig-block {
             display: inline-block;
             width: 48%;
             text-align: center;
             vertical-align: top;
         }
+
         .sig-line {
             border-top: 1px solid #333;
             margin-top: 30px;
             padding-top: 4px;
             font-size: 10px;
         }
+
         .header-grid {
             width: 100%;
             margin-bottom: 6px;
         }
+
         .header-grid td {
             vertical-align: top;
             padding: 2px 4px;
         }
     </style>
 </head>
+
 <body>
 
     <div class="page-title">WORK ORDER</div>
@@ -152,12 +215,14 @@
     <table class="header-grid">
         <tr>
             <td width="58%">
-                <span class="bold" style="font-size:11px;">{{ metadata.vendor.name | default('Vendor Name') }}</span><br>
+                <span class="bold" style="font-size:11px;">{{ metadata.vendor.name | default('Vendor Name')
+                    }}</span><br>
                 {% if metadata.vendor.address_line1 %}{{ metadata.vendor.address_line1 }}<br>{% endif %}
                 {% if metadata.vendor.address_line2 %}{{ metadata.vendor.address_line2 }}<br>{% endif %}
                 {% if metadata.vendor.address_line3 %}{{ metadata.vendor.address_line3 }}<br>{% endif %}
                 <br>
-                <span class="bold">GST No :</span>&nbsp;{{ metadata.vendor.gstin | default(metadata.vendor.gst_no) | default('-') }}
+                <span class="bold">GST No :</span>&nbsp;{{ metadata.vendor.gstin | default(metadata.vendor.gst_no) |
+                default('-') }}
             </td>
             <td width="42%">
                 <table class="info-table" style="width:100%">
@@ -242,28 +307,43 @@
             <td width="48%" style="vertical-align:top;">
                 <table style="width:100%; border-collapse:collapse;">
                     <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0; width:55%;">Subtotal :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.subtotal | default(0) }}</td>
+                        <td
+                            style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0; width:55%;">
+                            Subtotal :</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.subtotal |
+                            default(0) }}</td>
                     </tr>
                     <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">Discount :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.discount | default(0) }}</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">
+                            Discount :</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.discount |
+                            default(0) }}</td>
                     </tr>
                     <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">Total :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.total_after_discount | default(metadata.subtotal) | default(0) }}</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">Total
+                            :</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{
+                            metadata.total_after_discount | default(metadata.subtotal) | default(0) }}</td>
                     </tr>
                     <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">CGST :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.cgst | default(0) }}</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">CGST :
+                        </td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.cgst |
+                            default(0) }}</td>
                     </tr>
                     <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">SGST :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.sgst | default(0) }}</td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">SGST :
+                        </td>
+                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.sgst |
+                            default(0) }}</td>
                     </tr>
                     <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#ddeeff; font-size:11px;">Grand Total :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right; font-weight:bold; background:#ddeeff; font-size:11px;">{{ metadata.grand_total | default(0) }}</td>
+                        <td
+                            style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#ddeeff; font-size:11px;">
+                            Grand Total :</td>
+                        <td
+                            style="border:1px solid #aaa; padding:4px 6px; text-align:right; font-weight:bold; background:#ddeeff; font-size:11px;">
+                            {{ metadata.grand_total | default(0) }}</td>
                     </tr>
                 </table>
             </td>
@@ -290,24 +370,44 @@
     <div class="tc-section">
         <h4>General Terms and Condition:</h4>
         <ol>
-            <li>The Contractor shall ensure all labour, technicians and supervisors possess valid police verification documents, health cards and mandatory statutory clearances, available at all times during their engagement.</li>
-            <li>The Contractor is fully responsible for safety of their workforce and must provide PPE such as safety shoes, helmets, belts, gloves and goggles.</li>
-            <li>Any accident, injury or fatality shall be handled entirely by the Contractor including medical treatment, compensation and legal liability.</li>
-            <li>Waste must be segregated, disposed safely and without burning or chemical dumping. Dust control and tidy operations must be maintained at all times.</li>
-            <li>Contractor shall maintain daily site cleanliness. All debris or waste shall be stored at a designated area and cleared regularly to prevent obstruction.</li>
-            <li>Works must be executed strictly as per approved drawings, materials and specifications within stipulated timelines.</li>
-            <li>Contractor is responsible for safe storage and protection of all materials (client-supplied or contractor-supplied). Any losses or damages due to improper handling will be recovered from the Contractor.</li>
-            <li>All work shall follow approved site working hours. High-noise or disruptive tasks shall require 24-hour prior intimation to PMC.</li>
-            <li>All PMC observations and instructions will be issued only to the Contractor's designated site supervisor. No direct instruction will be given to labour.</li>
-            <li>Any snags or defects identified by PMC must be rectified within the stipulated period. Failure to do so will result in corrective work being executed through alternate agencies at Contractor's cost.</li>
-            <li>Standard workmanship warranty of 12 Months from the date of Handover applicable to the Contractor. Any failure within the defects liability period shall be rectified without cost.</li>
-            <li>Any increase or decrease in quantities or scope must be informed to PMC immediately. Revised Work Orders or Change Orders will be issued accordingly.</li>
-            <li>Payment Certificates will be prepared by PMC based on joint measurements. Contractor must provide complete measurement sheets and ensure supervisor presence during inspections.</li>
+            <li>The Contractor shall ensure all labour, technicians and supervisors possess valid police verification
+                documents, health cards and mandatory statutory clearances, available at all times during their
+                engagement.</li>
+            <li>The Contractor is fully responsible for safety of their workforce and must provide PPE such as safety
+                shoes, helmets, belts, gloves and goggles.</li>
+            <li>Any accident, injury or fatality shall be handled entirely by the Contractor including medical
+                treatment, compensation and legal liability.</li>
+            <li>Waste must be segregated, disposed safely and without burning or chemical dumping. Dust control and tidy
+                operations must be maintained at all times.</li>
+            <li>Contractor shall maintain daily site cleanliness. All debris or waste shall be stored at a designated
+                area and cleared regularly to prevent obstruction.</li>
+            <li>Works must be executed strictly as per approved drawings, materials and specifications within stipulated
+                timelines.</li>
+            <li>Contractor is responsible for safe storage and protection of all materials (client-supplied or
+                contractor-supplied). Any losses or damages due to improper handling will be recovered from the
+                Contractor.</li>
+            <li>All work shall follow approved site working hours. High-noise or disruptive tasks shall require 24-hour
+                prior intimation to PMC.</li>
+            <li>All PMC observations and instructions will be issued only to the Contractor's designated site
+                supervisor. No direct instruction will be given to labour.</li>
+            <li>Any snags or defects identified by PMC must be rectified within the stipulated period. Failure to do so
+                will result in corrective work being executed through alternate agencies at Contractor's cost.</li>
+            <li>Standard workmanship warranty of 12 Months from the date of Handover applicable to the Contractor. Any
+                failure within the defects liability period shall be rectified without cost.</li>
+            <li>Any increase or decrease in quantities or scope must be informed to PMC immediately. Revised Work Orders
+                or Change Orders will be issued accordingly.</li>
+            <li>Payment Certificates will be prepared by PMC based on joint measurements. Contractor must provide
+                complete measurement sheets and ensure supervisor presence during inspections.</li>
             <li>All payments shall be released strictly against PMC-approved and signed Payment Certificates.</li>
-            <li>Payment Certificates shall be prepared between the 25th and 30th of each month. Submissions outside this window will move to the next cycle.</li>
-            <li>A 5% retention will be deducted from all payments. Retention will be released only after full completion of work and after a minimum three-month period post-monsoon, subject to no defects.</li>
-            <li>Contractor personnel shall not share site photos, drawings, videos or project details on social media or externally without written approval from the Company/PMC.</li>
-            <li>In case of breach of any clause or non-performance, the Company reserves the right to execute the works through alternate agencies. Any cost or time impact arising from such action will be fully recovered from the Contractor's payments or retention.</li>
+            <li>Payment Certificates shall be prepared between the 25th and 30th of each month. Submissions outside this
+                window will move to the next cycle.</li>
+            <li>A 5% retention will be deducted from all payments. Retention will be released only after full completion
+                of work and after a minimum three-month period post-monsoon, subject to no defects.</li>
+            <li>Contractor personnel shall not share site photos, drawings, videos or project details on social media or
+                externally without written approval from the Company/PMC.</li>
+            <li>In case of breach of any clause or non-performance, the Company reserves the right to execute the works
+                through alternate agencies. Any cost or time impact arising from such action will be fully recovered
+                from the Contractor's payments or retention.</li>
         </ol>
     </div>
 
@@ -330,4 +430,5 @@
     </table>
 
 </body>
+
 </html>

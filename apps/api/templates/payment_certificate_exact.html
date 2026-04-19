@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>{{ title }}</title>
@@ -8,7 +9,11 @@
             size: A4;
             margin: 1.5cm 1.5cm 2cm 1.5cm;
         }
-        * { box-sizing: border-box; }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             font-size: 10px;
@@ -16,6 +21,7 @@
             margin: 0;
             padding: 0;
         }
+
         .page-title {
             font-size: 16px;
             font-weight: bold;
@@ -26,23 +32,46 @@
             margin-bottom: 10px;
             background: #f7f7f7;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
+            page-break-inside: auto;
         }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        tfoot {
+            display: table-footer-group;
+        }
+
         .info-table td {
             padding: 3px 6px;
             vertical-align: top;
             font-size: 10px;
         }
+
         .info-label {
             font-weight: bold;
             white-space: nowrap;
         }
+
         .section-divider {
             border-top: 1px solid #555;
             margin: 8px 0;
         }
+
+        .items-table {
+            margin-bottom: 20px;
+        }
+
         .items-table th {
             background: #e8e8e8;
             font-weight: bold;
@@ -51,21 +80,37 @@
             padding: 5px 4px;
             font-size: 10px;
         }
+
         .items-table td {
             border: 1px solid #aaa;
             padding: 4px 5px;
             font-size: 10px;
             vertical-align: top;
         }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .bold { font-weight: bold; }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
         .header-grid td {
             vertical-align: top;
             padding: 2px 4px;
         }
+
+        .totals-section {
+            page-break-inside: avoid;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="page-title">PAYMENT CERTIFICATE</div>
@@ -77,7 +122,8 @@
                 <span class="bold">Contractor</span><br>
                 <span style="font-size:11px; font-weight:bold;">{{ metadata.vendor.name | default('') }}</span><br>
                 <br>
-                <span class="bold">GST No :</span>&nbsp;{{ metadata.vendor.gstin | default(metadata.vendor.gst_no) | default('-') }}
+                <span class="bold">GST No :</span>&nbsp;{{ metadata.vendor.gstin | default(metadata.vendor.gst_no) |
+                default('-') }}
             </td>
             <td width="42%" style="vertical-align:top;">
                 <table class="info-table" style="width:100%">
@@ -132,42 +178,59 @@
     </table>
 
     <!-- PMC Comments + Totals -->
-    <table style="width:100%; margin-top:6px; border-collapse:collapse;">
-        <tr>
-            <td width="52%" style="vertical-align:top; border:1px solid #aaa; padding:6px 8px;">
-                <span class="bold">PMC Comments</span><br>
-                {{ metadata.pmc_comments | default('') }}
-            </td>
-            <td width="48%" style="vertical-align:top;">
-                <table style="width:100%; border-collapse:collapse;">
-                    <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0; width:60%;">Sub Total :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.subtotal | default(0) }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">Retention {{ metadata.retention_percent | default(5) }}% :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.retention_amount | default(metadata.retention) | default(0) }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">Total :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.total_after_retention | default(0) }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">CGST :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.cgst | default(0) }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">SGST :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.sgst | default(0) }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#ddeeff; font-size:11px;">Grand Total :</td>
-                        <td style="border:1px solid #aaa; padding:4px 6px; text-align:right; font-weight:bold; background:#ddeeff; font-size:11px;">{{ metadata.grand_total | default(0) }}</td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+    <div class="totals-section">
+        <table style="width:100%; margin-top:6px; border-collapse:collapse;">
+            <tr>
+                <td width="52%" style="vertical-align:top; border:1px solid #aaa; padding:6px 8px;">
+                    <span class="bold">PMC Comments</span><br>
+                    {{ metadata.pmc_comments | default('') }}
+                </td>
+                <td width="48%" style="vertical-align:top;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <tr>
+                            <td
+                                style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0; width:60%;">
+                                Sub Total :</td>
+                            <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.subtotal |
+                                default(0) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">
+                                Retention {{ metadata.retention_percent | default(5) }}% :</td>
+                            <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{
+                                metadata.retention_amount | default(metadata.retention) | default(0) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">
+                                Total :</td>
+                            <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{
+                                metadata.total_after_retention | default(0) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">
+                                CGST :</td>
+                            <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.cgst |
+                                default(0) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#f0f0f0;">
+                                SGST :</td>
+                            <td style="border:1px solid #aaa; padding:4px 6px; text-align:right;">{{ metadata.sgst |
+                                default(0) }}</td>
+                        </tr>
+                        <tr>
+                            <td
+                                style="border:1px solid #aaa; padding:4px 6px; font-weight:bold; background:#ddeeff; font-size:11px;">
+                                Grand Total :</td>
+                            <td
+                                style="border:1px solid #aaa; padding:4px 6px; text-align:right; font-weight:bold; background:#ddeeff; font-size:11px;">
+                                {{ metadata.grand_total | default(0) }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
 
     <!-- Signature row -->
     <table style="width:100%; margin-top:32px; page-break-inside:avoid;">
@@ -188,4 +251,5 @@
     </table>
 
 </body>
+
 </html>

@@ -193,6 +193,13 @@ class FinancialService:
             upsert=True,
         )
 
+        # Invalidate Dashboard Cache (BUG-009)
+        try:
+            from app.modules.reporting.application.dashboard_service import DashboardService
+            DashboardService.invalidate_project_cache(project_id)
+        except Exception as e:
+            logger.warning(f"DASHBOARD_CACHE_INVALIDATE_FAILED for {project_id}: {str(e)}")
+
         return master_snapshot
 
     async def check_threshold_breach(
@@ -257,6 +264,37 @@ class FinancialService:
                     raise ValidationError("Non-fund request requires a vendor")
         # Add more doc_type validations as needed
 
+    async def create_budget(
+        self,
+        user: dict,
+        project_id: str,
+        category_id: str,
+        original_budget: Decimal,
+        session=None,
+    ) -> dict:
+        """Authoritative creation of a category budget with master sync (Point H3)."""
+        # 1. Validation
+        if original_budget < 0:
+            raise ValidationError("Budget cannot be negative.")
+
+        # 2. Persist
+        budget_doc = {
+            "project_id": project_id,
+            "organisation_id": user["organisation_id"],
+            "category_id": category_id,
+            "original_budget": FinancialEngine.to_d128(original_budget),
+            "committed_amount": FinancialEngine.to_d128(Decimal("0.0")),
+            "remaining_budget": FinancialEngine.to_d128(original_budget),
+            "version": 1,
+            "created_at": now(),
+            "updated_at": now(),
+        }
+        
+        await self.budget_repo.create(budget_doc, session=session)
+
+        # 3. Trigger Master Recalculation (H3)
+        return await self.recalculate_master_budget(project_id, session=session)
+
     async def update_budget(
         self,
         user: dict,
@@ -273,9 +311,13 @@ class FinancialService:
             project_id, category_id, session=session
         )
         if not status:
-            raise ValidationError(f"Budget for category {category_id} not found.")
-
-        committed = FinancialEngine.to_decimal(status.get("committed_value", 0))
+            # Fallback: check if budget actually exists but status isn't derived yet
+            existing = await self.budget_repo.get_by_project_and_category(project_id, category_id, session=session)
+            if not existing:
+                raise ValidationError(f"Budget for category {category_id} not found.")
+            committed = 0
+        else:
+            committed = FinancialEngine.to_decimal(status.get("committed_value", 0))
 
         # 2. H1: Backend Validation
         if original_budget < 0:

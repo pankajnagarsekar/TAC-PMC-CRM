@@ -51,12 +51,18 @@ class DashboardService:
     """
 
     # Shared cache instance
-    _cache = DashboardCache(ttl_seconds=30)
+    _cache = DashboardCache(ttl_seconds=5)
 
     def __init__(self, db, analytics_service: AnalyticsService):
         self.db = db
         self.analytics_service = analytics_service
         self.project_repo = ProjectRepository(db)
+
+    @classmethod
+    def invalidate_project_cache(cls, project_id: str):
+        """Authoritative cache invalidation for a project (BUG-009)."""
+        cls._cache.invalidate(project_id)
+        logger.info(f"DASHBOARD_CACHE_INVALIDATED: {project_id}")
 
     async def get_project_dashboard(
         self, project_id: str, organisation_id: str

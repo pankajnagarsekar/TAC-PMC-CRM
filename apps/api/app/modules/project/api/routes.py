@@ -13,8 +13,10 @@ from app.core.dependencies import (
     get_scheduler_service,
     get_ai_service,
     get_reporting_service,
+    get_financial_service,
     verify_nonce,
 )
+from app.modules.financial.application.financial_service import FinancialService
 from app.modules.reporting.application.reporting_service import ReportingService
 
 from app.modules.reporting.application.ai_service import AIService
@@ -182,10 +184,12 @@ async def create_category_budget(
     project_id: str,
     budget_data: ProjectBudgetCreate,
     user: dict = Depends(get_authenticated_user),
-    project_service: ProjectService = Depends(get_project_service),
+    financial_service: FinancialService = Depends(get_financial_service),
 ):
     """Define budget for a specific category within a project."""
-    budget = await project_service.create_category_budget(user, project_id, budget_data)
+    budget = await financial_service.create_budget(
+        user, project_id, budget_data.category_id, budget_data.original_budget
+    )
     return GenericResponse(data=budget, message="Category budget created")
 
 

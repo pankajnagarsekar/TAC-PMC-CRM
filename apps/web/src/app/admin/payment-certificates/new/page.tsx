@@ -54,6 +54,7 @@ export default function NewPaymentCertificatePage() {
 
   const [lineItems, setLineItems] = useState<PCLineItem[]>([]);
   const [retentionPercent, setRetentionPercent] = useState<number>(5);
+  const [filterCategoryId, setFilterCategoryId] = useState<string>("");
 
   // SWR Hooks
   const { data: woResponse } = useSWR(
@@ -64,8 +65,14 @@ export default function NewPaymentCertificatePage() {
   );
   const workOrders: WorkOrder[] = useMemo(() => {
     const rawItems = Array.isArray(woResponse) ? woResponse : (woResponse?.items || []);
-    return rawItems.filter((wo: WorkOrder) => wo.status !== "Cancelled");
-  }, [woResponse]);
+    let filtered = rawItems.filter((wo: WorkOrder) => wo.status !== "Cancelled");
+
+    if (isWoLinked && filterCategoryId) {
+      filtered = filtered.filter((wo: WorkOrder) => wo.category_id === filterCategoryId);
+    }
+
+    return filtered;
+  }, [woResponse, filterCategoryId, isWoLinked]);
 
   const { data: categories } = useSWR<CodeMaster[]>(
     "/api/v1/settings/codes?active_only=true",
@@ -386,33 +393,56 @@ export default function NewPaymentCertificatePage() {
 
           <div className="grid grid-cols-2 gap-6">
             {isWoLinked ? (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Select Work Order Link
-                </label>
-                <select
-                  value={selectedWoId}
-                  onChange={(e) => setSelectedWoId(e.target.value)}
-                  className={`w-full bg-slate-950 border ${fieldErrors.work_order_id ? "border-red-500" : "border-slate-800"} rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500`}
-                >
-                  <option value="">Select a WO...</option>
-                  {workOrders.map((wo: WorkOrder) => (
-                    <option key={wo._id} value={wo._id}>
-                      {wo.wo_ref} (Cat:{" "}
-                      {
-                        categories?.find((c) => c._id === wo.category_id)
-                          ?.category_name
-                      }
-                      )
-                    </option>
-                  ))}
-                </select>
-                {fieldErrors.work_order_id && (
-                  <p className="text-[10px] text-red-500 mt-1 uppercase font-bold">
-                    {fieldErrors.work_order_id}
-                  </p>
-                )}
-              </div>
+              <>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Filter by Category (Optional)
+                  </label>
+                  <select
+                    value={filterCategoryId}
+                    onChange={(e) => {
+                      setFilterCategoryId(e.target.value);
+                      setSelectedWoId(""); // Reset WO when filter changes
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="">All Categories</option>
+                    {categories?.map((c) => (
+                      <option key={c._id || c.code_id} value={c._id || c.code_id}>
+                        {c.category_name} ({c.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Select Work Order Link
+                  </label>
+                  <select
+                    value={selectedWoId}
+                    onChange={(e) => setSelectedWoId(e.target.value)}
+                    className={`w-full bg-slate-950 border ${fieldErrors.work_order_id ? "border-red-500" : "border-slate-800"} rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500`}
+                  >
+                    <option value="">Select a WO...</option>
+                    {workOrders.map((wo: WorkOrder) => (
+                      <option key={wo._id} value={wo._id}>
+                        {wo.wo_ref} (Cat:{" "}
+                        {
+                          categories?.find((c) => (c._id || c.code_id) === wo.category_id)
+                            ?.category_name
+                        }
+                        )
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.work_order_id && (
+                    <p className="text-[10px] text-red-500 mt-1 uppercase font-bold">
+                      {fieldErrors.work_order_id}
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
