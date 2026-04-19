@@ -635,5 +635,22 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         selectedBaselineB: null
       });
     },
+
+    clear: () => {
+      clearPendingCalculation();
+      set({
+        taskMap: {},
+        taskOrder: [],
+        dependencyGraph: {},
+        selectedTasks: new Set(),
+        systemState: null,
+        undoStack: [],
+        pendingCalculation: false,
+        lastConfirmedVersion: null,
+        calculationError: null,
+        collapsedParents: new Set(),
+        comparisonData: null,
+      });
+    },
   };
 });

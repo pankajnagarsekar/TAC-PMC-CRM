@@ -104,9 +104,10 @@ class WorkOrderService:
                         subtotal += item_total
 
                     # 4. Calculation Engine: Global WO Financials
-                    # BUG-29: Ensure proper pct defaults if missing from user context
-                    cgst_pct = Decimal(str(user.get("preferred_cgst", "9.0")))
-                    sgst_pct = Decimal(str(user.get("preferred_sgst", "9.0")))
+                    # BUG-29/005: Use Project settings for Tax if available, otherwise fallback to user preference
+                    project = await uow.projects.get_by_id(project_id, organisation_id=organisation_id, session=uow.session)
+                    cgst_pct = Decimal(str(project.get("project_cgst_percentage", user.get("preferred_cgst", "9.0"))))
+                    sgst_pct = Decimal(str(project.get("project_sgst_percentage", user.get("preferred_sgst", "9.0"))))
 
                     fin = FinancialEngine.calculate_wo_financials(
                         subtotal=subtotal,
@@ -435,6 +436,11 @@ class WorkOrderService:
 
         docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
 
+        # Ensure total_payable consistency for all docs (BUG-006)
+        for doc in docs:
+            if "total_payable" not in doc or float(FinancialEngine.to_decimal(doc.get("total_payable", 0))) == 0:
+                doc["total_payable"] = doc.get("grand_total")
+
         # Fixed CR-23: Safe handling of empty list to prevent IndexError
         next_cursor = None
         if docs and len(docs) == limit:
@@ -447,6 +453,11 @@ class WorkOrderService:
         wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
         if not wo:
             raise NotFoundError("Work Order", wo_id)
+        
+        # Ensure total_payable consistency (BUG-006)
+        if "total_payable" not in wo or float(FinancialEngine.to_decimal(wo.get("total_payable", 0))) == 0:
+            wo["total_payable"] = wo.get("grand_total")
+            
         return wo
 
     async def submit_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:

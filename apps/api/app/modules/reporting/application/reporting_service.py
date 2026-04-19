@@ -443,7 +443,16 @@ class ReportingService:
     async def _project_summary_report(self, project_id: str) -> Dict[str, Any]:
         pipeline = [
             {"$match": {"project_id": project_id}},
-            {"$addFields": {"cid_obj": {"$toObjectId": "$category_id"}}},
+            {"$addFields": {
+                "cid_obj": {
+                    "$convert": {
+                        "input": "$category_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                }
+            }},
             {
                 "$lookup": {
                     "from": "code_master",
@@ -519,8 +528,22 @@ class ReportingService:
         pipeline = [
             {"$match": match_stage},
             {"$addFields": {
-                "cid_obj": {"$toObjectId": "$category_id"},
-                "vid_obj": {"$toObjectId": "$vendor_id"}
+                "cid_obj": {
+                    "$convert": {
+                        "input": "$category_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                },
+                "vid_obj": {
+                    "$convert": {
+                        "input": "$vendor_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                }
             }},
             {
                 "$lookup": {
@@ -591,8 +614,22 @@ class ReportingService:
         pipeline = [
             {"$match": match_stage},
             {"$addFields": {
-                "cid_obj": {"$toObjectId": "$category_id"},
-                "vid_obj": {"$toObjectId": "$vendor_id"}
+                "cid_obj": {
+                    "$convert": {
+                        "input": "$category_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                },
+                "vid_obj": {
+                    "$convert": {
+                        "input": "$vendor_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                }
             }},
             {
                 "$lookup": {
@@ -694,7 +731,16 @@ class ReportingService:
     ) -> Dict[str, Any]:
         pipeline = [
             {"$match": {"project_id": project_id}},
-            {"$addFields": {"cid_obj": {"$toObjectId": "$category_id"}}},
+            {"$addFields": {
+                "cid_obj": {
+                    "$convert": {
+                        "input": "$category_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                }
+            }},
             {
                 "$lookup": {
                     "from": "code_master",
@@ -740,8 +786,22 @@ class ReportingService:
         pipeline = [
             {"$match": {"project_id": project_id}},
             {"$addFields": {
-                "cid_obj": {"$toObjectId": "$category_id"},
-                "vid_obj": {"$toObjectId": "$vendor_id"}
+                "cid_obj": {
+                    "$convert": {
+                        "input": "$category_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                },
+                "vid_obj": {
+                    "$convert": {
+                        "input": "$vendor_id",
+                        "to": "objectId",
+                        "onError": None,
+                        "onNull": None
+                    }
+                }
             }},
             {
                 "$lookup": {

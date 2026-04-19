@@ -64,6 +64,7 @@ export default function AdminDashboard() {
   const { activeProject, setActiveProject, clearProject } = useProjectStore();
   const [projectSearch, setProjectSearch] = React.useState("");
   const loadSchedule = useScheduleStore((state) => state.loadSchedule);
+  const clearSchedule = useScheduleStore((state) => state.clear);
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskOrder = useScheduleStore((state) => state.taskOrder);
 
@@ -89,6 +90,7 @@ export default function AdminDashboard() {
   // Hydrate schedule store for widgets if project is active
   React.useEffect(() => {
     if (activeProject?.project_id) {
+      clearSchedule();
       schedulerApi.load(activeProject.project_id)
         .then((response) => {
           console.log("[Dashboard] Schedule loaded — tasks:", response?.tasks?.length ?? 0, "project_id:", response?.project_id);
@@ -97,8 +99,10 @@ export default function AdminDashboard() {
         .catch((err) => {
           console.error("[Dashboard] Failed to load schedule:", err?.response?.status, err?.message);
         });
+    } else {
+      clearSchedule();
     }
-  }, [activeProject?.project_id, loadSchedule]);
+  }, [activeProject?.project_id, loadSchedule, clearSchedule]);
 
   const filteredProjects = React.useMemo(() => {
     if (!projects) return [];
@@ -184,7 +188,7 @@ export default function AdminDashboard() {
   const widgets: Record<string, React.ReactNode> = {
     task_ai: (
       <div key="task_ai" className="col-span-1 md:col-span-2">
-         {activeProject && <TaskAISummary projectId={activeProject.project_id} />}
+        {activeProject && <TaskAISummary projectId={activeProject.project_id} />}
       </div>
     ),
     timeline: (

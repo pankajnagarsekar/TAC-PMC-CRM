@@ -278,6 +278,9 @@ class FinancialService:
         committed = FinancialEngine.to_decimal(status.get("committed_value", 0))
 
         # 2. H1: Backend Validation
+        if original_budget < 0:
+            raise ValidationError("Budget cannot be negative.")
+
         if original_budget < committed:
             raise ValidationError(
                 f"Budget cannot be reduced below committed amount of ₹{committed:,.2f}"

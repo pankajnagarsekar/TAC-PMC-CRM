@@ -147,6 +147,10 @@ async def list_clients(
         return GenericResponse(data=clients)
     except Exception as e:
         logger.error(f"LIST_CLIENTS_ERROR: {str(e)}", exc_info=True)
+        # BUG-001: Return detailed error if Pydantic fails
+        from pydantic import ValidationError as PydanticValidationError
+        if isinstance(e, PydanticValidationError):
+             return GenericResponse(success=False, message=f"Data integrity error in Client Registry: {str(e)}", status_code=500)
         raise
 
 

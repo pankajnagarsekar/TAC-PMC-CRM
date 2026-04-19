@@ -225,7 +225,10 @@ export default function ProjectDetailPage() {
             </h1>
             <div className="flex items-center gap-4 text-[10px] uppercase font-black tracking-widest text-zinc-400 dark:text-slate-500">
               <span className="flex items-center gap-1">
-                <MapPin size={12} className="text-orange-600 dark:text-orange-500" /> {project.address || "No address set"}
+                <MapPin size={12} className="text-orange-600 dark:text-orange-500" />
+                {project.address || "No address set"}
+                {project.city && `, ${project.city}`}
+                {project.state && `, ${project.state}`}
               </span>
               <span className="flex items-center gap-1">
                 <Building2 size={12} className="text-orange-600 dark:text-orange-500" />{" "}

@@ -112,7 +112,7 @@ class ProjectBudgetUpdate(BaseModel):
 # CLIENT DTOs
 class Client(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    organisation_id: str
+    organisation_id: Optional[str] = None
     client_name: str
     client_address: Optional[str] = None
     client_phone: Optional[str] = None

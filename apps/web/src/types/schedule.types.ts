@@ -208,6 +208,8 @@ export interface ScheduleStoreState {
   // Comparison Actions
   fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;
   clearComparison: () => void;
+
+  clear: () => void;
 }
 
 export type HistoryEntry = {

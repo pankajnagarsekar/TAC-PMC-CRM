@@ -20,6 +20,13 @@ class WOLineItem(BaseModel):
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
+    @field_validator("qty", "rate")
+    @classmethod
+    def prevent_negative(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return v
+
 
 class WorkOrder(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id", serialization_alias="id")
@@ -65,6 +72,12 @@ class WorkOrderUpdate(BaseModel):
     discount: Optional[Decimal] = Field(None, ge=0)
     retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)
     expected_version: int
+
+    @field_validator("status")
+    @classmethod
+    def validate_transition(cls, v, info):
+        # Placeholder for complex transition logic if needed
+        return v
 
 
 # VENDOR DTOs
