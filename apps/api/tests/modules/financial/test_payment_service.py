@@ -69,10 +69,14 @@ async def audit_service(test_db_with_payments):
 async def payment_service(test_db_with_payments, audit_service):
     """Payment service with test database."""
     from unittest.mock import AsyncMock, MagicMock
-
+    
     mock_financial = MagicMock()
+    mock_financial.validate_financial_document = AsyncMock(return_value=None)
+    mock_financial.recalculate_master_budget = AsyncMock(return_value={})
+    
     mock_permission = MagicMock()
     mock_permission.check_project_access = AsyncMock(return_value=None)
+    mock_permission.check_write_access_with_role = AsyncMock(return_value=None)
 
     return PaymentService(
         test_db_with_payments,

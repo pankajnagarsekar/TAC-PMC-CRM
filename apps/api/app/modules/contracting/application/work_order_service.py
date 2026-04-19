@@ -100,7 +100,7 @@ class WorkOrderService:
                         qty = Decimal(str(item["qty"]))
                         rate = Decimal(str(item["rate"]))
                         item_total = FinancialEngine.round(qty * rate)
-                        item["total"] = float(item_total)  # MongoDB parity
+                        item["total"] = FinancialEngine.to_d128(item_total)  # Fixed BULL-99: Ensure 128-bit precision
                         subtotal += item_total
 
                     # 4. Calculation Engine: Global WO Financials
@@ -438,7 +438,7 @@ class WorkOrderService:
 
         # Ensure total_payable consistency for all docs (BUG-006)
         for doc in docs:
-            if "total_payable" not in doc or float(FinancialEngine.to_decimal(doc.get("total_payable", 0))) == 0:
+            if "total_payable" not in doc or FinancialEngine.to_decimal(doc.get("total_payable", 0)) == Decimal("0"):
                 doc["total_payable"] = doc.get("grand_total")
 
         # Fixed CR-23: Safe handling of empty list to prevent IndexError
@@ -455,7 +455,7 @@ class WorkOrderService:
             raise NotFoundError("Work Order", wo_id)
         
         # Ensure total_payable consistency (BUG-006)
-        if "total_payable" not in wo or float(FinancialEngine.to_decimal(wo.get("total_payable", 0))) == 0:
+        if "total_payable" not in wo or FinancialEngine.to_decimal(wo.get("total_payable", 0)) == Decimal("0"):
             wo["total_payable"] = wo.get("grand_total")
             
         return wo
@@ -483,6 +483,12 @@ class WorkOrderService:
                 new_value=result,
                 session=uow.session
             )
+
+            # Authoritative Recalculation
+            await self.financial_service.recalculate_master_budget(
+                wo_data["project_id"], session=uow.session
+            )
+
             return result
 
     async def approve_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
@@ -509,6 +515,12 @@ class WorkOrderService:
                 new_value=result,
                 session=uow.session
             )
+
+            # Authoritative Recalculation
+            await self.financial_service.recalculate_master_budget(
+                wo_data["project_id"], session=uow.session
+            )
+
             return result
 
     async def cancel_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
@@ -537,4 +549,10 @@ class WorkOrderService:
                 new_value=result,
                 session=uow.session
             )
+
+            # Authoritative Recalculation
+            await self.financial_service.recalculate_master_budget(
+                wo_data["project_id"], session=uow.session
+            )
+
             return result

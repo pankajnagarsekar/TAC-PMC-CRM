@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import List, Literal, Optional
 
 import re
@@ -236,11 +236,33 @@ class BudgetCreate(BaseModel):
     total_budget: Decimal = Field(..., gt=0)
     allocations: List[BudgetAllocationDTO] = Field(default_factory=list)
 
+    @field_validator("total_budget", mode="before")
+    @classmethod
+    def validate_total_budget(cls, v):
+        try:
+            val = Decimal(str(v))
+            if val < 0:
+                raise ValueError("Total budget must be non-negative")
+            return val
+        except (ValueError, TypeError, InvalidOperation):
+            raise ValueError("Total budget must be a valid number")
+
 
 class BudgetAllocationUpdate(BaseModel):
     code: str
     budgeted_amount: Decimal = Field(..., ge=0)
     threshold_percentage: int = Field(80, ge=0, le=100)
+
+    @field_validator("budgeted_amount", mode="before")
+    @classmethod
+    def validate_budgeted_amount(cls, v):
+        try:
+            val = Decimal(str(v))
+            if val < 0:
+                raise ValueError("Budgeted amount must be non-negative")
+            return val
+        except (ValueError, TypeError, InvalidOperation):
+            raise ValueError("Budgeted amount must be a valid number")
 
 
 class BudgetUpdate(BaseModel):

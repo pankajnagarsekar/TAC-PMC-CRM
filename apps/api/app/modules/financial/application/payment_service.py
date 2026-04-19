@@ -291,7 +291,6 @@ class PaymentService:
                         session=uow.session,
                     )
 
-                    # CALC-4: Insert cash_transaction CREDIT
                     await uow.cash_transactions.create({
                         "project_id": project_id,
                         "category_id": category_id,
@@ -302,10 +301,6 @@ class PaymentService:
                         "created_by": user["user_id"],
                         "organisation_id": organisation_id
                     }, session=uow.session)
-
-                    await self.financial_service.recalculate_master_budget(
-                        project_id, session=uow.session
-                    )
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
@@ -340,6 +335,11 @@ class PaymentService:
                         "amount": FinancialEngine.to_d128(retention_amount),
                         "created_at": now()
                     }, session=uow.session)
+
+            # Final Authoritative Recalculation for Project
+            await self.financial_service.recalculate_master_budget(
+                project_id, session=uow.session
+            )
 
             return {"status": "success", "message": "PC closed and financials updated"}
 
@@ -489,6 +489,11 @@ class PaymentService:
                     "amount": FinancialEngine.to_d128(amount),
                     "created_at": now()
                 }, session=uow.session)
+            
+            # Authoritative Recalculation
+            await self.financial_service.recalculate_master_budget(
+                updated["project_id"], session=uow.session
+            )
 
             return updated
 

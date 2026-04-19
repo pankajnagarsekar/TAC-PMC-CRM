@@ -22,6 +22,7 @@ import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
 import LinkedWorkOrders from "@/components/work-orders/LinkedWorkOrders";
 import KPICard from "@/components/ui/KPICard";
 import type { ICellRendererParams, NewValueParams } from "ag-grid-community";
+import { NumericCellEditor } from "@/components/financial/BudgetComponents";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -89,11 +90,7 @@ export default function ProjectDetailPage() {
         field: "original_budget",
         flex: 1.2,
         editable: true,
-        cellEditor: "agNumberCellEditor",
-        cellEditorParams: {
-          min: 0,
-          precision: 2,
-        },
+        cellEditor: NumericCellEditor,
         cellClass: (params) => params.value > 0
           ? "font-mono text-foreground"
           : "font-mono text-slate-400 dark:text-slate-500",
