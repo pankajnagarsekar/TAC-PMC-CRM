@@ -144,16 +144,24 @@ async def list_clients(
     """List all clients within the organisation with pagination support."""
     try:
         if not user or not user.get("organisation_id"):
-            raise ValueError("Missing organisation_id in user context")
+            logger.error(f"LIST_CLIENTS_AUTH_ERROR: Missing organisation_id for user {user.get('user_id') if user else 'Unknown'}")
+            return GenericResponse(success=False, message="Authorization error: Missing organisation context", status_code=403)
+            
         clients = await client_service.list_clients(user["organisation_id"], skip=skip, limit=limit)
         return GenericResponse(data=clients)
     except Exception as e:
-        logger.error(f"LIST_CLIENTS_ERROR: {str(e)}", exc_info=True)
-        # BUG-001: Return detailed error if Pydantic fails
+        logger.error(f"LIST_CLIENTS_SYSTEM_FAULT: {str(e)}", exc_info=True)
+        # BUG-001 Recovery: Ensure we always return a GenericResponse envelope
         from pydantic import ValidationError as PydanticValidationError
+        error_msg = f"Internal server error in Client Registry: {str(e)}"
         if isinstance(e, PydanticValidationError):
-             return GenericResponse(success=False, message=f"Data integrity error in Client Registry: {str(e)}", status_code=500)
-        raise
+             error_msg = f"Data integrity fault: Backend schema mismatch. Details: {str(e)}"
+        
+        return GenericResponse(
+            success=False, 
+            message=error_msg, 
+            status_code=500
+        )
 
 
 @router.post(

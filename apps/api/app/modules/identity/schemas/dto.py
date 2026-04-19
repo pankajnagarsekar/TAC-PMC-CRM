@@ -120,6 +120,7 @@ class ClientPermissions(BaseModel):
     can_view_dpr: bool = True
     can_view_financials: bool = False
     can_view_reports: bool = True
+    can_view_scheduler: bool = False  # Added to fix BUG #16
 
 
 class GlobalSettings(BaseModel):

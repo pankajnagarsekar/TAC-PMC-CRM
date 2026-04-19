@@ -183,10 +183,15 @@ class AnalyticsService:
         """
         metrics = ScheduleHealthMetrics()
 
-        # Fetch schedule
-        schedule = await self.schedule_repo.find_one(
-            {"project_id": project_id, "organisation_id": organisation_id}
-        )
+        # Fetch schedule (Resilient ID Check BUG-002)
+        query = {"organisation_id": organisation_id}
+        if len(project_id) == 24: # Assume ObjectId-like string
+            from bson import ObjectId
+            query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
+        else:
+            query["project_id"] = project_id
+            
+        schedule = await self.schedule_repo.find_one(query)
 
         if not schedule or "tasks" not in schedule:
             # No schedule → assume green (no risk)
@@ -259,15 +264,19 @@ class AnalyticsService:
     ) -> ResourceUtilizationData:
         """
         Calculate resource allocation and utilization percentages.
-
-        Over-allocation: utilization_pct > 100%
+        Over-allocation: utilization_pct > 100% (BUG-002 resilience applied)
         """
         data = ResourceUtilizationData()
 
-        # Fetch schedule
-        schedule = await self.schedule_repo.find_one(
-            {"project_id": project_id, "organisation_id": organisation_id}
-        )
+        # Fetch schedule (Resilient ID Check BUG-002)
+        query = {"organisation_id": organisation_id}
+        if len(project_id) == 24: # Assume ObjectId-like string
+            from bson import ObjectId
+            query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
+        else:
+            query["project_id"] = project_id
+            
+        schedule = await self.schedule_repo.find_one(query)
 
         if not schedule or "tasks" not in schedule:
             return data
@@ -337,31 +346,32 @@ class AnalyticsService:
         self, project_id: str, organisation_id: str
     ) -> FinancialSummaryData:
         """
-        Calculate budget utilization and burn rate.
-
-        Burn rate = budget_spent / days_elapsed (if any)
-        Projected overrun = (burn_rate * total_days) - budget_total
+        Calculate budget utilization and burn rate (BUG-002 resilience applied).
         """
         data = FinancialSummaryData()
 
-        # Fetch master financial state (project_id is sufficient; project is org-scoped)
-        master_state = await self.fin_state_repo.find_one(
-            {
-                "project_id": project_id,
-                "category_id": "MASTER",
-            }
-        )
+        # Fetch master financial state (Resilient ID Check BUG-002)
+        query = {"category_id": "MASTER"}
+        if len(project_id) == 24: # Assume ObjectId-like string
+            from bson import ObjectId
+            query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
+        else:
+            query["project_id"] = project_id
+            
+        master_state = await self.fin_state_repo.find_one(query)
 
         if not master_state:
             # Fallback: sum all per-category states
+            agg_query = {"category_id": {"$ne": "MASTER"}}
+            if len(project_id) == 24:
+                from bson import ObjectId
+                agg_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
+            else:
+                agg_query["project_id"] = project_id
+                
             agg = await self.fin_state_repo.aggregate(
                 [
-                    {
-                        "$match": {
-                            "project_id": project_id,
-                            "category_id": {"$ne": "MASTER"},
-                        }
-                    },
+                    {"$match": agg_query},
                     {
                         "$group": {
                             "_id": None,
@@ -424,9 +434,7 @@ class AnalyticsService:
         end_date: Optional[datetime] = None,
     ) -> TimelineAnalytics:
         """
-        Calculate daily trends for task completion and budget burn over date range.
-
-        Returns daily metrics aggregated from task updates and financial records.
+        Calculate daily trends for task completion and budget burn (BUG-002 resilience applied).
         """
         analytics = TimelineAnalytics()
 

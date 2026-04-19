@@ -3,6 +3,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, Literal, Optional
 
+from bson import ObjectId
+
 from app.core.export_service import ExportService
 from app.core.time import now
 from app.modules.contracting.infrastructure.repository import WorkOrderRepository
@@ -33,7 +35,6 @@ class ReportingService:
     Sovereign Reporting Orchestrator (Unified Engine).
     Merged Core engine and Service facade into one authoritative class.
     """
-
     def __init__(self, db, permission_checker):
         self.db = db
         self.permission_checker = permission_checker
@@ -41,6 +42,10 @@ class ReportingService:
         self.wo_repo = WorkOrderRepository(db)
         self.fin_state_repo = FinancialStateRepository(db)
         self.worker_log_repo = WorkerLogRepository(db)
+
+    def _get_project_match(self, project_id: str) -> Dict[str, Any]:
+        """Returns a resilient project_id match filter (Handles string/ObjectId)."""
+        return {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]}
 
     async def get_report(
         self,
@@ -89,7 +94,7 @@ class ReportingService:
         # Pull latest schedule
         # Note: organisation_id is required by repo but we might need to bypass for internal report
         # For now we'll assume we can get it from projects collection
-        project = await self.db.projects.find_one({"project_id": project_id})
+        project = await self.db.projects.find_one({"project_id": self._get_project_match(project_id)})
         org_id = project.get("organisation_id") if project else None
         
         schedule = await sched_service.load_schedule(project_id, org_id)
@@ -224,8 +229,7 @@ class ReportingService:
         """High-level statistics for project dashboard."""
         await self.permission_checker.check_project_access(user, project_id)
 
-        from bson import ObjectId
-        resilient_id = {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]}
+        resilient_id = self._get_project_match(project_id)
 
         total_phases = await self.budget_repo.count({"project_id": resilient_id})
         active_items_count = await self.wo_repo.count(
@@ -305,8 +309,7 @@ class ReportingService:
         for proj in projects:
             p_id = proj["project_id"]
 
-            from bson import ObjectId
-            p_id_resilient = {"$in": [p_id, ObjectId(p_id) if ObjectId.is_valid(p_id) else p_id]}
+            p_id_resilient = self._get_project_match(p_id)
 
             # 1. Financial Stats
             master_state = await self.fin_state_repo.find_one(
@@ -442,7 +445,7 @@ class ReportingService:
 
     async def _project_summary_report(self, project_id: str) -> Dict[str, Any]:
         pipeline = [
-            {"$match": {"project_id": project_id}},
+            {"$match": {"project_id": self._get_project_match(project_id)}},
             {"$addFields": {
                 "cid_obj": {
                     "$convert": {
@@ -519,7 +522,7 @@ class ReportingService:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
-        match_stage = {"project_id": project_id}
+        match_stage = {"project_id": self._get_project_match(project_id)}
         if start_date or end_date:
             match_stage["created_at"] = {
                 k: v for k, v in [("$gte", start_date), ("$lte", end_date)] if v
@@ -606,7 +609,7 @@ class ReportingService:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
-        match_stage = {"project_id": project_id}
+        match_stage = {"project_id": self._get_project_match(project_id)}
         if start_date or end_date:
             match_stage["created_at"] = {
                 k: v for k, v in [("$gte", start_date), ("$lte", end_date)] if v
@@ -691,7 +694,7 @@ class ReportingService:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
-        match_stage = {"project_id": project_id, "work_order_id": None}
+        match_stage = {"project_id": self._get_project_match(project_id), "work_order_id": None}
         if start_date or end_date:
             match_stage["created_at"] = {
                 k: v for k, v in [("$gte", start_date), ("$lte", end_date)] if v
@@ -730,7 +733,7 @@ class ReportingService:
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
         pipeline = [
-            {"$match": {"project_id": project_id}},
+            {"$match": {"project_id": self._get_project_match(project_id)}},
             {"$addFields": {
                 "cid_obj": {
                     "$convert": {
@@ -784,7 +787,7 @@ class ReportingService:
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
         pipeline = [
-            {"$match": {"project_id": project_id}},
+            {"$match": {"project_id": self._get_project_match(project_id)}},
             {"$addFields": {
                 "cid_obj": {
                     "$convert": {

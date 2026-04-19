@@ -137,6 +137,9 @@ class ExportService:
             return "₹ 0.00"
         try:
             val = float(value)
+            import math
+            if math.isnan(val) or math.isinf(val):
+                return "₹ 0.00"
             return f"₹ {val:,.2f}"
         except Exception:
             return str(value)

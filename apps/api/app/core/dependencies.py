@@ -98,10 +98,14 @@ async def get_authenticated_user(
     # Ensure user_id is present in the dict for context downstream (Fixed CR-23)
     if user and "user_id" not in user:
         user["user_id"] = user.get("id") or user_id
+        if not user["user_id"]:
+            logger.error(f"AUTH_CONTEXT_ERROR: user_id missing for user record {user_id}")
 
     # Ensure organisation_id exists (prevents downstream 500 on list_clients)
-    if user and "organisation_id" not in user:
+    if user and ("organisation_id" not in user or not user["organisation_id"]):
         user["organisation_id"] = user.get("organisation_id") or ""
+        if not user["organisation_id"]:
+            logger.warning(f"AUTH_CONTEXT_WARNING: organisation_id missing for user {user.get('user_id')}. Downstream entity filters may fail.")
 
     return user
 

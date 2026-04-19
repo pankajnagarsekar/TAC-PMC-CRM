@@ -118,6 +118,7 @@ class Client(BaseModel):
     client_phone: Optional[str] = None
     client_email: Optional[str] = None
     gst_number: Optional[str] = None
+    can_view_scheduler: bool = True
     active_status: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -131,6 +132,7 @@ class ClientCreate(BaseModel):
     client_phone: Optional[str] = None
     client_email: Optional[str] = None
     gst_number: Optional[str] = None
+    can_view_scheduler: bool = True
 
 
 class ClientUpdate(BaseModel):
@@ -139,4 +141,5 @@ class ClientUpdate(BaseModel):
     client_phone: Optional[str] = None
     client_email: Optional[str] = None
     gst_number: Optional[str] = None
+    can_view_scheduler: Optional[bool] = None
     active_status: Optional[bool] = None

@@ -95,19 +95,8 @@ class SchedulerService:
                 "schedule_version": 1
             }
 
-        # BASELINE LOCK CHECK: Verify no baseline-locked tasks are being modified
-        for task in tasks:
-            if task.get("baseline_locked"):
-                # Extract the modifications being attempted
-                # This is detected if the task is in the input (implies modification attempt)
-                logger.warning(
-                    f"BASELINE_VIOLATION: Task {task.get('task_id')} is baseline-locked "
-                    f"(v{task.get('baseline_version')}) - modifications blocked"
-                )
-                raise DataFreezeError(
-                    "TASK",
-                    f"Baseline (v{task.get('baseline_version', '?')})"
-                )
+        # 1. VALIDATION & BASELINE ENFORCEMENT (BUG-014/015)
+        self._validate_tasks(tasks)
 
         # SECURE OFF-THREAD CALL: Prevent event loop blocking for CPU-bound engine
         import asyncio
@@ -126,10 +115,15 @@ class SchedulerService:
         self, project_id: str, organisation_id: str, user_id: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Save schedule with undo/redo snapshot capture (after-capture pattern)."""
+        tasks = data.get("tasks", [])
+        
+        # 1. VALIDATION (BUG-014/015)
+        self._validate_tasks(tasks)
+
         schedule_doc = {
             "project_id": project_id,
             "organisation_id": organisation_id,
-            "tasks": data.get("tasks", []),
+            "tasks": tasks,
             "project_start": data.get("project_start"),
             "total_cost": data.get("total_cost"),
             "updated_by": user_id,
@@ -409,3 +403,24 @@ class SchedulerService:
             })
 
         return results
+
+    def _validate_tasks(self, tasks: List[Dict[str, Any]]) -> None:
+        """Core validation for task hierarchy and baseline constraints (BUG-014/015)."""
+        valid_task_ids = {str(t.get("task_id")) for t in tasks if t.get("task_id")}
+        
+        for t in tasks:
+            tid = str(t.get("task_id", "unknown"))
+            pid = t.get("parent_id")
+            
+            # 1. Orphan Check: If a parent is specified, it MUST exist in the payload
+            if pid and str(pid) not in valid_task_ids:
+                logger.error(f"SCHEDULER_VALIDATION_ERROR: Task {tid} references missing parent {pid}")
+                raise ValidationError(f"Task hierarchy violation: Parent '{pid}' for task '{tid}' not found.")
+                
+            # 2. Baseline Check: Modifications to locked tasks are strictly forbidden
+            if t.get("baseline_locked"):
+                logger.warning(f"BASELINE_LOCK_VIOLATION: Attempted change to Task {tid}")
+                raise DataFreezeError(
+                    "TASK", 
+                    f"Baseline (v{t.get('baseline_version', '1')})"
+                )

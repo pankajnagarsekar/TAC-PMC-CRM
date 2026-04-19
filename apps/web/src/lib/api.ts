@@ -95,7 +95,7 @@ api.interceptors.response.use(
       // login form's catch block can display the error message instead of causing
       // a full page reload that clears all React state and creates a redirect loop.
       const isAuthRequest = originalRequest.url?.includes('/auth/login') ||
-                            originalRequest.url?.includes('/auth/refresh');
+        originalRequest.url?.includes('/auth/refresh');
       if (isAuthRequest) {
         return Promise.reject(error);
       }
@@ -142,11 +142,13 @@ api.interceptors.response.use(
 
       // Do not show global toast for: login/refresh (handled locally), 409/422 (form validation shown inline)
       const isFormError = error.response.status === 409 || error.response.status === 422;
+      const serverMessage = (error.response.data as any)?.error?.message;
+
       if (!isLoginRequest && !isRefreshRequest && !isFormError) {
-        toast.error("Endpoint Synchronization Failed", {
+        toast.error(serverMessage || "Endpoint Synchronization Failed", {
           description: error.response.status === 403
             ? "Administrative bypass required to perform this action."
-            : "The server encountered an error processing this request.",
+            : serverMessage ? undefined : "The server encountered an error processing this request.",
         });
       }
     }

@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { AISummary } from "@/types/api";
 import { Brain, RefreshCw, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from 'react-markdown';
 
 interface AISummaryCardProps {
   projectId: string;
@@ -129,9 +130,18 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
               </span>
             </div>
           )}
-          <p className="text-[11px] leading-relaxed text-foreground/80 font-medium">
-            {summary.summary_text}
-          </p>
+          <div className="prose prose-sm dark:prose-invert max-w-none text-[11px] leading-relaxed text-foreground/80 font-medium whitespace-pre-wrap">
+            <ReactMarkdown
+              components={{
+                p: (props) => <p className="mb-2 last:mb-0" {...props} />,
+                strong: (props) => <span className="font-black text-orange-400" {...props} />,
+                ul: (props) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                li: (props) => <li {...props} />,
+              }}
+            >
+              {summary.summary_text}
+            </ReactMarkdown>
+          </div>
 
           {/* Mini stats snapshot */}
           {summary.report_data && (

@@ -97,6 +97,13 @@ class UserProjectMapRepository(BaseRepository[UserProjectMap]):
         mappings = await self.list({"user_id": user_id})
         return [m["project_id"] for m in mappings]
 
+    async def get_mapping(self, user_id: str, project_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve mapping with resilient ID matching (Handles string/ObjectId)."""
+        from bson import ObjectId
+        u_id = ObjectId(user_id) if ObjectId.is_valid(user_id) else user_id
+        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+        return await self.find_one({"user_id": u_id, "project_id": p_id})
+
 
 # Modularized Schedule Repository (Project Context)
 class ScheduleRepository(BaseRepository[Any]):

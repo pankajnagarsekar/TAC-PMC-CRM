@@ -115,7 +115,12 @@ export function calculateTimelineRange(tasks: ScheduleTask[]) {
     parseTaskDate(task.baseline_finish),
     parseTaskDate(task.early_start),
     parseTaskDate(task.late_finish),
-  ]).filter((date): date is Date => Boolean(date));
+  ]).filter((date): date is Date => {
+    if (!date) return false;
+    const year = date.getFullYear();
+    // Resilience: ignore unrealistic dates that would break the timeline grid (BUG-009)
+    return year > 2000 && year < 2100;
+  });
 
   if (parsedDates.length === 0) {
     const base = startOfDay(new Date());

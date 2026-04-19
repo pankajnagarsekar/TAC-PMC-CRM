@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Sparkles, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import api from "@/lib/api";
+import ReactMarkdown from 'react-markdown';
 
 interface TaskAISummaryProps {
   projectId: string;
@@ -59,7 +60,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
         <AlertCircle className="text-red-500 flex-shrink-0" size={24} />
         <div className="flex-1">
           <p className="text-red-400 text-sm">{error}</p>
-          <button 
+          <button
             onClick={fetchSummary}
             className="text-xs text-blue-500 hover:underline mt-1 flex items-center gap-1"
           >
@@ -100,15 +101,20 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
         </div>
       </div>
 
-      <div className="bg-slate-950/50 border border-slate-800/50 rounded-lg p-4">
-        <p className="text-sm text-slate-300 leading-relaxed italic">
-          "{data.summary_text || "The project is currently proceeding as scheduled with early-stage milestones met."}"
-        </p>
+      <div className="bg-slate-950/50 border border-slate-800/50 rounded-lg p-4 prose prose-sm prose-invert max-w-none">
+        <ReactMarkdown
+          components={{
+            p: (props: any) => <p className="text-sm text-slate-300 leading-relaxed italic mb-2 last:mb-0" {...props} />,
+            strong: (props: any) => <span className="font-bold text-blue-400" {...props} />,
+          }}
+        >
+          {data.summary_text || "The project is currently proceeding as scheduled with early-stage milestones met."}
+        </ReactMarkdown>
       </div>
 
       <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
         <span className="text-[10px] font-bold text-slate-600 uppercase">Powered by TAC-AI Agent</span>
-        <button 
+        <button
           onClick={fetchSummary}
           className="text-xs font-bold text-slate-500 hover:text-white transition-colors flex items-center gap-1"
         >

@@ -73,9 +73,20 @@ export default function TasksPage() {
               : " Select a project."}
           </p>
           {activeProject && (
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[11px] font-medium text-blue-400">
-              <ListIcon size={12} />
-              <span>Note: Construction tasks are managed in the <button onClick={() => router.push(`/admin/projects/${activeProject.project_id || (activeProject as any)._id}`)} className="underline hover:text-blue-300">Project Planner</button>.</span>
+            <div className="mt-4 flex items-center gap-3 px-4 py-2 bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 rounded-xl backdrop-blur-sm shadow-sm animate-in slide-in-from-left duration-700">
+              <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                <LayoutGrid size={12} />
+              </div>
+              <p className="text-[11px] font-semibold text-indigo-900 dark:text-indigo-300 leading-tight">
+                Strategic production milestones and construction schedules are orchestrated within the
+                <button
+                  onClick={() => router.push(`/admin/scheduler?project_id=${activeProject.project_id || (activeProject as any)._id}`)}
+                  className="mx-1 px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-700 dark:text-indigo-200 underline decoration-indigo-500/30 underline-offset-2 transition-all"
+                >
+                  Project Planner
+                </button>
+                module for multi-path critical calculations.
+              </p>
             </div>
           )}
         </div>

@@ -50,9 +50,12 @@ export default function KPICards() {
       }
     });
 
-    // Null when no data — prevents misleading "1.00 perfect performance" on empty project
-    const spi = (plannedValue > 0 && earnedValue >= 0) ? earnedValue / plannedValue : null;
-    const cpi = (totalBaselineCost > 0 && actualCost > 0) ? earnedValue / actualCost : null;
+    // Robustness: prevents misleading "1.00" on empty data or NaN propagation
+    const rawSpi = (plannedValue > 0) ? earnedValue / plannedValue : null;
+    const rawCpi = (actualCost > 0) ? earnedValue / actualCost : null;
+
+    const spi = (rawSpi !== null && isFinite(rawSpi)) ? rawSpi : null;
+    const cpi = (rawCpi !== null && isFinite(rawCpi)) ? rawCpi : null;
 
     return {
       totalBaselineCost,
