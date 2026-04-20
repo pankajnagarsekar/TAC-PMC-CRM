@@ -47,12 +47,12 @@ async def test_work_order_routes(client: AsyncClient, test_db, test_user, test_p
     wo_id = resp.json()["data"]["id"]
 
     # Submit
-    resp = await client.post(f"/api/v1/work-orders/{wo_id}/submit")
+    resp = await client.post(f"/api/v1/work-orders/{wo_id}/submit?expected_version=1")
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "Pending"
 
     # Approve (Admin role is default in fixture)
-    resp = await client.post(f"/api/v1/work-orders/{wo_id}/approve")
+    resp = await client.post(f"/api/v1/work-orders/{wo_id}/approve?expected_version=2")
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "Approved"
 
@@ -83,7 +83,7 @@ async def test_wo_cancel(client: AsyncClient, test_db, test_user, test_project_i
     assert resp.status_code == 201
     wo_id = resp.json()["data"]["id"]
 
-    resp = await client.post(f"/api/v1/work-orders/{wo_id}/cancel")
+    resp = await client.post(f"/api/v1/work-orders/{wo_id}/cancel?expected_version=1")
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "Cancelled"
 
@@ -106,7 +106,7 @@ async def test_vendor_delete_blocked_with_active_wo(client: AsyncClient, test_db
 
     # Delete should be blocked
     resp = await client.delete(f"/api/v1/vendors/{vendor_id}")
-    assert resp.status_code in (400, 409)
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio

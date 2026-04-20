@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from '@tac-pmc/ui';
 import FinancialGrid from '@/components/ui/FinancialGrid';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import NetworkErrorRetry from '@/components/ui/NetworkErrorRetry';
+import { useVendorNames } from '@/hooks/useVendorNames';
 
 export default function PaymentCertificatesPage() {
   const { activeProject } = useProjectStore();
@@ -24,10 +25,9 @@ export default function PaymentCertificatesPage() {
 
   // Need mappings for categories / vendors to render readable labels
   const { data: categories } = useSWR<CodeMaster[]>('/api/v1/settings/codes?active_only=true', fetcher);
-  const { data: vendors } = useSWR<Vendor[]>('/api/v1/vendors/', fetcher);
+  const { getVendorName } = useVendorNames();
 
   const getCategoryName = (id: string) => categories?.find(c => c._id === id)?.category_name || id;
-  const getVendorName = (id: string) => vendors?.find((v: any) => (v._id || v.id) === id)?.name || id;
 
   const fetchPCs = useCallback(async (cursor?: string | null) => {
     if (!activeProject) return;

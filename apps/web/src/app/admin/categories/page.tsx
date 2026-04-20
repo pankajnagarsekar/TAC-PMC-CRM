@@ -81,7 +81,7 @@ export default function CategoriesPage() {
         field: "description",
         flex: 3,
         cellRenderer: (params: ICellRendererParams<CodeMaster>) => (
-          <span className="text-slate-400 text-xs truncate">
+          <span className="text-slate-400 text-xs overflow-hidden text-clip whitespace-nowrap">
             {params.value || "No description"}
           </span>
         ),

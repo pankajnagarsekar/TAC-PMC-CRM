@@ -47,6 +47,27 @@ class WorkOrderService:
         self.seq_repo = SequenceRepository(db)
         self.ledger_repo = LedgerRepository(db)
 
+    async def _get_tax_rates(self, organisation_id: str, project_id: str, session=None) -> Dict[str, Decimal]:
+        """BUG-006: Helper to resolve tax rates with proper fallback hierarchy."""
+        # 1. Check Project Settings
+        project = await self.project_repo.get_by_id(project_id, organisation_id=organisation_id, session=session)
+        if project and project.get("project_cgst_percentage") is not None:
+             return {
+                 "cgst": Decimal(str(project["project_cgst_percentage"])),
+                 "sgst": Decimal(str(project.get("project_sgst_percentage", "9.0")))
+             }
+        
+        # 2. Check Global Organisation Settings
+        settings = await self.db.organisation_settings.find_one({"organisation_id": organisation_id}, session=session)
+        if settings:
+            return {
+                "cgst": Decimal(str(settings.get("cgst_percentage", "9.0"))),
+                "sgst": Decimal(str(settings.get("sgst_percentage", "9.0")))
+            }
+            
+        # 3. Final Fallback
+        return {"cgst": Decimal("9.0"), "sgst": Decimal("9.0")}
+
     async def create_work_order(
         self, user: dict, project_id: str, wo_data: WorkOrderCreate
     ) -> Dict[str, Any]:
@@ -103,11 +124,10 @@ class WorkOrderService:
                         item["total"] = FinancialEngine.to_d128(item_total)  # Fixed BULL-99: Ensure 128-bit precision
                         subtotal += item_total
 
-                    # 4. Calculation Engine: Global WO Financials
-                    # BUG-29/005: Use Project settings for Tax if available, otherwise fallback to user preference
-                    project = await uow.projects.get_by_id(project_id, organisation_id=organisation_id, session=uow.session)
-                    cgst_pct = Decimal(str(project.get("project_cgst_percentage", user.get("preferred_cgst", "9.0"))))
-                    sgst_pct = Decimal(str(project.get("project_sgst_percentage", user.get("preferred_sgst", "9.0"))))
+                    # 4. Calculation Engine: Global WO Financials (BUG-006 Fix)
+                    rates = await self._get_tax_rates(organisation_id, project_id, session=uow.session)
+                    cgst_pct = rates["cgst"]
+                    sgst_pct = rates["sgst"]
 
                     fin = FinancialEngine.calculate_wo_financials(
                         subtotal=subtotal,
@@ -157,6 +177,19 @@ class WorkOrderService:
                     )
 
                     new_wo = await uow.work_orders.create(wo_dict, session=uow.session)
+
+                    # BUG-007: Restore Audit Log
+                    await self.audit_service.log_action(
+                        organisation_id=organisation_id,
+                        module_name="WORK_ORDERS",
+                        entity_type="WORK_ORDER",
+                        entity_id=str(new_wo["id"]),
+                        action_type="CREATE",
+                        user_id=user["user_id"],
+                        project_id=project_id,
+                        new_value=new_wo,
+                        session=uow.session,
+                    )
 
                     # CALC-1: Authoritative SUM Recalculation instead of $inc (BUG-35)
                     agg = await uow.work_orders.aggregate(
@@ -233,8 +266,10 @@ class WorkOrderService:
             await self.permission_checker.check_write_access_with_role(
                 user, old_wo["project_id"]
             )
+            # BUG-007 Fix: Merge existing data for validation to prevent false misses on required fields
+            validation_data = {**old_wo, **update_req.dict(exclude_unset=True)}
             await self.financial_service.validate_financial_document(
-                "WORK_ORDER", update_req.dict(), old_wo["project_id"]
+                "WORK_ORDER", validation_data, old_wo["project_id"]
             )
 
             wo_model = WorkOrderModel(old_wo)
@@ -269,21 +304,10 @@ class WorkOrderService:
 
             subtotal = line_result["subtotal"]
 
-            project = await uow.projects.get_by_id(
-                old_wo["project_id"],
-                organisation_id=organisation_id,
-                session=uow.session,
-            )
-            cgst_pct = (
-                Decimal(str(project.get("project_cgst_percentage", "9.0")))
-                if project
-                else Decimal("9.0")
-            )
-            sgst_pct = (
-                Decimal(str(project.get("project_sgst_percentage", "9.0")))
-                if project
-                else Decimal("9.0")
-            )
+            # BUG-006: Use new tax rate resolver
+            rates = await self._get_tax_rates(organisation_id, old_wo["project_id"], session=uow.session)
+            cgst_pct = rates["cgst"]
+            sgst_pct = rates["sgst"]
 
             retention_pct = Decimal(
                 str(
@@ -324,7 +348,7 @@ class WorkOrderService:
                 "actual_payable": FinancialEngine.to_d128(fin["actual_payable"]),
                 "line_items": line_items_processed,
                 "updated_at": datetime.now(timezone.utc),
-                "version": update_req.expected_version,
+                "version": update_req.expected_version + 1,
             }
             if update_req.status is not None:
                 update_dict["status"] = update_req.status
@@ -336,7 +360,7 @@ class WorkOrderService:
                 update_dict["vendor_id"] = update_req.vendor_id
 
             result = await uow.work_orders.update(
-                wo_id, update_dict, session=uow.session
+                wo_id, update_dict, expected_version=update_req.expected_version, session=uow.session
             )
             if not result:
                 raise ValidationError(
@@ -460,7 +484,7 @@ class WorkOrderService:
             
         return wo
 
-    async def submit_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
+    async def submit_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
         """Orchestrate WO submission for approval."""
         async with UnitOfWork(self.db) as uow:
             wo_data = await uow.work_orders.get_by_id(wo_id, organisation_id=user["organisation_id"], session=uow.session)
@@ -469,7 +493,14 @@ class WorkOrderService:
             wo_model = WorkOrderModel(wo_data)
             wo_model.submit()
             
-            result = await uow.work_orders.update(wo_id, {"status": "Pending", "updated_at": datetime.now(timezone.utc)}, session=uow.session)
+            result = await uow.work_orders.update(
+                wo_id, 
+                {"status": "Pending", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1}, 
+                expected_version=expected_version,
+                session=uow.session
+            )
+            if not result:
+                raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
             
             await self.audit_service.log_action(
                 organisation_id=user["organisation_id"],
@@ -491,7 +522,7 @@ class WorkOrderService:
 
             return result
 
-    async def approve_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
+    async def approve_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
         """Orchestrate WO approval (Admin only)."""
         # Note: Permission check should happen in Route or via permission_checker
         async with UnitOfWork(self.db) as uow:
@@ -501,7 +532,14 @@ class WorkOrderService:
             wo_model = WorkOrderModel(wo_data)
             wo_model.approve()
             
-            result = await uow.work_orders.update(wo_id, {"status": "Approved", "updated_at": datetime.now(timezone.utc)}, session=uow.session)
+            result = await uow.work_orders.update(
+                wo_id, 
+                {"status": "Approved", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1}, 
+                expected_version=expected_version,
+                session=uow.session
+            )
+            if not result:
+                raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
             
             await self.audit_service.log_action(
                 organisation_id=user["organisation_id"],
@@ -523,7 +561,7 @@ class WorkOrderService:
 
             return result
 
-    async def cancel_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
+    async def cancel_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
         """Orchestrate WO cancellation."""
         async with UnitOfWork(self.db) as uow:
             wo_data = await uow.work_orders.get_by_id(wo_id, organisation_id=user["organisation_id"], session=uow.session)
@@ -532,7 +570,14 @@ class WorkOrderService:
             wo_model = WorkOrderModel(wo_data)
             wo_model.cancel()
             
-            result = await uow.work_orders.update(wo_id, {"status": "Cancelled", "updated_at": datetime.now(timezone.utc)}, session=uow.session)
+            result = await uow.work_orders.update(
+                wo_id, 
+                {"status": "Cancelled", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1}, 
+                expected_version=expected_version,
+                session=uow.session
+            )
+            if not result:
+                raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
             
             # Reverse budget commitment? (Optional depending on business rule, but common)
             # For now just status change as per plan

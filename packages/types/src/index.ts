@@ -198,9 +198,19 @@ export interface WorkOrder {
   actual_payable: number;
   status: "Draft" | "Pending" | "Completed" | "Closed" | "Cancelled";
   line_items: WOLineItem[];
-  version?: number;
+  version: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface WorkOrderUpdate {
+  category_id?: string;
+  vendor_id?: string;
+  status?: "Draft" | "Pending" | "Approved" | "Completed" | "Closed" | "Cancelled";
+  line_items?: WOLineItem[];
+  discount?: number;
+  retention_percent?: number;
+  expected_version: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -251,6 +261,7 @@ export interface Vendor {
   email?: string;
   address?: string;
   active_status: boolean;
+  version: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -272,6 +283,7 @@ export interface VendorUpdate {
   email?: string;
   address?: string;
   active_status?: boolean;
+  expected_version: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -312,6 +324,45 @@ export interface VendorLedgerEntry {
   entry_type: "PC_CERTIFIED" | "PAYMENT_MADE" | "RETENTION_HELD";
   amount: number;
   created_at?: string;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CONTRACTS
+// ──────────────────────────────────────────────────────────────────────────
+export interface Contract {
+  _id?: string;
+  work_order_id: string;
+  organisation_id: string;
+  vendor_id: string;
+  contract_value: number;
+  start_date?: string;
+  end_date?: string;
+  terms: string;
+  status: "DRAFT" | "ACTIVE" | "EXPIRED" | "TERMINATED";
+  signed_by?: string;
+  signed_at?: string;
+  document_url?: string;
+  version: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractCreate {
+  work_order_id: string;
+  vendor_id: string;
+  contract_value: number;
+  start_date: string;
+  end_date: string;
+  terms: string;
+}
+
+export interface ContractUpdate {
+  terms?: string;
+  status?: "DRAFT" | "ACTIVE" | "EXPIRED" | "TERMINATED";
+  document_url?: string;
+  signed_by?: string;
+  signed_at?: string;
+  expected_version: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

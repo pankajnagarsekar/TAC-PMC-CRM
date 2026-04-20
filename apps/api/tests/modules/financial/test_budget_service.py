@@ -352,7 +352,7 @@ class TestBudgetServiceIntegration:
         created = await budget_service.create_budget(test_user, test_project_id, budget_data)
         budget_id = str(created["_id"])
 
-        locked = await budget_service.lock_budget(test_user, budget_id)
+        locked = await budget_service.lock_budget(test_user, budget_id, expected_version=1)
         assert locked["status"] == "LOCKED"
 
     async def test_close_budget_integration(self, budget_service, test_user, test_project_id):
@@ -366,8 +366,8 @@ class TestBudgetServiceIntegration:
         created = await budget_service.create_budget(test_user, test_project_id, budget_data)
         budget_id = str(created["_id"])
 
-        locked = await budget_service.lock_budget(test_user, budget_id)
-        closed = await budget_service.close_budget(test_user, budget_id)
+        locked = await budget_service.lock_budget(test_user, budget_id, expected_version=1)
+        closed = await budget_service.close_budget(test_user, budget_id, expected_version=2)
         assert closed["status"] == "CLOSED"
 
     async def test_list_budgets_integration(self, budget_service, test_user, test_project_id):

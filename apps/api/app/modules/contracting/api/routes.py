@@ -160,6 +160,7 @@ async def update_work_order(
     nonce: str = Depends(verify_nonce),
 ):
     """Update an existing work order."""
+    print(f"DEBUG_ROUTE: {wo_id}, {wo_data}")
     result = await wo_service.update_work_order(user, wo_id, wo_data)
     return GenericResponse(data=result)
 
@@ -281,17 +282,19 @@ async def export_work_order_pdf(
 @router.post("/work-orders/{wo_id}/submit", response_model=GenericResponse[WorkOrder], tags=["Work Orders"])
 async def submit_work_order(
     wo_id: str,
+    expected_version: int = Query(...),
     user: dict = Depends(get_authenticated_user),
     wo_service: WorkOrderService = Depends(get_work_order_service),
 ):
     """Transition WO from Draft to Pending."""
-    result = await wo_service.submit_work_order(user, wo_id)
+    result = await wo_service.submit_work_order(user, wo_id, expected_version)
     return GenericResponse(data=result, message="Work order submitted for approval")
 
 
 @router.post("/work-orders/{wo_id}/approve", response_model=GenericResponse[WorkOrder], tags=["Work Orders"])
 async def approve_work_order(
     wo_id: str,
+    expected_version: int = Query(...),
     user: dict = Depends(get_authenticated_user),
     wo_service: WorkOrderService = Depends(get_work_order_service),
 ):
@@ -304,18 +307,19 @@ async def approve_work_order(
     from app.core.permissions import PermissionChecker
     # We can use the one from dependencies or instantiate a new one with db
     # For now, simplistic check as per service
-    result = await wo_service.approve_work_order(user, wo_id)
+    result = await wo_service.approve_work_order(user, wo_id, expected_version)
     return GenericResponse(data=result, message="Work order approved")
 
 
 @router.post("/work-orders/{wo_id}/cancel", response_model=GenericResponse[WorkOrder], tags=["Work Orders"])
 async def cancel_work_order(
     wo_id: str,
+    expected_version: int = Query(...),
     user: dict = Depends(get_authenticated_user),
     wo_service: WorkOrderService = Depends(get_work_order_service),
 ):
     """Cancel a work order."""
-    result = await wo_service.cancel_work_order(user, wo_id)
+    result = await wo_service.cancel_work_order(user, wo_id, expected_version)
     return GenericResponse(data=result, message="Work order cancelled")
 
 

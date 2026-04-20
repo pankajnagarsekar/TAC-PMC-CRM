@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { format, parseISO } from "date-fns";
+import { formatINRShort } from "@/lib/formatters";
 
 interface DayMetric {
   date: string;
@@ -39,13 +40,7 @@ export default function BudgetTrend({
     }));
   }, [data, budget_total]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      notation: "compact",
-    }).format(value);
-  };
+  const formatCurrency = (value: number) => formatINRShort(value);
 
   const lastSpent = data.length > 0 ? data[data.length - 1].value : 0;
   const percentSpent = budget_total ? (lastSpent / budget_total) * 100 : 0;

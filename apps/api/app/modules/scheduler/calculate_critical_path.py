@@ -299,9 +299,19 @@ def run_calculation(input_data: dict) -> dict:
                         lag = int(pred_entry.get("lag_days", 0) or 0)
                         
                         if link_type == "FS":
+                            # Successor starts after predecessor finishes (Default)
                             candidate = p_ef + timedelta(days=lag + 1)
                         elif link_type == "SS":
+                            # Successor starts with predecessor
                             candidate = pred.get("es") + timedelta(days=lag)
+                        elif link_type == "FF":
+                            # Successor finishes with predecessor
+                            # EF_succ = EF_pred + lag => ES_succ = EF_pred + lag - (dur - 1)
+                            candidate = p_ef + timedelta(days=lag) - dur_delta
+                        elif link_type == "SF":
+                            # Successor finishes as predecessor starts
+                            # EF_succ = ES_pred + lag => ES_succ = ES_pred + lag - (dur - 1)
+                            candidate = pred.get("es") + timedelta(days=lag) - dur_delta
                         else:
                             candidate = p_ef + timedelta(days=lag + 1)
                             

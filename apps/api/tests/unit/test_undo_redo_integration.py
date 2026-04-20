@@ -68,7 +68,7 @@ class TestUndoRedoAPIEndpoints:
 
         # Get history
         response = await client.get(
-            f"/v1/scheduler/{project_id}/history",
+            f"/api/v1/scheduler/{project_id}/history",
             headers={"Authorization": "Bearer test-token"},
         )
 
@@ -94,7 +94,7 @@ class TestUndoRedoAPIEndpoints:
 
         # Get stack info
         response = await client.get(
-            f"/v1/scheduler/{project_id}/history/stack-info",
+            f"/api/v1/scheduler/{project_id}/history/stack-info",
             headers={"Authorization": "Bearer test-token"},
         )
 
@@ -131,7 +131,7 @@ class TestUndoRedoAPIEndpoints:
 
         # Undo
         response = await client.post(
-            f"/v1/scheduler/{project_id}/undo",
+            f"/api/v1/scheduler/{project_id}/undo",
             headers={"Authorization": "Bearer test-token"},
         )
 
@@ -166,11 +166,11 @@ class TestUndoRedoAPIEndpoints:
 
         # Undo then Redo
         await client.post(
-            f"/v1/scheduler/{project_id}/undo",
+            f"/api/v1/scheduler/{project_id}/undo",
             headers={"Authorization": "Bearer test-token"},
         )
         response = await client.post(
-            f"/v1/scheduler/{project_id}/redo",
+            f"/api/v1/scheduler/{project_id}/redo",
             headers={"Authorization": "Bearer test-token"},
         )
 
@@ -211,7 +211,7 @@ class TestUndoRedoAPIEndpoints:
 
         # Restore to initial
         response = await client.post(
-            f"/v1/scheduler/{project_id}/history/{initial_change_id}/restore",
+            f"/api/v1/scheduler/{project_id}/history/{initial_change_id}/restore",
             headers={"Authorization": "Bearer test-token"},
         )
 

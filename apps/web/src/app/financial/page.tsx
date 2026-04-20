@@ -70,15 +70,16 @@ export default function FinancialDashboard() {
 
   // Handle approve action
   const handleApprovePayment = async (id: string) => {
+    const payment = pendingApprovalsData?.find((p: any) => (p._id || p.id) === id);
+    const version = payment?.version || 1;
     try {
-      await fetch(`/api/v1/payments/${id}/approve`, {
+      await fetch(`/api/v1/payments/${id}/approve?expected_version=${version}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
       });
       // Refresh pending approvals
-      // In a real app, use SWR's mutate function
       window.location.reload();
     } catch (err) {
       console.error('Error approving payment:', err);
@@ -87,13 +88,18 @@ export default function FinancialDashboard() {
 
   // Handle reject action
   const handleRejectPayment = async (id: string, reason: string) => {
+    const payment = pendingApprovalsData?.find((p: any) => (p._id || p.id) === id);
+    const version = payment?.version || 1;
     try {
-      await fetch(`/api/v1/payments/${id}/reject?reason=${encodeURIComponent(reason)}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-      });
+      await fetch(
+        `/api/v1/payments/${id}/reject?reason=${encodeURIComponent(reason)}&expected_version=${version}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          },
+        }
+      );
       window.location.reload();
     } catch (err) {
       console.error('Error rejecting payment:', err);

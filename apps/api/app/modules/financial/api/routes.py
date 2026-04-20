@@ -203,11 +203,12 @@ async def create_payment_certificate(
 )
 async def close_payment_certificate(
     pc_id: str,
+    expected_version: int = Query(...),
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     """Close a payment certificate and update financial models."""
-    result = await payment_service.close_payment_certificate(user, pc_id)
+    result = await payment_service.close_payment_certificate(user, pc_id, expected_version)
     return GenericResponse(
         data=result, message="Payment certificate closed effectively"
     )
@@ -221,12 +222,13 @@ async def close_payment_certificate(
 async def submit_payment_for_approval(
     payment_id: str,
     request: Request,
+    expected_version: int = Query(...),
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     """Submit payment for approval (Draft -> Submitted)."""
     idempotency_key = request.headers.get("X-Idempotency-Key")
-    result = await payment_service.submit_for_approval(user, payment_id, idempotency_key)
+    result = await payment_service.submit_for_approval(user, payment_id, expected_version, idempotency_key)
     return GenericResponse(data=result, message="Payment submitted for approval")
 
 
@@ -237,12 +239,13 @@ async def submit_payment_for_approval(
 )
 async def approve_payment(
     payment_id: str,
+    expected_version: int = Query(...),
     comment: Optional[str] = Query(None),
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     """Approve a pending payment (Submitted -> Approved)."""
-    result = await payment_service.approve_payment(user, payment_id, comment)
+    result = await payment_service.approve_payment(user, payment_id, expected_version, comment)
     return GenericResponse(data=result, message="Payment approved successfully")
 
 
@@ -253,12 +256,13 @@ async def approve_payment(
 )
 async def reject_payment(
     payment_id: str,
+    expected_version: int = Query(...),
     reason: str = Query(...),
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     """Reject a pending payment (Submitted -> Rejected)."""
-    result = await payment_service.reject_payment(user, payment_id, reason)
+    result = await payment_service.reject_payment(user, payment_id, expected_version, reason)
     return GenericResponse(data=result, message="Payment rejected successfully")
 
 
@@ -633,8 +637,41 @@ async def update_category_budget(
     """Update category budget (Track H1)."""
     from decimal import Decimal
     original_budget = Decimal(str(budget_req.get("original_budget", 0)))
+    expected_version = int(budget_req.get("expected_version", 1))
     
     result = await financial_service.update_budget(
-        user, project_id, category_id, original_budget
+        user, project_id, category_id, original_budget, expected_version
     )
     return GenericResponse(data=result, message="Budget updated successfully")
+
+
+@router.post(
+    "/budgets/{budget_id}/lock",
+    response_model=GenericResponse[Budget],
+    tags=["Budgets"],
+)
+async def lock_budget(
+    budget_id: str,
+    expected_version: int = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Lock budget to prevent further allocations."""
+    result = await budget_service.lock_budget(user, budget_id, expected_version)
+    return GenericResponse(data=result, message="Budget locked successfully")
+
+
+@router.post(
+    "/budgets/{budget_id}/close",
+    response_model=GenericResponse[Budget],
+    tags=["Budgets"],
+)
+async def close_budget(
+    budget_id: str,
+    expected_version: int = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Close budget (final state)."""
+    result = await budget_service.close_budget(user, budget_id, expected_version)
+    return GenericResponse(data=result, message="Budget closed successfully")

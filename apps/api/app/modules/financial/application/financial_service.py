@@ -118,6 +118,7 @@ class FinancialService:
             "over_commit_flag": state.is_over_committed,
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
             "last_recalculated": now(),
+            "version": budget.get("version", 1),
         }
 
         await self.financial_state_repo.update_one(
@@ -301,6 +302,7 @@ class FinancialService:
         project_id: str,
         category_id: str,
         original_budget: Decimal,
+        expected_version: int,
         session=None,
     ) -> dict:
         """Atomic Update for Category Budget with validation (Track H1)."""
@@ -316,8 +318,15 @@ class FinancialService:
             if not existing:
                 raise ValidationError(f"Budget for category {category_id} not found.")
             committed = 0
+            budget_id = str(existing["_id"])
         else:
             committed = FinancialEngine.to_decimal(status.get("committed_value", 0))
+            # Status should have the budget doc ID as 'id' or '_id'
+            budget_id = str(status.get("_id") or status.get("id"))
+            if not budget_id or budget_id == "None":
+                 # Fallback to direct fetch if status doesn't have ID
+                 existing = await self.budget_repo.get_by_project_and_category(project_id, category_id, session=session)
+                 budget_id = str(existing["_id"])
 
         # 2. H1: Backend Validation
         if original_budget < 0:
@@ -328,16 +337,23 @@ class FinancialService:
                 f"Budget cannot be reduced below committed amount of ₹{committed:,.2f}"
             )
 
-        # 3. Update the budget record
+        # 3. Update the budget record with OCC
         update_data = {
             "original_budget": FinancialEngine.to_d128(original_budget),
             "updated_at": now(),
+            "version": expected_version + 1,
         }
-        await self.budget_repo.update_one(
-            {"project_id": project_id, "category_id": category_id},
-            {"$set": update_data},
-            session=session,
+        
+        success = await self.budget_repo.update(
+            budget_id,
+            update_data,
+            organisation_id=organisation_id,
+            expected_version=expected_version,
+            session=session
         )
+        
+        if not success:
+            raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         # 4. Trigger Master Recalculation (H3)
         return await self.recalculate_master_budget(project_id, session=session)

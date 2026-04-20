@@ -91,6 +91,7 @@ class Vendor(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     active_status: bool = True
+    version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -123,6 +124,7 @@ class VendorUpdate(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     active_status: Optional[bool] = None
+    expected_version: int
 
 
 # LEDGER DTOs (Part of Contracting Domain)
@@ -152,6 +154,7 @@ class Contract(BaseModel):
     signed_by: Optional[str] = None
     signed_at: Optional[datetime] = None
     document_url: Optional[str] = None
+    version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -173,3 +176,4 @@ class ContractUpdate(BaseModel):
     document_url: Optional[str] = None
     signed_by: Optional[str] = None
     signed_at: Optional[datetime] = None
+    expected_version: int

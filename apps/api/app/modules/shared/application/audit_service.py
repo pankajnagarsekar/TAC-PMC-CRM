@@ -25,14 +25,19 @@ class AuditService:
         self.db = db
         self.audit_repo = AuditRepository(db)
 
-    def enforce_financial_delete_guard(self, entity_type: str, action_type: str):
-        """ARCHITECTURAL GUARD: Prevent DELETE operations on financial entities."""
+    def enforce_financial_delete_guard(self, entity_type: str, action_type: str, old_value: Optional[Dict[str, Any]] = None):
+        """
+        ARCHITECTURAL GUARD: Prevent DELETE operations on final financial entities.
+        Allows deletion of 'Draft' entities to support record purging (Track I3).
+        """
         if action_type == "DELETE" and entity_type in FINANCIAL_ENTITY_TYPES:
-            # We raise a generic Exception or we could import the DomainException here
-            from ..domain.exceptions import FinancialIntegrityError
+            # Allow deletion if it's clearly a Draft (Point 75, Track I3)
+            if old_value and old_value.get("status") == "Draft":
+                return
 
+            from ..domain.exceptions import FinancialIntegrityError
             raise FinancialIntegrityError(
-                f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type}. Financial entities are immutable."
+                f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type} in its current state. Financial entities are immutable once finalized."
             )
 
     @staticmethod
@@ -67,11 +72,11 @@ class AuditService:
         session=None,
     ):
         """Log an action to audit trail (INSERT ONLY)."""
-        self.enforce_financial_delete_guard(entity_type, action_type)
-
         # Support both old_value/new_value and old_value_json/new_value_json kwargs
         effective_old = old_value or old_value_json
         effective_new = new_value or new_value_json
+
+        self.enforce_financial_delete_guard(entity_type, action_type, effective_old)
 
         try:
             audit_entry = {

@@ -9,6 +9,8 @@ import FinancialGrid from '@/components/ui/FinancialGrid';
 import { formatCurrency, formatDate, getStatusColor } from '@tac-pmc/ui';
 import Link from 'next/link';
 
+import { useVendorNames } from '@/hooks/useVendorNames';
+
 interface LinkedCertificatesProps {
   projectId: string;
   workOrderId?: string;
@@ -19,7 +21,8 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
     ? `/api/v1/payments/${projectId}?work_order_id=${workOrderId}`
     : `/api/v1/payments/${projectId}`;
 
-  const { data: pcsData, isLoading } = useSWR(projectId ? url : null, fetcher);
+  const { data: pcsData, isLoading: isPcsLoading } = useSWR(projectId ? url : null, fetcher);
+  const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
 
   const columnDefs: ColDef[] = useMemo(() => [
     {
@@ -37,6 +40,12 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
           {p.value}
         </span>
       )
+    },
+    {
+      field: 'vendor_id',
+      headerName: 'Vendor',
+      flex: 1.2,
+      valueFormatter: (p: ValueFormatterParams) => getVendorName(p.value)
     },
     {
       field: 'grand_total',
@@ -61,7 +70,7 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
     }
   ], []);
 
-  if (isLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
+  if (isPcsLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
 
   const pcs = pcsData?.items || pcsData || [];
 

@@ -56,6 +56,7 @@ class VendorService:
         vendor_dict["name"] = sanitized_name
         vendor_dict["organisation_id"] = user["organisation_id"]
         vendor_dict["active_status"] = True
+        vendor_dict["version"] = 1
 
         new_vendor = await self.vendor_repo.create(vendor_dict)
 
@@ -104,8 +105,17 @@ class VendorService:
                     )
 
         updated_vendor = await self.vendor_repo.update(
-            vendor_id, update_data, organisation_id=user["organisation_id"]
+            vendor_id, 
+            update_data, 
+            organisation_id=user["organisation_id"],
+            expected_version=vendor_update.expected_version
         )
+        if not updated_vendor:
+            raise ValidationError("CONFLICT: Vendor was modified by another process (Version Mismatch).")
+        
+        # Ensure model version increments for state consistency
+        update_data["version"] = vendor_update.expected_version + 1
+        
 
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],
@@ -133,8 +143,12 @@ class VendorService:
         if not existing:
             raise NotFoundError("Vendor", vendor_id)
 
+        current_version = existing.get("version", 1)
         await self.vendor_repo.update(
-            vendor_id, {"active_status": False}, organisation_id=user["organisation_id"]
+            vendor_id, 
+            {"active_status": False, "version": current_version + 1}, 
+            organisation_id=user["organisation_id"],
+            expected_version=current_version
         )
 
         await self.audit_service.log_action(

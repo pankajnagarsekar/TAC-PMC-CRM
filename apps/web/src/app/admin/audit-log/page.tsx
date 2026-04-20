@@ -73,6 +73,8 @@ export default function AuditLogPage() {
   );
 }
 
+import { useVendorNames } from "@/hooks/useVendorNames";
+
 function AuditLogContent() {
   const searchParams = useSearchParams();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
@@ -89,6 +91,8 @@ function AuditLogContent() {
     end_date: "",
   });
   const [showFilters, setShowFilters] = useState(false);
+
+  const { getVendorName } = useVendorNames();
 
   const fetchLogs = React.useCallback(async (pageNum: number = 1, append: boolean = false) => {
     try {
@@ -123,6 +127,14 @@ function AuditLogContent() {
     page,
     fetchLogs
   ]);
+
+  const getEntityDisplayName = (log: AuditLogEntry) => {
+    if (log.entity_type === "VENDOR") {
+      const name = getVendorName(log.entity_id);
+      if (name !== log.entity_id) return name;
+    }
+    return log.entity_type;
+  };
 
   const handleFilterChange = (key: keyof AuditLogFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -295,12 +307,12 @@ function AuditLogContent() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-950/40 border-b border-white/5">
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Timestamp</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Action</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Entity</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">User</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] w-[220px]">Timestamp</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] w-[120px]">Action</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] w-[250px]">Entity</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] w-[180px]">User</th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Project</th>
-                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">inspect</th>
+                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] w-[80px]">inspect</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.02]">
@@ -309,10 +321,10 @@ function AuditLogContent() {
                   key={log.log_id}
                   className="hover:bg-white/[0.01] transition-colors group"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-400 font-mono">
+                  <td className="px-6 py-4 whitespace-nowrap overflow-hidden text-clip text-xs text-slate-400 font-mono">
                     {formatDate(log.created_at)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap overflow-hidden text-clip">
                     <span
                       className={`inline-flex px-2.5 py-1 text-[10px] font-black rounded-lg border leading-none transition-all group-hover:scale-105 ${getActionColor(
                         log.action_type,
@@ -321,11 +333,11 @@ function AuditLogContent() {
                       {log.action_type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap overflow-hidden text-clip">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-slate-600" />
-                      <div className="flex flex-col">
-                        <span className="text-xs text-white font-bold">{log.entity_type}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs text-white font-bold truncate">{getEntityDisplayName(log)}</span>
                         <span className="text-[10px] text-slate-600 font-mono">#{log.entity_id.slice(-8)}</span>
                       </div>
                     </div>
@@ -338,11 +350,11 @@ function AuditLogContent() {
                       <span>{log.user_name || log.user_id.slice(-8)}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-400">
+                  <td className="px-6 py-4 whitespace-nowrap overflow-hidden text-clip text-xs text-slate-400">
                     {log.project_id ? (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3 text-slate-600" />
-                        <span className="max-w-[150px] truncate">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Calendar className="w-3 h-3 text-slate-600 shrink-0" />
+                        <span className="truncate">
                           {log.project_name || log.project_id.slice(-8)}
                         </span>
                       </div>

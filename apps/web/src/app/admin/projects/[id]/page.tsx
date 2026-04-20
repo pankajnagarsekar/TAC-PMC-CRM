@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { z } from "zod";
 import useSWR from "swr";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
@@ -23,6 +24,8 @@ import LinkedWorkOrders from "@/components/work-orders/LinkedWorkOrders";
 import KPICard from "@/components/ui/KPICard";
 import type { ICellRendererParams, NewValueParams } from "ag-grid-community";
 import { NumericCellEditor } from "@/components/financial/BudgetComponents";
+
+const budgetSchema = z.number().min(0, "Budget cannot be negative").max(1000000000, "Budget exceeds limit");
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -97,13 +100,25 @@ export default function ProjectDetailPage() {
         minWidth: 160,
         valueFormatter: (params) => formatCurrency(params.value),
         onCellValueChanged: async (params: NewValueParams<DerivedFinancialState>) => {
-          const { _id, project_id, category_id, original_budget } = params.data;
+          const { _id, project_id, category_id, original_budget, version } = params.data;
           if (!project_id || !category_id) return;
+
+          // BUG-003: Strict UI Validation
+          const parsed = parseFloat(String(original_budget));
+          const validation = budgetSchema.safeParse(parsed);
+
+          if (!validation.success || isNaN(parsed)) {
+            const errorMsg = !validation.success ? validation.error.issues[0].message : "Invalid numeric value for budget.";
+            alert(errorMsg);
+            params.node?.setDataValue("original_budget", params.oldValue);
+            return;
+          }
 
           setSavingId(_id || category_id);
           try {
             await api.patch(`/api/v1/budgets/project/${project_id}/category/${category_id}`, {
-              original_budget: parseFloat(String(original_budget)),
+              original_budget: parsed,
+              expected_version: version || 1,
             });
             await mutateFinancials();
             await mutateProject(); // Refresh master totals

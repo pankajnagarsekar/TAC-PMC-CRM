@@ -31,6 +31,7 @@ class CodeMaster(BaseModel):
     description: Optional[str] = None
     budget_type: Literal["commitment", "fund_transfer"] = "commitment"
     active_status: bool = True
+    version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -59,6 +60,7 @@ class CodeMasterUpdate(BaseModel):
     code: Optional[str] = None
     description: Optional[str] = None
     active_status: Optional[bool] = None
+    expected_version: int
 
 
 # PAYMENT CERTIFICATE DTOs
@@ -267,6 +269,7 @@ class BudgetAllocationUpdate(BaseModel):
 
 class BudgetUpdate(BaseModel):
     allocations: List[BudgetAllocationUpdate]
+    expected_version: int
 
 
 class BudgetForecast(BaseModel):

@@ -51,8 +51,8 @@ class UndoRedoService:
         # 2. Get current HEAD
         current = await self.repo.get_current(project_id, org_id)
 
-        # 3. Deduplication: if checksum matches current, skip capture
-        if current and current.get("data_checksum") == checksum:
+        # 3. Deduplication: if checksum and change_type match current, skip capture
+        if current and current.get("data_checksum") == checksum and current.get("change_type") == change_type:
             return current.get("id") or str(current.get("_id"))
 
         # 4. Prune redo branch: delete all entries above current position

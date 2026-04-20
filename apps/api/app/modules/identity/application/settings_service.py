@@ -45,14 +45,15 @@ class SettingsService:
             }
         return settings
 
-    async def update_settings(self, user: dict, settings_data: dict) -> Dict[str, Any]:
+    async def update_settings(self, user: dict, settings_data: Any) -> Dict[str, Any]:
         """Atomic update of global settings with mandatory audit logging."""
         await self.permission_checker.check_admin_role(user)
 
         # Sanitize sensitive fields
+        data_dict = settings_data.dict(exclude_unset=True) if hasattr(settings_data, "dict") else settings_data
         payload = {
             k: v
-            for k, v in settings_data.items()
+            for k, v in data_dict.items()
             if k not in ("id", "_id", "organisation_id")
         }
 

@@ -65,7 +65,8 @@ async def test_pc_mode_b_creation_and_close(client, test_db, test_user, test_pro
     print(f"DEBUG: Allocation BEFORE close: {alloc_before}")
     
     pc_id = str(pc.get("id") or pc.get("_id"))
-    close_res = await client.post(f"/api/v1/payments/{pc_id}/close") 
+    version = pc.get("version", 1)
+    close_res = await client.post(f"/api/v1/payments/{pc_id}/close?expected_version={version}") 
     assert close_res.status_code == 200
     
     # 5. Verify Fund Allocation Updates (Expect 200 + 18% GST = 236)

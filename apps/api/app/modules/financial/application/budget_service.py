@@ -146,9 +146,18 @@ class BudgetService:
         old_budget.update_allocations(new_allocs)
 
         # Persist with version check
+        budget_updates = old_budget.to_dict()
+        budget_updates["version"] = allocation_data.expected_version + 1
+        budget_updates["updated_at"] = datetime.now(timezone.utc)
+        
         updated = await self.budget_repo.update(
-            budget_id, old_budget.to_dict(), organisation_id=organisation_id
+            budget_id, 
+            budget_updates, 
+            organisation_id=organisation_id,
+            expected_version=allocation_data.expected_version
         )
+        if not updated:
+            raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         # Audit
         await self.audit_service.log_action(
@@ -202,10 +211,20 @@ class BudgetService:
         except ValueError as e:
             raise ValidationError(str(e))
 
-        # Persist
+        # Persist with version check
+        current_version = budget_dict.get("version", 1)
+        budget_updates = budget.to_dict()
+        budget_updates["version"] = current_version + 1
+        budget_updates["updated_at"] = datetime.now(timezone.utc)
+
         updated = await self.budget_repo.update(
-            budget_id, budget.to_dict(), organisation_id=organisation_id
+            budget_id, 
+            budget_updates, 
+            organisation_id=organisation_id,
+            expected_version=current_version
         )
+        if not updated:
+            raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         # Audit
         await self.audit_service.log_action(
@@ -258,13 +277,14 @@ class BudgetService:
 
         return forecast
 
-    async def lock_budget(self, user: dict, budget_id: str) -> Dict[str, Any]:
+    async def lock_budget(self, user: dict, budget_id: str, expected_version: int) -> Dict[str, Any]:
         """
         Lock budget to prevent allocation changes (transitions ACTIVE → LOCKED).
 
         Args:
             user: Authenticated user
             budget_id: Budget ID
+            expected_version: Current version provided by client
 
         Returns:
             Updated budget dict
@@ -285,9 +305,18 @@ class BudgetService:
         except ValueError as e:
             raise ValidationError(str(e))
 
+        budget_updates = budget.to_dict()
+        budget_updates["version"] = expected_version + 1
+        budget_updates["updated_at"] = datetime.now(timezone.utc)
+
         updated = await self.budget_repo.update(
-            budget_id, budget.to_dict(), organisation_id=organisation_id
+            budget_id, 
+            budget_updates, 
+            organisation_id=organisation_id,
+            expected_version=expected_version
         )
+        if not updated:
+            raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         await self.audit_service.log_action(
             organisation_id=organisation_id,
@@ -304,13 +333,14 @@ class BudgetService:
         logger.info(f"Budget locked: {budget_id}")
         return updated
 
-    async def close_budget(self, user: dict, budget_id: str) -> Dict[str, Any]:
+    async def close_budget(self, user: dict, budget_id: str, expected_version: int) -> Dict[str, Any]:
         """
         Close budget (final state: LOCKED/ACTIVE → CLOSED).
 
         Args:
             user: Authenticated user
             budget_id: Budget ID
+            expected_version: Current version provided by client
 
         Returns:
             Updated budget dict
@@ -331,9 +361,18 @@ class BudgetService:
         except ValueError as e:
             raise ValidationError(str(e))
 
+        budget_updates = budget.to_dict()
+        budget_updates["version"] = expected_version + 1
+        budget_updates["updated_at"] = datetime.now(timezone.utc)
+
         updated = await self.budget_repo.update(
-            budget_id, budget.to_dict(), organisation_id=organisation_id
+            budget_id, 
+            budget_updates, 
+            organisation_id=organisation_id,
+            expected_version=expected_version
         )
+        if not updated:
+            raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         await self.audit_service.log_action(
             organisation_id=organisation_id,

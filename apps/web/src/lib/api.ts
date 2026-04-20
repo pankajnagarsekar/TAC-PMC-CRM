@@ -142,7 +142,7 @@ api.interceptors.response.use(
 
       // Do not show global toast for: login/refresh (handled locally), 409/422 (form validation shown inline)
       const isFormError = error.response.status === 409 || error.response.status === 422;
-      const serverMessage = (error.response.data as any)?.error?.message;
+      const serverMessage = (error.response?.data as { error?: { message?: string } })?.error?.message;
 
       if (!isLoginRequest && !isRefreshRequest && !isFormError) {
         toast.error(serverMessage || "Endpoint Synchronization Failed", {

@@ -26,6 +26,30 @@ class BaseRepository(Generic[T]):
         """Authoritative index enforcement hook (Point 118)."""
         pass
 
+    async def _pre_create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Lifecycle hook before document creation."""
+        return data
+
+    async def _post_create(self, doc: Dict[str, Any], session=None):
+        """Lifecycle hook after document creation."""
+        pass
+
+    async def _pre_update(self, id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Lifecycle hook before document update."""
+        return data
+
+    async def _post_update(self, doc: Dict[str, Any], session=None):
+        """Lifecycle hook after document update."""
+        pass
+
+    async def _pre_delete(self, id: str):
+        """Lifecycle hook before document deletion."""
+        pass
+
+    async def _post_delete(self, id: str, session=None):
+        """Lifecycle hook after document deletion."""
+        pass
+
     async def get_by_id(
         self, id: str, session: Optional[AsyncIOMotorClientSession] = None, **filters
     ) -> Optional[Dict[str, Any]]:
@@ -63,24 +87,33 @@ class BaseRepository(Generic[T]):
         """Atomic document insertion with timestamping (Point 75)."""
         effective_session = session or self.session
         from app.core.utils import prepare_for_db
+        data = await self._pre_create(data)
         data = prepare_for_db(data)
         data["created_at"] = datetime.now(timezone.utc)
         data["updated_at"] = data["created_at"]
 
         result = await self.collection.insert_one(data, session=effective_session)
         data["_id"] = result.inserted_id
-        return self._format_id(data)
+        formatted_doc = self._format_id(data)
+        await self._post_create(formatted_doc, session=effective_session)
+        return formatted_doc
 
     async def update(
         self,
         id: str,
         data: Dict[str, Any],
+        expected_version: Optional[int] = None,
         session: Optional[AsyncIOMotorClientSession] = None,
         **filters,
     ) -> Optional[Dict[str, Any]]:
-        """Update a document and return the new version with optional filtering."""
+        """
+        Update a document with Optimistic Concurrency Control (Point 75, Hardened).
+        If expected_version is provided, the update will only succeed if the 
+        current version in DB matches.
+        """
         effective_session = session or self.session
         from app.core.utils import prepare_for_db
+        data = await self._pre_update(id, data)
         data = prepare_for_db(data)
         data["updated_at"] = datetime.now(timezone.utc)
 
@@ -89,13 +122,19 @@ class BaseRepository(Generic[T]):
         except Exception:
             query = {"_id": id}
 
+        if expected_version is not None:
+            query["version"] = expected_version
+
         if filters:
             query.update(filters)
 
         result = await self.collection.find_one_and_update(
             query, {"$set": data}, return_document=True, session=effective_session
         )
-        return self._format_id(result)
+        formatted_doc = self._format_id(result)
+        if formatted_doc:
+            await self._post_update(formatted_doc, session=effective_session)
+        return formatted_doc
 
     async def list(
         self,

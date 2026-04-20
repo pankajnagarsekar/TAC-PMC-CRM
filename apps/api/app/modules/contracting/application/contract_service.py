@@ -38,6 +38,7 @@ class ContractService:
         contract_dict.update({
             "organisation_id": organisation_id,
             "status": "DRAFT",
+            "version": 1,
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         })
@@ -70,8 +71,15 @@ class ContractService:
 
         update_dict = data.dict(exclude_unset=True)
         update_dict["updated_at"] = datetime.now(timezone.utc)
+        update_dict["version"] = data.expected_version + 1
 
-        updated = await self.contract_repo.update(contract_id, update_dict)
+        updated = await self.contract_repo.update(
+            contract_id, 
+            update_dict, 
+            expected_version=data.expected_version
+        )
+        if not updated:
+            raise ValidationError("CONFLICT: Contract was modified by another process (Version Mismatch).")
 
         await self.audit_service.log_action(
             organisation_id=organisation_id,

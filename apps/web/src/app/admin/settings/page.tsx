@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { z } from "zod";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
 import api from "@/lib/api";
@@ -47,6 +48,12 @@ interface GlobalSettings {
     can_view_scheduler: boolean;
   };
 }
+
+const settingsSchema = z.object({
+  cgst_percentage: z.number().min(0).max(100),
+  sgst_percentage: z.number().min(0).max(100),
+  retention_percentage: z.number().min(0).max(100),
+});
 
 export default function SettingsPage() {
   const { data: codes, mutate: mutateCodes } = useSWR<CodeMaster[]>(
@@ -111,9 +118,25 @@ export default function SettingsPage() {
       }
     };
     fetchSettings();
-  }, []);
+  }, [toast]);
 
   const handleSaveSettings = async () => {
+    // BUG-004: Strict validation
+    const validation = settingsSchema.safeParse({
+      cgst_percentage: globalSettings.cgst_percentage,
+      sgst_percentage: globalSettings.sgst_percentage,
+      retention_percentage: globalSettings.retention_percentage,
+    });
+
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter valid numeric percentages (0-100).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSavingSettings(true);
     try {
       const payload = prepareSettingsPayload();

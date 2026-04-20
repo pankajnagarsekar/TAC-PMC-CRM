@@ -24,6 +24,7 @@ import {
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { normalizeTaskOrder, parseTaskDate } from "@/components/scheduler/scheduler-utils";
+import { formatINRShort } from "@/lib/formatters";
 
 /**
  * S-Curve Chart implementation for Enterprise PPM Scheduler.
@@ -140,12 +141,7 @@ export default function SCurveChart() {
     });
   }, [tasks]);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-IN", {
-      notation: "compact",
-      style: "currency",
-      currency: "INR",
-    }).format(value);
+  const formatCurrency = (value: number) => formatINRShort(value);
 
   return (
     <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 p-5 shadow-2xl backdrop-blur-xl">

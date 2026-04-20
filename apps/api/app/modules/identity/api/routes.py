@@ -17,6 +17,7 @@ from ..application.user_service import UserService
 from ..schemas.dto import (
     ChangePasswordRequest,
     GlobalSettings,
+    GlobalSettingsUpdate,
     LoginRequest,
     RefreshTokenRequest,
     Token,
@@ -43,7 +44,7 @@ async def get_settings(
 
 @router.put("/settings/", response_model=GenericResponse[dict])
 async def update_settings(
-    settings_data: dict,
+    settings_data: GlobalSettingsUpdate,
     user: dict = Depends(get_authenticated_user),
     settings_service: SettingsService = Depends(get_settings_service),
 ):

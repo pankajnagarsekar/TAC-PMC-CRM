@@ -29,6 +29,8 @@ import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import { formatCurrency, formatDate } from "@tac-pmc/ui";
 import { PaymentCertificate, CodeMaster, Vendor, WorkOrder } from "@/types/api";
 
+import { useVendorNames } from "@/hooks/useVendorNames";
+
 export default function PaymentCertificateDetail({
   params,
 }: {
@@ -50,7 +52,7 @@ export default function PaymentCertificateDetail({
   // Fetchers
   const {
     data: pc,
-    isLoading,
+    isLoading: isPcLoading,
     mutate,
   } = useSWR<PaymentCertificate>(`/api/v1/payments/id/${id}`, fetcher);
 
@@ -58,7 +60,9 @@ export default function PaymentCertificateDetail({
     "/api/v1/settings/codes?active_only=true",
     fetcher,
   );
-  const { data: vendors } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
+
+  const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
+
   const { data: woResponse } = useSWR(
     activeProject
       ? `/api/v1/work-orders/?project_id=${activeProject.project_id || activeProject._id}`
@@ -113,8 +117,7 @@ export default function PaymentCertificateDetail({
 
   const getCategoryName = (cid: string) =>
     categories?.find((c) => String((c as any)._id || (c as any).id) === String(cid))?.category_name || cid;
-  const getVendorName = (vid: string) =>
-    vendors?.find((v) => String((v as any)._id || (v as any).id) === String(vid))?.name || vid;
+
   const getWoRef = (woid: string) =>
     workOrders.find((w) => String((w as any)._id || (w as any).id) === String(woid))?.wo_ref || woid;
 
@@ -154,7 +157,7 @@ export default function PaymentCertificateDetail({
     },
   ], []);
 
-  if (isLoading)
+  if (isPcLoading)
     return (
       <div className="flex items-center justify-center h-64 p-8 text-center text-slate-400">
         <Loader2 className="w-8 h-8 animate-spin text-orange-500 mr-2" />

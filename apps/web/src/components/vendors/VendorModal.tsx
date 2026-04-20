@@ -97,7 +97,10 @@ export default function VendorModal({
       if (vendor) {
         await api.put(
           `/api/v1/vendors/${vendor._id || (vendor as { _id?: string; id?: string }).id}`,
-          formData,
+          {
+            ...formData,
+            expected_version: vendor.version || 1
+          },
         );
         toast({ title: "Success", description: "Vendor updated successfully" });
       } else {

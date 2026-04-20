@@ -81,9 +81,16 @@ class MasterDataService:
         if not existing or existing.get("organisation_id") != user["organisation_id"]:
             raise NotFoundError("Master code", code_id)
 
+        update_dict = update_data.dict(exclude_unset=True)
+        update_dict["version"] = update_data.expected_version + 1
+
         updated = await self.code_repo.update(
-            code_id, update_data.dict(exclude_unset=True)
+            code_id, update_dict, expected_version=update_data.expected_version
         )
+        if not updated:
+            raise ValidationError("CONFLICT: Master code was modified by another process (Version Mismatch).")
+        
+        # Ensure audit log is consistent if service layer requires version in dict
 
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],
@@ -112,7 +119,12 @@ class MasterDataService:
         if not existing or existing.get("organisation_id") != user["organisation_id"]:
             raise NotFoundError("Master code", code_id)
 
-        updated = await self.code_repo.update(code_id, {"active_status": False})
+        current_version = existing.get("version", 1)
+        updated = await self.code_repo.update(
+            code_id, {"active_status": False, "version": current_version + 1}, expected_version=current_version
+        )
+        if not updated:
+            raise ValidationError("CONFLICT: Master code was modified by another process (Version Mismatch).")
 
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],

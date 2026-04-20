@@ -23,12 +23,7 @@ export interface FinancialChartProps {
   formatCurrency?: boolean;
 }
 
-function formatINRShort(value: number): string {
-  if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
-  if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
-  if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`;
-  return `₹${value}`;
-}
+import { formatINRShort, formatCurrencySafe } from '@/lib/formatters';
 
 import { useTheme } from 'next-themes';
 
@@ -50,7 +45,7 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
       <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
-          {p.name}: {typeof p.value === 'number' ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.value) : p.value}
+          {p.name}: {typeof p.value === 'number' ? formatCurrencySafe(p.value) : p.value}
         </p>
       ))}
     </div>

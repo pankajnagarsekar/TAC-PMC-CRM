@@ -14,17 +14,22 @@ import {
 } from "./scheduler-utils";
 
 function groupTasks(tasks: ScheduleTask[]) {
-  return tasks.reduce<Record<ScheduleTaskStatus, ScheduleTask[]>>((acc, task) => {
-    const status = getTaskStatus(task);
-    acc[status].push(task);
-    return acc;
-  }, {
+  const groups: Record<ScheduleTaskStatus, ScheduleTask[]> = {
     draft: [],
     not_started: [],
     in_progress: [],
     completed: [],
     closed: [],
+  };
+
+  tasks.forEach(task => {
+    const status = getTaskStatus(task);
+    if (groups[status]) {
+      groups[status].push(task);
+    }
   });
+
+  return groups;
 }
 
 export default function KanbanBoard() {
@@ -104,7 +109,15 @@ export default function KanbanBoard() {
                 </span>
               </div>
 
-              <div className="space-y-2 min-h-[500px]">
+              {/* KanbanContainer: Column Content Area */}
+              <div
+                className="space-y-4 overflow-y-auto px-1 custom-scrollbar pb-10 transition-all duration-300"
+                style={{
+                  height: 'calc(100vh - 350px)',
+                  minHeight: '480px',
+                  willChange: 'transform'
+                }}
+              >
                 {columnTasks.map((task) => {
                   const isSelected = selectedTasks.has(task.task_id);
 
@@ -117,7 +130,7 @@ export default function KanbanBoard() {
                         selectTask(task.task_id);
                         openTask(task.task_id);
                       }}
-                      className={`cursor-pointer rounded-2xl border px-3 py-3 transition hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-white/20 ${isSelected ? "border-sky-400/40 bg-sky-500/10 dark:bg-sky-500/15" : "border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03]"}`}
+                      className={`cursor-pointer rounded-2xl border px-3 py-3 transition hover:border-slate-300 dark:hover:border-white/20 active:scale-[0.98] ${isSelected ? "border-sky-400/40 bg-sky-500/10 dark:bg-sky-500/15 ring-2 ring-sky-500/20" : "border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03]"}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">

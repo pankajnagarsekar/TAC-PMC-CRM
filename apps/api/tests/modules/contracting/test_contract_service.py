@@ -84,8 +84,9 @@ async def test_update_contract(contract_service, test_db, test_user):
     await test_db.contracts.insert_one({
         "_id": ObjectId(c_id),
         "organisation_id": test_user["organisation_id"],
-        "status": "DRAFT"
+        "status": "DRAFT",
+        "version": 1
     })
 
-    updated = await contract_service.update_contract(test_user, c_id, ContractUpdate(status="ACTIVE"))
+    updated = await contract_service.update_contract(test_user, c_id, ContractUpdate(status="ACTIVE", expected_version=1))
     assert updated["status"] == "ACTIVE"

@@ -258,6 +258,7 @@ class DashboardService:
                         FinancialEngine.to_decimal(s.get("balance_budget_remaining", 0))
                     ),
                     "over_commit_flag": s.get("over_commit_flag", False),
+                    "version": s.get("version", 1),
                     # Legacy aliases kept for backward compat
                     "budget": original_budget,
                     "committed": committed_value,

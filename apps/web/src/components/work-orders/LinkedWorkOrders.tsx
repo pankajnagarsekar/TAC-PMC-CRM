@@ -8,16 +8,19 @@ import { fetcher } from '@/lib/api';
 import FinancialGrid from '@/components/ui/FinancialGrid';
 import { formatCurrency, formatDate, getStatusColor } from '@tac-pmc/ui';
 import Link from 'next/link';
+import { useVendorNames } from '@/hooks/useVendorNames';
 
 interface LinkedWorkOrdersProps {
     projectId: string;
 }
 
 export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
-    const { data: wosData, isLoading } = useSWR(
+    const { data: wosData, isLoading: isWosLoading } = useSWR(
         projectId ? `/api/v1/work-orders/?project_id=${projectId}` : null,
         fetcher
     );
+
+    const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
 
     const columnDefs: ColDef[] = useMemo(() => [
         {
@@ -37,9 +40,10 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
             )
         },
         {
-            field: 'vendor_name',
+            field: 'vendor_id',
             headerName: 'Vendor',
-            flex: 1.5
+            flex: 1.5,
+            valueFormatter: (p: ValueFormatterParams) => getVendorName(p.value)
         },
         {
             field: 'grand_total',
@@ -62,9 +66,9 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
                 </Link>
             )
         }
-    ], []);
+    ], [getVendorName]);
 
-    if (isLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-indigo-500" /></div>;
+    if (isWosLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-indigo-500" /></div>;
 
     const wos = wosData?.items || wosData || [];
 

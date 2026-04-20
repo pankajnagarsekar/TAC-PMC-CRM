@@ -63,6 +63,7 @@ async def test_create_work_order_flow(work_order_service, test_db, test_user, te
 async def test_work_order_approval_lifecycle(work_order_service, test_db, test_user, test_project_id):
     # Setup WO in Draft
     vendor_id = str(ObjectId())
+    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
@@ -70,28 +71,30 @@ async def test_work_order_approval_lifecycle(work_order_service, test_db, test_u
     ))
 
     # 1. Submit
-    submitted = await work_order_service.submit_work_order(test_user, str(wo["id"]))
+    submitted = await work_order_service.submit_work_order(test_user, str(wo["id"]), expected_version=1)
     assert submitted["status"] == "Pending"
 
     # 2. Approve
-    approved = await work_order_service.approve_work_order(test_user, str(wo["id"]))
+    approved = await work_order_service.approve_work_order(test_user, str(wo["id"]), expected_version=2)
     assert approved["status"] == "Approved"
 
 @pytest.mark.asyncio
 async def test_cancel_work_order(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
+    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
     ))
 
-    cancelled = await work_order_service.cancel_work_order(test_user, str(wo["id"]))
+    cancelled = await work_order_service.cancel_work_order(test_user, str(wo["id"]), expected_version=1)
     assert cancelled["status"] == "Cancelled"
 
 @pytest.mark.asyncio
 async def test_update_work_order_occ(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
+    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
@@ -111,6 +114,7 @@ async def test_update_work_order_occ(work_order_service, test_db, test_user, tes
 async def test_work_order_invariant_violation(work_order_service, test_db, test_user, test_project_id):
     # Cannot reduce WO below certified payments
     vendor_id = str(ObjectId())
+    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
@@ -133,6 +137,7 @@ async def test_work_order_invariant_violation(work_order_service, test_db, test_
 @pytest.mark.asyncio
 async def test_list_work_orders(work_order_service, test_user, test_project_id, test_db):
     vendor_id = str(ObjectId())
+    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000})
     await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
@@ -166,6 +171,7 @@ async def test_create_work_order_invalid_budget(work_order_service, test_user, t
 @pytest.mark.asyncio
 async def test_approve_non_pending_wo(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
+    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000})
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
@@ -174,5 +180,5 @@ async def test_approve_non_pending_wo(work_order_service, test_db, test_user, te
     
     # Status is Draft, trying to approve directly
     with pytest.raises(DomainError, match="Only Pending Work Orders can be approved"):
-        await work_order_service.approve_work_order(test_user, str(wo["id"]))
+        await work_order_service.approve_work_order(test_user, str(wo["id"]), expected_version=1)
 

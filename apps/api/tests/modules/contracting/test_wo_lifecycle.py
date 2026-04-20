@@ -38,6 +38,7 @@ async def test_work_order_update_recalculates_budget(client: AsyncClient, test_d
     }, headers={"X-Request-Nonce": "wo-upd-1"})
     assert resp.status_code == 201
     wo = resp.json()["data"]
+    print(f"DEBUG_WO: {wo}")
     wo_id = wo["id"]
     
     # Verify Cat 1 budget (5000 + 18% GST = 5900)
@@ -46,11 +47,13 @@ async def test_work_order_update_recalculates_budget(client: AsyncClient, test_d
     assert FinancialEngine.to_decimal(budget1["committed_value"]) == 5900
 
     # 3. Update WO: Change Category to Cat 2 and Increase Amount to 7000
-    resp = await client.put(f"/api/v1/work-orders/{wo_id}", json={
+    resp = await client.patch(f"/api/v1/work-orders/{wo_id}", json={
         "category_id": cat2_id,
         "line_items": [{"sr_no": 1, "qty": 1, "rate": 7000}],
-        "expected_version": wo["version"]
-    })
+        "expected_version": 1
+    }, headers={"X-Request-Nonce": "upd-nonce-1"})
+    if resp.status_code != 200:
+        print(f"DEBUG_422: {resp.json()}")
     assert resp.status_code == 200
 
     # 4. Verify Budgets
@@ -141,6 +144,6 @@ async def test_budget_validation_prevents_low_budget(test_db, test_user, test_pr
 
     # Attempt to reduce original_budget to 4000 (Commit is 5000)
     with pytest.raises(ValidationError) as exc:
-        await service.update_budget(test_user, test_project_id, cat_id, Decimal("4000.0"))
+        await service.update_budget(test_user, test_project_id, cat_id, Decimal("4000.0"), expected_version=1)
     
     assert "below committed amount" in str(exc.value)

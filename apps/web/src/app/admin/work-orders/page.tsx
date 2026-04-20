@@ -10,6 +10,7 @@ import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
 import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
+import { useVendorNames } from "@/hooks/useVendorNames";
 
 interface CategoryInfo {
   _id: string;
@@ -35,17 +36,17 @@ export default function WorkOrdersPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch categories and vendors for name resolution
+  const { getVendorName } = useVendorNames();
+
   useEffect(() => {
     if (!activeProject) return;
 
     const fetchLookups = async () => {
       try {
-        const [catRes, venRes] = await Promise.all([
+        const [catRes] = await Promise.all([
           api.get("/api/v1/settings/codes"),
-          api.get("/api/v1/vendors/"),
         ]);
         setCategories(catRes.data || []);
-        setVendors(venRes.data || []);
       } catch (err) {
         // Lookup failure is non-fatal — grid still works, just shows raw IDs
         console.error("Failed to fetch lookups", err);
@@ -63,16 +64,6 @@ export default function WorkOrdersPage() {
     });
     return map;
   }, [categories]);
-
-  const vendorMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    vendors.forEach((v: any) => {
-      // API serializes _id as "id" in many views; support both
-      const vid = v.id || v._id;
-      if (vid) map[vid] = v.name || vid;
-    });
-    return map;
-  }, [vendors]);
 
   const fetchWorkOrders = useCallback(
     async (cursor?: string | null) => {
@@ -134,7 +125,7 @@ export default function WorkOrdersPage() {
       field: "vendor_id",
       headerName: "Vendor",
       width: 180,
-      valueFormatter: (p: any) => vendorMap[p.value] || p.value || "-",
+      valueFormatter: (p: any) => getVendorName(p.value),
     },
     {
       field: "created_at",

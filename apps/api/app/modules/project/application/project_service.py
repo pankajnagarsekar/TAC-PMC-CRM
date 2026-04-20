@@ -136,9 +136,15 @@ class ProjectService:
             if isinstance(v, Decimal):
                 update_dict[k] = FinancialEngine.to_d128(v)
 
+        current_version = existing.get("version", 1)
+        update_dict["version"] = current_version + 1
         update_dict["updated_at"] = now()
+        
         result = await self.project_repo.update(
-            project_id, update_dict, organisation_id=user["organisation_id"]
+            project_id, 
+            update_dict, 
+            organisation_id=user["organisation_id"],
+            expected_version=current_version
         )
 
         if not result:

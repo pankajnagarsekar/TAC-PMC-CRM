@@ -111,7 +111,7 @@ class TestPaymentApprovalWorkflow:
         """Test 1: Submit payment for approval (Draft -> Submitted)."""
         payment_id = payment_in_draft["id"]
 
-        result = await payment_service.submit_for_approval(supervisor_user, payment_id)
+        result = await payment_service.submit_for_approval(supervisor_user, payment_id, expected_version=1)
 
         assert result["status"] == "Submitted", f"Expected Submitted, got {result['status']}"
         assert "submitted_at" in result, "submitted_at should be populated"
@@ -123,12 +123,12 @@ class TestPaymentApprovalWorkflow:
         idempotency_key = f"submit-{payment_id}-001"
 
         result1 = await payment_service.submit_for_approval(
-            supervisor_user, payment_id, idempotency_key
+            supervisor_user, payment_id, expected_version=1, idempotency_key=idempotency_key
         )
 
         # Second call - payment is already Submitted so idempotency returns cached
         result2 = await payment_service.submit_for_approval(
-            supervisor_user, payment_id, idempotency_key
+            supervisor_user, payment_id, expected_version=1, idempotency_key=idempotency_key
         )
 
         assert result1["id"] == result2["id"], "Idempotency: should return same payment"
@@ -149,10 +149,10 @@ class TestPaymentApprovalWorkflow:
             {"$set": {"grand_total": FinancialEngine.to_d128(Decimal("5000.00"))}}
         )
 
-        await payment_service.submit_for_approval(supervisor_user, payment_id)
+        await payment_service.submit_for_approval(supervisor_user, payment_id, expected_version=1)
 
         result = await payment_service.approve_payment(
-            supervisor_user, payment_id, comment="Approved within limit"
+            supervisor_user, payment_id, expected_version=2, comment="Approved within limit"
         )
 
         assert result["status"] == "Approved", "Status should be Approved"
@@ -168,10 +168,10 @@ class TestPaymentApprovalWorkflow:
         """Test 4: Supervisor rejects payment (Submitted -> Rejected)."""
         payment_id = payment_in_draft["id"]
 
-        await payment_service.submit_for_approval(supervisor_user, payment_id)
+        await payment_service.submit_for_approval(supervisor_user, payment_id, expected_version=1)
 
         result = await payment_service.reject_payment(
-            supervisor_user, payment_id, reason="Vendor documentation incomplete"
+            supervisor_user, payment_id, expected_version=2, reason="Vendor documentation incomplete"
         )
 
         assert result["status"] == "Rejected", "Status should be Rejected"
@@ -196,10 +196,10 @@ class TestPaymentApprovalWorkflow:
             {"$set": {"grand_total": FinancialEngine.to_d128(Decimal("15000.00"))}}
         )
 
-        await payment_service.submit_for_approval(supervisor_user, payment_id)
+        await payment_service.submit_for_approval(supervisor_user, payment_id, expected_version=1)
 
         with pytest.raises(ValidationError) as excinfo:
-            await payment_service.approve_payment(supervisor_user, payment_id)
+            await payment_service.approve_payment(supervisor_user, payment_id, expected_version=2)
 
         assert "Supervisor can only approve" in str(excinfo.value)
 
@@ -217,10 +217,10 @@ class TestPaymentApprovalWorkflow:
             {"$set": {"grand_total": FinancialEngine.to_d128(Decimal("25000.00"))}}
         )
 
-        await payment_service.submit_for_approval(finance_manager_user, payment_id)
+        await payment_service.submit_for_approval(finance_manager_user, payment_id, expected_version=1)
 
         result = await payment_service.approve_payment(
-            finance_manager_user, payment_id, comment="Approved by Finance Manager"
+            finance_manager_user, payment_id, expected_version=2, comment="Approved by Finance Manager"
         )
 
         assert result["status"] == "Approved", "Finance Manager should be able to approve > $10k"
@@ -234,7 +234,7 @@ class TestPaymentApprovalWorkflow:
 
         original_version = payment_in_draft.get("version", 1)
 
-        await payment_service.submit_for_approval(supervisor_user, payment_id)
+        await payment_service.submit_for_approval(supervisor_user, payment_id, expected_version=1)
 
         from bson import ObjectId as BsonObjectId
         from app.modules.shared.domain.financial_engine import FinancialEngine
@@ -243,7 +243,7 @@ class TestPaymentApprovalWorkflow:
             {"$set": {"grand_total": FinancialEngine.to_d128(Decimal("5000.00"))}}
         )
 
-        result = await payment_service.approve_payment(supervisor_user, payment_id)
+        result = await payment_service.approve_payment(supervisor_user, payment_id, expected_version=2)
 
         assert result.get("version", 0) > original_version, "Version should be incremented after updates"
 
@@ -261,8 +261,8 @@ class TestPaymentApprovalWorkflow:
             {"$set": {"grand_total": FinancialEngine.to_d128(Decimal("5000.00"))}}
         )
 
-        await payment_service.submit_for_approval(supervisor_user, payment_id)
-        await payment_service.approve_payment(supervisor_user, payment_id, comment="Approved")
+        await payment_service.submit_for_approval(supervisor_user, payment_id, expected_version=1)
+        await payment_service.approve_payment(supervisor_user, payment_id, expected_version=2, comment="Approved")
 
         audit_logs = await test_db_with_payments.audit_logs.find(
             {"entity_id": payment_id}

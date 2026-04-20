@@ -55,7 +55,7 @@ async def test_get_vendor_not_found(vendor_service, test_user):
 async def test_update_vendor_success(vendor_service, test_user, mock_audit_service):
     created = await vendor_service.create_vendor(test_user, VendorCreate(name="Old Name"))
     
-    update_data = VendorUpdate(name="New Awesome Name", email="contact@awesome.com")
+    update_data = VendorUpdate(name="New Awesome Name", email="contact@awesome.com", expected_version=1)
     updated = await vendor_service.update_vendor(test_user, str(created["id"]), update_data)
     
     assert updated["name"] == "New Awesome Name"

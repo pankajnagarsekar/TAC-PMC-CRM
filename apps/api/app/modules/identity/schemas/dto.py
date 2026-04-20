@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -125,13 +126,23 @@ class ClientPermissions(BaseModel):
 
 class GlobalSettings(BaseModel):
     organisation_id: str
-    cgst_percentage: float = 9.0
-    sgst_percentage: float = 9.0
-    retention_percentage: float = 5.0
+    cgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    sgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
+    retention_percentage: Decimal = Field(Decimal("5.0"), ge=0, le=100)
     currency: str = "INR"
     currency_symbol: str = "₹"
     company_profile: CompanyProfile = Field(default_factory=CompanyProfile)
     client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
+
+
+class GlobalSettingsUpdate(BaseModel):
+    cgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    sgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    retention_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    currency: Optional[str] = None
+    currency_symbol: Optional[str] = None
+    company_profile: Optional[CompanyProfile] = None
+    client_permissions: Optional[ClientPermissions] = None
 
 
 class ChangePasswordRequest(BaseModel):

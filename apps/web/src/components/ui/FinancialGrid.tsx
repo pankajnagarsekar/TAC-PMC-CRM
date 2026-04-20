@@ -170,6 +170,7 @@ export default function FinancialGrid<T>({
       cellStyle: {
         fontSize: "13px",
         lineHeight: "1.5",
+        textOverflow: 'clip',
       },
     }),
     [editable],

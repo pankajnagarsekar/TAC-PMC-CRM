@@ -306,6 +306,9 @@ importers:
       uuid:
         specifier: ^11.0.0
         version: 11.1.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
       zustand:
         specifier: ^5.0.1
         version: 5.0.11(@types/react@19.1.17)(immer@11.1.4)(react@19.0.0)(use-sync-external-store@1.6.0(react@19.0.0))

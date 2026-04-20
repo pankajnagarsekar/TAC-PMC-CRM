@@ -185,8 +185,8 @@ class AnalyticsService:
 
         # Fetch schedule (Resilient ID Check BUG-002)
         query = {"organisation_id": organisation_id}
-        if len(project_id) == 24: # Assume ObjectId-like string
-            from bson import ObjectId
+        from bson import ObjectId
+        if ObjectId.is_valid(project_id):
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
         else:
             query["project_id"] = project_id
@@ -270,8 +270,8 @@ class AnalyticsService:
 
         # Fetch schedule (Resilient ID Check BUG-002)
         query = {"organisation_id": organisation_id}
-        if len(project_id) == 24: # Assume ObjectId-like string
-            from bson import ObjectId
+        from bson import ObjectId
+        if ObjectId.is_valid(project_id):
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
         else:
             query["project_id"] = project_id
@@ -351,9 +351,9 @@ class AnalyticsService:
         data = FinancialSummaryData()
 
         # Fetch master financial state (Resilient ID Check BUG-002)
-        query = {"category_id": "MASTER"}
-        if len(project_id) == 24: # Assume ObjectId-like string
-            from bson import ObjectId
+        query = {"category_id": "MASTER", "organisation_id": organisation_id}
+        from bson import ObjectId
+        if ObjectId.is_valid(project_id):
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
         else:
             query["project_id"] = project_id
@@ -362,9 +362,9 @@ class AnalyticsService:
 
         if not master_state:
             # Fallback: sum all per-category states
-            agg_query = {"category_id": {"$ne": "MASTER"}}
-            if len(project_id) == 24:
-                from bson import ObjectId
+            agg_query = {"category_id": {"$ne": "MASTER"}, "organisation_id": organisation_id}
+            from bson import ObjectId
+            if ObjectId.is_valid(project_id):
                 agg_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
             else:
                 agg_query["project_id"] = project_id

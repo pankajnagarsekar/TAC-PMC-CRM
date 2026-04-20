@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { formatINRShort } from '@/lib/formatters';
 
 interface BudgetAllocation {
   code: string;
@@ -71,7 +72,7 @@ export default function BudgetTracker({ budgets }: BudgetTrackerProps) {
                       <div className="flex justify-between mb-2">
                         <span className="text-gray-300">{alloc.code}</span>
                         <span className="text-gray-400 text-sm">
-                          ₹{alloc.spent.toLocaleString()} / ₹{alloc.budget.toLocaleString()}
+                          {formatINRShort(alloc.spent)} / {formatINRShort(alloc.budget)}
                         </span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2">
@@ -92,7 +93,7 @@ export default function BudgetTracker({ budgets }: BudgetTrackerProps) {
               <div className="flex justify-between mb-2">
                 <span className="text-gray-300 font-semibold">Total Spent</span>
                 <span className="text-white font-bold">
-                  ₹{totalSpent.toLocaleString()} / ₹{totalBudget.toLocaleString()}
+                  {formatINRShort(totalSpent)} / {formatINRShort(totalBudget)}
                 </span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-3">

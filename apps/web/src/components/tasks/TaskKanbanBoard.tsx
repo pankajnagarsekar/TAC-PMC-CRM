@@ -58,7 +58,7 @@ export default function TaskKanbanBoard({ tasks, onTaskUpdate }: TaskKanbanBoard
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar min-h-[60vh] snap-x">
+      <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar h-[calc(100vh-280px)] min-h-[500px] snap-x">
         {statuses.map((status) => {
           const statusTasks = tasks.filter((t) => t.status === status);
           return (

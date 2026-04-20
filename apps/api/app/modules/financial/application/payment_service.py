@@ -214,7 +214,7 @@ class PaymentService:
 
             return new_pc
 
-    async def close_payment_certificate(self, user: dict, pc_id: str) -> Dict[str, Any]:
+    async def close_payment_certificate(self, user: dict, pc_id: str, expected_version: int) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
 
         async with UnitOfWork(self.db) as uow:
@@ -235,11 +235,14 @@ class PaymentService:
             project_id = pc["project_id"]
             pc_type = pc.get("pc_type", "WO_LINKED")
 
-            await uow.payments.update(
+            updated_pc = await uow.payments.update(
                 pc_id,
-                {"status": "Closed", "closed_at": now()},
+                {"status": "Closed", "closed_at": now(), "version": expected_version + 1},
+                expected_version=expected_version,
                 session=uow.session,
             )
+            if not updated_pc:
+                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
 
             if pc_type == "WO_LINKED" and pc.get("vendor_id"):
                 await uow.vendors.update_one(
@@ -310,7 +313,7 @@ class PaymentService:
                 action_type="CLOSE",
                 user_id=user["user_id"],
                 project_id=project_id,
-                new_value=pc,
+                new_value=updated_pc,
                 session=uow.session,
             )
 
@@ -360,7 +363,7 @@ class PaymentService:
     # -------------------------------------------------------------------------
 
     async def submit_for_approval(
-        self, user: dict, payment_id: str, idempotency_key: Optional[str] = None
+        self, user: dict, payment_id: str, expected_version: int, idempotency_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """Submit payment for approval (Draft -> Submitted).
         Validates state transition and records idempotency."""
@@ -390,9 +393,12 @@ class PaymentService:
 
             updated = await uow.payments.update(
                 payment_id,
-                {"status": "Submitted", "submitted_at": now()},
+                {"status": "Submitted", "submitted_at": now(), "version": expected_version + 1},
+                expected_version=expected_version,
                 session=uow.session,
             )
+            if not updated:
+                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
@@ -418,7 +424,7 @@ class PaymentService:
             return updated
 
     async def approve_payment(
-        self, user: dict, payment_id: str, comment: Optional[str] = None
+        self, user: dict, payment_id: str, expected_version: int, comment: Optional[str] = None
     ) -> Dict[str, Any]:
         """Approve payment (Submitted -> Approved).
         Role-based threshold: Supervisor max $10k, Finance Manager/Lead unlimited."""
@@ -453,7 +459,6 @@ class PaymentService:
             approval_trail = list(payment.get("approval_trail", []))
             approval_trail.append(approval_event)
 
-            new_version = payment.get("version", 1) + 1
             updated = await uow.payments.update(
                 payment_id,
                 {
@@ -461,10 +466,13 @@ class PaymentService:
                     "approved_at": now(),
                     "approved_by": approver_id,
                     "approval_trail": approval_trail,
-                    "version": new_version,
+                    "version": expected_version + 1,
                 },
+                expected_version=expected_version,
                 session=uow.session,
             )
+            if not updated:
+                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
@@ -498,7 +506,7 @@ class PaymentService:
             return updated
 
     async def reject_payment(
-        self, user: dict, payment_id: str, reason: str
+        self, user: dict, payment_id: str, expected_version: int, reason: str
     ) -> Dict[str, Any]:
         """Reject payment (Submitted -> Rejected)."""
         organisation_id = user["organisation_id"]
@@ -533,9 +541,13 @@ class PaymentService:
                     "rejected_at": now(),
                     "rejected_reason": reason,
                     "approval_trail": approval_trail,
+                    "version": expected_version + 1,
                 },
+                expected_version=expected_version,
                 session=uow.session,
             )
+            if not updated:
+                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
