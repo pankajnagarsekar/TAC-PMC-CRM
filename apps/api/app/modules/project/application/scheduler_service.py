@@ -259,8 +259,56 @@ class SchedulerService:
             return {
                 "project_id": project_id,
                 "tasks": [],
-                "error": f"Internal Error: {str(e)}"
+                "project_start": None,
+                "total_cost": 0,
             }
+
+    async def sync_financials(self, project_id: str, organisation_id: str, session=None) -> None:
+        """
+        Synchronizes the authoritative financial state with the scheduler tasks array.
+        (Track H1: Data Linking).
+        """
+        financial_state_repo = self.db["financial_state"]
+        
+        # Load all states for this project
+        cursor = financial_state_repo.find({"project_id": project_id}, session=session)
+        states = await cursor.to_list(length=100)
+        state_map = {s["category_id"]: s for s in states}
+        master_state = state_map.get("MASTER")
+
+        # Load schedule from DB directly to avoid recursive calls
+        query = {"project_id": project_id, "organisation_id": organisation_id}
+        schedule = await self.collection.find_one(query, session=session)
+        if not schedule:
+            return
+
+        tasks = schedule.get("tasks", [])
+        modified = False
+        
+        for task in tasks:
+            # Root/Summary task mapping (Master)
+            if str(task.get("task_id")) == "0" and master_state:
+                new_val = float(master_state.get("committed_value", 0))
+                if task.get("wo_value") != new_val:
+                    task["wo_value"] = new_val
+                    modified = True
+            
+            # Granular category mapping via external_ref_id or wbs_code
+            mapping_id = task.get("external_ref_id") or task.get("wbs_code")
+            if mapping_id and mapping_id in state_map:
+                cat_state = state_map[mapping_id]
+                new_val = float(cat_state.get("committed_value", 0))
+                if task.get("wo_value") != new_val:
+                    task["wo_value"] = new_val
+                    modified = True
+                    
+        if modified:
+            await self.collection.update_one(
+                {"project_id": project_id, "organisation_id": organisation_id},
+                {"$set": {"tasks": tasks, "updated_at": datetime.now(timezone.utc)}},
+                session=session
+            )
+            logger.info(f"SCHEDULER_SYNC: Financial data updated for project {project_id}")
 
     async def lock_baseline(
         self,

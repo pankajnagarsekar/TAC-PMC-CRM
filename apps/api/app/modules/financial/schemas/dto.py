@@ -272,6 +272,11 @@ class BudgetUpdate(BaseModel):
     expected_version: int
 
 
+class BudgetCategoryUpdate(BaseModel):
+    original_budget: Decimal = Field(..., ge=0)
+    expected_version: int = 1
+
+
 class BudgetForecast(BaseModel):
     eac: Decimal  # Estimate at Completion
     projected_overrun: Decimal

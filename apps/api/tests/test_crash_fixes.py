@@ -53,6 +53,8 @@ async def test_middleware_request_client_guard(test_db):
 @pytest.mark.asyncio
 async def test_financial_service_cursers_awaited(test_db):
     """BUG-25: Verify aggregate results are awaited."""
-    service = FinancialService(test_db)
+    from app.modules.shared.application.audit_service import AuditService
+    audit = AuditService(test_db)
+    service = FinancialService(test_db, audit)
     # We verified the code uses .to_list(length=1) which is awaited.
     pass

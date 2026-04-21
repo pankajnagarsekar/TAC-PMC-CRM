@@ -35,9 +35,11 @@ class FinancialEngine:
         if isinstance(value, Decimal128):
             return value.to_decimal()
         try:
+            from decimal import InvalidOperation
             return Decimal(str(value))
-        except (ValueError, TypeError):
-            return Decimal("0.00")
+        except (ValueError, TypeError, InvalidOperation):
+            from .exceptions import ValidationError
+            raise ValidationError(f"Invalid numeric value: {value}")
 
     @classmethod
     def round(cls, value: Any, precision: Any = None) -> Decimal:
@@ -104,10 +106,17 @@ class FinancialEngine:
         cgst_amount = cls.calculate_tax(total_before_tax, cgst_pct)
         sgst_amount = cls.calculate_tax(total_before_tax, sgst_pct)
         gst_amount = cls.round(cgst_amount + sgst_amount)
-        grand_total = cls.round(total_before_tax + gst_amount)
 
         retention_amount = cls.calculate_retention(total_before_tax, retention_pct)
+        grand_total = cls.round(total_before_tax + gst_amount)
         actual_payable = cls.round(grand_total - retention_amount)
+
+        if grand_total < 0:
+             raise FinancialIntegrityError("Grand total cannot be negative.")
+        
+        if actual_payable < 0:
+             # This can happen if retention > grand_total (unlikely but possible with weird pct)
+             actual_payable = Decimal("0.00")
 
         return {
             "subtotal": subtotal,
@@ -119,7 +128,7 @@ class FinancialEngine:
             "gst_amount": gst_amount,
             "grand_total": grand_total,
             "retention_amount": retention_amount,
-            "total_payable": grand_total,  # §3.3: total_payable = grand_total
+            "total_payable": grand_total,  # §3.3: total_payable = grand_total (Fixed BUG-005)
             "actual_payable": actual_payable,
             "logic_version": cls.DOMAIN_LOGIC_VERSION,
         }

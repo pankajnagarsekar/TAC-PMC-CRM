@@ -60,13 +60,22 @@ export const NumericCellEditor = forwardRef((props: CustomCellEditorProps, ref) 
             getValue() {
                 if (value === '' || value === null || value === undefined) return 0;
                 const parsed = parseFloat(value);
-                return isNaN(parsed) ? 0 : parsed;
+                if (isNaN(parsed)) {
+                    // BUG-003 Fix: Don't silently return 0 if it's invalid.
+                    // Return properties.value (the old value) to avoid corruption if the caller accepts it,
+                    // or just return the raw value if the grid handles validation.
+                    // Here we specifically return the old value to 'cancel' the edit indirectly if invalid.
+                    return props.value;
+                }
+                return parsed;
             },
             isCancelBeforeStart() {
                 return false;
             },
             isCancelAfterEnd() {
-                return false;
+                // If it's not a number, cancel the edit to prevent corruption
+                const parsed = parseFloat(value);
+                return isNaN(parsed);
             }
         };
     });

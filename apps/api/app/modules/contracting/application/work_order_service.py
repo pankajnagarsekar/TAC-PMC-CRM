@@ -118,8 +118,8 @@ class WorkOrderService:
                     subtotal = Decimal("0.0")
 
                     for item in items_data:
-                        qty = Decimal(str(item["qty"]))
-                        rate = Decimal(str(item["rate"]))
+                        qty = FinancialEngine.to_decimal(item["qty"])
+                        rate = FinancialEngine.to_decimal(item["rate"])
                         item_total = FinancialEngine.round(qty * rate)
                         item["total"] = FinancialEngine.to_d128(item_total)  # Fixed BULL-99: Ensure 128-bit precision
                         subtotal += item_total
@@ -131,8 +131,8 @@ class WorkOrderService:
 
                     fin = FinancialEngine.calculate_wo_financials(
                         subtotal=subtotal,
-                        retention_pct=Decimal(str(wo_data.retention_percent or 0)),
-                        discount=Decimal(str(wo_data.discount or 0)),
+                        retention_pct=FinancialEngine.to_decimal(wo_data.retention_percent or 0),
+                        discount=FinancialEngine.to_decimal(wo_data.discount or 0),
                         cgst_pct=cgst_pct,
                         sgst_pct=sgst_pct,
                     )
@@ -267,7 +267,17 @@ class WorkOrderService:
                 user, old_wo["project_id"]
             )
             # BUG-007 Fix: Merge existing data for validation to prevent false misses on required fields
-            validation_data = {**old_wo, **update_req.dict(exclude_unset=True)}
+            updates = update_req.dict(exclude_unset=True)
+            # Authoritative Invariant: If line items are changing, ensure subtotal in validation context matches
+            if "line_items" in updates and "subtotal" not in updates:
+                items_raw = [
+                    itm if isinstance(itm, dict) else itm.dict()
+                    for itm in updates["line_items"]
+                ]
+                line_res = FinancialEngine.calculate_line_items(items_raw)
+                updates["subtotal"] = line_res["subtotal"]
+
+            validation_data = {**old_wo, **updates}
             await self.financial_service.validate_financial_document(
                 "WORK_ORDER", validation_data, old_wo["project_id"]
             )
@@ -309,19 +319,15 @@ class WorkOrderService:
             cgst_pct = rates["cgst"]
             sgst_pct = rates["sgst"]
 
-            retention_pct = Decimal(
-                str(
-                    update_req.retention_percent
-                    if update_req.retention_percent is not None
-                    else old_wo.get("retention_percent", 0)
-                )
+            retention_pct = FinancialEngine.to_decimal(
+                update_req.retention_percent
+                if update_req.retention_percent is not None
+                else old_wo.get("retention_percent", 0)
             )
-            discount_val = Decimal(
-                str(
-                    update_req.discount
-                    if update_req.discount is not None
-                    else old_wo.get("discount", 0)
-                )
+            discount_val = FinancialEngine.to_decimal(
+                update_req.discount
+                if update_req.discount is not None
+                else old_wo.get("discount", 0)
             )
 
             fin = FinancialEngine.calculate_wo_financials(

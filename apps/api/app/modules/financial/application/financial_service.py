@@ -33,8 +33,10 @@ class FinancialService:
     Delegates all mathematical logic to the FinancialEngine.
     """
 
-    def __init__(self, db):
+    def __init__(self, db, audit_service, scheduler_service=None):
         self.db = db
+        self.audit_service = audit_service
+        self.scheduler_service = scheduler_service
         self.budget_repo = BudgetRepository(db)
         self.wo_repo = WorkOrderRepository(db)
         self.pc_repo = PCRepository(db)
@@ -201,6 +203,18 @@ class FinancialService:
         except Exception as e:
             logger.warning(f"DASHBOARD_CACHE_INVALIDATE_FAILED for {project_id}: {str(e)}")
 
+        # SYNC: Update Scheduler UI Data (Track H1, BUG-5)
+        if self.scheduler_service:
+            try:
+                # We don't have organisation_id here, but we can try to get it from project
+                project = await self.project_repo.get_by_id(project_id, session=session)
+                if project:
+                    await self.scheduler_service.sync_financials(
+                        project_id, project.get("organisation_id"), session=session
+                    )
+            except Exception as e:
+                logger.error(f"SCHEDULER_SYNC_FAILED for {project_id}: {str(e)}")
+
         return master_snapshot
 
     async def check_threshold_breach(
@@ -242,17 +256,30 @@ class FinancialService:
         return False
 
     async def validate_financial_document(self, doc_type: str, data: dict, project_id: str):
-        """Validate financial document data before creation (BUG-29)."""
+        """Validate financial document data before creation (BUG-29, BUG-009)."""
+        line_items = data.get("line_items", [])
+        if not line_items or len(line_items) == 0:
+             raise ValidationError(f"{doc_type.replace('_', ' ').title()} requires at least one line item.")
+
+        # BUG-009: Authoritative Invariant: Declared Subtotal must match Line Item Sum
+        declared_subtotal = FinancialEngine.to_decimal(data.get("subtotal", 0))
+        calculated_subtotal = Decimal("0.00")
+        for item in line_items:
+            qty = FinancialEngine.to_decimal(item.get("qty", 0))
+            rate = FinancialEngine.to_decimal(item.get("rate", 0))
+            calculated_subtotal += FinancialEngine.round(qty * rate)
+        
+        if declared_subtotal != calculated_subtotal and declared_subtotal != Decimal("0.00"):
+            # If subtotal is provided but mismatched, fail. 
+            # If 0.00, we might be in 'creation' where it's not yet set in dict.
+            raise ValidationError(f"Document subtotal mismatch. Declared: {declared_subtotal}, Calculated: {calculated_subtotal}")
+
         if doc_type == "WORK_ORDER":
-            if not data.get("line_items"):
-                raise ValidationError("Work order requires at least one line item")
             if not data.get("vendor_id"):
                 raise ValidationError("Work order requires a vendor")
             if not data.get("category_id"):
                 raise ValidationError("Work order requires a category")
         elif doc_type == "PAYMENT_CERTIFICATE":
-            if not data.get("line_items"):
-                raise ValidationError("Payment Certificate requires at least one line item")
             if data.get("fund_request"):
                 if data.get("work_order_id"):
                     raise ValidationError("Fund request cannot be linked to a Work Order")
@@ -291,7 +318,20 @@ class FinancialService:
             "updated_at": now(),
         }
         
-        await self.budget_repo.create(budget_doc, session=session)
+        budget_doc = await self.budget_repo.create(budget_doc, session=session)
+
+        # BUG-007: Audit Logging
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="FINANCIAL",
+            entity_type="BUDGET",
+            entity_id=str(budget_doc["id"]),
+            action_type="CREATE",
+            user_id=user["user_id"],
+            project_id=project_id,
+            new_value=budget_doc,
+            session=session,
+        )
 
         # 3. Trigger Master Recalculation (H3)
         return await self.recalculate_master_budget(project_id, session=session)
@@ -344,7 +384,7 @@ class FinancialService:
             "version": expected_version + 1,
         }
         
-        success = await self.budget_repo.update(
+        result = await self.budget_repo.update(
             budget_id,
             update_data,
             organisation_id=organisation_id,
@@ -352,8 +392,22 @@ class FinancialService:
             session=session
         )
         
-        if not success:
+        if not result:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
+
+        # BUG-007: Audit Logging
+        await self.audit_service.log_action(
+            organisation_id=organisation_id,
+            module_name="FINANCIAL",
+            entity_type="BUDGET",
+            entity_id=budget_id,
+            action_type="UPDATE",
+            user_id=user["user_id"],
+            project_id=project_id,
+            old_value=existing if not status else status,
+            new_value=result,
+            session=session,
+        )
 
         # 4. Trigger Master Recalculation (H3)
         return await self.recalculate_master_budget(project_id, session=session)

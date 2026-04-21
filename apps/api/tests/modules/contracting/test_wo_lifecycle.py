@@ -138,7 +138,9 @@ async def test_budget_validation_prevents_low_budget(test_db, test_user, test_pr
         "status": "Approved", "organisation_id": test_user["organisation_id"]
     })
 
-    service = FinancialService(test_db)
+    from app.modules.shared.application.audit_service import AuditService
+    audit = AuditService(test_db)
+    service = FinancialService(test_db, audit)
     from decimal import Decimal
     from app.modules.shared.domain.exceptions import ValidationError
 

@@ -152,10 +152,26 @@ async def get_snapshot_service(
     return SnapshotService(db)
 
 
+async def get_undo_redo_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    from app.modules.project.application.undo_redo_service import UndoRedoService
+    return UndoRedoService(db)
+
+
+async def get_scheduler_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    undo_redo_service = Depends(get_undo_redo_service),
+) -> SchedulerService:
+    return SchedulerService(db, undo_redo_service=undo_redo_service)
+
+
 async def get_financial_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    scheduler: SchedulerService = Depends(get_scheduler_service),
 ) -> FinancialService:
-    return FinancialService(db)
+    return FinancialService(db, audit, scheduler_service=scheduler)
 
 
 async def get_user_service(
@@ -294,20 +310,6 @@ async def get_ai_summary_service(
 
 async def get_ai_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AIService:
     return AIService(db)
-
-
-async def get_undo_redo_service(
-    db: AsyncIOMotorDatabase = Depends(get_db),
-):
-    from app.modules.project.application.undo_redo_service import UndoRedoService
-    return UndoRedoService(db)
-
-
-async def get_scheduler_service(
-    db: AsyncIOMotorDatabase = Depends(get_db),
-    undo_redo_service = Depends(get_undo_redo_service),
-) -> SchedulerService:
-    return SchedulerService(db, undo_redo_service=undo_redo_service)
 
 
 async def get_alert_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AlertService:

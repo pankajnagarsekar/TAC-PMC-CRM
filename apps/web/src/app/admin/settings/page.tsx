@@ -178,6 +178,20 @@ export default function SettingsPage() {
     };
   };
 
+  const handleNumericChange = (key: keyof GlobalSettings, rawValue: string) => {
+    // If empty string, keep it as 0 but allow user to clear the field.
+    // Fixed BUG-004: Don't silently convert 'abc' to 0. 
+    // If it's not a number, don't update state or use old value.
+    if (rawValue === "") {
+      setGlobalSettings(prev => ({ ...prev, [key]: 0 }));
+      return;
+    }
+    const parsed = parseFloat(rawValue);
+    if (!isNaN(parsed)) {
+      setGlobalSettings(prev => ({ ...prev, [key]: parsed }));
+    }
+  };
+
   if (loading)
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -414,12 +428,7 @@ export default function SettingsPage() {
                   type="number"
                   step="0.01"
                   value={globalSettings.cgst_percentage}
-                  onChange={(e) =>
-                    setGlobalSettings({
-                      ...globalSettings,
-                      cgst_percentage: parseFloat(e.target.value) || 0,
-                    })
-                  }
+                  onChange={(e) => handleNumericChange('cgst_percentage', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                 />
               </div>
@@ -431,12 +440,7 @@ export default function SettingsPage() {
                   type="number"
                   step="0.01"
                   value={globalSettings.sgst_percentage}
-                  onChange={(e) =>
-                    setGlobalSettings({
-                      ...globalSettings,
-                      sgst_percentage: parseFloat(e.target.value) || 0,
-                    })
-                  }
+                  onChange={(e) => handleNumericChange('sgst_percentage', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                 />
               </div>
@@ -448,12 +452,7 @@ export default function SettingsPage() {
                   type="number"
                   step="0.01"
                   value={globalSettings.retention_percentage}
-                  onChange={(e) =>
-                    setGlobalSettings({
-                      ...globalSettings,
-                      retention_percentage: parseFloat(e.target.value) || 0,
-                    })
-                  }
+                  onChange={(e) => handleNumericChange('retention_percentage', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 font-mono"
                 />
               </div>

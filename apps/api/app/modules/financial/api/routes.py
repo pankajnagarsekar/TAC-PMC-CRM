@@ -25,6 +25,7 @@ from ..schemas.dto import (
     BudgetCreate,
     BudgetForecast,
     BudgetUpdate,
+    BudgetCategoryUpdate,
     CashTransactionCreate,
     CodeMaster,
     CodeMasterCreate,
@@ -630,17 +631,17 @@ async def forecast_budget_eac(
 async def update_category_budget(
     project_id: str,
     category_id: str,
-    budget_req: Dict[str, Any],
+    budget_req: BudgetCategoryUpdate,
     user: dict = Depends(get_authenticated_user),
     financial_service: FinancialService = Depends(get_financial_service),
 ):
     """Update category budget (Track H1)."""
-    from decimal import Decimal
-    original_budget = Decimal(str(budget_req.get("original_budget", 0)))
-    expected_version = int(budget_req.get("expected_version", 1))
-    
     result = await financial_service.update_budget(
-        user, project_id, category_id, original_budget, expected_version
+        user,
+        project_id,
+        category_id,
+        budget_req.original_budget,
+        budget_req.expected_version,
     )
     return GenericResponse(data=result, message="Budget updated successfully")
 

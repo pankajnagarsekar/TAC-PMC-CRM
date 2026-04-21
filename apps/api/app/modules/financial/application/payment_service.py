@@ -136,8 +136,8 @@ class PaymentService:
             subtotal = Decimal("0.0")
             line_items_processed = []
             for item in pc_data.line_items:
-                qty = Decimal(str(item.qty))
-                rate = Decimal(str(item.rate))
+                qty = FinancialEngine.to_decimal(item.qty)
+                rate = FinancialEngine.to_decimal(item.rate)
                 item_total = FinancialEngine.round(qty * rate)
                 item.total = item_total
                 subtotal += item_total
@@ -147,7 +147,7 @@ class PaymentService:
 
             fin = FinancialEngine.calculate_pc_financials(
                 pc_value=subtotal,
-                retention_pct=Decimal(str(pc_data.retention_percent or 0)),
+                retention_pct=FinancialEngine.to_decimal(pc_data.retention_percent or 0),
                 cgst_pct=cgst_pct,
                 sgst_pct=sgst_pct,
             )
