@@ -26,6 +26,7 @@ import FinancialGrid from "@/components/ui/FinancialGrid";
 import { formatCurrency } from "@tac-pmc/ui";
 import { CodeMaster, WorkOrder } from "@/types/api";
 import { v4 as uuidv4 } from "uuid";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 // Need a specific interface for PC line items, different from WO
 interface PCLineItem {
@@ -44,9 +45,13 @@ export default function NewPaymentCertificatePage() {
 
   // States
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Guard against unsaved changes
+  useUnsavedChanges(isDirty);
 
   const [isWoLinked, setIsWoLinked] = useState(true);
   const [selectedWoId, setSelectedWoId] = useState<string>("");
@@ -185,6 +190,7 @@ export default function NewPaymentCertificatePage() {
         return;
       }
 
+      setIsDirty(false); // Reset dirty state before navigation
       router.push(`/admin/payment-certificates/${res.data._id}`);
       router.refresh();
     } catch (err: unknown) {
@@ -290,6 +296,7 @@ export default function NewPaymentCertificatePage() {
   ];
 
   const handleAddRow = () => {
+    setIsDirty(true);
     setLineItems([
       ...lineItems,
       {
@@ -306,6 +313,7 @@ export default function NewPaymentCertificatePage() {
 
   const handleCellValueChanged = useCallback(
     (event: CellValueChangedEvent<PCLineItem>) => {
+      setIsDirty(true);
       setLineItems((prev) => {
         const updated = [...prev];
         const index = updated.findIndex((i) => i.id === event.data.id);
@@ -369,6 +377,7 @@ export default function NewPaymentCertificatePage() {
           <div className="flex gap-4 mb-6 p-1 bg-slate-950 rounded-lg w-fit border border-slate-800">
             <button
               onClick={() => {
+                setIsDirty(true);
                 setIsWoLinked(true);
                 setSelectedCategoryId("");
               }}
@@ -380,6 +389,7 @@ export default function NewPaymentCertificatePage() {
             </button>
             <button
               onClick={() => {
+                setIsDirty(true);
                 setIsWoLinked(false);
                 setSelectedWoId("");
               }}
@@ -401,6 +411,7 @@ export default function NewPaymentCertificatePage() {
                   <select
                     value={filterCategoryId}
                     onChange={(e) => {
+                      setIsDirty(true);
                       setFilterCategoryId(e.target.value);
                       setSelectedWoId(""); // Reset WO when filter changes
                     }}
@@ -421,7 +432,10 @@ export default function NewPaymentCertificatePage() {
                   </label>
                   <select
                     value={selectedWoId}
-                    onChange={(e) => setSelectedWoId(e.target.value)}
+                    onChange={(e) => {
+                      setIsDirty(true);
+                      setSelectedWoId(e.target.value);
+                    }}
                     className={`w-full bg-slate-950 border ${fieldErrors.work_order_id ? "border-red-500" : "border-slate-800"} rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500`}
                   >
                     <option value="">Select a WO...</option>
@@ -450,7 +464,10 @@ export default function NewPaymentCertificatePage() {
                 </label>
                 <select
                   value={selectedCategoryId}
-                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                  onChange={(e) => {
+                    setIsDirty(true);
+                    setSelectedCategoryId(e.target.value);
+                  }}
                   className={`w-full bg-amber-500/5 border ${fieldErrors.category_id ? "border-red-500" : "border-amber-500/20"} rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-amber-500`}
                 >
                   <option value="">Select a Fund-enabled Category...</option>
@@ -476,7 +493,10 @@ export default function NewPaymentCertificatePage() {
                 <input
                   type="number"
                   value={retentionPercent}
-                  onChange={(e) => setRetentionPercent(Number(e.target.value))}
+                  onChange={(e) => {
+                    setIsDirty(true);
+                    setRetentionPercent(Number(e.target.value));
+                  }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-4 pr-8 py-2.5 text-white focus:outline-none focus:border-emerald-500"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">

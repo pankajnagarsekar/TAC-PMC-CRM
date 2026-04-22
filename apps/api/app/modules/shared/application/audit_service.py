@@ -152,32 +152,50 @@ class AuditService:
             except Exception:
                 pass
 
-        # --- Enrich: batch-lookup project names ---
+        # --- Enrich: batch-lookup project names (BUG-007) ---
         project_ids = list({log.get("project_id") for log in logs if log.get("project_id")})
         project_map: Dict[str, str] = {}
         if project_ids:
             try:
+                # Projects might be referenced by string ID or ObjectId
+                p_filter = {
+                    "$or": [
+                        {"project_id": {"$in": project_ids}},
+                        {"_id": {"$in": [ObjectId(pid) for pid in project_ids if ObjectId.is_valid(pid)]}}
+                    ]
+                }
                 projects = await self.db["projects"].find(
-                    {"_id": {"$in": [ObjectId(pid) for pid in project_ids if ObjectId.is_valid(pid)]}},
-                    {"_id": 1, "name": 1},
-                ).to_list(length=len(project_ids))
-                project_map = {str(p["_id"]): p.get("name", "") for p in projects}
+                    p_filter,
+                    {"_id": 1, "project_id": 1, "project_name": 1},
+                ).to_list(length=len(project_ids) * 2)
+                
+                for p in projects:
+                    p_name = p.get("project_name") or p.get("name", "")
+                    # Map both ObjectId string and project_id string
+                    project_map[str(p["_id"])] = p_name
+                    if p.get("project_id"):
+                        project_map[p["project_id"]] = p_name
             except Exception:
                 pass
 
         # --- Normalize field names for frontend ---
         result = []
         for log in logs:
-            log["log_id"] = log.get("id") or log.get("_id") or ""
+            log["log_id"] = str(log.get("id") or log.get("_id") or "")
             log["created_at"] = log.get("timestamp") or log.get("created_at")
             log["previous_state"] = log.get("old_value_json") or log.get("old_value")
             if "new_value_json" in log and "new_value" not in log:
                 log["new_value"] = log["new_value_json"]
-            uid = log.get("user_id", "")
-            log["user_name"] = user_map.get(uid, "")
-            pid = log.get("project_id", "")
-            if pid:
-                log["project_name"] = project_map.get(pid, "")
+            
+            uid = str(log.get("user_id", ""))
+            log["user_name"] = user_map.get(uid, "System")
+            
+            pid = str(log.get("project_id", ""))
+            if pid and pid != "None":
+                log["project_name"] = project_map.get(pid, "Unknown Project")
+            else:
+                log["project_name"] = "Global"
+            
             result.append(log)
 
         return result

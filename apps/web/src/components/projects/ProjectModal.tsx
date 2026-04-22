@@ -23,6 +23,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -57,6 +59,7 @@ export default function ProjectModal({
 
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -148,18 +151,18 @@ export default function ProjectModal({
   };
 
   const handleDeleteProject = async () => {
-    if (!project?._id || !window.confirm("Are you sure you want to delete this project? This will permanently remove all associated data, including schedules, work orders, and site logs.")) {
-      return;
-    }
+    if (!project?._id) return;
 
     setLoading(true);
     try {
       await axios.delete(`/api/v1/projects/${project._id}`);
+      setShowDeleteConfirm(false);
       onSuccess();
       onClose();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setError(error.response?.data?.detail || "Failed to delete project");
+      setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
     }
@@ -464,7 +467,7 @@ export default function ProjectModal({
             {project && (
               <button
                 type="button"
-                onClick={handleDeleteProject}
+                onClick={() => setShowDeleteConfirm(true)}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all disabled:opacity-50"
               >
@@ -496,6 +499,17 @@ export default function ProjectModal({
             </button>
           </div>
         </DialogFooter>
+
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDeleteProject}
+          title="Delete Project"
+          description="Are you sure you want to delete this project? This will permanently remove all associated data, including schedules, work orders, and site logs. This action cannot be undone."
+          confirmText="Delete Project"
+          isLoading={loading}
+          variant="danger"
+        />
       </DialogContent>
     </Dialog>
   );

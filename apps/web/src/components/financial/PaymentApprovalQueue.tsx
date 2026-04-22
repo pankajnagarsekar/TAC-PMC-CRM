@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { parse } from 'date-fns';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface ApprovalTrail {
   action: string;
@@ -33,10 +34,16 @@ export default function PaymentApprovalQueue({
 }: PaymentApprovalQueueProps) {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
-  const handleApprove = (id: string) => {
-    if (window.confirm('Approve this payment?')) {
-      onApprove?.(id);
+  const handleApproveClick = (id: string) => {
+    setApprovingId(id);
+  };
+
+  const confirmApprove = () => {
+    if (approvingId) {
+      onApprove?.(approvingId);
+      setApprovingId(null);
     }
   };
 
@@ -123,7 +130,7 @@ export default function PaymentApprovalQueue({
                       </td>
                       <td className="py-4 px-4 text-center space-x-2">
                         <button
-                          onClick={() => handleApprove(approval._id)}
+                          onClick={() => handleApproveClick(approval._id)}
                           className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold transition"
                         >
                           Approve
@@ -175,6 +182,16 @@ export default function PaymentApprovalQueue({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!approvingId}
+        onClose={() => setApprovingId(null)}
+        onConfirm={confirmApprove}
+        title="Approve Payment"
+        description="Are you sure you want to approve this payment request? This will update the certificate status to 'Approved' and notify the accounts team."
+        confirmText="Approve Payment"
+        variant="info"
+      />
     </GlassCard>
   );
 }

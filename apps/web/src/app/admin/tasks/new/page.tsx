@@ -8,12 +8,15 @@ import { useProjectStore } from "@/store/projectStore";
 import AssigneeComboBox from "@/components/tasks/AssigneeComboBox";
 import { useToast } from "@/hooks/use-toast";
 
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+
 export default function NewTaskPage() {
   const router = useRouter();
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [formData, setFormData] = useState({
     task_description: "",
     assigned_to_user_id: "",
@@ -23,6 +26,9 @@ export default function NewTaskPage() {
     priority: "Medium",
     notes: "",
   });
+
+  // Guard against unsaved changes
+  useUnsavedChanges(isDirty);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +50,8 @@ export default function NewTaskPage() {
       if (formData.notes) payload.notes = formData.notes;
 
       await api.post("/api/v1/tasks/", payload);
-      
+
+      setIsDirty(false); // Reset dirty state before navigation
       toast({
         title: "Task Created",
         description: "The task has been successfully scheduled.",
@@ -99,7 +106,10 @@ export default function NewTaskPage() {
               required
               rows={3}
               value={formData.task_description}
-              onChange={(e) => setFormData({ ...formData, task_description: e.target.value })}
+              onChange={(e) => {
+                setIsDirty(true);
+                setFormData({ ...formData, task_description: e.target.value });
+              }}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 resize-none"
               placeholder="What needs to be done?"
             />
@@ -112,15 +122,18 @@ export default function NewTaskPage() {
               </label>
               <AssigneeComboBox
                 value={formData.assigned_to_user_id}
-                onChange={(id, name, type) => setFormData({
-                  ...formData,
-                  assigned_to_user_id: id,
-                  assigned_to_name: name,
-                  assigned_to_type: type
-                })}
+                onChange={(id, name, type) => {
+                  setIsDirty(true);
+                  setFormData({
+                    ...formData,
+                    assigned_to_user_id: id,
+                    assigned_to_name: name,
+                    assigned_to_type: type
+                  });
+                }}
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">
                 Deadline
@@ -128,7 +141,10 @@ export default function NewTaskPage() {
               <input
                 type="date"
                 value={formData.deadline}
-                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                onChange={(e) => {
+                  setIsDirty(true);
+                  setFormData({ ...formData, deadline: e.target.value });
+                }}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
               />
               {formData.deadline && new Date(formData.deadline) < new Date(new Date().toDateString()) && (
@@ -136,13 +152,16 @@ export default function NewTaskPage() {
               )}
             </div>
 
-             <div>
+            <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">
                 Priority
               </label>
               <select
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                onChange={(e) => {
+                  setIsDirty(true);
+                  setFormData({ ...formData, priority: e.target.value });
+                }}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
               >
                 <option value="Low">Low</option>
@@ -159,7 +178,10 @@ export default function NewTaskPage() {
             <textarea
               rows={2}
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => {
+                setIsDirty(true);
+                setFormData({ ...formData, notes: e.target.value });
+              }}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 resize-none"
               placeholder="Any additional details..."
             />

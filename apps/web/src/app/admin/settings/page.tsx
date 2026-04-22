@@ -23,6 +23,7 @@ import NextImage from "next/image";
 import { CodeMaster } from "@/types/api";
 import CategoryModal from "@/components/categories/CategoryModal";
 import { useToast } from "@/hooks/use-toast";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 interface GlobalSettings {
   name: string;
@@ -66,6 +67,7 @@ export default function SettingsPage() {
   >(undefined);
 
   const [loading, setLoading] = useState(true);
+  const [isDirty, setIsDirty] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     name: "TAC PMC",
     address: "",
@@ -95,6 +97,9 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Guard against unsaved changes
+  useUnsavedChanges(isDirty);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -105,6 +110,8 @@ export default function SettingsPage() {
             ...prev,
             ...settingsRes.data,
           }));
+          // Reset dirty state after fetch
+          setIsDirty(false);
         }
       } catch (err) {
         console.error("Settings not initialized yet or endpoint missing:", err);
@@ -141,6 +148,7 @@ export default function SettingsPage() {
     try {
       const payload = prepareSettingsPayload();
       await api.put("/api/v1/settings/", payload);
+      setIsDirty(false); // Reset dirty state
       toast({
         title: "Success",
         description: "Global settings synchronized successfully across all modules.",
@@ -182,6 +190,7 @@ export default function SettingsPage() {
     // If empty string, keep it as 0 but allow user to clear the field.
     // Fixed BUG-004: Don't silently convert 'abc' to 0. 
     // If it's not a number, don't update state or use old value.
+    setIsDirty(true);
     if (rawValue === "") {
       setGlobalSettings(prev => ({ ...prev, [key]: 0 }));
       return;
@@ -307,12 +316,13 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   value={globalSettings.name}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setIsDirty(true);
                     setGlobalSettings({
                       ...globalSettings,
                       name: e.target.value,
-                    })
-                  }
+                    });
+                  }}
                   className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500"
                   placeholder="e.g. TAC Project Management Consultants"
                 />
@@ -324,12 +334,13 @@ export default function SettingsPage() {
                 <textarea
                   rows={3}
                   value={globalSettings.address}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setIsDirty(true);
                     setGlobalSettings({
                       ...globalSettings,
                       address: e.target.value,
-                    })
-                  }
+                    });
+                  }}
                   className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500 resize-none"
                   placeholder="Enter full physical address..."
                 />
@@ -342,12 +353,13 @@ export default function SettingsPage() {
                   <input
                     type="email"
                     value={globalSettings.email}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         email: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
                     placeholder="company@email.com"
                   />
@@ -359,12 +371,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.phone}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         phone: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
                     placeholder="+91 98765 43210"
                   />
@@ -378,12 +391,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.gst_number}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         gst_number: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
                     placeholder="27AAAPL1234C1Z5"
                   />
@@ -395,12 +409,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.pan_number}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         pan_number: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
                     placeholder="AAAPL1234C"
                   />
@@ -471,12 +486,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.wo_prefix}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         wo_prefix: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                   />
                 </div>
@@ -487,12 +503,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.pc_prefix}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         pc_prefix: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                   />
                 </div>
@@ -503,12 +520,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.invoice_prefix}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         invoice_prefix: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                   />
                 </div>
@@ -528,12 +546,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.currency}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         currency: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
                     placeholder="INR"
                   />
@@ -545,12 +564,13 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={globalSettings.currency_symbol}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setIsDirty(true);
                       setGlobalSettings({
                         ...globalSettings,
                         currency_symbol: e.target.value,
-                      })
-                    }
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
                     placeholder="₹"
                   />
@@ -575,15 +595,16 @@ export default function SettingsPage() {
                       <input
                         type="checkbox"
                         checked={!!val}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setIsDirty(true);
                           setGlobalSettings({
                             ...globalSettings,
                             client_permissions: {
                               ...globalSettings.client_permissions,
                               [key]: e.target.checked,
                             },
-                          })
-                        }
+                          });
+                        }}
                         className="w-4 h-4 accent-orange-500"
                       />
                     </label>

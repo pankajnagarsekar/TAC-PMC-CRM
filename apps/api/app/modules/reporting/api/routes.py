@@ -219,11 +219,13 @@ async def stream_summary(
     tags=["Admin"],
 )
 async def get_projects_overview(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     user: dict = Depends(get_authenticated_user),
     reporting_service: ReportingService = Depends(get_reporting_service),
 ):
-    """Provides a bird's-eye view of all projects for the admin dashboard."""
-    overview = await reporting_service.get_projects_overview(user)
+    """Provides a bird's-eye view with resilient loading and pagination (BUG-024)."""
+    overview = await reporting_service.get_projects_overview(user, skip=skip, limit=limit)
     return GenericResponse(data=overview)
 
 
