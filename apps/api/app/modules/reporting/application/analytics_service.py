@@ -405,24 +405,45 @@ class AnalyticsService:
         else:
             data.budget_utilization_pct = Decimal("0")
 
-        # Calculate daily burn rate (budget_spent / days_elapsed)
+        # EVM Multi-Module Core Logic (BUG-023)
+        pv = data.budget_total
+        ac = data.budget_spent
+        
+        schedule = await self.schedule_repo.find_one({"project_id": project_id})
+        ev = Decimal("0.00")
+        
         project = await self.project_repo.get_by_id(project_id)
-        if project and project.get("created_at"):
-            created_at = (
-                project["created_at"]
-                if isinstance(project["created_at"], datetime)
-                else datetime.fromisoformat(str(project["created_at"]))
-            )
-            days_elapsed = (datetime.now(timezone.utc) - created_at).days
-            if days_elapsed > 0 and data.budget_spent > 0:
-                data.burn_rate_daily = data.budget_spent / Decimal(str(days_elapsed))
+        
+        if schedule and schedule.get("tasks"):
+            tasks = schedule.get("tasks", [])
+            cat_pv_map = {}
+            cursor = self.db.financial_state.find({"project_id": project_id, "category_id": {"$ne": "MASTER"}})
+            async for s in cursor:
+                 cat_pv_map[s["category_id"]] = FinancialEngine.to_decimal(s.get("original_budget", 0))
+            
+            cat_tasks = {}
+            for t in tasks:
+                rid = t.get("external_ref_id")
+                if rid:
+                    if rid not in cat_tasks: cat_tasks[rid] = []
+                    cat_tasks[rid].append(float(t.get("percent_complete", 0)))
+            
+            for cat_id, cat_pv in cat_pv_map.items():
+                if cat_id in cat_tasks:
+                    avg_comp = sum(cat_tasks[cat_id]) / len(cat_tasks[cat_id])
+                    ev += cat_pv * Decimal(str(avg_comp / 100.0))
+        
+        if ev == Decimal("0.00") and pv > Decimal("0.00"):
+            proj_comp = float(project.get("completion_percentage", 0) if project else 0)
+            ev = pv * Decimal(str(proj_comp / 100.0))
 
-                # Projected overrun = (burn_rate * total_days) - budget_total
-                # Assuming total_days = 1.5 * days_elapsed (heuristic)
-                projected_cost = data.burn_rate_daily * Decimal(str(days_elapsed * 1.5))
-                data.projected_overrun = max(
-                    Decimal("0"), projected_cost - data.budget_total
-                )
+        data.planned_value = pv
+        data.earned_value = ev
+        data.actual_cost = ac
+        data.cpi = float(ev / ac) if ac > 0 else 1.0
+        data.spi = float(ev / pv) if pv > 0 else 1.0
+        data.cost_variance = float(ev - ac)
+        data.schedule_variance = float(ev - pv)
 
         return data
 

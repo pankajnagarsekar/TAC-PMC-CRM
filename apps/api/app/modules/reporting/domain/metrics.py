@@ -150,6 +150,15 @@ class FinancialSummaryData(BaseModel):
         ..., description="Projected amount over budget at current burn rate"
     )
     is_over_budget: bool = Field(..., description="Whether spending exceeds budget")
+    
+    # EVM Metrics (BUG-023)
+    planned_value: float = Field(0.0, description="BCWS: Budgeted Cost of Work Scheduled")
+    earned_value: float = Field(0.0, description="BCWP: Budgeted Cost of Work Performed")
+    actual_cost: float = Field(0.0, description="ACWP: Actual Cost of Work Performed")
+    cpi: float = Field(1.0, description="Cost Performance Index")
+    spi: float = Field(1.0, description="Schedule Performance Index")
+    cost_variance: float = Field(0.0, description="EV - AC")
+    schedule_variance: float = Field(0.0, description="EV - PV")
 
     class Config:
         json_schema_extra = {

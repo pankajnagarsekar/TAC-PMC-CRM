@@ -294,27 +294,36 @@ class ReportingService:
             },
         }
 
-    async def get_projects_overview(self, user: dict) -> Dict[str, Any]:
-        """Provides a bird's-eye view of all projects for the admin dashboard."""
+    async def get_projects_overview(self, user: dict, skip: int = 0, limit: int = 100) -> Dict[str, Any]:
+        """Provides a bird's-eye view with resilient loading and pagination (BUG-024)."""
         await self.permission_checker.check_admin_role(user)
 
-        projects = await self.db.projects.find(
+        projects_cursor = self.db.projects.find(
             {"organisation_id": user["organisation_id"], "is_deleted": {"$ne": True}}
-        ).to_list(100)
+        ).skip(skip).limit(limit)
+        
+        projects = await projects_cursor.to_list(limit)
 
         results = []
         ts_now = now()
         today_start = ts_now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         for proj in projects:
-            p_id = proj["project_id"]
-
+            # Resilient project ID lookup (BUG-008)
+            p_id = proj.get("project_id") or str(proj.get("id") or proj.get("_id"))
+            
             p_id_resilient = self._get_project_match(p_id)
 
-            # 1. Financial Stats
+            # 1. Financial Stats - Use standard category identifier (BUG-002)
             master_state = await self.fin_state_repo.find_one(
-                {"project_id": p_id_resilient, "code_id": None}
+                {"project_id": p_id, "category_id": "MASTER"}
             )
+            if not master_state:
+                # Fallback to resilient lookup if project_id mapping is inconsistent
+                master_state = await self.fin_state_repo.find_one(
+                    {"project_id": p_id_resilient, "category_id": "MASTER"}
+                )
+
             # 2. DPR & Worker Stats
             dpr_total = await self.worker_log_repo.count({"project_id": p_id_resilient})
             dpr_today = await self.worker_log_repo.count(

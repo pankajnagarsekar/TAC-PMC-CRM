@@ -18,6 +18,7 @@ import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { Vendor, CodeMaster, WorkOrder } from "@/types/api";
 import { formatCurrency } from "@tac-pmc/ui";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   Dialog,
   DialogContent,
@@ -62,11 +63,15 @@ export default function NewWorkOrderPage() {
   ]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [isGridValid, setIsGridValid] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
   const [showOverBudgetWarning, setShowOverBudgetWarning] = useState(false);
+
+  useUnsavedChanges(isDirty && !isSaving);
+
   const { executeWithLock: executeWorkOrderSaveWithLock } = useRequestLock({
     operationId: "WORK_ORDER_SAVE",
     timeoutMs: 30000,
@@ -190,6 +195,7 @@ export default function NewWorkOrderPage() {
         if (node.data) updatedItems.push(node.data);
       });
       setLineItems(updatedItems);
+      setIsDirty(true);
     }
   };
 
@@ -244,8 +250,10 @@ export default function NewWorkOrderPage() {
       }
 
       if (createdItem?._id) {
+        setIsDirty(false);
         router.push(`/admin/work-orders/${createdItem._id}`);
       } else {
+        setIsDirty(false);
         alert("Work Order created but missing ID. Redirecting to registry...");
         router.push("/admin/work-orders");
       }
@@ -342,9 +350,10 @@ export default function NewWorkOrderPage() {
             </label>
             <select
               value={formData.category_id}
-              onChange={(e) =>
-                setFormData({ ...formData, category_id: e.target.value })
-              }
+              onChange={(e) => {
+                setFormData({ ...formData, category_id: e.target.value });
+                setIsDirty(true);
+              }}
               className={`w-full bg-slate-950 border ${fieldErrors.category_id ? "border-red-500" : "border-slate-800"} rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500`}
             >
               <option value="">Select a category...</option>
@@ -367,9 +376,10 @@ export default function NewWorkOrderPage() {
             </label>
             <select
               value={formData.vendor_id}
-              onChange={(e) =>
-                setFormData({ ...formData, vendor_id: e.target.value })
-              }
+              onChange={(e) => {
+                setFormData({ ...formData, vendor_id: e.target.value });
+                setIsDirty(true);
+              }}
               className={`w-full bg-slate-950 border ${fieldErrors.vendor_id ? "border-red-500" : "border-slate-800"} rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500`}
             >
               <option value="">Select a vendor...</option>
@@ -392,9 +402,10 @@ export default function NewWorkOrderPage() {
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
+              onChange={(e) => {
+                setFormData({ ...formData, description: e.target.value });
+                setIsDirty(true);
+              }}
               rows={3}
               placeholder="e.g., Supply of Ready Mix Concrete for Foundation..."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none"
@@ -423,12 +434,13 @@ export default function NewWorkOrderPage() {
                 <input
                   type="number"
                   value={formData.discount || ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({
                       ...formData,
                       discount: parseFloat(e.target.value) || 0,
-                    })
-                  }
+                    });
+                    setIsDirty(true);
+                  }}
                   className="w-24 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right text-white"
                 />
               </div>
@@ -465,12 +477,13 @@ export default function NewWorkOrderPage() {
               <input
                 type="number"
                 value={formData.retention_percent}
-                onChange={(e) =>
+                onChange={(e) => {
                   setFormData({
                     ...formData,
                     retention_percent: parseFloat(e.target.value) || 0,
-                  })
-                }
+                  });
+                  setIsDirty(true);
+                }}
                 className="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right text-white"
               />
             </div>
@@ -502,7 +515,10 @@ export default function NewWorkOrderPage() {
             )}
           </h2>
           <button
-            onClick={addLineItem}
+            onClick={() => {
+              addLineItem();
+              setIsDirty(true);
+            }}
             className="flex items-center gap-1.5 text-xs text-orange-500 hover:text-orange-400 font-bold bg-orange-500/10 px-3 py-1.5 rounded-lg transition-colors border border-orange-500/20"
           >
             <Plus size={14} /> Add Row

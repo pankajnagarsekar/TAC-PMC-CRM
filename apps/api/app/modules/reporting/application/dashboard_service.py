@@ -191,35 +191,66 @@ class DashboardService:
                 ):
                     overdue_milestones_count += 1
 
-        # 5. Construct high-level stats
+        # 5. Construct high-level stats with EVM Engine (BUG-023)
+        pv = float(FinancialEngine.to_decimal(master_state.get("original_budget", 0)) if master_state else 0)
+        ac = float(FinancialEngine.to_decimal(master_state.get("committed_value", 0)) if master_state else 0)
+        
+        # Earned Value (EV) calculation: Sum(Category PV * Category Completion %)
+        ev = 0.0
+        if schedule and schedule.get("tasks"):
+            tasks = schedule.get("tasks", [])
+            # Map category_id to its PV
+            cat_pv_map = {}
+            cursor = self.db.financial_state.find({"project_id": project_id, "category_id": {"$ne": "MASTER"}})
+            async for s in cursor:
+                 cat_pv_map[s["category_id"]] = float(FinancialEngine.to_decimal(s.get("original_budget", 0)))
+            
+            # Aggregate completion by category
+            cat_tasks = {} # category_id -> [completion_percentages]
+            for t in tasks:
+                rid = t.get("external_ref_id")
+                if rid:
+                    if rid not in cat_tasks: cat_tasks[rid] = []
+                    cat_tasks[rid].append(float(t.get("percent_complete", 0)))
+            
+            for cat_id, pvs in cat_pv_map.items():
+                if cat_id in cat_tasks:
+                    avg_comp = sum(cat_tasks[cat_id]) / len(cat_tasks[cat_id])
+                    ev += pvs * (avg_comp / 100.0)
+        
+        # If no granular data, fallback to total PV * project completion
+        if ev == 0 and pv > 0:
+            proj_comp = float(project.get("completion_percentage", 0) if project else 0)
+            ev = pv * (proj_comp / 100.0)
+
+        # KPI Metrics
+        cpi = ev / ac if ac > 0 else 1.0
+        spi = ev / pv if pv > 0 else 1.0 # Simple SPI relative to total budget
+
         stats = {
             "overview": {
                 "total_phases": tasks_count,
                 "active_items": active_tasks_count + active_wos_count,
                 "overdue_milestones": overdue_milestones_count,
-                "total_budget": float(
-                    FinancialEngine.to_decimal(master_state.get("original_budget", 0))
-                    if master_state
-                    else 0
-                ),
-                "net_committed": float(
-                    FinancialEngine.to_decimal(master_state.get("committed_value", 0))
-                    if master_state
-                    else 0
-                ),
-                "net_certified": float(
-                    FinancialEngine.to_decimal(master_state.get("certified_value", 0))
-                    if master_state
-                    else 0
-                ),
+                "total_budget": pv,
+                "net_committed": ac,
+                "net_certified": float(FinancialEngine.to_decimal(master_state.get("certified_value", 0)) if master_state else 0),
+                "planned_value": pv,
+                "earned_value": ev,
+                "actual_cost": ac,
+                "cpi": round(cpi, 2),
+                "spi": round(spi, 2),
+                "cost_variance": ev - ac,
+                "schedule_variance": ev - pv
             },
             "tasks_count": tasks_count,
-            "completion_percentage": float(
-                project.get("completion_percentage", 0) if project else 0
-            ),
+            "completion_percentage": float(project.get("completion_percentage", 0) if project else 0),
             "status": project.get("status", "active") if project else "active",
         }
 
+        # Cache the result
+        cache_key = f"stats:{organisation_id}:{project_id}"
+        self._cache.set(cache_key, stats)
         return stats
 
     async def get_financials(self, project_id: str) -> List[Any]:

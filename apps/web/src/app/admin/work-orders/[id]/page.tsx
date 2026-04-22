@@ -21,6 +21,7 @@ import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import { WorkOrder, Project, Vendor, CodeMaster } from "@/types/api";
 import { formatCurrency, formatDate } from "@tac-pmc/ui";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface LineItem {
   sr_no: number;
@@ -38,6 +39,7 @@ export default function WorkOrderDetailPage() {
   const [isConflictOpen, setIsConflictOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editState, setEditState] = useState({
     category_id: "",
     vendor_id: "",
@@ -212,10 +214,16 @@ export default function WorkOrderDetailPage() {
   }, []);
 
   const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === "Cancelled" && !showCancelConfirm) {
+      setShowCancelConfirm(true);
+      return;
+    }
+
     try {
       await api.patch(
         `/api/v1/work-orders/${woId}/status?status=${newStatus}&expected_version=${wo?.version || 1}`,
       );
+      setShowCancelConfirm(false);
       mutateWO();
     } catch (err: any) {
       if (err.response?.status === 409) {
@@ -589,6 +597,16 @@ export default function WorkOrderDetailPage() {
       />
 
       {wo && <LinkedCertificates projectId={wo.project_id} workOrderId={wo._id} />}
+
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={() => handleStatusChange("Cancelled")}
+        title="Cancel Work Order"
+        description="Are you sure you want to cancel this work order? This will release all committed funds back to the project budget. This action is permanent and will be logged for auditing."
+        confirmText="Cancel Order"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  ArrowLeft, 
-  CheckSquare, 
-  Clock, 
-  User, 
-  Calendar, 
-  Tag, 
-  Loader2, 
+import {
+  ArrowLeft,
+  CheckSquare,
+  Clock,
+  User,
+  Calendar,
+  Tag,
+  Loader2,
   ChevronRight,
   AlertCircle,
   FileText,
@@ -30,6 +30,7 @@ import { formatDate } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import TaskChangeLog from "@/components/tasks/TaskChangeLog";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface TaskPageProps {
   params: Promise<{ id: string }>;
@@ -39,10 +40,11 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
   const { id: taskId } = use(params);
   const router = useRouter();
   const { activeProject } = useProjectStore();
-  
+
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTask = useCallback(async () => {
@@ -64,13 +66,18 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
   }, [fetchTask]);
 
   const updateStatus = async (newStatus: string) => {
+    if (newStatus === "Closed" && !showCloseConfirm) {
+      setShowCloseConfirm(true);
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const res = await api.patch<Task>(`/api/v1/tasks/${taskId}/status`, { status: newStatus });
       setTask(res.data);
+      setShowCloseConfirm(false);
     } catch (err) {
       console.error("Failed to update status", err);
-      // We should probably show a toast here, but for now we'll just log
     } finally {
       setIsUpdating(false);
     }
@@ -90,7 +97,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
         <AlertCircle className="text-red-500 mb-4" size={48} />
         <h2 className="text-2xl font-bold text-white mb-2">Error</h2>
         <p className="text-slate-400 mb-6">{error || "Task not found."}</p>
-        <button 
+        <button
           onClick={() => router.push("/admin/tasks")}
           className="bg-slate-900 border border-slate-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-slate-800 transition-colors"
         >
@@ -101,7 +108,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
   }
 
   const getPriorityColor = (priority: string) => {
-    switch(priority) {
+    switch (priority) {
       case "High": return "text-red-400 bg-red-400/10 border-red-400/20";
       case "Medium": return "text-amber-400 bg-amber-400/10 border-amber-400/20";
       default: return "text-slate-400 bg-slate-400/10 border-slate-400/20";
@@ -109,7 +116,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
   };
 
   const getStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "Open": return "text-slate-400 bg-slate-400/10 border-slate-400/20";
       case "In Progress": return "text-blue-400 bg-blue-400/10 border-blue-400/20";
       case "Review": return "text-amber-400 bg-amber-400/10 border-amber-400/20";
@@ -162,11 +169,11 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
         </button>
       );
     } else if (status === "Completed") {
-        buttons.push(
-            <button key="close" onClick={() => updateStatus("Closed")} className="flex items-center gap-2 bg-emerald-900 text-emerald-400 border border-emerald-800 px-4 py-2 rounded-lg font-bold hover:bg-emerald-800 transition-colors">
-              <DoneIcon size={16} /> Finalize & Close
-            </button>
-          );
+      buttons.push(
+        <button key="close" onClick={() => updateStatus("Closed")} className="flex items-center gap-2 bg-emerald-900 text-emerald-400 border border-emerald-800 px-4 py-2 rounded-lg font-bold hover:bg-emerald-800 transition-colors">
+          <DoneIcon size={16} /> Finalize & Close
+        </button>
+      );
     }
 
     return buttons;
@@ -177,7 +184,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-6">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => router.back()}
             className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 transition-all"
           >
@@ -216,7 +223,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                 <Tag size={64} className="text-white" />
+                <Tag size={64} className="text-white" />
               </div>
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Tag size={12} className="text-blue-500" /> Classification
@@ -232,8 +239,8 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                 <Calendar size={64} className="text-white" />
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Calendar size={64} className="text-white" />
               </div>
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Calendar size={12} className="text-emerald-500" /> Timeline
@@ -249,8 +256,8 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                 <User size={64} className="text-white" />
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <User size={64} className="text-white" />
               </div>
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <User size={12} className="text-purple-500" /> Assigned To
@@ -271,8 +278,8 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                 <ClipboardList size={64} className="text-white" />
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <ClipboardList size={64} className="text-white" />
               </div>
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <ClipboardList size={12} className="text-amber-500" /> Project Context
@@ -299,16 +306,16 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
                 {task.task_description}
               </p>
               <div className="mt-8 pt-8 border-t border-slate-800/50">
-                 <div className="grid grid-cols-2 gap-8">
-                    <div>
-                        <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Created On</h5>
-                        <p className="text-slate-200 text-sm font-mono">{formatDate(task.created_at)}</p>
-                    </div>
-                    <div>
-                        <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Last Updated</h5>
-                        <p className="text-slate-200 text-sm font-mono">{formatDate(task.updated_at)}</p>
-                    </div>
-                 </div>
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Created On</h5>
+                    <p className="text-slate-200 text-sm font-mono">{formatDate(task.created_at)}</p>
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Last Updated</h5>
+                    <p className="text-slate-200 text-sm font-mono">{formatDate(task.updated_at)}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -321,18 +328,18 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
         {/* Sidebar Info */}
         <div className="space-y-6">
           <TaskAISummary projectId={activeProject?.project_id || activeProject?._id || ""} />
-          
+
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
               <Eye className="text-slate-400" size={16} /> Fast Actions
             </h3>
             <div className="space-y-3">
-              <button 
+              <button
                 className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 py-3 rounded-lg text-xs font-bold text-slate-300 transition-all flex items-center justify-center gap-2"
               >
                 <FileText size={14} /> Attachment Upload
               </button>
-              <button 
+              <button
                 className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 py-3 rounded-lg text-xs font-bold text-slate-300 transition-all flex items-center justify-center gap-2"
               >
                 <MoreVertical size={14} /> Send Email Follow-up
@@ -341,6 +348,17 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showCloseConfirm}
+        onClose={() => setShowCloseConfirm(false)}
+        onConfirm={() => updateStatus("Closed")}
+        title="Finalize & Close Task"
+        description="Are you sure you want to close this task? This will mark it as permanently archived and freeze its timeline impact. This action is intended for fully verified milestones."
+        confirmText="Finalize & Close"
+        isLoading={isUpdating}
+        variant="warning"
+      />
     </div>
   );
 }

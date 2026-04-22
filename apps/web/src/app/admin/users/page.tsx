@@ -10,12 +10,14 @@ import { useToast } from "@/hooks/use-toast";
 import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import { CreateUserModal } from "@/components/users/CreateUserModal";
 import { EditUserModal } from "@/components/users/EditUserModal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function TeamPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [editUser, setEditUser] = useState<UserResponse | null>(null);
-    const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+    const [deactivateId, setDeactivateId] = useState<string | null>(null);
+    const [isDeactivating, setIsDeactivating] = useState(false);
     const { toast } = useToast();
 
     const { data: usersData, error: usersError, mutate: mutateUsers, isLoading } = useSWR<UserResponse[]>(
@@ -24,10 +26,12 @@ export default function TeamPage() {
     );
     const users = usersData || [];
 
-    const handleDeactivate = useCallback(async (userId: string) => {
-        setDeactivatingId(userId);
+    const handleDeactivate = useCallback(async () => {
+        if (!deactivateId) return;
+
+        setIsDeactivating(true);
         try {
-            await api.delete(`/api/v1/users/${userId}`);
+            await api.delete(`/api/v1/users/${deactivateId}`);
             toast({
                 title: "Success",
                 description: "User deactivated successfully",
@@ -42,9 +46,10 @@ export default function TeamPage() {
                 variant: "destructive"
             });
         } finally {
-            setDeactivatingId(null);
+            setIsDeactivating(false);
+            setDeactivateId(null);
         }
-    }, [mutateUsers, toast]);
+    }, [deactivateId, mutateUsers, toast]);
 
     const handleRefresh = useCallback(() => {
         mutateUsers();
@@ -111,8 +116,8 @@ export default function TeamPage() {
                                 <Pencil size={14} />
                             </button>
                             <button
-                                onClick={() => handleDeactivate(data.user_id)}
-                                disabled={!data.active_status || deactivatingId === data.user_id}
+                                onClick={() => setDeactivateId(data.user_id)}
+                                disabled={!data.active_status}
                                 className="admin-only p-1 rounded-lg text-slate-400 hover:text-rose-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                 title="Deactivate user"
                             >
@@ -123,7 +128,7 @@ export default function TeamPage() {
                 }
             }
         ],
-        [deactivatingId, handleDeactivate]
+        []
     );
 
     return (
@@ -176,6 +181,17 @@ export default function TeamPage() {
                 user={editUser}
                 onClose={() => setEditUser(null)}
                 onUpdated={() => mutateUsers()}
+            />
+
+            <ConfirmDialog
+                isOpen={!!deactivateId}
+                onClose={() => setDeactivateId(null)}
+                onConfirm={handleDeactivate}
+                title="Deactivate Member"
+                description="Are you sure you want to deactivate this team member? They will lose access to the system immediately. This action can be undone by an Admin later."
+                confirmText="Deactivate"
+                isLoading={isDeactivating}
+                variant="danger"
             />
         </div>
     );
