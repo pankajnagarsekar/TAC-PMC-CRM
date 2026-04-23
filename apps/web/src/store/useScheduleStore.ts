@@ -103,11 +103,8 @@ const executeCalculationRequest = async (
       const firstTask = tasks[0];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projectRecord = (firstTask as any)?.project;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const stableStart =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         toISODate((projectRecord as any)?.scheduled_start) ||
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         toISODate((firstTask as any)?.project_scheduled_start);
 
       let projectStart: string;
@@ -253,6 +250,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     selectedTasks: new Set(),
     systemState: null,
     undoStack: [],
+    loading: false,
+    isHydrated: false,
     pendingCalculation: false,
     lastConfirmedVersion: null,
     calculationError: null,
@@ -268,6 +267,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         project_id: t.project_id || response.project_id,
         // S-BUG #4: Cache project's canonical start date on every task so
         // the full-recalc path can use a stable projectStart anchor
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         project_scheduled_start: (response as any).project_start || t.project_scheduled_start,
       }));
 
@@ -278,6 +278,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         systemState: response.system_state,
         lastConfirmedVersion: response.calculation_version,
         pendingCalculation: false,
+        loading: false,
+        isHydrated: true,
         calculationError: null,
         undoStack: [],
         selectedTasks: new Set(),

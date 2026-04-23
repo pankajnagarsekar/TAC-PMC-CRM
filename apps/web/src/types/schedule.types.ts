@@ -183,6 +183,8 @@ export interface ScheduleStoreState {
   selectedTasks: Set<string>;
   systemState: ScheduleCalculationResponse["system_state"] | null;
   undoStack: UndoStackEntry[];
+  loading: boolean;
+  isHydrated: boolean;
   pendingCalculation: boolean;
   lastConfirmedVersion: string | null;
   calculationError: string | null;
@@ -197,7 +199,7 @@ export interface ScheduleStoreState {
   reconcileWithEngine: (response: ScheduleCalculationResponse) => void;
   queueCalculation: (payload: ScheduleChangeRequest) => void;
   createDraftTask: (projectId: string) => ScheduleTask;
-  removeTask: (taskId: string) => void;
+  removeTask: (taskId: string) => Promise<void>;
   openTask: (taskId: string | null) => void;
   rollbackToUndo: () => void;
   undo: () => void;
@@ -231,7 +233,7 @@ export type StackInfo = {
 
 export type UndoRedoResponse = {
   data: {
-    tasks: any[];
+    tasks: ScheduleTask[];
     stack_info: StackInfo;
   };
   message: string;

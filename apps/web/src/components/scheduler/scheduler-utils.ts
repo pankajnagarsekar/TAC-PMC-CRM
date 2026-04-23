@@ -164,11 +164,18 @@ export function buildCalendarColumns(start: Date, end: Date) {
 }
 
 export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date) {
-  const start = parseTaskDate(task.scheduled_start);
-  const finish = parseTaskDate(task.scheduled_finish);
-  if (!start || !finish) {
+  let start = parseTaskDate(task.scheduled_start);
+  let finish = parseTaskDate(task.scheduled_finish);
+
+  if (!start && !finish) {
     return { left: 0, width: 0 };
   }
+
+  // S-BUG #15 Fallback: If only one date is present, assume 1-day duration
+  if (!start && finish) start = finish;
+  if (start && !finish) finish = start;
+
+  if (!start || !finish) return { left: 0, width: 0 };
 
   const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
   const width = Math.max(

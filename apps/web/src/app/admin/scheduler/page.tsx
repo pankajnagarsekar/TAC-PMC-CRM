@@ -36,6 +36,8 @@ function ProjectSchedulerContent() {
   const currentTab = searchParams.get("tab") || "grid";
 
   const loadSchedule = useScheduleStore((state) => state.loadSchedule);
+  const isHydrated = useScheduleStore((state) => state.isHydrated);
+  const loading = useScheduleStore((state) => state.loading);
   const createDraftTask = useScheduleStore((state) => state.createDraftTask);
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
   const calculationError = useScheduleStore((state) => state.calculationError);
@@ -62,17 +64,27 @@ function ProjectSchedulerContent() {
 
   useEffect(() => {
     if (activeProject) {
-      schedulerApi
-        .load(activeProject.project_id)
-        .then((data) => {
-          loadSchedule(data);
-        })
-        .catch((err) => {
-          console.error("Scheduler load error:", err);
-          toast.error("Failed to load project schedule repository.");
-        });
+      // Force reload only if project changed or not yet hydrated
+      // Use internal store taskId to verify if project matches current task map
+      const currentTasks = useScheduleStore.getState().taskMap;
+      const firstTask = Object.values(currentTasks)[0];
+      const projectMatches = firstTask?.project_id === activeProject.project_id;
+
+      if (!isHydrated || !projectMatches) {
+        useScheduleStore.setState({ loading: true, isHydrated: false });
+        schedulerApi
+          .load(activeProject.project_id)
+          .then((data) => {
+            loadSchedule(data);
+          })
+          .catch((err) => {
+            console.error("Scheduler load error:", err);
+            toast.error("Failed to load project schedule repository.");
+            useScheduleStore.setState({ loading: false });
+          });
+      }
     }
-  }, [activeProject, loadSchedule]);
+  }, [activeProject, loadSchedule, isHydrated]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value); // Optimistic immediate update
@@ -218,6 +230,15 @@ function ProjectSchedulerContent() {
         </div>
       </div>
 
+      {loading && (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-500 mb-4">
+            <Database size={24} className="animate-bounce" />
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Initializing Scheduler Repository...</p>
+        </div>
+      )}
+
       {calculationError && (
         <GlassCard className="mb-8 border-rose-500/20 bg-rose-500/5 p-4">
           <div className="flex items-center gap-3 text-rose-500">
@@ -227,7 +248,7 @@ function ProjectSchedulerContent() {
         </GlassCard>
       )}
 
-      {taskCount === 0 && activeTab !== "export" ? (
+      {!loading && taskCount === 0 && activeTab !== "export" ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh] py-12 px-6">
           <GlassCard className="max-w-2xl w-full p-12 text-center border-orange-500/20 bg-orange-500/[0.02]">
             <div className="mx-auto mb-8 w-24 h-24 rounded-[32px] bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-500 shadow-2xl shadow-orange-500/10">
@@ -257,7 +278,9 @@ function ProjectSchedulerContent() {
             </div>
           </GlassCard>
         </div>
-      ) : (
+      ) : null}
+
+      {!loading && (taskCount > 0 || activeTab === "export") && (
         <Tabs.Root value={activeTab} onValueChange={handleTabChange} className="space-y-8">
           <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(activeTab) ? 'xl:grid-cols-[420px_minmax(0,1fr)]' : 'xl:grid-cols-1'}`}>
             {/* Task Drawer - Left Sidebar */}

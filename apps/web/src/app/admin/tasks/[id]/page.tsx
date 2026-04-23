@@ -4,8 +4,6 @@ import React, { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  CheckSquare,
-  Clock,
   User,
   Calendar,
   Tag,
@@ -13,8 +11,6 @@ import {
   ChevronRight,
   AlertCircle,
   FileText,
-  Sparkles,
-  RefreshCw,
   MoreVertical,
   CheckCircle,
   Play,
@@ -22,7 +18,6 @@ import {
   Eye,
   CheckSquare as DoneIcon,
   XCircle,
-  ArrowRight
 } from "lucide-react";
 import api from "@/lib/api";
 import { Task } from "@/types/api";
@@ -31,6 +26,8 @@ import { useProjectStore } from "@/store/projectStore";
 import TaskChangeLog from "@/components/tasks/TaskChangeLog";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+
+import TaskDetailSkeleton from "@/components/tasks/TaskDetailSkeleton";
 
 interface TaskPageProps {
   params: Promise<{ id: string }>;
@@ -84,11 +81,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-black">
-        <Loader2 className="animate-spin text-blue-500" size={32} />
-      </div>
-    );
+    return <TaskDetailSkeleton />;
   }
 
   if (error || !task) {

@@ -2,7 +2,7 @@
 
 import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { GripVertical, MoveHorizontal, Pencil } from "lucide-react";
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfDay, differenceInCalendarDays } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { ScheduleTask, BaselineComparisonResult } from "@/types/schedule.types";
@@ -82,10 +82,10 @@ const Bar = memo(function Bar({
     >
       <div
         className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 cursor-grab active:cursor-grabbing ${isDragging
-            ? "scale-[1.03] ring-2 ring-orange-400/60 shadow-orange-400/20 shadow-xl opacity-90"
-            : isCriticalHighlighted
-              ? "border-rose-400/40 bg-rose-500/25"
-              : "border-sky-400/30 bg-sky-500/20"
+          ? "scale-[1.03] ring-2 ring-orange-400/60 shadow-orange-400/20 shadow-xl opacity-90"
+          : isCriticalHighlighted
+            ? "border-rose-400/40 bg-rose-500/25"
+            : "border-sky-400/30 bg-sky-500/20"
           }`}
       >
         <div className="flex h-full items-center justify-between gap-2">
@@ -193,7 +193,7 @@ export default function GanttChart() {
   }, [readOnly, queueCalculation]);
 
   const tasks = useMemo(
-    () => normalizeTaskOrder(taskMap, taskOrder).filter((task) => task.scheduled_start || task.scheduled_finish),
+    () => normalizeTaskOrder(taskMap, taskOrder),
     [taskMap, taskOrder],
   );
 
@@ -206,6 +206,18 @@ export default function GanttChart() {
 
   const { start: rangeStart, end: rangeEnd } = useMemo(() => calculateTimelineRange(tasks), [tasks]);
   const days = useMemo(() => buildCalendarColumns(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
+
+  // S-BUG #38: Auto-scroll to today on mount
+  useEffect(() => {
+    if (scrollContainerRef.current && days.length > 0) {
+      const today = startOfDay(new Date());
+      const left = differenceInCalendarDays(today, rangeStart) * TIMELINE_DAY_WIDTH;
+      // Check if today is within range
+      if (left >= 0 && left <= days.length * TIMELINE_DAY_WIDTH) {
+        scrollContainerRef.current.scrollLeft = Math.max(0, left - 400);
+      }
+    }
+  }, [rangeStart, days.length]);
 
   const [scrollTop, setScrollTop] = useState(0);
   const [showBaseline, setShowBaseline] = useState(false);

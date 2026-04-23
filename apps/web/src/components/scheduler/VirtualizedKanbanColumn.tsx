@@ -32,11 +32,11 @@ export function VirtualizedKanbanColumn({
         <div
             ref={viewportRef}
             onScroll={onScroll}
-            className="space-y-4 overflow-y-auto px-1 custom-scrollbar pb-10 transition-all duration-300"
+            className="space-y-4 overflow-y-auto px-1 custom-scrollbar pb-10 transition-all duration-300 relative"
             style={{
-                height: 'calc(100vh - 350px)',
-                minHeight: '480px',
-                willChange: 'transform'
+                height: 'calc(100vh - 320px)',
+                minHeight: '400px',
+                contain: 'strict'
             }}
         >
             <div style={{ height: topSpacer }} />
@@ -50,8 +50,8 @@ export function VirtualizedKanbanColumn({
                         onDragStart={(event) => onDragStart(event, task.task_id)}
                         onClick={() => onTaskClick(task.task_id)}
                         className={`cursor-pointer rounded-2xl border px-3 py-3 transition hover:border-slate-300 dark:hover:border-white/20 active:scale-[0.98] ${isSelected
-                                ? "border-sky-400/40 bg-sky-500/10 dark:bg-sky-500/15 ring-2 ring-sky-500/20"
-                                : "border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03]"
+                            ? "border-sky-400/40 bg-sky-500/10 dark:bg-sky-500/15 ring-2 ring-sky-500/20"
+                            : "border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03]"
                             }`}
                         style={{ height: rowHeight - 16, marginBottom: 16 }} // Ensure consistent height for virtualization
                     >
