@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, field_validator
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -109,39 +110,69 @@ class OrganisationCreate(BaseModel):
     name: str
 
 
-# SETTINGS DTOs
-class CompanyProfile(BaseModel):
-    name: str = "TAC PMC"
-    address: str = "Default Address"
-    registration_no: str = ""
-    contact_email: str = ""
-
-
 class ClientPermissions(BaseModel):
     can_view_dpr: bool = True
     can_view_financials: bool = False
     can_view_reports: bool = True
-    can_view_scheduler: bool = False  # Added to fix BUG #16
+    can_view_scheduler: bool = False
 
 
 class GlobalSettings(BaseModel):
     organisation_id: str
+    name: str = "TAC PMC"
+    address: str = ""
+    email: str = ""
+    phone: str = ""
+    gst_number: str = ""
+    pan_number: str = ""
     cgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
     sgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
     retention_percentage: Decimal = Field(Decimal("5.0"), ge=0, le=100)
+    wo_prefix: str = "WO"
+    pc_prefix: str = "PC"
+    invoice_prefix: str = "INV"
     currency: str = "INR"
     currency_symbol: str = "₹"
-    company_profile: CompanyProfile = Field(default_factory=CompanyProfile)
+    terms_and_conditions: str = "Standard terms and conditions apply..."
+    logo_base64: Optional[str] = None
     client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
+
+    @field_validator("gst_number")
+    @classmethod
+    def validate_gst(cls, v: str) -> str:
+        if v:
+            v = v.strip().upper()
+            if not re.match(r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$", v):
+                raise ValueError("Invalid GSTIN format")
+        return v
+
+    @field_validator("pan_number")
+    @classmethod
+    def validate_pan(cls, v: str) -> str:
+        if v:
+            v = v.strip().upper()
+            if not re.match(r"^[A-Z]{5}\d{4}[A-Z]$", v):
+                raise ValueError("Invalid PAN format")
+        return v
 
 
 class GlobalSettingsUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
     cgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
     sgst_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
     retention_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    wo_prefix: Optional[str] = None
+    pc_prefix: Optional[str] = None
+    invoice_prefix: Optional[str] = None
     currency: Optional[str] = None
     currency_symbol: Optional[str] = None
-    company_profile: Optional[CompanyProfile] = None
+    terms_and_conditions: Optional[str] = None
+    logo_base64: Optional[str] = None
     client_permissions: Optional[ClientPermissions] = None
 
 

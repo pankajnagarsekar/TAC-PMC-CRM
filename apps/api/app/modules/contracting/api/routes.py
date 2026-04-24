@@ -257,8 +257,15 @@ async def export_work_order_pdf(
 
     # Company / Organisation details
     settings = await db.organisation_settings.find_one({"organisation_id": user["organisation_id"]})
-    if settings and "company_profile" in settings:
-        wo["company"] = settings["company_profile"]
+    if settings:
+        wo["company"] = {
+            "name": settings.get("name", "TAC PMC"),
+            "address": settings.get("address", ""),
+            "gst_number": settings.get("gst_number", ""),
+            "pan_number": settings.get("pan_number", ""),
+            "email": settings.get("email", ""),
+            "phone": settings.get("phone", "")
+        }
     else:
         from bson import ObjectId
         query = {"_id": ObjectId(user["organisation_id"])} if ObjectId.is_valid(user["organisation_id"]) else {"organisation_id": user["organisation_id"]}

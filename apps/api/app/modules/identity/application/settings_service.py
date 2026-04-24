@@ -26,22 +26,56 @@ class SettingsService:
         if not settings:
             return {
                 "organisation_id": user["organisation_id"],
+                "name": "TAC PMC",
+                "address": "",
+                "email": "",
+                "phone": "",
+                "gst_number": "",
+                "pan_number": "",
                 "cgst_percentage": 9.0,
                 "sgst_percentage": 9.0,
                 "retention_percentage": 5.0,
+                "wo_prefix": "WO",
+                "pc_prefix": "PC",
+                "invoice_prefix": "INV",
                 "currency": "INR",
                 "currency_symbol": "₹",
-                "company_profile": {
-                    "name": "TAC PMC",
-                    "address": "Default Address",
-                    "registration_no": "",
-                    "contact_email": "",
-                },
+                "terms_and_conditions": "Standard terms and conditions apply...",
                 "client_permissions": {
                     "can_view_dpr": True,
                     "can_view_financials": False,
                     "can_view_reports": True,
+                    "can_view_scheduler": False,
                 },
+            }
+        if settings:
+            # Strip internal and deprecated nested fields
+            organisation_id = settings.get("organisation_id", user["organisation_id"])
+            legacy_profile = settings.get("company_profile", {})
+            
+            return {
+                "organisation_id": organisation_id,
+                "name": settings.get("name") or legacy_profile.get("name") or "TAC PMC",
+                "address": settings.get("address") or legacy_profile.get("address") or "",
+                "email": settings.get("email") or legacy_profile.get("contact_email") or "",
+                "phone": settings.get("phone") or "",
+                "gst_number": settings.get("gst_number") or legacy_profile.get("registration_no") or "",
+                "pan_number": settings.get("pan_number") or "",
+                "cgst_percentage": settings.get("cgst_percentage", 9.0),
+                "sgst_percentage": settings.get("sgst_percentage", 9.0),
+                "retention_percentage": settings.get("retention_percentage", 5.0),
+                "wo_prefix": settings.get("wo_prefix", "WO"),
+                "pc_prefix": settings.get("pc_prefix", "PC"),
+                "invoice_prefix": settings.get("invoice_prefix", "INV"),
+                "currency": settings.get("currency", "INR"),
+                "currency_symbol": settings.get("currency_symbol", "₹"),
+                "terms_and_conditions": settings.get("terms_and_conditions", ""),
+                "client_permissions": settings.get("client_permissions", {
+                    "can_view_dpr": True,
+                    "can_view_financials": False,
+                    "can_view_reports": True,
+                    "can_view_scheduler": False,
+                }),
             }
         return settings
 

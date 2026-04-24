@@ -162,7 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <main className={cn(
                     "flex-1 overflow-y-auto high-density-grid p-8 relative custom-scrollbar",
                     "bg-[var(--glass-background)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)]",
-                    "rounded-[var(--radius)] shadow-[var(--glass-shadow)] transition-all duration-300",
+                    "rounded-[var(--radius)] shadow-[var(--glass-shadow)]",
                     isClient() && 'client-readonly'
                 )}>
                     <div className="max-w-[1600px] mx-auto space-y-10">

@@ -436,7 +436,7 @@ export interface GlobalSettings {
   currency_symbol: string;
   logo_base64?: string | null;
   // Client permission matrix
-  client_permissions?: {
+  client_permissions: {
     can_view_dpr: boolean;
     can_view_financials: boolean;
     can_view_reports: boolean;

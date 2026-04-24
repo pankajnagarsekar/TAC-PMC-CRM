@@ -20,35 +20,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import NextImage from "next/image";
-import { CodeMaster } from "@/types/api";
+import { CodeMaster, GlobalSettings } from "@/types/api";
 import CategoryModal from "@/components/categories/CategoryModal";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-
-interface GlobalSettings {
-  name: string;
-  address: string;
-  email: string;
-  phone: string;
-  gst_number: string;
-  pan_number: string;
-  cgst_percentage: number;
-  sgst_percentage: number;
-  retention_percentage: number;
-  wo_prefix: string;
-  pc_prefix: string;
-  invoice_prefix: string;
-  currency: string;
-  currency_symbol: string;
-  terms_and_conditions: string;
-  logo_base64: string | null;
-  client_permissions: {
-    can_view_dpr: boolean;
-    can_view_financials: boolean;
-    can_view_reports: boolean;
-    can_view_scheduler: boolean;
-  };
-}
 
 const settingsSchema = z.object({
   cgst_percentage: z.number().min(0).max(100),
@@ -69,6 +44,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
+    organisation_id: "",
     name: "TAC PMC",
     address: "",
     email: "",
