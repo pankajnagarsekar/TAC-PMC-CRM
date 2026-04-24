@@ -108,8 +108,12 @@ export default function WorkOrdersPage() {
       width: 130,
       cellRenderer: (p: any) => (
         <button
-          onClick={() => router.push(`/admin/work-orders/${p.data._id}`)}
-          className="text-orange-400 font-bold hover:underline font-mono"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            router.push(`/admin/work-orders/${p.data._id}`);
+          }}
+          className="text-orange-400 font-bold hover:underline font-mono relative z-10"
         >
           {p.value}
         </button>
@@ -128,10 +132,13 @@ export default function WorkOrdersPage() {
       valueFormatter: (p: any) => getVendorName(p.value),
     },
     {
-      field: "created_at",
+      field: "wo_date",
       headerName: "Date",
-      width: 130,
-      valueFormatter: (p: any) => (p.value ? formatDate(p.value) : "N/A"),
+      width: 140,
+      valueFormatter: (p: { value: string; data: any }) => {
+        const val = p.value || p.data.created_at;
+        return val ? formatDate(val) : "-";
+      },
     },
     {
       field: "grand_total",

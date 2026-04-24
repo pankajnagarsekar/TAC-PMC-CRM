@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Download,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -211,7 +212,7 @@ export default function PaymentCertificateDetail({
               )}
             </div>
             <p className="text-slate-400 text-sm mt-1">
-              Generated on {formatDate(pc.created_at)}
+              Certified on {formatDate(pc.certification_date || pc.created_at)}
             </p>
           </div>
         </div>
@@ -273,11 +274,17 @@ export default function PaymentCertificateDetail({
                     <p className="text-xs text-slate-500 mb-1">
                       Linked Work Order
                     </p>
-                    <p className="text-sm text-white font-mono font-medium text-emerald-400">
-                      {pc.work_order_id
-                        ? getWoRef(pc.work_order_id)
-                        : "Missing Ref"}
-                    </p>
+                    {pc.work_order_id ? (
+                      <Link
+                        href={`/admin/work-orders/${pc.work_order_id}`}
+                        className="text-sm text-emerald-400 font-mono font-medium hover:underline flex items-center gap-1.5"
+                      >
+                        {getWoRef(pc.work_order_id)}
+                        <ChevronRight size={12} className="opacity-50" />
+                      </Link>
+                    ) : (
+                      <p className="text-sm text-slate-500 italic">No Linked Work Order</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 mb-1">

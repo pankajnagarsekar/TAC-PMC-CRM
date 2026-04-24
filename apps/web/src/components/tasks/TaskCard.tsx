@@ -16,14 +16,26 @@ export default function TaskCard({ task }: TaskCardProps) {
     router.push(`/admin/tasks/${task._id}`);
   };
 
+  const isOverdue = task.deadline &&
+    task.status !== 'Completed' &&
+    task.status !== 'Closed' &&
+    new Date(task.deadline) < new Date();
+
   return (
     <div
       onClick={handleCardClick}
-      className="bg-slate-800 border border-slate-700 p-3 rounded-lg shadow-sm hover:border-blue-500 hover:shadow-md cursor-pointer transition-all group active:scale-[0.98]"
+      className={`bg-slate-800 border ${isOverdue ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]' : 'border-slate-700'} p-3 rounded-lg shadow-sm hover:border-blue-500 hover:shadow-md cursor-pointer transition-all group active:scale-[0.98]`}
     >
       <div className="flex justify-between items-start mb-2">
-        <div className="text-xs text-slate-400 font-mono">
-          TASK-{task.sr_no}
+        <div className="flex gap-1.5 flex-wrap">
+          <div className="text-xs text-slate-400 font-mono">
+            TASK-{task.sr_no}
+          </div>
+          {isOverdue && (
+            <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] rounded uppercase font-black animate-pulse">
+              Overdue
+            </span>
+          )}
         </div>
         {task.priority === "High" && (
           <span className="px-1.5 py-0.5 bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] rounded uppercase font-bold">

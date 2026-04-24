@@ -39,6 +39,7 @@ export interface Client {
   _id?: string;
   organisation_id: string;
   client_name: string;
+  name?: string; // Authoritative alias
   client_email?: string;
   client_phone?: string;
   client_address?: string;
@@ -73,6 +74,7 @@ export interface Project {
   project_id: string;
   organisation_id: string;
   project_name: string;
+  name?: string; // Authoritative alias
   client_id?: string;
   client_name?: string;
   project_code?: string;
@@ -119,6 +121,7 @@ export interface CodeMaster {
   _id?: string;
   organisation_id?: string;
   category_name: string;
+  name?: string; // Authoritative alias
   code: string;
   budget_type?: "commitment" | "fund_transfer";
   description?: string;
@@ -201,6 +204,7 @@ export interface WorkOrder {
   version: number;
   created_at?: string;
   updated_at?: string;
+  wo_date?: string;
 }
 
 export interface WorkOrderUpdate {
@@ -246,6 +250,7 @@ export interface PaymentCertificate {
   idempotency_key?: string;
   version?: number;
   created_at?: string;
+  certification_date?: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

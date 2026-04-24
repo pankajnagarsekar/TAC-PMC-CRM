@@ -131,10 +131,13 @@ export default function PaymentCertificatesPage() {
       }
     },
     {
-      field: 'created_at',
+      field: 'certification_date',
       headerName: 'Date',
       width: 150,
-      valueFormatter: (p: { value: string }) => p.value ? formatDate(p.value) : '-'
+      valueFormatter: (p: { value: string; data: any }) => {
+        const val = p.value || p.data.created_at;
+        return val ? formatDate(val) : '-';
+      }
     }
   ];
 

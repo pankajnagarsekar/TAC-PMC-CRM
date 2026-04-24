@@ -55,6 +55,25 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // BUG-025: Reset form when modal opens
+  React.useEffect(() => {
+    if (open) {
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "Supervisor",
+        dpr_generation_permission: false,
+        assigned_projects: [] as string[],
+        screen_permissions: [] as string[],
+        useExistingClient: false,
+        selectedClientId: null as string | null
+      });
+      setTempRole("Supervisor");
+      setError("");
+    }
+  }, [open]);
+
   const projectsRequired = isClient && formData.assigned_projects.length === 0;
   const hasNoClients = isClient && clients.length === 0;
 
@@ -119,12 +138,23 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
       onCreated();
       onClose();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string | object } } };
-      const detail = error.response?.data?.detail || "Failed to create user";
-      setError(typeof detail === "string" ? detail : JSON.stringify(detail));
+      const error = err as { response?: { data?: { detail?: string | any[] } } };
+      const detail = error.response?.data?.detail;
+
+      let message = "Failed to create user";
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        // Handle FastAPI validation error list
+        message = detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(", ");
+      } else if (typeof detail === "object" && detail !== null) {
+        message = JSON.stringify(detail);
+      }
+
+      setError(message);
       toast({
         title: "Error",
-        description: "Failed to create user",
+        description: message,
         variant: "destructive"
       });
     } finally {

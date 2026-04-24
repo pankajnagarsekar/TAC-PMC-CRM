@@ -4,7 +4,7 @@ from typing import List, Literal, Optional
 
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -27,6 +27,13 @@ class CodeMaster(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: Optional[str] = None
     category_name: str
+    
+    @computed_field
+    @property
+    def name(self) -> str:
+        """BUG-032: Authoritative name alias for category."""
+        return self.category_name
+
     code: str
     description: Optional[str] = None
     budget_type: Literal["commitment", "fund_transfer"] = "commitment"
@@ -102,6 +109,12 @@ class PaymentCertificate(BaseModel):
     approved_at: Optional[datetime] = None
     rejected_reason: Optional[str] = None
     approval_trail: List[ApprovalEventSchema] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def certification_date(self) -> datetime:
+        """BUG-035: Authoritative certification date for display."""
+        return self.approved_at or self.submitted_at or self.created_at
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 

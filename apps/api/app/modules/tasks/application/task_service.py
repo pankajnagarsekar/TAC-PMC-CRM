@@ -252,20 +252,11 @@ class TaskService:
     async def delete_task(self, user: dict, task_id: str) -> None:
         """
         Delete or close a task based on its state.
+        Ensures administrative auditing for traceability (Phase 5 Hardening).
 
         Strategy:
         - Pristine Open tasks (CREATE log only): Hard-deleted from database
         - All other tasks: Transitioned to Closed status to preserve audit trail
-
-        Args:
-            user: Authenticated user dict
-            task_id: Task's MongoDB ObjectId as string
-
-        Returns:
-            None
-
-        Raises:
-            HTTPException(404): If task not found
         """
         task = await self.repo.get_by_id(task_id, organisation_id=user["organisation_id"])
         if not task:
@@ -280,6 +271,20 @@ class TaskService:
 
         # Store project_id before deletion
         project_id = task.get("project_id")
+
+        # Administrative Auditing: Log the deletion attempt
+        if self.audit:
+            await self.audit.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="TASKS",
+                entity_type="TASK",
+                entity_id=task_id,
+                action_type="DELETE",
+                user_id=user["user_id"],
+                project_id=project_id,
+                old_value=task,
+                metadata={"reason": "Manual deletion", "status_was": task.get("status")}
+            )
 
         # Pristine Open tasks with only the CREATE log entry can be hard-deleted
         if task.get("status") == "Open" and len(task.get("audit_log", [])) <= 1:

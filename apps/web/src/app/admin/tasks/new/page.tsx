@@ -154,9 +154,10 @@ export default function NewTaskPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">
-                Priority
+                Priority <span className="text-red-500">*</span>
               </label>
               <select
+                required
                 value={formData.priority}
                 onChange={(e) => {
                   setIsDirty(true);

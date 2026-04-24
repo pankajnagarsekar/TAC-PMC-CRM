@@ -25,7 +25,8 @@ export function useVendorNames() {
 
     const getVendorName = (id?: string) => {
         if (!id) return '-';
-        return vendorMap[id] || id;
+        if (isLoading) return 'Loading...';
+        return vendorMap[id] || "Unknown Vendor";
     };
 
     return {

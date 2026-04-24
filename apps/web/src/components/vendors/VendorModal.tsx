@@ -45,11 +45,11 @@ export default function VendorModal({
   });
   const [gstinError, setGstinError] = useState("");
 
-  // GSTIN validation: exactly 15 characters, alphanumeric uppercase
+  // GSTIN validation: exactly 15 characters, alphanumeric uppercase, strict format
   const validateGSTIN = (gstin: string): boolean => {
     if (!gstin) return true; // Optional field
-    const gstinRegex = /^[0-9A-Z]{15}$/;
-    return gstinRegex.test(gstin);
+    const gstinRegex = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/;
+    return gstinRegex.test(gstin.toUpperCase());
   };
 
   useEffect(() => {
@@ -76,7 +76,8 @@ export default function VendorModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
       toast({
         title: "Error",
         description: "Vendor name is required",
@@ -87,18 +88,23 @@ export default function VendorModal({
 
     // Validate GSTIN format if provided
     if (formData.gstin && !validateGSTIN(formData.gstin)) {
-      setGstinError("GSTIN must be exactly 15 alphanumeric characters");
+      setGstinError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5");
       return;
     }
     setGstinError("");
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        ...formData,
+        name: trimmedName,
+      };
+
       if (vendor) {
         await api.put(
           `/api/v1/vendors/${vendor._id || (vendor as { _id?: string; id?: string }).id}`,
           {
-            ...formData,
+            ...payload,
             expected_version: vendor.version || 1
           },
         );

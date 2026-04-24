@@ -9,6 +9,21 @@ class TaskRepository(BaseRepository):
         super().__init__(db, "tasks", Task)
         self._db = db
 
+    async def ensure_indexes(self):
+        """Authoritative index enforcement for Tasks and Counter (BUG-053)."""
+        # Tasks collection unique index (optional but good practice)
+        await self.collection.create_index(
+            [("organisation_id", 1), ("project_id", 1), ("sr_no", 1)],
+            unique=True
+        )
+        
+        # Atomic Counter unique index - CRITICAL for upsert atomicity
+        counter_coll = self._db[AtomicCounter.COLLECTION_NAME]
+        await counter_coll.create_index(
+            [("organisation_id", 1), ("project_id", 1)],
+            unique=True
+        )
+
     async def get_next_sr_no(self, org_id: str, project_id: str) -> int:
         """
         Get the next sequential sr_no for a task in the project.

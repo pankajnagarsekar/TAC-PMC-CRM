@@ -130,7 +130,7 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
               </span>
             </div>
           )}
-          <div className="prose prose-sm dark:prose-invert max-w-none text-[11px] leading-relaxed text-foreground/80 font-medium whitespace-pre-wrap">
+          <div className="prose prose-sm dark:prose-invert max-w-none text-[11px] leading-relaxed text-foreground/80 font-medium">
             <ReactMarkdown
               components={{
                 p: (props) => <p className="mb-2 last:mb-0" {...props} />,
@@ -139,7 +139,7 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
                 li: (props) => <li {...props} />,
               }}
             >
-              {summary.summary_text}
+              {(summary.summary_text || "").replace(/\\n/g, '\n')}
             </ReactMarkdown>
           </div>
 

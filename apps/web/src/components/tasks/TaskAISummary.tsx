@@ -108,7 +108,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
             strong: (props: any) => <span className="font-bold text-blue-400" {...props} />,
           }}
         >
-          {data.summary_text || "The project is currently proceeding as scheduled with early-stage milestones met."}
+          {(data.summary_text || "").replace(/\\n/g, '\n') || "The project is currently proceeding as scheduled with early-stage milestones met."}
         </ReactMarkdown>
       </div>
 

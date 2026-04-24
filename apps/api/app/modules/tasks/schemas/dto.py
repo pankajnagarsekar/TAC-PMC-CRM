@@ -1,10 +1,31 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def generate_alias(string: str) -> str:
     return string
+
+
+def parse_flexible_date(v: Any) -> Optional[datetime]:
+    if not v:
+        return None
+    if isinstance(v, datetime):
+        return v
+    if isinstance(v, str):
+        if not v.strip():
+            return None
+        # Try ISO first
+        try:
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            # Fallback to DD-MM-YYYY
+            try:
+                return datetime.strptime(v, "%d-%m-%Y")
+            except ValueError:
+                # Let pydantic try its default parsing if both custom ways fail
+                return v
+    return v
 
 
 class BaseSchema(BaseModel):
@@ -24,6 +45,11 @@ class TaskCreate(BaseSchema):
     notes: Optional[str] = None
     scheduler_task_id: Optional[str] = None
 
+    @field_validator("deadline", mode="before")
+    @classmethod
+    def validate_deadline(cls, v: Any) -> Any:
+        return parse_flexible_date(v)
+
 
 class TaskUpdate(BaseSchema):
     task_description: Optional[str] = None
@@ -34,6 +60,11 @@ class TaskUpdate(BaseSchema):
     priority: Optional[str] = None
     notes: Optional[str] = None
     scheduler_task_id: Optional[str] = None
+
+    @field_validator("deadline", mode="before")
+    @classmethod
+    def validate_deadline(cls, v: Any) -> Any:
+        return parse_flexible_date(v)
 
 
 class TaskStatusUpdate(BaseSchema):

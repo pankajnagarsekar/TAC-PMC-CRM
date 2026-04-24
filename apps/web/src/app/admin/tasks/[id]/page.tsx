@@ -22,6 +22,7 @@ import {
 import api from "@/lib/api";
 import { Task } from "@/types/api";
 import { formatDate } from "@tac-pmc/ui";
+import ReactMarkdown from "react-markdown";
 import { useProjectStore } from "@/store/projectStore";
 import TaskChangeLog from "@/components/tasks/TaskChangeLog";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
@@ -36,12 +37,14 @@ interface TaskPageProps {
 export default function TaskDetailsPage({ params }: TaskPageProps) {
   const { id: taskId } = use(params);
   const router = useRouter();
-  const { activeProject } = useProjectStore();
+  const { setBreadcrumbTitle, activeProject } = useProjectStore();
 
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTask = useCallback(async () => {
@@ -49,6 +52,8 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
     try {
       const res = await api.get<Task>(`/api/v1/tasks/${taskId}`);
       setTask(res.data);
+      // BUG-049: Show Title in breadcrumb
+      setBreadcrumbTitle(res.data.task_description);
       setError(null);
     } catch (err) {
       console.error("Failed to fetch task", err);
@@ -56,11 +61,12 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, setBreadcrumbTitle]);
 
   useEffect(() => {
     fetchTask();
-  }, [fetchTask]);
+    return () => setBreadcrumbTitle(null); // Cleanup
+  }, [fetchTask, setBreadcrumbTitle]);
 
   const updateStatus = async (newStatus: string) => {
     if (newStatus === "Closed" && !showCloseConfirm) {
@@ -75,6 +81,20 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
       setShowCloseConfirm(false);
     } catch (err) {
       console.error("Failed to update status", err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsUpdating(true);
+    try {
+      await api.delete(`/api/v1/tasks/${taskId}`);
+      router.push("/admin/tasks");
+    } catch (err: any) {
+      console.error("Task deletion failed", err);
+      setError("Failed to delete task.");
+      setShowDeleteConfirm(false);
     } finally {
       setIsUpdating(false);
     }
@@ -187,7 +207,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
             <div className="flex items-center gap-3 text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
               <span>Task Detail</span>
               <ChevronRight size={12} />
-              <span className="text-blue-500">#{taskId.substring(0, 8)}</span>
+              <span className="text-blue-500 truncate max-w-[200px]">{task.task_description}</span>
             </div>
             <h1 className="text-3xl font-black text-white tracking-tight">
               {task.task_description}
@@ -203,9 +223,27 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
           ) : (
             renderTransitionButtons()
           )}
-          <button className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
-            <MoreVertical size={20} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+            >
+              <MoreVertical size={20} />
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 py-1 overflow-hidden animate-in fade-in zoom-in duration-200">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setShowDeleteConfirm(true);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors font-bold flex items-center gap-2"
+                >
+                  <XCircle size={14} /> Delete Task
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -263,9 +301,11 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
                   <div className="text-white font-bold">
                     {task.assigned_to_name || "Unassigned"}
                   </div>
-                  <div className="text-slate-500 text-xs uppercase tracking-tighter font-bold font-mono">
-                    ID: {task.assigned_to_user_id || "N/A"}
-                  </div>
+                  {task.assigned_to_user_id && task.assigned_to_user_id !== "N/A" && (
+                    <div className="text-slate-500 text-xs uppercase tracking-tighter font-bold font-mono">
+                      ID: {task.assigned_to_user_id}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -295,9 +335,18 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
               Full Description
             </h3>
             <div className="prose prose-invert max-w-none">
-              <p className="text-slate-300 leading-relaxed text-lg font-light leading-snug">
-                {task.task_description}
-              </p>
+              <div className="text-slate-300 leading-relaxed text-lg font-light">
+                <ReactMarkdown
+                  components={{
+                    p: (props: any) => <p className="mb-4 last:mb-0" {...props} />,
+                    strong: (props: any) => <span className="font-bold text-blue-400" {...props} />,
+                    ul: (props: any) => <ul className="list-disc pl-6 mb-4 space-y-2" {...props} />,
+                    li: (props: any) => <li {...props} />,
+                  }}
+                >
+                  {task.task_description || ""}
+                </ReactMarkdown>
+              </div>
               <div className="mt-8 pt-8 border-t border-slate-800/50">
                 <div className="grid grid-cols-2 gap-8">
                   <div>
@@ -351,6 +400,17 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
         confirmText="Finalize & Close"
         isLoading={isUpdating}
         variant="warning"
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Task Permanently"
+        description="Are you sure you want to delete this task? This action is irreversible and will remove all audit logs associated with this task. Use this only for data entry errors."
+        confirmText="Delete Task"
+        isLoading={isUpdating}
+        variant="danger"
       />
     </div>
   );

@@ -414,7 +414,7 @@ export default function WorkOrderDetailPage() {
                 </select>
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                  {vendors?.find((v) => v._id === wo.vendor_id)?.name || wo.vendor_id}
+                  {vendors?.find((v) => v._id === wo.vendor_id)?.name || wo.vendor_id || "Unknown Vendor"}
                 </div>
               )}
             </div>

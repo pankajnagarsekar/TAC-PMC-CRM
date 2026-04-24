@@ -363,13 +363,12 @@ class AnalyticsService:
         if not master_state:
             # Fallback: sum all per-category states
             agg_query = {"category_id": {"$ne": "MASTER"}, "organisation_id": organisation_id}
-            from bson import ObjectId
             if ObjectId.is_valid(project_id):
                 agg_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
             else:
                 agg_query["project_id"] = project_id
                 
-            agg = await self.fin_state_repo.aggregate(
+            agg_cursor = self.fin_state_repo.aggregate(
                 [
                     {"$match": agg_query},
                     {
@@ -380,7 +379,8 @@ class AnalyticsService:
                         }
                     },
                 ]
-            ).to_list(1)
+            )
+            agg = await agg_cursor.to_list(1)
 
             if agg:
                 data.budget_total = FinancialEngine.to_decimal(agg[0].get("budget"))
@@ -409,20 +409,26 @@ class AnalyticsService:
         pv = data.budget_total
         ac = data.budget_spent
         
+        # Fetch schedule for EVM calculations (BUG-023)
         schedule = await self.schedule_repo.find_one({"project_id": project_id})
         ev = Decimal("0.00")
         
         project = await self.project_repo.get_by_id(project_id)
         
-        if schedule and schedule.get("tasks"):
-            tasks = schedule.get("tasks", [])
+        tasks_raw = schedule.get("tasks") if schedule else None
+        if isinstance(tasks_raw, list) and len(tasks_raw) > 0:
             cat_pv_map = {}
-            cursor = self.db.financial_state.find({"project_id": project_id, "category_id": {"$ne": "MASTER"}})
-            async for s in cursor:
-                 cat_pv_map[s["category_id"]] = FinancialEngine.to_decimal(s.get("original_budget", 0))
+            # Use repository instead of raw DB (Fixed Point 75/115)
+            states = await self.fin_state_repo.list(
+                {"project_id": project_id, "category_id": {"$ne": "MASTER"}},
+                limit=1000
+            )
+            if isinstance(states, list):
+                for s in states:
+                     cat_pv_map[s["category_id"]] = FinancialEngine.to_decimal(s.get("original_budget", 0))
             
             cat_tasks = {}
-            for t in tasks:
+            for t in tasks_raw:
                 rid = t.get("external_ref_id")
                 if rid:
                     if rid not in cat_tasks: cat_tasks[rid] = []
@@ -437,9 +443,22 @@ class AnalyticsService:
             proj_comp = float(project.get("completion_percentage", 0) if project else 0)
             ev = pv * Decimal(str(proj_comp / 100.0))
 
-        data.planned_value = pv
-        data.earned_value = ev
-        data.actual_cost = ac
+        # Calculate burn rate (assume linear since project start)
+        if project and project.get("created_at"):
+            start = project["created_at"]
+            if isinstance(start, str):
+                start = datetime.fromisoformat(start.replace("Z", "+00:00"))
+            days_elapsed = (datetime.now(timezone.utc) - start).days
+            if days_elapsed > 0:
+                data.burn_rate_daily = data.budget_spent / Decimal(str(days_elapsed))
+        
+        # Simple projected overrun if over budget
+        if data.is_over_budget:
+            data.projected_overrun = data.budget_spent - data.budget_total
+
+        data.planned_value = float(pv)
+        data.earned_value = float(ev)
+        data.actual_cost = float(ac)
         data.cpi = float(ev / ac) if ac > 0 else 1.0
         data.spi = float(ev / pv) if pv > 0 else 1.0
         data.cost_variance = float(ev - ac)

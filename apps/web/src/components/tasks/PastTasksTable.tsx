@@ -16,10 +16,15 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
 
   const columnDefs: ColDef<Task>[] = useMemo(
     () => [
+
       {
         field: "sr_no",
-        headerName: "No.",
+        headerName: "NO.",
         width: 80,
+        sortable: true,
+        cellRenderer: (p: any) => (
+          <span className="text-slate-500 font-mono text-xs">#{p.value}</span>
+        ),
       },
       {
         field: "task_description",
@@ -27,7 +32,7 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         flex: 1,
         minWidth: 200,
         cellRenderer: (p: any) => (
-          <div 
+          <div
             onClick={() => router.push(`/admin/tasks/${p.data._id}`)}
             className="font-medium text-white hover:text-blue-400 hover:underline cursor-pointer transition-colors"
           >

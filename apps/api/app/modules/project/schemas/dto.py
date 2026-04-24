@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field
+import re
+import html
+from pydantic import BaseModel, Field, field_validator, computed_field
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -31,6 +33,12 @@ class Project(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    @computed_field
+    @property
+    def name(self) -> str:
+        """BUG-032: Authoritative name alias."""
+        return self.project_name
+
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
 
@@ -49,6 +57,14 @@ class ProjectCreate(BaseModel):
     threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
 
+    @field_validator("project_name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        v = re.sub(r"<[^>]+>", "", str(v)).strip()
+        if not v:
+            raise ValueError("Project name cannot be empty")
+        return html.escape(v)
+
 
 class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
@@ -64,6 +80,16 @@ class ProjectUpdate(BaseModel):
     completion_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
     threshold_petty: Optional[Decimal] = Field(None, ge=0)
     threshold_ovh: Optional[Decimal] = Field(None, ge=0)
+
+    @field_validator("project_name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = re.sub(r"<[^>]+>", "", str(v)).strip()
+        if not v:
+            raise ValueError("Project name cannot be empty")
+        return html.escape(v)
 
 
 # MAPPING DTOs
@@ -123,6 +149,12 @@ class Client(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    @computed_field
+    @property
+    def name(self) -> str:
+        """BUG-033: Authoritative name alias for client."""
+        return self.client_name
+
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
 
@@ -134,6 +166,23 @@ class ClientCreate(BaseModel):
     gst_number: Optional[str] = None
     can_view_scheduler: bool = True
 
+    @field_validator("client_name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        v = re.sub(r"<[^>]+>", "", str(v)).strip()
+        if not v:
+            raise ValueError("Client name cannot be empty")
+        return html.escape(v)
+
+    @field_validator("gst_number")
+    @classmethod
+    def validate_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not re.match(r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$", v):
+                raise ValueError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5")
+        return v
+
 
 class ClientUpdate(BaseModel):
     client_name: Optional[str] = None
@@ -143,3 +192,22 @@ class ClientUpdate(BaseModel):
     gst_number: Optional[str] = None
     can_view_scheduler: Optional[bool] = None
     active_status: Optional[bool] = None
+
+    @field_validator("client_name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = re.sub(r"<[^>]+>", "", str(v)).strip()
+        if not v:
+            raise ValueError("Client name cannot be empty")
+        return html.escape(v)
+
+    @field_validator("gst_number")
+    @classmethod
+    def validate_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not re.match(r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$", v):
+                raise ValueError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5")
+        return v

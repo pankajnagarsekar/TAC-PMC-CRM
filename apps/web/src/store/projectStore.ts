@@ -9,8 +9,11 @@ import { mutate } from 'swr';
 // ──────────────────────────────────────────────────────────────────────────
 interface ProjectState {
   activeProject: Project | null;
+  /** Global override for breadcrumb labels (e.g. {taskId: 'Fix Layout Bug'}) */
+  breadcrumbTitle: string | null;
   _hasHydrated: boolean;
   setActiveProject: (project: Project) => void;
+  setBreadcrumbTitle: (title: string | null) => void;
   clearProject: () => void;
   setHasHydrated: (state: boolean) => void;
 }
@@ -19,6 +22,7 @@ export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
       activeProject: null,
+      breadcrumbTitle: null,
       _hasHydrated: false,
 
       setActiveProject: (project: Project) => {
@@ -36,6 +40,8 @@ export const useProjectStore = create<ProjectState>()(
         }
         set({ activeProject: project });
       },
+
+      setBreadcrumbTitle: (title) => set({ breadcrumbTitle: title }),
 
       clearProject: () => {
         // Purge project-scoped caches; keep /projects/ list so registry can search

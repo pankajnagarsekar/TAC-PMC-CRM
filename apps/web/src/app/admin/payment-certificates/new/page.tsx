@@ -380,6 +380,8 @@ export default function NewPaymentCertificatePage() {
                 setIsDirty(true);
                 setIsWoLinked(true);
                 setSelectedCategoryId("");
+                setError(null);
+                setFieldErrors({});
               }}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${isWoLinked ? "bg-slate-800 text-emerald-400 shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
             >
@@ -392,6 +394,8 @@ export default function NewPaymentCertificatePage() {
                 setIsDirty(true);
                 setIsWoLinked(false);
                 setSelectedWoId("");
+                setError(null);
+                setFieldErrors({});
               }}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${!isWoLinked ? "bg-slate-800 text-amber-400 shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
             >

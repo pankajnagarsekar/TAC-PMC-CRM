@@ -124,6 +124,20 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
             </p>
           </div>
 
+          <div>
+            <label className={labelStyle}>Description <span className="text-orange-500">*</span></label>
+            <textarea
+              required
+              className={`${inputStyle} min-h-[80px] resize-none`}
+              placeholder="Describe what this category covers..."
+              value={formData.description}
+              onChange={e => {
+                setError(null);
+                setFormData({ ...formData, description: e.target.value });
+              }}
+            />
+          </div>
+
           <DialogFooter className="pt-4 flex gap-3">
             <button
               type="button"
@@ -134,7 +148,7 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.category_name || !formData.code || !formData.description}
               className="flex-1 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}

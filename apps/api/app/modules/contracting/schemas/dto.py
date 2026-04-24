@@ -5,7 +5,7 @@ from typing import List, Literal, Optional
 import html
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -50,6 +50,12 @@ class WorkOrder(BaseModel):
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @computed_field
+    @property
+    def wo_date(self) -> datetime:
+        """Alias for created_at to stay consistent with template and display requirements."""
+        return self.created_at
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -113,6 +119,15 @@ class VendorCreate(BaseModel):
         if not v:
             raise ValueError("Vendor name cannot be empty")
         return html.escape(v)
+
+    @field_validator("gstin")
+    @classmethod
+    def validate_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not re.match(r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$", v):
+                raise ValueError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5")
+        return v
     address: Optional[str] = None
 
 
@@ -125,6 +140,25 @@ class VendorUpdate(BaseModel):
     address: Optional[str] = None
     active_status: Optional[bool] = None
     expected_version: int
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = re.sub(r"<[^>]+>", "", str(v)).strip()
+        if not v:
+            raise ValueError("Vendor name cannot be empty")
+        return html.escape(v)
+
+    @field_validator("gstin")
+    @classmethod
+    def validate_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not re.match(r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$", v):
+                raise ValueError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5")
+        return v
 
 
 # LEDGER DTOs (Part of Contracting Domain)

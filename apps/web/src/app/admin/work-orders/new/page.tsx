@@ -154,6 +154,12 @@ export default function NewWorkOrderPage() {
   );
 
   const addLineItem = () => {
+    // BUG-059: Limit empty row creation - don't add if last row is empty
+    const lastItem = lineItems[lineItems.length - 1];
+    if (lastItem && !lastItem.description && lastItem.qty === 0 && lastItem.rate === 0) {
+      return;
+    }
+
     setLineItems([
       ...lineItems,
       {
@@ -182,21 +188,22 @@ export default function NewWorkOrderPage() {
   };
 
   const onCellValueChanged = (event: CellValueChangedEvent<LineItem>) => {
-    if (event.colDef.field === "qty" || event.colDef.field === "rate") {
-      const data = event.data;
+    const { colDef, data } = event;
+
+    if (colDef.field === "qty" || colDef.field === "rate") {
       if (data) {
         data.total = (data.qty || 0) * (data.rate || 0);
         event.api.applyTransaction({ update: [data] });
       }
-
-      // Update React state to trigger subtotal recalculation
-      const updatedItems: LineItem[] = [];
-      event.api.forEachNode((node: IRowNode<LineItem>) => {
-        if (node.data) updatedItems.push(node.data);
-      });
-      setLineItems(updatedItems);
-      setIsDirty(true);
     }
+
+    // Refresh React state for ALL field changes (Fix Bug-058)
+    const updatedItems: LineItem[] = [];
+    event.api.forEachNode((node: IRowNode<LineItem>) => {
+      if (node.data) updatedItems.push({ ...node.data });
+    });
+    setLineItems(updatedItems);
+    setIsDirty(true);
   };
 
   const validateRow = useCallback((data: LineItem): RowValidation => {
@@ -260,18 +267,20 @@ export default function NewWorkOrderPage() {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string | { errors: Array<{ field: string; message: string }> } } } };
       const detail = error.response?.data?.detail;
+
       if (typeof detail === 'object' && detail?.errors) {
         const newErrors: Record<string, string> = {};
         detail.errors.forEach((e) => {
           newErrors[e.field] = e.message;
         });
         setFieldErrors(newErrors);
-        alert("Please correct the highlighted errors.");
+        // Removed alert, using inline errors and a summary toast if available
       } else {
-        alert(typeof detail === 'string' ? detail : "Failed to save Work Order");
+        const msg = typeof detail === 'string' ? detail : "Failed to save Work Order. Please check all fields.";
+        setFieldErrors({ general: msg });
       }
       // Regenerate key on failure so user can try again safely
-      setIdempotencyKey(idempotency.get("WO_CREATE"));
+      setIdempotencyKey(idempotency.generate());
     } finally {
       setIsSaving(false);
     }
@@ -338,6 +347,13 @@ export default function NewWorkOrderPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Error banner */}
+        {fieldErrors.general && (
+          <div className="col-span-full p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex gap-3 items-center text-red-500">
+            <AlertTriangle size={20} />
+            <p className="text-sm font-bold uppercase tracking-wider">{fieldErrors.general}</p>
+          </div>
+        )}
         {/* Core Details */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4 shadow-xl">
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-2">

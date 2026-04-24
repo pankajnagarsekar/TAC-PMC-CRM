@@ -42,6 +42,14 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
     gstin: '',
     active_status: true,
   });
+  const [gstinError, setGstinError] = useState("");
+
+  // GSTIN validation: exactly 15 characters, alphanumeric uppercase, strict format
+  const validateGSTIN = (gstin: string): boolean => {
+    if (!gstin) return true; // Optional field
+    const gstinRegex = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/;
+    return gstinRegex.test(gstin.toUpperCase());
+  };
 
   useEffect(() => {
     if (client) {
@@ -70,13 +78,28 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
     setLoading(true);
     setError(null);
 
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
+      setError("Business name is required");
+      setLoading(false);
+      return;
+    }
+
+    // Validate GSTIN format if provided
+    if (formData.gstin && !validateGSTIN(formData.gstin)) {
+      setGstinError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5");
+      setLoading(false);
+      return;
+    }
+    setGstinError("");
+
     try {
       const payload = {
-        client_name: formData.name,
+        client_name: trimmedName,
         client_email: formData.email,
         client_phone: formData.phone,
         client_address: formData.address,
-        gst_number: formData.gstin,
+        gst_number: formData.gstin.toUpperCase(),
         active_status: formData.active_status,
       };
 
@@ -155,11 +178,18 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
             <div>
               <label className={labelStyle}>GST Number</label>
               <input
-                className={inputStyle}
+                className={`${inputStyle} ${gstinError ? "border-red-500 focus:border-red-500" : ""}`}
                 placeholder="27AAAAA0000A1Z5"
                 value={formData.gstin}
-                onChange={e => setFormData({ ...formData, gstin: e.target.value })}
+                onChange={e => {
+                  setFormData({ ...formData, gstin: e.target.value });
+                  setGstinError("");
+                }}
+                maxLength={15}
               />
+              {gstinError && (
+                <p className="text-red-500 text-xs mt-1">{gstinError}</p>
+              )}
             </div>
 
             <div>

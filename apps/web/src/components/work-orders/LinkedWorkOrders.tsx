@@ -27,7 +27,14 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
             field: 'wo_ref',
             headerName: 'WO Ref',
             flex: 1,
-            cellClass: 'font-mono text-indigo-500 font-bold'
+            cellRenderer: (p: ICellRendererParams) => (
+                <Link
+                    href={`/admin/work-orders/${p.data._id}`}
+                    className="font-mono text-indigo-500 font-bold hover:underline"
+                >
+                    {p.value}
+                </Link>
+            )
         },
         {
             field: 'status',

@@ -75,20 +75,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
     }, [accessToken, user, router, clearAuth, mounted, _hasHydrated, projectHydrated]);
 
-    // Derive breadcrumbs from pathname
     const breadcrumbItems = pathname
         .split('/')
         .filter(Boolean)
         .slice(1) // Skip 'admin'
-        .map((segment) => {
+        .map((segment, idx, arr) => {
             let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+
+            const { breadcrumbTitle } = useProjectStore.getState();
 
             // If segment is a MongoDB ID, try to use project name or shorten to ref
             if (activeProject && (segment === activeProject.project_id || segment === activeProject._id)) {
                 label = activeProject.project_name;
             } else if (segment.match(/^[0-9a-fA-F]{24}$/)) {
-                // Non-project ID (WO, PC, task, etc.) — show short ref
-                label = `#${segment.slice(-6).toUpperCase()}`;
+                // If it's the last segment and we have an override title, use it (BUG-049)
+                if (idx === arr.length - 1 && breadcrumbTitle) {
+                    label = breadcrumbTitle;
+                } else {
+                    // Non-project ID (WO, PC, task, etc.) — show short ref
+                    label = `#${segment.slice(-6).toUpperCase()}`;
+                }
             }
 
             return {

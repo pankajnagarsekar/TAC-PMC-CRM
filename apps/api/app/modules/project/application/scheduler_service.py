@@ -453,7 +453,7 @@ class SchedulerService:
         return results
 
     def _validate_tasks(self, tasks: List[Dict[str, Any]]) -> None:
-        """Core validation for task hierarchy and baseline constraints (BUG-014/015)."""
+        """Core validation for task hierarchy and baseline constraints (BUG-014/015/020/021)."""
         valid_task_ids = {str(t.get("task_id")) for t in tasks if t.get("task_id")}
         
         for t in tasks:
@@ -464,8 +464,14 @@ class SchedulerService:
             if pid and str(pid) not in valid_task_ids:
                 logger.error(f"SCHEDULER_VALIDATION_ERROR: Task {tid} references missing parent {pid}")
                 raise ValidationError(f"Task hierarchy violation: Parent '{pid}' for task '{tid}' not found.")
+            
+            # 2. Description/Name Check (BUG-020/021): Prevent tasks with empty names
+            # Support both 'task_name' (Scheduler) and 'task_description' (Tasks module)
+            name = t.get("task_name") or t.get("task_description")
+            if not name or not str(name).strip():
+                 raise ValidationError(f"Task name/description is required for task '{tid}'")
                 
-            # 2. Baseline Check: Modifications to locked tasks are strictly forbidden
+            # 3. Baseline Check: Modifications to locked tasks are strictly forbidden
             if t.get("baseline_locked"):
                 logger.warning(f"BASELINE_LOCK_VIOLATION: Attempted change to Task {tid}")
                 raise DataFreezeError(
