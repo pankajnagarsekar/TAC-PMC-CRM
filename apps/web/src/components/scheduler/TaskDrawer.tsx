@@ -18,6 +18,7 @@ import {
   buildTaskStatusTransition
 } from "./scheduler-utils";
 import { formatCurrencySafe } from "@/lib/formatters";
+import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 function FieldRow({
   label,
@@ -246,21 +247,19 @@ export default function TaskDrawer() {
               </FieldRow>
               <div className="grid grid-cols-2 gap-3">
                 <FieldRow label="Start">
-                  <input
-                    type="date"
+                  <StyledDateInput
                     value={selectedTask.scheduled_start?.split("T")[0] ?? ""}
-                    onChange={(event) => commit({ scheduled_start: event.target.value || null })}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ scheduled_start: event.target.value || null })}
                     disabled={readOnly}
-                    className={textInputClass()}
+                    hideIcon
                   />
                 </FieldRow>
                 <FieldRow label="Finish">
-                  <input
-                    type="date"
+                  <StyledDateInput
                     value={selectedTask.scheduled_finish?.split("T")[0] ?? ""}
-                    onChange={(event) => commit({ scheduled_finish: event.target.value || null })}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ scheduled_finish: event.target.value || null })}
                     disabled={readOnly}
-                    className={textInputClass()}
+                    hideIcon
                   />
                 </FieldRow>
               </div>
@@ -376,12 +375,12 @@ export default function TaskDrawer() {
                     </select>
                   </FieldRow>
                   <FieldRow label="Lag Delay (d)">
-                    <input
+                    <StyledDateInput
                       type="number"
                       value={dependencyLag}
-                      onChange={(event) => setDependencyLag(Number(event.target.value || 0))}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDependencyLag(Number(event.target.value || 0))}
                       disabled={readOnly}
-                      className={textInputClass()}
+                      hideIcon
                     />
                   </FieldRow>
                 </div>

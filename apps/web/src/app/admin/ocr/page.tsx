@@ -23,6 +23,7 @@ import { formatCurrency } from '@tac-pmc/ui';
 import { useRouter } from 'next/navigation';
 
 import NextImage from 'next/image';
+import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 interface OCRResult {
   ocr_id: string;
@@ -154,7 +155,7 @@ export default function OCRScannerPage() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <Scan className="text-orange-500" size={28} />
-            AI Document Scanner
+            AI OCR Scanner
           </h1>
           <p className="text-slate-500 text-sm mt-1">Upload an invoice or document to auto-extract details using GPT-4o Vision.</p>
         </div>
@@ -254,11 +255,11 @@ export default function OCRScannerPage() {
                   </div>
                   <div className="space-y-1">
                     <label className={labelStyle}><Calendar size={12} /> Document Date</label>
-                    <input
-                      type="date"
-                      className={inputStyle}
+                    <StyledDateInput
                       value={verifiedData.date}
-                      onChange={e => setVerifiedData({ ...verifiedData, date: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVerifiedData({ ...verifiedData, date: e.target.value })}
+                      className="bg-slate-900/50 border-slate-800"
+                      hideIcon
                     />
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import { Search, Calendar, Filter, ExternalLink } from "lucide-react";
 import { ColDef, ICellRendererParams } from "ag-grid-community";
+import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 interface DPR {
   _id: string;
@@ -185,20 +186,17 @@ export default function DPRTab() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-3 py-1.5 transition-colors">
-            <Calendar size={14} className="text-zinc-400 dark:text-slate-500" />
-            <input
-              type="date"
-              className="bg-transparent text-sm text-zinc-600 dark:text-slate-300 outline-none select-none cursor-pointer"
+          <div className="flex items-center gap-2">
+            <StyledDateInput
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
+              className="h-9 w-32"
             />
-            <span className="text-zinc-300 dark:text-slate-600">-</span>
-            <input
-              type="date"
-              className="bg-transparent text-sm text-zinc-600 dark:text-slate-300 outline-none select-none cursor-pointer"
+            <span className="text-zinc-300 dark:text-slate-600 font-bold">-</span>
+            <StyledDateInput
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
+              className="h-9 w-32"
             />
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
 import { ColDef, ICellRendererParams } from "ag-grid-community";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
+import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 interface AttendanceLog {
   _id: string;
@@ -226,20 +227,19 @@ export default function AttendanceTab() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 bg-zinc-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-zinc-200 dark:border-slate-800/50 transition-colors">
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-xl px-3 py-1.5 flex-1 max-w-sm transition-colors">
-          <Calendar size={14} className="text-zinc-400 dark:text-slate-500" />
-          <input
-            type="date"
-            className="bg-transparent text-sm text-zinc-600 dark:text-slate-300 outline-none w-full cursor-pointer"
+        <div className="flex items-center gap-3 flex-1 max-w-md">
+          <StyledDateInput
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
+            className="h-9"
+            containerClassName="flex-1"
           />
-          <span className="text-zinc-300 dark:text-slate-600">-</span>
-          <input
-            type="date"
-            className="bg-transparent text-sm text-zinc-600 dark:text-slate-300 outline-none w-full cursor-pointer"
+          <span className="text-zinc-300 dark:text-slate-600 font-bold">-</span>
+          <StyledDateInput
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
+            className="h-9"
+            containerClassName="flex-1"
           />
         </div>
 

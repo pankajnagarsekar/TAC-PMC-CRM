@@ -127,7 +127,7 @@ export default function CategoriesPage() {
               <button
                 onClick={() => handleDelete(data)}
                 className="p-2 hover:bg-red-50 dark:hover:bg-red-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                title="Delete Category"
+                title="Deactivate Category"
               >
                 <Trash2 size={16} />
               </button>
@@ -353,7 +353,7 @@ export default function CategoriesPage() {
             <DialogHeader>
               <DialogTitle className="text-lg flex items-center gap-2">
                 <Trash2 className="text-red-500" />
-                Delete Category
+                Deactivate Category
               </DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-4">
@@ -381,7 +381,7 @@ export default function CategoriesPage() {
                 onClick={confirmDelete}
                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all"
               >
-                Deactivate
+                Deactivate Category
               </button>
             </DialogFooter>
           </DialogContent>

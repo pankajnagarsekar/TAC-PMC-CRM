@@ -82,6 +82,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .map((segment, idx, arr) => {
             let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
 
+            if (segment === 'ocr') label = 'AI OCR Scanner';
+
             const { breadcrumbTitle } = useProjectStore.getState();
 
             // If segment is a MongoDB ID, try to use project name or shorten to ref

@@ -7,8 +7,8 @@ import api from "@/lib/api";
 import { useProjectStore } from "@/store/projectStore";
 import AssigneeComboBox from "@/components/tasks/AssigneeComboBox";
 import { useToast } from "@/hooks/use-toast";
-
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -138,14 +138,14 @@ export default function NewTaskPage() {
               <label className="block text-sm font-medium text-slate-400 mb-1">
                 Deadline
               </label>
-              <input
-                type="date"
+              <StyledDateInput
                 value={formData.deadline}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   setIsDirty(true);
                   setFormData({ ...formData, deadline: e.target.value });
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                className="bg-slate-800 border-slate-700"
+                hideIcon
               />
               {formData.deadline && new Date(formData.deadline) < new Date(new Date().toDateString()) && (
                 <p className="mt-1 text-xs text-amber-400">Warning: deadline is in the past</p>

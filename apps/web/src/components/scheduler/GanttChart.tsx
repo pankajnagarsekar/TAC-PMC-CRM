@@ -93,11 +93,11 @@ const Bar = memo(function Bar({
             <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-slate-900 dark:text-white">
               {task.task_name}
             </p>
-            <p className="text-[9px] text-slate-600 dark:text-white/50">
+            <p className="text-[9px] text-slate-600 dark:text-slate-400">
               {formatTaskDurationLabel(task)}
             </p>
           </div>
-          <div className="flex items-center gap-1 text-slate-500 dark:text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
@@ -414,15 +414,15 @@ export default function GanttChart() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-200">
             Store-Driven Gantt Canvas
           </h3>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-600">
             Drag bars to update the schedule, then the store debounces the API write
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
           <span className="rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-1">
             {tasks.length.toLocaleString("en-US")} visible tasks
           </span>
@@ -434,7 +434,7 @@ export default function GanttChart() {
           <div className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] p-0.5">
             <button
               type="button"
-              className={`rounded-full px-2 py-0.5 transition-colors ${showBaseline ? "bg-slate-200 dark:bg-white/[0.08] text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"}`}
+              className={`rounded-full px-2 py-0.5 transition-colors ${showBaseline ? "bg-slate-200 dark:bg-white/[0.08] text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
               aria-pressed={showBaseline}
               onClick={handleBaselineToggle}
               title="Toggle baseline overlay"
@@ -457,7 +457,7 @@ export default function GanttChart() {
           </div>
           <button
             type="button"
-            className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/50 bg-rose-500/10 text-rose-700 dark:text-rose-200" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05]"}`}
+            className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/50 bg-rose-500/10 text-rose-700 dark:text-rose-200" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05]"}`}
             aria-pressed={highlightCritical}
             onClick={() => setHighlightCritical((value) => !value)}
             title="Toggle critical path highlighting"
@@ -479,7 +479,7 @@ export default function GanttChart() {
       <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto overflow-y-hidden rounded-b-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
         <div style={{ minWidth: 280 + timelineWidth }}>
           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-40">
-            <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+            <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300">
               Task Stream
             </div>
             <div className="relative" style={{ width: timelineWidth }}>
@@ -506,7 +506,7 @@ export default function GanttChart() {
                     return (
                       <div
                         key={index}
-                        className={`flex h-10 items-center justify-center border-r border-slate-200 dark:border-white/5 px-2 text-[10px] font-black tracking-tight ${isWeekend ? 'text-rose-500/60 dark:text-rose-400/40 bg-slate-50 dark:bg-white/[0.01]' : 'text-slate-600 dark:text-slate-300'}`}
+                        className={`flex h-10 items-center justify-center border-r border-slate-200 dark:border-white/5 px-2 text-[10px] font-black tracking-tight ${isWeekend ? 'text-rose-500/60 dark:text-rose-400/40 bg-slate-50 dark:bg-white/[0.01]' : 'text-slate-700 dark:text-slate-300'}`}
                         style={{ width: TIMELINE_DAY_WIDTH }}
                       >
                         {format(day, "dd")}
@@ -568,7 +568,7 @@ export default function GanttChart() {
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-slate-900 dark:text-white leading-tight">{task.task_name}</p>
                         <div className="flex items-center gap-2">
-                          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-bold">
+                          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600 font-bold">
                             {task.wbs_code || task.task_id}
                           </p>
                           {showBaseline && variance !== 0 && (
@@ -622,7 +622,7 @@ export default function GanttChart() {
         </div>
       </div>
 
-      <p className="px-2 pt-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+      <p className="px-2 pt-2 text-[10px] uppercase tracking-[0.16em] text-slate-600">
         Dragging is optimistic. The bar updates locally first, then the store debounces the recalculation request by 300ms.
       </p>
     </div>

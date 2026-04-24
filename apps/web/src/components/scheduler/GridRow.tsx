@@ -99,7 +99,7 @@ const GridRow = memo(function GridRow({
         {task.is_summary ? (
           <button
             type="button"
-            className="rounded p-0.5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:text-white/50 dark:hover:text-white transition-colors"
+            className="rounded p-0.5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onToggleCollapse(task.task_id);
@@ -125,7 +125,7 @@ const GridRow = memo(function GridRow({
 
       <div className="flex items-center px-3 border-r border-slate-200 dark:border-white/5">
         {readOnly ? (
-          <span className="text-slate-600 dark:text-slate-300">{task.task_mode ?? "Auto"}</span>
+          <span className="text-slate-700 dark:text-slate-300">{task.task_mode ?? "Auto"}</span>
         ) : (
           <select
             value={task.task_mode ?? "Auto"}
@@ -210,7 +210,7 @@ const GridRow = memo(function GridRow({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-xl text-slate-500 hover:text-slate-900 dark:text-white/70 dark:hover:text-white"
+              className="h-9 w-9 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect(task.task_id);
@@ -223,7 +223,7 @@ const GridRow = memo(function GridRow({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-xl text-slate-500 hover:text-rose-600 dark:text-white/70 dark:hover:text-rose-300"
+              className="h-9 w-9 rounded-xl text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-300"
               onClick={(event) => {
                 event.stopPropagation();
                 onRemove(task.task_id);

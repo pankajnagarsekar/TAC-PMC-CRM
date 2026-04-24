@@ -165,8 +165,10 @@ export default function FinancialGrid<T>({
       singleClickEdit: false, // Double-click to edit
       sortable: true,
       filter: false,
-      wrapHeaderText: true,
-      autoHeaderHeight: true,
+      minWidth: 100,
+      wrapHeaderText: false,
+      autoHeaderHeight: false,
+      headerClass: 'whitespace-nowrap',
       cellStyle: {
         fontSize: "13px",
         lineHeight: "1.5",

@@ -44,6 +44,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     role: "Supervisor",
     dpr_generation_permission: false,
     assigned_projects: [] as string[],
@@ -62,6 +63,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
         role: "Supervisor",
         dpr_generation_permission: false,
         assigned_projects: [] as string[],
@@ -94,6 +96,10 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
       setError("Password must be at least 8 characters");
       return;
     }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     if (isClient && formData.useExistingClient && !formData.selectedClientId) {
       setError("Please select a client from the list");
       return;
@@ -117,7 +123,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
 
       toast({
         title: "Success",
-        description: `User &quot;${formData.name}&quot; created successfully`,
+        description: `User "${formData.name}" created successfully`,
         variant: "default"
       });
 
@@ -126,6 +132,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
         role: "Supervisor",
         dpr_generation_permission: false,
         assigned_projects: [],
@@ -146,7 +153,7 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
         message = detail;
       } else if (Array.isArray(detail)) {
         // Handle FastAPI validation error list
-        message = detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(", ");
+        message = detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(", ");
       } else if (typeof detail === "object" && detail !== null) {
         message = JSON.stringify(detail);
       }
@@ -188,14 +195,16 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
         ...formData,
         selectedClientId: clientId,
         name: selectedClient.client_name || "",
-        email: selectedClient.client_email || ""
+        email: selectedClient.client_email || "",
+        confirmPassword: ""
       });
     } else {
       setFormData({
         ...formData,
         selectedClientId: null,
         name: "",
-        email: ""
+        email: "",
+        confirmPassword: ""
       });
     }
   };
@@ -242,7 +251,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
                   useExistingClient: false,
                   selectedClientId: null,
                   name: "",
-                  email: ""
+                  email: "",
+                  confirmPassword: ""
                 });
               }}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
@@ -273,7 +283,9 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
                       useExistingClient: false,
                       selectedClientId: null,
                       name: "",
-                      email: ""
+                      email: "",
+                      password: "",
+                      confirmPassword: ""
                     })}
                     className="w-4 h-4 rounded border-slate-600 bg-slate-900"
                   />
@@ -292,7 +304,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
                       useExistingClient: true,
                       name: "",
                       email: "",
-                      password: ""
+                      password: "",
+                      confirmPassword: ""
                     })}
                     disabled={hasNoClients}
                     className="w-4 h-4 rounded border-slate-600 bg-slate-900 disabled:opacity-50"
@@ -338,7 +351,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
               value={formData.name}
               onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, name: e.target.value })}
               disabled={formData.useExistingClient}
-              placeholder="John Smith"
+              placeholder="Enter user's name"
+              autoComplete="off"
               className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
             />
@@ -354,7 +368,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
               value={formData.email}
               onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, email: e.target.value })}
               disabled={formData.useExistingClient}
-              placeholder="john@example.com"
+              placeholder="Enter email address"
+              autoComplete="off"
               className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors ${formData.useExistingClient ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
             />
@@ -369,7 +384,23 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="••••••••"
+              placeholder="Enter password"
+              autoComplete="new-password"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
+            />
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase mb-2 tracking-wider">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              placeholder="Re-enter password"
+              autoComplete="new-password"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors"
             />
           </div>

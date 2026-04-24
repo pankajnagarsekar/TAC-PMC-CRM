@@ -548,6 +548,10 @@ div[data-radix-focus-guard]+div {
   padding-right: 24px !important;
 }
 
+.ag-header-cell-no-wrap .ag-header-cell-text {
+  white-space: nowrap !important;
+}
+
 .ag-theme-quartz-dark .ag-cell-inline-editing,
 .ag-theme-quartz .ag-cell-inline-editing {
   border: 1.5px solid #f97316 !important;

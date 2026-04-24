@@ -102,15 +102,15 @@ export default function SchedulerGrid() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-200">
             Master Scheduler Grid
           </h3>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-600">
             Virtualized task table with WBS hierarchy
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
           {pendingCalculation ? (
             <div className="flex items-center gap-2 text-amber-500 animate-pulse">
               <Activity size={12} className="animate-spin" />
@@ -122,7 +122,7 @@ export default function SchedulerGrid() {
               Synced
             </div>
           )}
-          <span className="rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-0.5 text-slate-600 dark:text-white/70 font-bold">
+          <span className="rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-2 py-0.5 text-slate-700 dark:text-slate-200 font-bold">
             {filteredTasks.length.toLocaleString("en-US")} / {tasks.length.toLocaleString("en-US")} tasks
           </span>
           <button

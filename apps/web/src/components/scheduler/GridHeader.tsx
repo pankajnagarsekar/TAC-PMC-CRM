@@ -5,7 +5,7 @@ type GridHeaderProps = {
 export default function GridHeader({ columnTemplate }: GridHeaderProps) {
   return (
     <div
-      className="sticky top-0 z-30 grid border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 shadow-sm"
+      className="sticky top-0 z-30 grid border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md text-[10px] font-black uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300 shadow-sm"
       style={{ gridTemplateColumns: columnTemplate }}
     >
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">WBS Code</div>

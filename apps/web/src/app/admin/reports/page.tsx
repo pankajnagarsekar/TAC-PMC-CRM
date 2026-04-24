@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import { ColDef } from "ag-grid-community";
+import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 type ReportType =
   | "project_summary"
@@ -408,20 +409,19 @@ export default function ReportsPage() {
           {/* Date range */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Temporal Filter</label>
-            <div className="flex items-center gap-3 bg-slate-950 border border-white/5 rounded-2xl px-4 py-2 shadow-inner">
-              <Calendar size={16} className="text-slate-600 pointer-events-none" />
-              <input
-                type="date"
+            <div className="flex items-center gap-3 bg-slate-950 border border-white/5 rounded-2xl p-1 shadow-inner">
+              <StyledDateInput
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-xs text-white outline-none py-2 relative z-10 cursor-pointer"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
+                className="bg-transparent border-none focus:border-none focus:ring-0"
+                containerClassName="flex-1"
               />
-              <div className="w-4 h-px bg-white/5" />
-              <input
-                type="date"
+              <div className="w-px h-6 bg-white/10" />
+              <StyledDateInput
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-xs text-white outline-none py-2 relative z-10 cursor-pointer"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
+                className="bg-transparent border-none focus:border-none focus:ring-0"
+                containerClassName="flex-1"
               />
             </div>
           </div>

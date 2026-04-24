@@ -74,12 +74,12 @@ export default function KanbanBoard() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 px-2">
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/45">Kanban Board</h3>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-200">Kanban Board</h3>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-600">
             Status transitions respect the scheduler state machine
           </p>
         </div>
-        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
           {tasks.length.toLocaleString("en-US")} tasks
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function KanbanBoard() {
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
                   <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-900 dark:text-white">{meta.label}</h4>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-white/55">{meta.description}</p>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-600 dark:text-slate-400">{meta.description}</p>
                 </div>
                 <span className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-[10px] font-black text-slate-700 dark:text-white/80">
                   {columnTasks.length}
