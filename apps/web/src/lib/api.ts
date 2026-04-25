@@ -253,11 +253,14 @@ export const schedulerApi = {
   getCashFlow: (projectId: string) =>
     api.post(`/api/v1/projects/${projectId}/report/cash-flow`).then(res => res.data),
 
-  lockBaseline: (projectId: string, label: string, idempotencyKey: string) =>
-    api.post(`/api/v1/projects/${projectId}/baseline/lock`, { project_id: projectId, label, idempotency_key: idempotencyKey }).then(res => res.data),
+  lockBaseline: (projectId: string) =>
+    api.post(`/api/v1/projects/${projectId}/baseline/lock`).then(res => res.data),
 
   compareBaselines: (projectId: string, baselineA: number, baselineB?: number) =>
     api.get(`/api/v1/projects/${projectId}/baseline/compare`, { params: { baseline_a: baselineA, baseline_b: baselineB } }).then(res => res.data),
+
+  unlockBaseline: (projectId: string) =>
+    api.post(`/api/v1/projects/${projectId}/baseline/unlock`).then(res => res.data),
 
   migrateLegacyData: (projectId: string, dryRun: boolean = true) =>
     api.post(`/api/v1/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),

@@ -248,7 +248,13 @@ export default function NewWorkOrderPage() {
         );
       });
 
-      const responseBody = response as unknown as { data: WorkOrder, _warning?: string };
+      if (!response) {
+        setFieldErrors({ general: "Request is already in progress or failed to secure transaction lock." });
+        setIsSaving(false);
+        return;
+      }
+
+      const responseBody = response as unknown as { data: WorkOrder; _warning?: string };
       const createdItem = responseBody.data;
 
       if (responseBody?._warning === "over_budget") {
@@ -451,9 +457,10 @@ export default function NewWorkOrderPage() {
                   type="number"
                   value={formData.discount || ""}
                   onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
                     setFormData({
                       ...formData,
-                      discount: parseFloat(e.target.value) || 0,
+                      discount: Math.min(val, subtotal),
                     });
                     setIsDirty(true);
                   }}

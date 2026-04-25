@@ -161,7 +161,7 @@ export default function LoginPage() {
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] opacity-50">Enterprise Access Terminal</p>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-10 relative z-10">
+              <form onSubmit={handleLogin} className="space-y-10 relative z-10" autoComplete="off">
                 <div className="space-y-3">
                   <label className="block text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] ml-2">Identity</label>
                   <div className="relative group/input">

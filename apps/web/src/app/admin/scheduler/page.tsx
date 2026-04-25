@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, Suspense } from "react";
-import { AlertTriangle, FileDown, Info, Plus, Upload, CalendarDays, Database, Grid3X3, GanttChart as GanttIcon, ListTodo, Landmark, TrendingUp } from "lucide-react";
+import { AlertTriangle, FileDown, Info, Plus, Upload, CalendarDays, Database, Grid3X3, GanttChart as GanttIcon, ListTodo, Landmark, TrendingUp, CheckSquare } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { useAuthStore } from "@/store/authStore";
 import { schedulerApi, fetcher } from "@/lib/api";
 import useSWR from "swr";
 import { DerivedFinancialState } from "@/types/api";
+import { ScheduleTask } from "@/types/schedule.types";
 import SchedulerGrid from "@/components/scheduler/SchedulerGrid";
 import GanttChart from "@/components/scheduler/GanttChart";
 import KanbanBoard from "@/components/scheduler/KanbanBoard";
@@ -20,6 +21,8 @@ import FinancialChart from "@/components/ui/FinancialChart";
 import { Button } from "@/components/ui/button";
 import SCurveChart from "@/components/scheduler/SCurveChart";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function ProjectSchedulerPage() {
   return (
@@ -41,9 +44,14 @@ function ProjectSchedulerContent() {
   const createDraftTask = useScheduleStore((state) => state.createDraftTask);
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
   const calculationError = useScheduleStore((state) => state.calculationError);
+  const taskMap = useScheduleStore((state) => state.taskMap);
   const taskCount = useScheduleStore((state) => Object.keys(state.taskMap).length);
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState(currentTab);
+  const [showMigrateConfirm, setShowMigrateConfirm] = useState(false);
+
+  const hasPendingChanges = useScheduleStore((state) => state.pendingCalculation);
+  useUnsavedChanges(hasPendingChanges);
 
   // Sync local tab state with URL
   useEffect(() => {
@@ -88,6 +96,7 @@ function ProjectSchedulerContent() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value); // Optimistic immediate update
+    useScheduleStore.setState({ calculationError: null, selectedTasks: new Set() }); // PP-002 + PP-013
     const params = new URLSearchParams(searchParams);
     params.set("tab", value);
     router.replace(`?${params.toString()}`);
@@ -95,8 +104,20 @@ function ProjectSchedulerContent() {
 
   const handleAddTask = () => {
     if (!activeProject) return;
+    const taskName = window.prompt("Enter task name (required):");
+    if (!taskName?.trim()) {
+      toast.error("Task name is required.");
+      return;
+    }
     const newTask = createDraftTask(activeProject.project_id);
-    toast.success(`Task ${newTask.task_id} created as draft.`);
+    useScheduleStore.getState().queueCalculation({
+      task_id: newTask.task_id,
+      project_id: activeProject.project_id,
+      version: newTask.version ?? 1,
+      changes: { task_name: taskName.trim() },
+      trigger_source: "add_task_dialog",
+    });
+    toast.success(`Task "${taskName.trim()}" created.`);
   };
 
   const handleImportSchedule = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +147,10 @@ function ProjectSchedulerContent() {
     try {
       const response = await schedulerApi.exportGanttPdf(activeProject.project_id);
       const blob = response.data;
+      if (!blob || blob.size === 0) {
+        toast.error("Export produced an empty file. Ensure WeasyPrint is installed on the server.");
+        return;
+      }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -191,8 +216,25 @@ function ProjectSchedulerContent() {
           </div>
         </div>
 
+        {/* Reciprocal Banner for Task Log */}
+        <div className="hidden xl:flex items-center gap-3 px-4 py-2 bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 rounded-xl backdrop-blur-sm shadow-sm animate-in slide-in-from-left duration-700">
+          <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+            <CheckSquare size={12} />
+          </div>
+          <p className="text-[11px] font-semibold text-slate-900 dark:text-orange-300 leading-tight">
+            Operational punch-lists and action items are tracked in the
+            <button
+              onClick={() => router.push(`/admin/tasks?project_id=${activeProject.project_id || (activeProject as any)._id}`)}
+              className="mx-1 px-1.5 py-0.5 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-700 dark:text-orange-200 underline decoration-orange-500/30 underline-offset-2 transition-all"
+            >
+              Task Log
+            </button>
+            for field coordination.
+          </p>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-950/40 p-1 shadow-inner backdrop-blur-md">
+          <div className="flex rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-950/40 p-1 shadow-inner backdrop-blur-md sticky top-0 z-30 py-3">
             {[
               { value: "grid", label: "Grid", icon: Grid3X3 },
               { value: "gantt", label: "Gantt", icon: GanttIcon },
@@ -313,11 +355,36 @@ function ProjectSchedulerContent() {
                     <h3 className="text-zinc-500 uppercase tracking-widest text-[10px] font-bold px-4">Financial Status — Planned vs Actuals per Category</h3>
                     <FinancialChart
                       title=""
-                      data={financials?.map((f: DerivedFinancialState) => ({
-                        name: f.category_name || f.category_code || 'N/A',
-                        budget: f.original_budget,
-                        committed: f.committed_value
-                      })) || []}
+                      data={(() => {
+                        // PP-018: Derive category distribution from taskMap for better granularity
+                        const categoriesMap = Object.values(taskMap).reduce((acc: Record<string, any>, task: ScheduleTask) => {
+                          // Map WBS first segment to readable names
+                          const code = task.wbs_code?.split('.')[0] || 'Misc';
+                          const name = code === 'C' ? 'Construction' :
+                            code === 'P' ? 'Procurement' :
+                              code === 'D' ? 'Design/Engineering' :
+                                code === 'S' ? 'Site Ops' :
+                                  code === 'I' ? 'Interiors' : code;
+
+                          if (!acc[name]) acc[name] = { name, budget: 0, committed: 0 };
+                          acc[name].budget += Number(task.baseline_cost ?? 0);
+                          acc[name].committed += Number(task.wo_value ?? 0);
+                          return acc;
+                        }, {});
+
+                        const derived = Object.values(categoriesMap);
+
+                        // Fallback to API financials if derived is empty or less descriptive
+                        if (derived.length <= 1 && financials && financials.length > 0) {
+                          return financials.map((f: DerivedFinancialState) => ({
+                            name: f.category_name || f.category_code || 'N/A',
+                            budget: f.original_budget,
+                            committed: f.committed_value
+                          }));
+                        }
+
+                        return derived;
+                      })()}
                       dataKeys={[
                         { key: 'budget', color: '#775a19', label: 'Planned' },
                         { key: 'committed', color: '#505f7a', label: 'Actual' }
@@ -382,7 +449,7 @@ function ProjectSchedulerContent() {
                           <p className="text-zinc-500 text-xs mt-1">Bridge data from the legacy ERP payment schedule modules into this new unified planner.</p>
                         </div>
                         <button
-                          onClick={handleMigrate}
+                          onClick={() => setShowMigrateConfirm(true)}
                           disabled={migrating || taskCount > 0}
                           className="rounded-xl border border-amber-500/40 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10 font-bold uppercase tracking-widest h-12 px-8"
                         >
@@ -397,6 +464,19 @@ function ProjectSchedulerContent() {
           </div>
         </Tabs.Root>
       )}
+
+      <ConfirmDialog
+        isOpen={showMigrateConfirm}
+        onClose={() => setShowMigrateConfirm(false)}
+        title="Migrate Legacy Data?"
+        description="This will pull all payment schedule data from the legacy ERP module into this project's planner. This action cannot be undone if you commit the changes. Proceed?"
+        onConfirm={() => {
+          setShowMigrateConfirm(false);
+          handleMigrate();
+        }}
+        confirmText="Migrate Data"
+        variant="warning"
+      />
     </div>
   );
 }

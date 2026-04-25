@@ -41,11 +41,12 @@ interface CustomTooltipProps {
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="rounded-lg px-3 py-2 shadow-xl bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700">
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">{label}</p>
+    <div className="rounded-lg px-4 py-3 shadow-2xl bg-white dark:bg-slate-900 border border-zinc-200 dark:border-slate-800 min-w-[200px] max-w-[320px]">
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 font-bold uppercase tracking-wider whitespace-normal leading-relaxed">{label}</p>
       {payload.map((p, i) => (
-        <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
-          {p.name}: {typeof p.value === 'number' ? formatCurrencySafe(p.value) : p.value}
+        <p key={i} className="text-sm font-semibold flex justify-between gap-4" style={{ color: p.color }}>
+          <span className="opacity-70 font-black">{p.name}:</span>
+          <span>{typeof p.value === 'number' ? formatCurrencySafe(p.value) : p.value}</span>
         </p>
       ))}
     </div>
@@ -79,12 +80,13 @@ export default function FinancialChart({
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
               <XAxis
                 dataKey="name"
-                tick={{ fill: textColor, fontSize: 9 }}
+                tick={{ fill: textColor, fontSize: 9, fontWeight: 700 }}
                 axisLine={{ stroke: gridColor }}
                 angle={-45}
                 textAnchor="end"
-                height={80}
+                height={110}
                 interval={0}
+                padding={{ left: 20, right: 20 }}
               />
               <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
               <Tooltip content={<CustomTooltip />} />
@@ -102,12 +104,13 @@ export default function FinancialChart({
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
               <XAxis
                 dataKey="name"
-                tick={{ fill: textColor, fontSize: 9 }}
+                tick={{ fill: textColor, fontSize: 9, fontWeight: 700 }}
                 axisLine={{ stroke: gridColor }}
                 angle={-45}
                 textAnchor="end"
-                height={80}
+                height={110}
                 interval={0}
+                padding={{ left: 20, right: 20 }}
               />
               <YAxis tick={{ fill: textColor, fontSize: 11 }} tickFormatter={yTickFormatter} axisLine={{ stroke: gridColor }} />
               <Tooltip content={<CustomTooltip />} />

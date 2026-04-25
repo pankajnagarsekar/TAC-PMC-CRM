@@ -18,9 +18,17 @@ export function useUnsavedChanges(isDirty: boolean) {
             }
         };
 
+        const handlePopState = () => {
+            if (isDirty && !window.confirm("You have unsaved changes. Leave anyway?")) {
+                window.history.pushState(null, "", window.location.href);
+            }
+        };
+
         window.addEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("popstate", handlePopState);
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
+            window.removeEventListener("popstate", handlePopState);
         };
     }, [isDirty]);
 }

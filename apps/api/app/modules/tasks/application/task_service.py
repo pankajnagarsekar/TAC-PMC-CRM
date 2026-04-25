@@ -96,6 +96,19 @@ class TaskService:
             data.project_id
         )
 
+        # Central Audit Logging (Phase 7 Hardening)
+        if self.audit:
+            await self.audit.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="TASKS",
+                entity_type="TASK",
+                entity_id=str(task["_id"]),
+                action_type="CREATE",
+                user_id=user["user_id"],
+                project_id=data.project_id,
+                new_value=task,
+            )
+
         return task
 
     async def get_task(self, user: dict, task_id: str) -> Dict[str, Any]:
@@ -173,6 +186,20 @@ class TaskService:
             task["project_id"]
         )
 
+        # Central Audit Logging (Phase 7 Hardening)
+        if self.audit:
+            await self.audit.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="TASKS",
+                entity_type="TASK",
+                entity_id=task_id,
+                action_type="UPDATE_STATUS",
+                user_id=user["user_id"],
+                project_id=task["project_id"],
+                new_value={"status": new_status},
+                old_value={"status": current_status},
+            )
+
         return await self.repo.get_by_id(task_id)
 
     async def update_task_details(self, user: dict, task_id: str, data: TaskUpdate) -> Dict[str, Any]:
@@ -230,6 +257,19 @@ class TaskService:
             user["organisation_id"],
             task["project_id"]
         )
+
+        # Central Audit Logging (Phase 7 Hardening)
+        if self.audit:
+            await self.audit.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="TASKS",
+                entity_type="TASK",
+                entity_id=task_id,
+                action_type="UPDATE_DETAILS",
+                user_id=user["user_id"],
+                project_id=task["project_id"],
+                new_value=update_dict,
+            )
 
         return await self.repo.get_by_id(task_id)
 

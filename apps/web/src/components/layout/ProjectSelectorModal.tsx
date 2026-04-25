@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
 import useSWR from 'swr';
@@ -42,9 +42,17 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
     // Removed window.location.reload() to preserve SPA experience.
     onClose();
   }
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
       <div className="w-full max-w-lg mx-4 rounded-2xl overflow-hidden"
         style={{ background: '#1e293b', border: '1px solid #334155' }}>
@@ -60,12 +68,11 @@ export default function ProjectSelectorModal({ onClose }: ProjectSelectorModalPr
               <p className="text-slate-500 text-xs">Project context is required to continue</p>
             </div>
           </div>
-          {activeProject && (
-            <button onClick={onClose}
-              className="text-slate-500 hover:text-slate-300 transition-colors">
-              <X size={18} />
-            </button>
-          )}
+          <button onClick={onClose}
+            className="text-slate-500 hover:text-slate-300 transition-colors p-2 rounded-lg hover:bg-white/5"
+            title="Close (Esc)">
+            <X size={18} />
+          </button>
         </div>
 
         {/* Search */}

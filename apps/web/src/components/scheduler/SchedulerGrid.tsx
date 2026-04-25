@@ -140,8 +140,10 @@ export default function SchedulerGrid() {
                   0
                 );
                 toast.success("Schedule committed to database.");
-              } catch {
-                toast.error("Failed to commit schedule.");
+              } catch (err: unknown) {
+                const axiosErr = err as { response?: { data?: { detail?: string } } };
+                const detail = axiosErr?.response?.data?.detail;
+                toast.error(detail || "Commit failed — check tasks for missing titles or dates.");
               }
             }}
             className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"

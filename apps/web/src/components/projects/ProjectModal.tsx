@@ -11,7 +11,7 @@ import {
 } from "@tac-pmc/ui";
 import { fetcher } from "@/lib/api";
 import axios from "@/lib/api";
-import { Project, Client, CodeMaster } from "@/types/api";
+import { Project, Client, CodeMaster, GlobalSettings } from "@/types/api";
 import {
   Layout,
   Hash,
@@ -40,6 +40,7 @@ export default function ProjectModal({
 }: ProjectModalProps) {
   const { data: clients } = useSWR<Client[]>("/api/v1/clients/", fetcher);
   const { data: codes } = useSWR<CodeMaster[]>("/api/v1/settings/codes", fetcher);
+  const { data: globalSettings } = useSWR<GlobalSettings>("/api/v1/settings/global", fetcher);
 
   const [formData, setFormData] = useState({
     project_name: "",
@@ -99,16 +100,16 @@ export default function ProjectModal({
         address: "",
         city: "",
         state: "",
-        project_retention_percentage: 0,
-        project_cgst_percentage: 9,
-        project_sgst_percentage: 9,
+        project_retention_percentage: globalSettings?.retention_percentage ?? 5,
+        project_cgst_percentage: globalSettings?.cgst_percentage ?? 9,
+        project_sgst_percentage: globalSettings?.sgst_percentage ?? 9,
         completion_percentage: 0,
         threshold_petty: 0,
         threshold_ovh: 0,
       });
       setBudgets({});
     }
-  }, [project, isOpen]);
+  }, [project, isOpen, globalSettings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,11 +118,19 @@ export default function ProjectModal({
 
     try {
       let projectId = project?._id;
+      const finalFormData = { ...formData };
+
+      // BR5-033: Auto-generate project code if empty or NO-CODE
+      if (!finalFormData.project_code || finalFormData.project_code === "NO-CODE" || finalFormData.project_code.trim() === "") {
+        const prefix = finalFormData.project_name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, "P");
+        const random = Math.floor(100 + Math.random() * 900);
+        finalFormData.project_code = `${prefix}-${random}`;
+      }
 
       if (project) {
-        await axios.put(`/api/v1/projects/${project._id}`, formData);
+        await axios.put(`/api/v1/projects/${project._id}`, finalFormData);
       } else {
-        const res = await axios.post("/api/v1/projects/", formData);
+        const res = await axios.post("/api/v1/projects/", finalFormData);
         projectId = res.data._id;
       }
 

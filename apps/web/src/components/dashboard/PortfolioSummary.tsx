@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
     Tooltip,
     ResponsiveContainer,
@@ -29,8 +30,9 @@ interface PortfolioData {
     };
     critical_milestones: Array<{
         project_id: string;
+        project_name?: string;
         task_name: string;
-        finish_date: string;
+        deadline: string;
         is_critical: boolean;
     }>;
 }
@@ -145,9 +147,24 @@ export const PortfolioSummary: React.FC<{ data: PortfolioData }> = ({ data }) =>
                             <tbody className="divide-y divide-slate-800">
                                 {data.critical_milestones.map((m, i) => (
                                     <tr key={i} className="hover:bg-slate-800/50 transition-colors group">
-                                        <td className="py-4 px-2 text-sm text-slate-400 font-mono">{m.project_id.toString().slice(-6)}</td>
-                                        <td className="py-4 px-2 text-sm text-slate-200 font-medium">{m.task_name}</td>
-                                        <td className="py-4 px-2 text-sm text-slate-400 text-right">{m.finish_date}</td>
+                                        <td className="py-4 px-2 text-sm text-slate-400 font-mono">
+                                            <Link
+                                                href={`/admin/projects/${m.project_id}`}
+                                                className="hover:text-primary transition-colors hover:underline"
+                                                title={m.project_name || "View Project"}
+                                            >
+                                                {m.project_id.toString().slice(-6)}
+                                            </Link>
+                                        </td>
+                                        <td className="py-4 px-2 text-sm text-slate-200 font-medium">
+                                            <div className="flex flex-col">
+                                                <span>{m.task_name}</span>
+                                                {m.project_name && (
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">{m.project_name}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-2 text-sm text-slate-400 text-right">{m.deadline}</td>
                                         <td className="py-4 px-2 text-right">
                                             {m.is_critical ? (
                                                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">

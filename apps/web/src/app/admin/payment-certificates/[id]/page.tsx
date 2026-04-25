@@ -24,6 +24,7 @@ import {
 import { ColDef } from "ag-grid-community";
 
 import api, { fetcher } from "@/lib/api";
+import { useRequestLock } from "@/lib/requestLock";
 import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
@@ -73,11 +74,24 @@ export default function PaymentCertificateDetail({
 
   const workOrders: WorkOrder[] = woResponse?.items || [];
 
+  const { executeWithLock: executePcCloseWithLock } = useRequestLock({
+    operationId: "PC_CLOSE",
+    timeoutMs: 30000,
+  });
+
   const handleClose = async () => {
     try {
       setIsClosing(true);
       setError(null);
-      const response = await api.post(`/api/v1/payments/${id}/close`);
+
+      const response = await executePcCloseWithLock(async () => {
+        return await api.post(`/api/v1/payments/${id}/close?expected_version=${pc?.version || 0}`);
+      });
+
+      if (!response) {
+        setError("Close request already in progress.");
+        return;
+      }
 
       if (response.data.financial_summary) {
         setCloseSuccessSummary(response.data.financial_summary);
@@ -85,7 +99,7 @@ export default function PaymentCertificateDetail({
 
       await mutate();
     } catch (err: unknown) {
-      const axiosError = err as any; // Cast for now until better error type identified matching project patterns
+      const axiosError = err as any;
       if (axiosError.response?.status === 409) {
         setIsConflictOpen(true);
       } else {

@@ -479,7 +479,7 @@ export default function GanttChart() {
       <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto overflow-y-hidden rounded-b-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
         <div style={{ minWidth: 280 + timelineWidth }}>
           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-40">
-            <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300">
+            <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300 sticky left-0 z-50 bg-white dark:bg-slate-900">
               Task Stream
             </div>
             <div className="relative" style={{ width: timelineWidth }}>
@@ -561,7 +561,7 @@ export default function GanttChart() {
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => handleSelect(task.task_id)}
                   >
-                    <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-slate-200 dark:border-white/5 px-4">
+                    <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-slate-200 dark:border-white/5 px-4 sticky left-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-[4px_0_8px_rgba(0,0,0,0.05)]">
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${emphasizeCritical ? "bg-rose-500 dark:bg-rose-400" : "bg-sky-500 dark:bg-sky-400"}`}
                       />

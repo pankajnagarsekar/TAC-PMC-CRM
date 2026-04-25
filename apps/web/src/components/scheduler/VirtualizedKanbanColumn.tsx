@@ -36,7 +36,7 @@ export function VirtualizedKanbanColumn({
             style={{
                 height: 'calc(100vh - 320px)',
                 minHeight: '400px',
-                contain: 'strict'
+                contain: 'layout style'
             }}
         >
             <div style={{ height: topSpacer }} />
@@ -81,7 +81,7 @@ export function VirtualizedKanbanColumn({
                     </article>
                 );
             })}
-            <div style={{ height: bottomSpacer }} />
+            <div style={{ height: Math.max(0, bottomSpacer) }} />
         </div>
     );
 }

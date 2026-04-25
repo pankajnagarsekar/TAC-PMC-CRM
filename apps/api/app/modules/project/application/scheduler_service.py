@@ -20,9 +20,10 @@ class SchedulerService:
     Orchestrates deterministic scheduling logic.
     """
 
-    def __init__(self, db, undo_redo_service=None):
+    def __init__(self, db, audit_service=None, undo_redo_service=None):
         self.db = db
         self.collection = db["project_schedules"]
+        self.audit_service = audit_service
         self.baseline_manager = BaselineManager(db)
         self.undo_redo_service = undo_redo_service
 
@@ -148,6 +149,19 @@ class SchedulerService:
                     summary=f"Schedule saved ({len(new_tasks)} tasks)",
                     tasks=new_tasks,
                 )
+
+        # Audit Logging (Fixed Phase 7: Audit Log incomplete)
+        if self.audit_service:
+            await self.audit_service.log_action(
+                organisation_id=organisation_id,
+                module_name="SCHEDULER",
+                entity_type="SCHEDULE",
+                entity_id=project_id,
+                action_type="SAVE",
+                user_id=user_id,
+                project_id=project_id,
+                new_value={"task_count": len(tasks), "total_cost": data.get("total_cost")},
+            )
 
         return {"message": "Project schedule saved successfully"}
 
@@ -370,6 +384,19 @@ class SchedulerService:
             upsert=True,
         )
 
+        # Audit Logging
+        if self.audit_service:
+            await self.audit_service.log_action(
+                organisation_id=organisation_id,
+                module_name="SCHEDULER",
+                entity_type="BASELINE",
+                entity_id=project_id,
+                action_type="LOCK",
+                user_id=user_id,
+                project_id=project_id,
+                new_value=result,
+            )
+
         return result
 
     async def unlock_baseline(
@@ -414,6 +441,19 @@ class SchedulerService:
                 }
             }
         )
+
+        # Audit Logging
+        if self.audit_service:
+            await self.audit_service.log_action(
+                organisation_id=organisation_id,
+                module_name="SCHEDULER",
+                entity_type="BASELINE",
+                entity_id=project_id,
+                action_type="UNLOCK",
+                user_id=user_id,
+                project_id=project_id,
+                new_value=result,
+            )
 
         return result
 

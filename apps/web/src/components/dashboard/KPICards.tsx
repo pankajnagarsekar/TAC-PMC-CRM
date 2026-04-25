@@ -17,16 +17,41 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+interface KPICardsProps {
+  stats?: {
+    planned_value?: number;
+    earned_value?: number;
+    actual_cost?: number;
+    spi?: number;
+    cpi?: number;
+    master_budget?: number;
+  };
+}
+
 /**
  * KPI Dashboard for Enterprise PPM.
  * Implements System Constitution §9 Earned Value Formulas.
+ * Prioritizes authoritative backend stats with local calculation fallback.
  */
-export default function KPICards() {
+export default function KPICards({ stats: backendStats }: KPICardsProps) {
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
 
   const stats = useMemo(() => {
+    // If we have authoritative backend EVA stats, use them
+    if (backendStats && backendStats.planned_value !== undefined && backendStats.earned_value !== undefined) {
+      return {
+        totalBaselineCost: backendStats.master_budget || 0,
+        plannedValue: backendStats.planned_value,
+        earnedValue: backendStats.earned_value,
+        actualCost: backendStats.actual_cost || 0,
+        spi: backendStats.spi ?? null,
+        cpi: backendStats.cpi ?? null,
+      };
+    }
+
+    // Fallback: Local calculation from schedule store
     const today = startOfDay(new Date());
 
     let totalBaselineCost = 0;
@@ -65,7 +90,7 @@ export default function KPICards() {
       spi,
       cpi,
     };
-  }, [tasks]);
+  }, [tasks, backendStats]);
 
   const getSpiStatus = (spi: number) => {
     if (spi >= 1) return "positive";

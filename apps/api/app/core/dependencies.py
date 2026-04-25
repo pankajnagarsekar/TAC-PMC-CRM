@@ -161,9 +161,10 @@ async def get_undo_redo_service(
 
 async def get_scheduler_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
     undo_redo_service = Depends(get_undo_redo_service),
 ) -> SchedulerService:
-    return SchedulerService(db, undo_redo_service=undo_redo_service)
+    return SchedulerService(db, audit_service=audit, undo_redo_service=undo_redo_service)
 
 
 async def get_financial_service(

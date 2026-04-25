@@ -43,6 +43,14 @@ interface DashboardStats {
     overdue_milestones: number;
     master_budget: number;
     total_committed: number;
+    // EVA Metrics (Constitution §9)
+    planned_value?: number;
+    earned_value?: number;
+    actual_cost?: number;
+    cpi?: number;
+    spi?: number;
+    cost_variance?: number;
+    schedule_variance?: number;
   };
   schedule_status: {
     variance: number;
@@ -405,7 +413,7 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                   <div className="flex flex-col min-w-0">
                     <span className="text-zinc-500 truncate pr-2">
-                      {task.task_name}
+                      {task.task_name || (task as any).task_description || 'Unnamed Task'}
                     </span>
                     <span className="text-[10px] text-zinc-600 font-mono">
                       {task.wbs_code || '---'}
@@ -617,7 +625,7 @@ export default function AdminDashboard() {
 
       {activeProject && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-1000">
-          <KPICards />
+          <KPICards stats={stats?.overview} />
         </div>
       )}
 

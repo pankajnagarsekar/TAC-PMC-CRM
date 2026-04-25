@@ -75,60 +75,56 @@ export default function SCurveChart() {
       tasks.forEach((task) => {
         const bStart = parseTaskDate(task.baseline_start || task.scheduled_start);
         const bFinish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
-        // Fallback to wo_value if costs are not explicitly set in the scheduler
-        const baselineCost = Number(task.wo_value ?? task.baseline_cost ?? 0);
 
-        if (!bStart || !bFinish || baselineCost <= 0) return;
+        // PP-016: Explicit cost mapping for Earned Value Analysis (EVA)
+        const pvCost = Number(task.baseline_cost ?? 0);
+        const evCost = Number(task.wo_value ?? task.baseline_cost ?? 0);
+
+        if (!bStart || !bFinish) return;
 
         // --- Planned Value (PV) Logic ---
-        // Formula: linear distribution across baseline duration
-        const bDuration = Math.max(1, differenceInCalendarDays(bFinish, bStart) + 1);
-        const dailyPV = baselineCost / bDuration;
+        if (pvCost > 0) {
+          const bDuration = Math.max(1, differenceInCalendarDays(bFinish, bStart) + 1);
+          const dailyPV = pvCost / bDuration;
 
-        if (!isAfter(bStart, reportDate)) {
-          const daysPlanned = Math.min(
-            bDuration,
-            differenceInCalendarDays(
-              isBefore(reportDate, bFinish) ? reportDate : bFinish,
-              bStart
-            ) + 1
-          );
-          totalPV += dailyPV * Math.max(0, daysPlanned);
+          if (!isAfter(bStart, reportDate)) {
+            const daysPlanned = Math.min(
+              bDuration,
+              differenceInCalendarDays(
+                isBefore(reportDate, bFinish) ? reportDate : bFinish,
+                bStart
+              ) + 1
+            );
+            totalPV += dailyPV * Math.max(0, daysPlanned);
+          }
         }
 
         // --- Earned Value (EV) Logic ---
-        // Formula: Current Earned Value = (percent / 100) * baseline_cost
-        // For the chart, we show actual status up to today.
-        const percent = Number(task.percent_complete ?? 0) / 100;
-        const currentTaskEV = baselineCost * percent;
+        if (evCost > 0) {
+          const percent = Number(task.percent_complete ?? 0) / 100;
+          const currentTaskEV = evCost * percent;
 
-        // If today is after or during this month, we can show EV
-        // (Note: Without history, we assume EV progressed linearly to today)
-        if (!isAfter(reportDate, today) || (!isAfter(month, today) && !isBefore(reportDate, today))) {
-          const aStart = parseTaskDate(task.actual_start || task.scheduled_start);
-          const aFinish = parseTaskDate(task.actual_finish || task.scheduled_finish);
+          if (!isAfter(reportDate, today) || (!isAfter(month, today) && !isBefore(reportDate, today))) {
+            const aStart = parseTaskDate(task.actual_start || task.scheduled_start);
+            const aFinish = parseTaskDate(task.actual_finish || task.scheduled_finish);
 
-          if (aStart) {
-            // Task has started or is complete
-            if (task.percent_complete === 100 && aFinish && !isAfter(aFinish, reportDate)) {
-              totalEV += baselineCost;
-            } else if (percent > 0) {
-              // Interpolate EV if reportDate is before or at today
-              const effectiveEnd = aFinish || today;
-              const timeSpent = Math.max(1, differenceInCalendarDays(effectiveEnd, aStart) + 1);
-              const daysToReport = Math.min(
-                timeSpent,
-                differenceInCalendarDays(
-                  isBefore(reportDate, effectiveEnd) ? reportDate : effectiveEnd,
-                  aStart
-                ) + 1
-              );
-              totalEV += (currentTaskEV / timeSpent) * Math.max(0, daysToReport);
+            if (aStart) {
+              if (task.percent_complete === 100 && aFinish && !isAfter(aFinish, reportDate)) {
+                totalEV += evCost;
+              } else if (percent > 0) {
+                const effectiveEnd = aFinish || today;
+                const timeSpent = Math.max(1, differenceInCalendarDays(effectiveEnd, aStart) + 1);
+                const daysToReport = Math.min(
+                  timeSpent,
+                  differenceInCalendarDays(
+                    isBefore(reportDate, effectiveEnd) ? reportDate : effectiveEnd,
+                    aStart
+                  ) + 1
+                );
+                totalEV += (currentTaskEV / timeSpent) * Math.max(0, daysToReport);
+              }
             }
           }
-        } else if (isAfter(month, today)) {
-          // Future months: EV is blank (or we could flatline it)
-          // Placeholder: Not adding to totalEV for future intervals
         }
       });
 

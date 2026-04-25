@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ColDef } from "ag-grid-community";
 import api, { fetcher } from "@/lib/api";
+import { useRequestLock } from "@/lib/requestLock";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import { WorkOrder, Project, Vendor, CodeMaster } from "@/types/api";
@@ -48,6 +49,11 @@ export default function WorkOrderDetailPage() {
     retention_percent: 0,
   });
   const [editLineItems, setEditLineItems] = useState<LineItem[]>([]);
+
+  const { isLocked: isSavingLock, executeWithLock: executeWoUpdateWithLock } = useRequestLock({
+    operationId: "WO_UPDATE",
+    timeoutMs: 30000,
+  });
 
   const {
     data: wo,
@@ -187,15 +193,23 @@ export default function WorkOrderDetailPage() {
     if (!wo) return;
     setIsSaving(true);
     try {
-      await api.patch(`/api/v1/work-orders/${woId}`, {
-        category_id: editState.category_id || undefined,
-        vendor_id: editState.vendor_id || undefined,
-        description: editState.description || undefined,
-        line_items: editLineItems,
-        discount: editState.discount,
-        retention_percent: editState.retention_percent,
-        expected_version: wo.version,
+      const response = await executeWoUpdateWithLock(async () => {
+        return await api.patch(`/api/v1/work-orders/${woId}`, {
+          category_id: editState.category_id || undefined,
+          vendor_id: editState.vendor_id || undefined,
+          description: editState.description || undefined,
+          line_items: editLineItems,
+          discount: editState.discount,
+          retention_percent: editState.retention_percent,
+          expected_version: wo.version,
+        });
       });
+
+      if (!response) {
+        alert("Update is already in progress.");
+        return;
+      }
+
       await mutateWO();
       setIsEditing(false);
     } catch (err: any) {
@@ -207,7 +221,7 @@ export default function WorkOrderDetailPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [wo, woId, editState, editLineItems, mutateWO]);
+  }, [wo, woId, editState, editLineItems, mutateWO, executeWoUpdateWithLock]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -482,7 +496,10 @@ export default function WorkOrderDetailPage() {
                 <input
                   type="number"
                   value={editState.discount}
-                  onChange={(e) => setEditState({ ...editState, discount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setEditState({ ...editState, discount: Math.min(val, editFinancials.subtotal) });
+                  }}
                   className="w-32 bg-slate-950 border border-slate-700 text-white p-1 rounded text-right focus:outline-none focus:border-amber-500"
                 />
               ) : (

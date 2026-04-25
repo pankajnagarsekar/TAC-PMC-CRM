@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Link2, Wallet, Activity, UserRoundPen, MessageSquare, Info } from "lucide-react";
+import { X, Link2, Wallet, Activity, UserRoundPen, MessageSquare, Info, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -64,14 +64,14 @@ export default function TaskDrawer() {
   const [momResult, setMomResult] = useState<MomResult | null>(null);
 
   // S-BUG #5: Local state for performance (avoid keystroke recalculations)
-  const [localTaskName, setLocalTaskName] = useState(selectedTask?.task_name || "");
+  const [localTaskName, setLocalTaskName] = useState(selectedTask?.task_name || (selectedTask as any)?.task_description || "");
   const [localDuration, setLocalDuration] = useState<number>(selectedTask?.scheduled_duration ?? 0);
   const [localPercent, setLocalPercent] = useState<number>(selectedTask?.percent_complete ?? 0);
   const [localParentId, setLocalParentId] = useState(selectedTask?.parent_id || "");
 
   useEffect(() => {
     if (!selectedTask) return;
-    setLocalTaskName(selectedTask.task_name);
+    setLocalTaskName(selectedTask.task_name || (selectedTask as any).task_description || "");
     setLocalDuration(selectedTask.scheduled_duration ?? 0);
     setLocalPercent(selectedTask.percent_complete ?? 0);
     setLocalParentId(selectedTask.parent_id || "");
@@ -207,7 +207,9 @@ export default function TaskDrawer() {
           <div className="rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/[0.03] p-4">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedTask.task_name}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {selectedTask.task_name || (selectedTask as any).task_description || 'Unnamed Task'}
+                </p>
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                   Status: {getTaskStatus(selectedTask)}
                 </p>
@@ -262,6 +264,24 @@ export default function TaskDrawer() {
                     hideIcon
                   />
                 </FieldRow>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FieldRow label="Node Deadline">
+                  <StyledDateInput
+                    value={selectedTask.deadline?.split("T")[0] ?? ""}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ deadline: event.target.value || null })}
+                    disabled={readOnly}
+                    hideIcon
+                  />
+                </FieldRow>
+                <div className="flex items-end pb-1.5">
+                  {selectedTask.deadline && new Date(selectedTask.deadline) < new Date(new Date().toDateString()) && (
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20 text-[9px] font-bold text-orange-400 uppercase tracking-tight animate-pulse">
+                      <AlertCircle size={10} /> Past Deadline
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <FieldRow label="Duration">

@@ -96,6 +96,15 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
       setError("Password must be at least 8 characters");
       return;
     }
+    // BR5-026: Add complexity check
+    const hasUpperCase = /[A-Z]/.test(formData.password);
+    const hasLowerCase = /[a-z]/.test(formData.password);
+    const hasNumbers = /\d/.test(formData.password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
+    if ((Number(hasUpperCase) + Number(hasLowerCase) + Number(hasNumbers) + Number(hasSpecial)) < 2) {
+      setError("Password is too weak. Please use a mix of uppercase, lowercase, and numbers.");
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -348,6 +357,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
             </label>
             <input
               type="text"
+              id="user_fullname"
+              name="user_fullname"
               value={formData.name}
               onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, name: e.target.value })}
               disabled={formData.useExistingClient}
@@ -365,6 +376,8 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
             </label>
             <input
               type="email"
+              id="user_email"
+              name="user_email"
               value={formData.email}
               onChange={(e) => !formData.useExistingClient && setFormData({ ...formData, email: e.target.value })}
               disabled={formData.useExistingClient}

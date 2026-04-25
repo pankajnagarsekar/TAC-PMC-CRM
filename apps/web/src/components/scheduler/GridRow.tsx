@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
@@ -11,6 +12,10 @@ function clampNumber(value: string, min = 0, max = 100) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return min;
   return Math.min(max, Math.max(min, parsed));
+}
+
+function stripHtmlTags(s: string): string {
+  return s.replace(/<[^>]*>/g, "").trim();
 }
 
 type EditableCellProps = {
@@ -116,8 +121,13 @@ const GridRow = memo(function GridRow({
           <EditableCell
             value={task.task_name}
             onCommit={(nextValue) => {
-              if (typeof nextValue !== "string" || nextValue.length === 0) return;
-              onEdit(task.task_id, { task_name: nextValue });
+              if (typeof nextValue !== "string") return;
+              const clean = stripHtmlTags(nextValue);
+              if (!clean) {
+                toast.error("Task description cannot be empty.");
+                return;
+              }
+              onEdit(task.task_id, { task_name: clean });
             }}
           />
         )}
@@ -165,8 +175,16 @@ const GridRow = memo(function GridRow({
               type="number"
               value={task.percent_complete ?? 0}
               onCommit={(nextValue) => {
-                if (typeof nextValue !== "number") return;
-                onEdit(task.task_id, { percent_complete: nextValue });
+                const n = Number(nextValue);
+                if (!Number.isFinite(n)) {
+                  toast.error("Enter a number (0–100).");
+                  return;
+                }
+                if (n < 0 || n > 100) {
+                  toast.error(`Must be 0–100%. Got ${n}%.`);
+                  return;
+                }
+                onEdit(task.task_id, { percent_complete: Math.round(n) });
               }}
               className="text-center font-black"
             />

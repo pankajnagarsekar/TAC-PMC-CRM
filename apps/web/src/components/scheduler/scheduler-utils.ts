@@ -95,7 +95,13 @@ export function normalizeTaskOrder(taskMap: ScheduleTaskMap, taskOrder: string[]
 
   const ordered = (taskOrder || [])
     .map((taskId) => taskMap[taskId])
-    .filter((task): task is ScheduleTask => Boolean(task && (task.task_id || task.wbs_code)));
+    .filter((task): task is ScheduleTask => {
+      if (!task) return false;
+      // PP-015: Filter out blank drafts that often clutter the view from failed imports or accidental adds
+      const isBlankDraft = task.task_status === 'draft' &&
+        (!task.task_name || task.task_name === 'New Task' || task.task_name.trim() === '');
+      return !isBlankDraft && Boolean(task.task_id || task.wbs_code);
+    });
 
   const taskOrderSet = new Set(taskOrder);
   const missing = Object.values(taskMap).filter(
@@ -178,8 +184,9 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date) {
   if (!start || !finish) return { left: 0, width: 0 };
 
   const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
+  const isMilestone = task.is_milestone || task.scheduled_duration === 0;
   const width = Math.max(
-    TIMELINE_DAY_WIDTH,
+    isMilestone ? TIMELINE_DAY_WIDTH : 120,
     (differenceInCalendarDays(finish, start) + 1) * TIMELINE_DAY_WIDTH,
   );
 
