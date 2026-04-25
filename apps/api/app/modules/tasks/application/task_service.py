@@ -335,7 +335,14 @@ class TaskService:
                 created_at = existing.get("created_at")
                 # Handle serialized datetime string from repository
                 if isinstance(created_at, str):
-                    created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    try:
+                        created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    except (ValueError, TypeError):
+                        created_at = None
+                
+                # Ensure offset-aware for comparison (Fixes naive/aware mismatch)
+                if created_at and created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
                 
                 if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < TASK_AI_SUMMARY_CACHE_TTL_SECONDS:
                     return existing
@@ -369,6 +376,10 @@ class TaskService:
                         deadline = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
                     except (ValueError, TypeError):
                         continue
+                
+                # Critical Fix: Ensure comparison is aware vs aware
+                if deadline.tzinfo is None:
+                    deadline = deadline.replace(tzinfo=timezone.utc)
                 
                 if deadline < now:
                     overdue += 1
