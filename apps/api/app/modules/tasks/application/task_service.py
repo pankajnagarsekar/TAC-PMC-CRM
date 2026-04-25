@@ -333,6 +333,10 @@ class TaskService:
             )
             if existing:
                 created_at = existing.get("created_at")
+                # Handle serialized datetime string from repository
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                
                 if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < TASK_AI_SUMMARY_CACHE_TTL_SECONDS:
                     return existing
         except Exception as e:
@@ -354,10 +358,20 @@ class TaskService:
         total = len(tasks)
         open_tasks = [t for t in tasks if t.get("status") in ["Open", "In Progress"]]
         now = datetime.now(timezone.utc)
-        overdue = sum(
-            1 for t in open_tasks
-            if t.get("deadline") and t["deadline"] < now
-        )
+        
+        overdue = 0
+        for t in open_tasks:
+            deadline = t.get("deadline")
+            if deadline:
+                # Handle serialized datetime string from repository
+                if isinstance(deadline, str):
+                    try:
+                        deadline = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
+                    except (ValueError, TypeError):
+                        continue
+                
+                if deadline < now:
+                    overdue += 1
 
         dist: Dict[str, int] = {}
         for t in tasks:

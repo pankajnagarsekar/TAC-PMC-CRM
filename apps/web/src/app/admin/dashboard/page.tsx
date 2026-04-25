@@ -28,6 +28,7 @@ import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 import KPICards from "@/components/dashboard/KPICards";
 import ProjectMiniGantt from "@/components/dashboard/ProjectMiniGantt";
 import SCurveChart from "@/components/scheduler/SCurveChart";
+import TaskAISummary from "@/components/tasks/TaskAISummary";
 
 import { formatCurrencySafe, normalizeFinancial } from "@/lib/formatters";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -176,7 +177,7 @@ export default function AdminDashboard() {
   }, [financials, activeProject, stats]);
 
   // --- REARRANGE DRIVEN LAYOUT ---
-  const DEFAULT_LAYOUT = ['timeline', 'tasks', 'analytics', 'log', 'scheduler', 'budget'];
+  const DEFAULT_LAYOUT = ['timeline', 'task_ai', 'tasks', 'analytics', 'log', 'scheduler', 'budget'];
   const [layout, setLayout] = React.useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_LAYOUT;
     const saved = localStorage.getItem('dashboard_global_layout');
@@ -208,6 +209,11 @@ export default function AdminDashboard() {
   };
 
   const widgets: Record<string, React.ReactNode> = {
+    task_ai: (
+      <div key="task_ai" className="col-span-1 md:col-span-2">
+        {activeProject && <TaskAISummary projectId={activeProject.project_id} />}
+      </div>
+    ),
     timeline: (
       <GlassCard key="timeline" className="border-indigo-500/5 shadow-xl !p-0 overflow-hidden col-span-1 md:col-span-2 h-[600px]">
         <div className="p-8 h-full flex flex-col">
