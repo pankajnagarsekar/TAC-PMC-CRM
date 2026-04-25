@@ -36,9 +36,9 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
       await mutate();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
-      setRefreshError(
-        error.response?.data?.detail || "Failed to generate summary. Check API connection."
-      );
+      // Never expose internal error details to users — log for debugging only
+      console.error("[AISummaryCard] Refresh failed:", error.response?.data?.detail);
+      setRefreshError("AI summary temporarily unavailable. Please try again later.");
     } finally {
       setIsRefreshing(false);
     }
@@ -107,8 +107,8 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
 
       {!isLoading && error && !summary && (
         <div className="text-center py-4">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-3">
-            No summary generated yet
+          <p className="text-[10px] text-muted-foreground tracking-widest mb-3">
+            Your AI project brief will appear here.
           </p>
           <button
             onClick={handleRefresh}

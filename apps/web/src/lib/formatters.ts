@@ -37,8 +37,8 @@ export function formatPercentSafe(value: number | undefined | null, decimals = 0
  */
 export function formatINRShort(value: number | undefined | null): string {
     const normalized = normalizeFinancial(value);
-    if (normalized >= 10000000) return `₹${(normalized / 10000000).toFixed(1)}Cr`;
-    if (normalized >= 100000) return `₹${(normalized / 100000).toFixed(1)}L`;
+    if (normalized >= 10000000) return `₹${(normalized / 10000000).toFixed(1)} Cr`;
+    if (normalized >= 100000) return `₹${(normalized / 100000).toFixed(1)} L`;
     if (normalized >= 1000) return `₹${(normalized / 1000).toFixed(0)}K`;
     return `₹${normalized.toFixed(0)}`;
 }

@@ -15,6 +15,7 @@ import {
   FolderOpen,
   ArrowRight,
   TrendingUp,
+  Camera,
 } from "lucide-react";
 import Link from "next/link";
 import { fetcher, schedulerApi } from "@/lib/api";
@@ -63,6 +64,7 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const { activeProject, setActiveProject, clearProject } = useProjectStore();
   const [projectSearch, setProjectSearch] = React.useState("");
+  const previousProjectRef = React.useRef<Project | null>(null);
   const loadSchedule = useScheduleStore((state) => state.loadSchedule);
   const clearSchedule = useScheduleStore((state) => state.clear);
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -104,13 +106,34 @@ export default function AdminDashboard() {
     }
   }, [activeProject?.project_id, loadSchedule, clearSchedule]);
 
+  // BUG-020: Browser tab title
+  React.useEffect(() => {
+    document.title = activeProject
+      ? `${activeProject.project_name} | Dashboard | TAC-PMC CRM`
+      : 'Dashboard | TAC-PMC CRM';
+  }, [activeProject]);
+
+  // BUG-004: Handle ESC for project selector cancellation
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !activeProject && previousProjectRef.current) {
+        setActiveProject(previousProjectRef.current);
+        previousProjectRef.current = null;
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [activeProject, setActiveProject]);
+
   const filteredProjects = React.useMemo(() => {
     if (!projects) return [];
     const q = projectSearch.toLowerCase();
     return projects.filter(
       (p) =>
-        p.project_name.toLowerCase().includes(q) ||
-        (p.project_code || "").toLowerCase().includes(q)
+        (!p.project_name.startsWith("E2E") &&
+          !p.project_name.toLowerCase().includes("debug project")) &&
+        (p.project_name.toLowerCase().includes(q) ||
+          (p.project_code || "").toLowerCase().includes(q))
     );
   }, [projectSearch, projects]);
 
@@ -202,9 +225,11 @@ export default function AdminDashboard() {
               <div>
                 <h2 className="text-xs font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
                   Project Schedule & Gantt
-                  <Info size={10} className="text-zinc-500" />
+                  <span title="Execution Horizon shows the project's active task timeline from start to finish" className="cursor-help">
+                    <Info size={10} className="text-zinc-500" />
+                  </span>
                 </h2>
-                <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Execution Horizon</p>
+                <p className="text-[8px] text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Execution Horizon</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -310,9 +335,11 @@ export default function AdminDashboard() {
             <div>
               <h2 className="text-sm font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
                 Task Analytics
-                <Info size={10} className="text-zinc-500" />
+                <span title="Summary metrics calculated from active project tasks" className="cursor-help">
+                  <Info size={10} className="text-zinc-500" />
+                </span>
               </h2>
-              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Project Wide Log</p>
+              <p className="text-[8px] text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Project Wide Log</p>
             </div>
           </div>
           <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
@@ -323,11 +350,11 @@ export default function AdminDashboard() {
 
         <div className="flex items-end gap-10 mb-6 pb-6 border-b border-muted">
           <div>
-            <p className="text-4xl font-black leading-none tracking-tighter">{stats?.task_log?.open_tasks ?? 0}</p>
+            <p className="text-4xl font-black leading-none tracking-tighter">{tasks.filter(t => (t.percent_complete ?? 0) < 100).length}</p>
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">Open Tasks</p>
           </div>
           <div className="pb-1">
-            <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{stats?.task_log?.resolved_tasks ?? 0}</p>
+            <p className="text-2xl font-black text-zinc-400 tracking-tighter underline decoration-primary/20 decoration-2 underline-offset-4">{tasks.filter(t => (t.percent_complete ?? 0) >= 100).length}</p>
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Resolved</p>
           </div>
         </div>
@@ -335,10 +362,13 @@ export default function AdminDashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
             <span className="text-zinc-500">Compliance Rate</span>
-            <span className="text-emerald-500">{stats?.task_log?.compliance_rate ?? 0}%</span>
+            <span className="text-emerald-500">{tasks.length > 0 ? Math.round(tasks.filter(t => (t.percent_complete ?? 0) >= 100).length / tasks.length * 100) : 0}%</span>
           </div>
           <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000" style={{ width: `${stats?.task_log?.compliance_rate ?? 0}%` }} />
+            <div
+              className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-1000"
+              style={{ width: `${tasks.length > 0 ? (tasks.filter(t => (t.percent_complete ?? 0) >= 100).length / tasks.length * 100) : 0}%` }}
+            />
           </div>
         </div>
         <Link href="/admin/scheduler?tab=analytics" className="block w-full mt-6 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
@@ -411,7 +441,9 @@ export default function AdminDashboard() {
             <div>
               <h2 className="text-sm font-bold tracking-tight uppercase flex items-center gap-1.5 text-slate-900 dark:text-white">
                 Budget Utilization
-                <Info size={10} className="text-zinc-500" />
+                <span title="Financial Absorption relative to total budget" className="cursor-help">
+                  <Info size={10} className="text-zinc-500" />
+                </span>
               </h2>
               <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Financial Absorption</p>
             </div>
@@ -430,11 +462,14 @@ export default function AdminDashboard() {
             return (
               <div key={f.category_id || `util-${idx}`} className="space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                  <span className="text-zinc-500 truncate max-w-[200px]">{f.category_name || f.category_id}</span>
+                  <span className="text-zinc-500 truncate max-w-[200px]">
+                    {f.category_name || f.category_id}
+                    {(f as any).code && ` (${(f as any).code})`}
+                  </span>
                   <span className="text-primary shrink-0">{progress}% Progress</span>
                 </div>
                 <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden border border-muted/30">
-                  <div className="h-full bg-primary transition-all duration-700" style={{ width: `${progress}%` }} />
+                  <div className="h-full bg-primary transition-all duration-700" style={{ width: `${Math.max(progress, 2)}%` }} />
                 </div>
               </div>
             );
@@ -469,6 +504,19 @@ export default function AdminDashboard() {
               value={projectSearch}
               onChange={(e) => setProjectSearch(e.target.value)}
             />
+            {previousProjectRef.current && (
+              <button
+                onClick={() => {
+                  if (previousProjectRef.current) {
+                    setActiveProject(previousProjectRef.current);
+                    previousProjectRef.current = null;
+                  }
+                }}
+                className="mt-4 px-4 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 border border-zinc-700 rounded-xl transition-all"
+              >
+                Cancel — Return to {previousProjectRef.current.project_name}
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -516,6 +564,11 @@ export default function AdminDashboard() {
   if (isLoading && !financials) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-pulse p-2">
+        <div className="col-span-full text-center mb-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 animate-pulse">
+            Loading project context...
+          </p>
+        </div>
         <div className="space-y-8">
           <div className="h-64 bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
           <div className="h-96 bg-zinc-200/20 dark:bg-zinc-800/20 rounded-[2rem]" />
@@ -551,8 +604,11 @@ export default function AdminDashboard() {
             <p className="text-xs font-mono text-zinc-400">{activeProject.project_code || 'N/A'}</p>
           </div>
           <button
-            onClick={() => useProjectStore.getState().clearProject()}
-            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white transition-all active:scale-95"
+            onClick={() => {
+              previousProjectRef.current = activeProject;
+              useProjectStore.getState().clearProject();
+            }}
+            className="px-4 py-2 bg-primary/10 hover:bg-primary/20 dark:bg-white/5 dark:hover:bg-white/10 border border-primary/30 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary dark:text-white transition-all active:scale-95"
           >
             Switch Project
           </button>
@@ -603,20 +659,28 @@ export default function AdminDashboard() {
             </div>
           </GlassCard>
 
-          {activeProject && <AISummaryCard projectId={activeProject.project_id} />}
+          <AISummaryCard projectId={activeProject.project_id} />
 
-          <GlassCard className="group overflow-hidden p-0 h-[450px] border-none shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-rose-600/90 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
-              LIVE SITE FEED
+          <GlassCard className="group overflow-hidden border-none shadow-2xl">
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400 border border-rose-500/20">
+                <Camera size={24} />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 dark:text-white mb-1">
+                  Live Site Feed
+                </h3>
+                <p className="text-[10px] text-zinc-500 max-w-[200px] mx-auto">
+                  Site photos and DPR entries will appear here when submitted via the mobile app.
+                </p>
+              </div>
+              <Link
+                href="/admin/site-operations"
+                className="text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+              >
+                View Site Operations →
+              </Link>
             </div>
-            <NextImage
-              src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000"
-              alt="Site Feed"
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-700"
-              unoptimized
-            />
           </GlassCard>
         </div>
 

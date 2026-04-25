@@ -112,7 +112,7 @@ export default function KPICards() {
       <KPICard
         label="SPI"
         value={stats.spi !== null ? stats.spi.toFixed(2) : "N/A"}
-        subtitle="Schedule Performance (EV/PV)"
+        subtitle="Schedule Perf. (EV/PV)"
         status={stats.spi !== null ? getSpiStatus(stats.spi) : "neutral"}
         icon={<Gauge size={18} />}
         trend={stats.spi !== null ? `${((stats.spi - 1) * 100).toFixed(1)}%` : undefined}
@@ -121,7 +121,7 @@ export default function KPICards() {
       <KPICard
         label="CPI"
         value={stats.cpi !== null ? stats.cpi.toFixed(2) : "N/A"}
-        subtitle="Cost Performance (EV/AC)"
+        subtitle="Cost Perf. (EV/AC)"
         status={stats.cpi !== null ? getCpiStatus(stats.cpi) : "neutral"}
         icon={<BarChart3 size={18} />}
         trend={stats.cpi !== null ? `${((stats.cpi - 1) * 100).toFixed(1)}%` : undefined}

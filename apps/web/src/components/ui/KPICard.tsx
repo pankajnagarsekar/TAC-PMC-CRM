@@ -59,7 +59,7 @@ export default function KPICard({
             {value}
           </p>
           {subtitle && (
-            <p className="text-xs font-medium text-foreground/40 mt-2 truncate max-w-full opacity-70">
+            <p className="text-xs font-medium text-foreground/40 mt-2 truncate max-w-full opacity-70" title={subtitle}>
               {subtitle}
             </p>
           )}

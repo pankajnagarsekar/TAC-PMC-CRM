@@ -302,10 +302,10 @@ async def get_notification_service(
 async def get_ai_summary_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
     perm: PermissionChecker = Depends(get_permission_checker),
+    analytics: AnalyticsService = Depends(get_analytics_service),
 ) -> AISummaryService:
-    """Fixed injection: avoids passing PermissionChecker as API key (BUG-007)."""
-    from app.core.config import settings
-    return AISummaryService(db, api_key=settings.OPENAI_API_KEY)
+    """Inject AISummaryService with PermissionChecker + AnalyticsService."""
+    return AISummaryService(db, perm, analytics_service=analytics)
 
 
 async def get_ai_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AIService:
