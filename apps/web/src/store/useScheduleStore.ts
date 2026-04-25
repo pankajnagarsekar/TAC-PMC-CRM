@@ -180,9 +180,21 @@ const executeCalculationRequest = async (
       calculationError: (() => {
         const detail = err?.response?.data?.detail;
         if (typeof detail === "string") return detail;
-        if (typeof detail === "object" && detail?.message) return detail.message;
+        if (typeof detail === "object" && (detail as any)?.message) return (detail as any).message;
+
+        // Handle FastAPI Pydantic errors which usually have a different structure
+        if (Array.isArray(detail)) {
+          return detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+        }
+
         return err?.message ?? "Calculation failed";
       })(),
+    });
+
+    console.error("SCHEDULER_STORE: Calculation failed", {
+      status: err?.response?.status,
+      detail: err?.response?.data?.detail,
+      request
     });
 
     if (isConflict && responseData?.tasks) {
@@ -209,8 +221,14 @@ const buildChanges = (changes: ScheduleChangeRequest["changes"]) => {
     "actual_finish",
     "predecessors",
     "assigned_resources",
+    "is_summary",
+    "summary_type",
     "task_mode",
     "task_status",
+    "constraint_type",
+    "constraint_date",
+    "deadline",
+    "notes",
   ];
 
   return allowedFields.reduce((acc, field) => {

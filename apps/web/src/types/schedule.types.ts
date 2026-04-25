@@ -141,6 +141,12 @@ export type ScheduleChangeRequest = {
     assigned_resources?: string[] | null;
     task_mode?: "Auto" | "Manual" | null;
     task_status?: ScheduleTaskStatus | null;
+    is_summary?: boolean | null;
+    summary_type?: "auto" | "manual" | null;
+    constraint_type?: ConstraintType | null;
+    constraint_date?: string | null;
+    deadline?: string | null;
+    notes?: string | null;
     ai_suggested_duration?: number | null;
     ai_confidence_score?: number | null;
     ai_status_flag?: string | null;

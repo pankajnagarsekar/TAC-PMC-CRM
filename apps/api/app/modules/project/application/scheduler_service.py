@@ -502,14 +502,19 @@ class SchedulerService:
             
             # 1. Orphan Check: If a parent is specified, it MUST exist in the payload
             if pid and str(pid) not in valid_task_ids:
-                logger.error(f"SCHEDULER_VALIDATION_ERROR: Task {tid} references missing parent {pid}")
-                raise ValidationError(f"Task hierarchy violation: Parent '{pid}' for task '{tid}' not found.")
+                logger.warning(f"SCHEDULER_REPAIR: Task {tid} referenced missing parent {pid}. Removing broken link.")
+                t["parent_id"] = None
             
             # 2. Description/Name Check (BUG-020/021): Prevent tasks with empty names
-            # Support both 'task_name' (Scheduler) and 'task_description' (Tasks module)
+            # Resilience Policy: If a name is missing, seed it with a default rather than crashing the engine.
+            # This prevents the 'clearing names' loop where a single bad record blocks all updates.
             name = t.get("task_name") or t.get("task_description")
             if not name or not str(name).strip():
-                 raise ValidationError(f"Task name/description is required for task '{tid}'")
+                # For drafts, using a placeholder is acceptable
+                status_val = t.get("task_status", "draft")
+                default_name = f"Unnamed Task ({tid})" if status_val != "draft" else "New Draft Task"
+                t["task_name"] = default_name
+                logger.warning(f"SCHEDULER_RECOVERY: Seeding missing name for task {tid} with '{default_name}'")
                 
             # 3. Baseline Check: Modifications to locked tasks are strictly forbidden
             if t.get("baseline_locked"):
