@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Optional
-
+from pydantic import BaseModel, Field, field_validator, computed_field, model_validator
+from typing import Optional, Any
 import re
 import html
-from pydantic import BaseModel, Field, field_validator, computed_field
 
 from app.modules.shared.domain.types import PyObjectId
 
@@ -148,6 +147,32 @@ class Client(BaseModel):
     active_status: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_legacy_fields(cls, data: Any) -> Any:
+        """BUG-071: Harmonize unsuffixed DB fields with DTO schema."""
+        if isinstance(data, dict):
+            # Map name -> client_name
+            if not data.get("client_name") and data.get("name"):
+                data["client_name"] = data["name"]
+            
+            # Map address -> client_address
+            if not data.get("client_address") and data.get("address"):
+                data["client_address"] = data["address"]
+            
+            # Map phone -> client_phone
+            if not data.get("client_phone") and data.get("phone"):
+                data["client_phone"] = data["phone"]
+                
+            # Map email -> client_email
+            if not data.get("client_email") and data.get("email"):
+                data["client_email"] = data["email"]
+                
+            # Map gstin -> gst_number
+            if not data.get("gst_number") and data.get("gstin"):
+                data["gst_number"] = data["gstin"]
+        return data
 
     @computed_field
     @property
