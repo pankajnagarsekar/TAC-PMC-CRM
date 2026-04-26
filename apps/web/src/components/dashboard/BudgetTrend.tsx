@@ -73,7 +73,7 @@ export default function BudgetTrend({
             <YAxis
               stroke="rgba(255,255,255,0.3)"
               style={{ fontSize: "12px" }}
-              tickFormatter={(value: any) => formatCurrency(Number(value))}
+              tickFormatter={(value: number) => formatCurrency(value)}
             />
             <Tooltip
               contentStyle={{

@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import useSWR from "swr";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
   Receipt,
   Loader2,
-  IndianRupee,
   AlertTriangle,
-  Upload,
   Scan,
   Sparkles,
 } from "lucide-react";
@@ -31,7 +29,6 @@ import {
 
 export default function CategoryLedgerPage() {
   const params = useParams();
-  const router = useRouter();
   const categoryId = params.categoryId as string;
   const { activeProject } = useProjectStore();
 
@@ -54,7 +51,7 @@ export default function CategoryLedgerPage() {
     setIdempotencyKey(uuidv4());
   });
 
-  const handleOCR = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOCR = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeProject) return;
 
@@ -69,19 +66,19 @@ export default function CategoryLedgerPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const result = res.data;
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
         amount: result.extracted_amount?.toString() || prev.amount,
         vendor_name: result.extracted_vendor_name || prev.vendor_name,
         bill_reference: result.extracted_invoice_number || prev.bill_reference,
       }));
       setOcrConfidence(result.confidence_score);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("OCR failed:", err);
     } finally {
       setOcrLoading(false);
     }
-  };
+  }, [activeProject]);
 
   // Fetch Allocations to find the specific category details
   const { data: allocData } = useSWR<{ items: FundAllocation[] }>(
@@ -110,7 +107,7 @@ export default function CategoryLedgerPage() {
 
   const transactions = txData?.items || [];
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeProject) return;
     setIsSubmitting(true);
@@ -140,7 +137,7 @@ export default function CategoryLedgerPage() {
       setIdempotencyKey(uuidv4()); // Success, new key for next
       mutateTx();
       // Optionally mutate global site allocations via SWR global mutate if configured
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to log expense:", error);
       alert(
         "Failed to log expense. Be sure it does not exceed the remaining allocation.",
@@ -148,7 +145,7 @@ export default function CategoryLedgerPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [activeProject, categoryId, formData, idempotencyKey, mutateTx]);
 
   if (!activeProject) return null;
 

@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import {
-  Calendar,
   Filter,
   RotateCcw,
   Loader2,
@@ -87,6 +86,10 @@ const REPORT_OPTIONS: {
     },
   ];
 
+interface ReportData {
+  rows: unknown[][];
+}
+
 export default function ReportsPage() {
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
@@ -95,7 +98,7 @@ export default function ReportsPage() {
     useState<ReportType>("project_summary");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<"excel" | "pdf" | null>(null);
@@ -137,9 +140,10 @@ export default function ReportsPage() {
       );
       setReportData(response.data);
       toast({ title: "Intelligence Ready", description: "Report datasets successfully generated." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Report generation failed:", error);
-      const msg = error?.response?.data?.detail || error?.message || "Failed to assemble report.";
+      const axiosError = error as { response?: { data?: { detail?: string } }, message?: string };
+      const msg = axiosError.response?.data?.detail || axiosError.message || "Failed to assemble report.";
       setReportError(msg);
       toast({
         title: "Interface Error",
@@ -225,19 +229,22 @@ export default function ReportsPage() {
         title: "Registry Exported",
         description: `Downloaded ${format.toUpperCase()} successfully.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Export failure:", error);
+      const axiosError = error as { response?: { data?: { detail?: string }, status?: number } };
       let errorMsg = "The analytical engine encountered a stall during compilation.";
 
       // Try to parse error message from arraybuffer/blob response
-      if (error.response?.data) {
+      if (axiosError.response?.data) {
         try {
-          const data = error.response.data;
-          const text = data instanceof ArrayBuffer ? new TextDecoder().decode(data) : await data.text();
+          const data = axiosError.response.data as unknown;
+          const text = data instanceof ArrayBuffer
+            ? new TextDecoder().decode(data)
+            : (data instanceof Blob ? await data.text() : JSON.stringify(data));
           const parsed = JSON.parse(text);
           errorMsg = parsed.detail || errorMsg;
-        } catch (e) {
-          if (error.response.status === 503) {
+        } catch {
+          if (axiosError.response.status === 503) {
             errorMsg = "Export engine is unavailable. Please check backend dependencies (GTK+ for PDF).";
           }
         }
@@ -272,32 +279,32 @@ export default function ReportsPage() {
             field: "2",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : (p.value as string),
           },
           {
             headerName: "Committed (₹)",
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : (p.value as string),
           },
           {
             headerName: "Certified (₹)",
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : (p.value as string),
           },
           {
             headerName: "Remaining (₹)",
             field: "5",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : (p.value as string),
           },
           { headerName: "Deadline", field: "6", flex: 0.8 },
         ];
@@ -311,16 +318,16 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : (p.value as string),
           },
           {
             headerName: "Retention (₹)",
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : (p.value as string),
           },
           { headerName: "Start Date", field: "5", flex: 0.8 },
           { headerName: "End Date", field: "6", flex: 0.8 },
@@ -335,8 +342,8 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : (p.value as string),
           },
           { headerName: "PC Date", field: "4", flex: 0.8 },
           {
@@ -344,8 +351,8 @@ export default function ReportsPage() {
             field: "5",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
-              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
+            cellRenderer: (p: { value: unknown }) =>
+              typeof p.value === "number" ? p.value.toLocaleString("en-IN") : (p.value as string),
           },
           { headerName: "Payment Date", field: "6", flex: 0.8 },
         ];

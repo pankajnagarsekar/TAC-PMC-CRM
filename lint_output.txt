@@ -1,0 +1,7 @@
+﻿
+> tac-pmc-web@0.1.0 lint D:\_repos\TAC-PMC-CRM\apps\web
+> eslint . "--color" "false"
+
+D:\_repos\TAC-PMC-CRM\apps\web:
+[41m[30mΓÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILΓÇë[39m[49m [31mtac-pmc-web@0.1.0 lint: `eslint . "--color" "false"`[39m
+[31mExit status 2[39m

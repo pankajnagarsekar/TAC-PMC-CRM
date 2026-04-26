@@ -17,7 +17,7 @@ import {
     Briefcase
 } from "lucide-react";
 
-interface PortfolioData {
+export interface PortfolioData {
     organisation_id: string;
     total_projects: number;
     total_baseline_value: number;
@@ -35,6 +35,10 @@ interface PortfolioData {
         deadline: string;
         is_critical: boolean;
     }>;
+    exposure_metrics?: {
+        critical_project_count: number;
+        at_risk_milestones: number;
+    };
 }
 
 export const PortfolioSummary: React.FC<{ data: PortfolioData }> = ({ data }) => {

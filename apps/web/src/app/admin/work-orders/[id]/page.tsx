@@ -14,7 +14,7 @@ import {
   X,
   Download,
 } from "lucide-react";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ValueFormatterParams, CellValueChangedEvent } from "ag-grid-community";
 import api, { fetcher } from "@/lib/api";
 import { useRequestLock } from "@/lib/requestLock";
 import FinancialGrid from "@/components/ui/FinancialGrid";
@@ -50,7 +50,7 @@ export default function WorkOrderDetailPage() {
   });
   const [editLineItems, setEditLineItems] = useState<LineItem[]>([]);
 
-  const { isLocked: isSavingLock, executeWithLock: executeWoUpdateWithLock } = useRequestLock({
+  const { executeWithLock: executeWoUpdateWithLock } = useRequestLock({
     operationId: "WO_UPDATE",
     timeoutMs: 30000,
   });
@@ -72,7 +72,7 @@ export default function WorkOrderDetailPage() {
     fetcher,
   );
 
-  const columnDefs: ColDef<any>[] = useMemo(
+  const columnDefs: ColDef<LineItem>[] = useMemo(
     () => [
       { field: "description", headerName: "Description", flex: 2, editable: isEditing },
       {
@@ -88,14 +88,14 @@ export default function WorkOrderDetailPage() {
         flex: 1,
         editable: isEditing,
         type: "numericColumn",
-        valueFormatter: (p: any) => formatCurrency(p.value),
+        valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(p.value),
       },
       {
         field: "total",
         headerName: "Total (₹)",
         flex: 1,
         editable: false,
-        valueFormatter: (p: any) => formatCurrency(p.value),
+        valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(p.value),
         cellClass: "bg-slate-800/20 font-bold",
       },
     ],
@@ -103,20 +103,20 @@ export default function WorkOrderDetailPage() {
   );
 
   // Handle grid cell changes
-  const handleCellValueChanged = useCallback((event: any) => {
+  const handleCellValueChanged = useCallback((event: CellValueChangedEvent<LineItem>) => {
     const { data, colDef } = event;
 
     // When qty or rate changes, recalculate total
     if (colDef.field === "qty" || colDef.field === "rate") {
-      const qty = parseFloat(data.qty) || 0;
-      const rate = parseFloat(data.rate) || 0;
+      const qty = parseFloat(data.qty as unknown as string) || 0;
+      const rate = parseFloat(data.rate as unknown as string) || 0;
       data.total = qty * rate;
       event.api.applyTransaction({ update: [data] });
     }
 
     // Refresh totals and state
     const updatedItems: LineItem[] = [];
-    event.api.forEachNode((node: any) => {
+    event.api.forEachNode((node) => {
       if (node.data) updatedItems.push(node.data);
     });
     setEditLineItems(updatedItems);
@@ -212,11 +212,12 @@ export default function WorkOrderDetailPage() {
 
       await mutateWO();
       setIsEditing(false);
-    } catch (err: any) {
-      if (err.response?.status === 409) {
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status?: number, data?: { detail?: string } } };
+      if (axiosError.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
-        alert(err.response?.data?.detail || "Failed to save work order");
+        alert(axiosError.response?.data?.detail || "Failed to save work order");
       }
     } finally {
       setIsSaving(false);
@@ -239,11 +240,12 @@ export default function WorkOrderDetailPage() {
       );
       setShowCancelConfirm(false);
       mutateWO();
-    } catch (err: any) {
-      if (err.response?.status === 409) {
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status?: number, data?: { detail?: string } } };
+      if (axiosError.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
-        alert(err.response?.data?.detail || "Failed to update status");
+        alert(axiosError.response?.data?.detail || "Failed to update status");
       }
     }
   };

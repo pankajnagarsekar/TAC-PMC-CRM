@@ -4,13 +4,13 @@ import React, { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { Activity, AlertCircle } from "lucide-react";
 
-interface HeatmapDay {
+export interface HeatmapDay {
   date: string;
   utilization_percent: number;
   project_ids: string[];
 }
 
-interface ResourceStats {
+export interface ResourceStats {
   resource_id: string;
   resource_name: string;
   daily_utilization: HeatmapDay[];

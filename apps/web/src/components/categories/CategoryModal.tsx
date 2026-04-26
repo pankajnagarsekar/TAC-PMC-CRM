@@ -33,8 +33,8 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
       setFormData({
         category_name: category.category_name,
         code: category.code,
-        budget_type: (category as any).budget_type || 'commitment',
-        description: (category as any).description || '',
+        budget_type: category.budget_type || 'commitment',
+        description: category.description || '',
       });
     } else {
       setFormData({ category_name: '', code: '', budget_type: 'commitment', description: '' });
@@ -47,7 +47,7 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
     setLoading(true);
     setError(null);
     try {
-      const activeId = category?.code_id || (category as any)?._id;
+      const activeId = category?.code_id || category?._id;
       if (activeId) {
         await api.put(`/api/v1/settings/codes/${activeId}`, formData);
       } else {
@@ -55,8 +55,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
       }
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save category.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'Failed to save category.');
     } finally {
       setLoading(false);
     }

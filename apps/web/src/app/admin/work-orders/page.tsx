@@ -8,7 +8,7 @@ import { WorkOrder } from "@/types/api";
 import { formatCurrency, formatDate } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams, ValueFormatterParams } from "ag-grid-community";
 import NetworkErrorRetry from "@/components/ui/NetworkErrorRetry";
 import { useVendorNames } from "@/hooks/useVendorNames";
 
@@ -17,10 +17,6 @@ interface CategoryInfo {
   category_name?: string;
 }
 
-interface VendorInfo {
-  _id: string;
-  name?: string;
-}
 
 export default function WorkOrdersPage() {
   const router = useRouter();
@@ -29,7 +25,6 @@ export default function WorkOrdersPage() {
 
   const [items, setItems] = useState<WorkOrder[]>([]);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
-  const [vendors, setVendors] = useState<VendorInfo[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isMoreLoading, setIsMoreLoading] = useState(false);
@@ -106,12 +101,12 @@ export default function WorkOrdersPage() {
       field: "wo_ref",
       headerName: "WO Ref",
       width: 130,
-      cellRenderer: (p: any) => (
+      cellRenderer: (p: ICellRendererParams<WorkOrder>) => (
         <button
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            router.push(`/admin/work-orders/${p.data._id}`);
+            if (p.data) router.push(`/admin/work-orders/${p.data._id}`);
           }}
           className="text-orange-400 font-bold hover:underline font-mono relative z-10"
         >
@@ -123,20 +118,20 @@ export default function WorkOrdersPage() {
       field: "category_id",
       headerName: "Category",
       width: 150,
-      valueFormatter: (p: any) => categoryMap[p.value] || p.value || "-",
+      valueFormatter: (p: ValueFormatterParams<WorkOrder>) => categoryMap[p.value] || p.value || "-",
     },
     {
       field: "vendor_id",
       headerName: "Vendor",
       width: 180,
-      valueFormatter: (p: any) => getVendorName(p.value),
+      valueFormatter: (p: ValueFormatterParams<WorkOrder>) => getVendorName(p.value),
     },
     {
       field: "wo_date",
       headerName: "Date",
       width: 140,
-      valueFormatter: (p: { value: string; data: any }) => {
-        const val = p.value || p.data.created_at;
+      valueFormatter: (p: ValueFormatterParams<WorkOrder>) => {
+        const val = p.value || p.data?.created_at;
         return val ? formatDate(val) : "-";
       },
     },
@@ -145,15 +140,15 @@ export default function WorkOrdersPage() {
       headerName: "Grand Total",
       width: 140,
       type: "numericColumn",
-      valueFormatter: (p: any) => formatCurrency(p.value || 0),
+      valueFormatter: (p: ValueFormatterParams<WorkOrder>) => formatCurrency(p.value || 0),
       cellClass: "font-mono text-emerald-400 font-bold",
     },
     {
       field: "status",
       headerName: "Status",
       width: 120,
-      cellRenderer: (p: any) => {
-        const status = p.value;
+      cellRenderer: (p: ICellRendererParams<WorkOrder>) => {
+        const status = p.value as string;
         const colors: Record<string, string> = {
           Draft: "bg-slate-500/10 text-slate-400 border-slate-500/20",
           Pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",

@@ -64,14 +64,14 @@ export default function TaskDrawer() {
   const [momResult, setMomResult] = useState<MomResult | null>(null);
 
   // S-BUG #5: Local state for performance (avoid keystroke recalculations)
-  const [localTaskName, setLocalTaskName] = useState(selectedTask?.task_name || (selectedTask as any)?.task_description || "");
+  const [localTaskName, setLocalTaskName] = useState(selectedTask?.task_name || (selectedTask ? (selectedTask as Record<string, unknown>).task_description as string : "") || "");
   const [localDuration, setLocalDuration] = useState<number>(selectedTask?.scheduled_duration ?? 0);
   const [localPercent, setLocalPercent] = useState<number>(selectedTask?.percent_complete ?? 0);
   const [localParentId, setLocalParentId] = useState(selectedTask?.parent_id || "");
 
   useEffect(() => {
     if (!selectedTask) return;
-    setLocalTaskName(selectedTask.task_name || (selectedTask as any).task_description || "");
+    setLocalTaskName(selectedTask.task_name || (selectedTask as Record<string, unknown>).task_description as string || "");
     setLocalDuration(selectedTask.scheduled_duration ?? 0);
     setLocalPercent(selectedTask.percent_complete ?? 0);
     setLocalParentId(selectedTask.parent_id || "");
@@ -208,7 +208,7 @@ export default function TaskDrawer() {
             <div className="mb-4 flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {selectedTask.task_name || (selectedTask as any).task_description || 'Unnamed Task'}
+                  {selectedTask.task_name || (selectedTask as Record<string, unknown>).task_description as string || 'Unnamed Task'}
                 </p>
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
                   Status: {getTaskStatus(selectedTask)}

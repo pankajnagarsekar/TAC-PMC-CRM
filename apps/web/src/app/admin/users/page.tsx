@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Users, Plus, Search, UserX, Pencil } from "lucide-react";
 import useSWR from "swr";
 import api, { fetcher } from "@/lib/api";
@@ -20,7 +20,7 @@ export default function TeamPage() {
     const [isDeactivating, setIsDeactivating] = useState(false);
     const { toast } = useToast();
 
-    const { data: usersData, error: usersError, mutate: mutateUsers, isLoading } = useSWR<UserResponse[]>(
+    const { data: usersData, mutate: mutateUsers, isLoading } = useSWR<UserResponse[]>(
         "/api/v1/users/",
         fetcher
     );
@@ -38,7 +38,7 @@ export default function TeamPage() {
                 variant: "default"
             });
             mutateUsers();
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to deactivate user:", error);
             toast({
                 title: "Error",
@@ -51,9 +51,6 @@ export default function TeamPage() {
         }
     }, [deactivateId, mutateUsers, toast]);
 
-    const handleRefresh = useCallback(() => {
-        mutateUsers();
-    }, [mutateUsers]);
 
     const columnDefs = useMemo<ColDef<UserResponse>[]>(
         () => [

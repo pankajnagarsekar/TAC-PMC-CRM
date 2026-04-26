@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Loader2, CheckCircle, ChevronRight } from 'lucide-react';
 import { ColDef, ICellRendererParams, ValueFormatterParams } from 'ag-grid-community';
 import { fetcher } from '@/lib/api';
+import { PaymentCertificate } from '@/types/api';
 import FinancialGrid from '@/components/ui/FinancialGrid';
 import { formatCurrency, formatDate, getStatusColor } from '@tac-pmc/ui';
 import Link from 'next/link';
@@ -21,8 +22,8 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
     ? `/api/v1/payments/${projectId}?work_order_id=${workOrderId}`
     : `/api/v1/payments/${projectId}`;
 
-  const { data: pcsData, isLoading: isPcsLoading } = useSWR(projectId ? url : null, fetcher);
-  const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
+  const { data: pcsData, isLoading: isPcsLoading } = useSWR<{ items: PaymentCertificate[] }>(projectId ? url : null, fetcher);
+  const { getVendorName } = useVendorNames();
 
   const columnDefs: ColDef[] = useMemo(() => [
     {
@@ -62,13 +63,13 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
     {
       headerName: '',
       width: 50,
-      cellRenderer: (p: ICellRendererParams) => (
-        <Link href={`/admin/payment-certificates/${p.data._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
+      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => (
+        <Link href={`/admin/payment-certificates/${p.data?._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
           <ChevronRight size={16} className="text-zinc-400" />
         </Link>
       )
     }
-  ], []);
+  ], [getVendorName]);
 
   if (isPcsLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
 

@@ -5,7 +5,7 @@ import FinancialGrid from "@/components/ui/FinancialGrid";
 import { useRouter } from "next/navigation";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
-import { Search, Calendar, Filter, ExternalLink } from "lucide-react";
+import { Search, Filter, ExternalLink } from "lucide-react";
 import { ColDef, ICellRendererParams } from "ag-grid-community";
 import { StyledDateInput } from "@/components/ui/StyledDateInput";
 

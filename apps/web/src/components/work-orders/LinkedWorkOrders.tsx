@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Loader2, FileText, ChevronRight } from 'lucide-react';
 import { ColDef, ICellRendererParams, ValueFormatterParams } from 'ag-grid-community';
 import { fetcher } from '@/lib/api';
+import { WorkOrder } from '@/types/api';
 import FinancialGrid from '@/components/ui/FinancialGrid';
 import { formatCurrency, formatDate, getStatusColor } from '@tac-pmc/ui';
 import Link from 'next/link';
@@ -15,21 +16,21 @@ interface LinkedWorkOrdersProps {
 }
 
 export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
-    const { data: wosData, isLoading: isWosLoading } = useSWR(
+    const { data: wosData, isLoading: isWosLoading } = useSWR<{ items: WorkOrder[] }>(
         projectId ? `/api/v1/work-orders/?project_id=${projectId}` : null,
         fetcher
     );
 
-    const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
+    const { getVendorName } = useVendorNames();
 
     const columnDefs: ColDef[] = useMemo(() => [
         {
             field: 'wo_ref',
             headerName: 'WO Ref',
             flex: 1,
-            cellRenderer: (p: ICellRendererParams) => (
+            cellRenderer: (p: ICellRendererParams<WorkOrder>) => (
                 <Link
-                    href={`/admin/work-orders/${p.data._id}`}
+                    href={`/admin/work-orders/${p.data?._id}`}
                     className="font-mono text-indigo-500 font-bold hover:underline"
                 >
                     {p.value}
@@ -67,8 +68,8 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
         {
             headerName: '',
             width: 50,
-            cellRenderer: (p: ICellRendererParams) => (
-                <Link href={`/admin/work-orders/${p.data._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
+            cellRenderer: (p: ICellRendererParams<WorkOrder>) => (
+                <Link href={`/admin/work-orders/${p.data?._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
                     <ChevronRight size={16} className="text-zinc-400" />
                 </Link>
             )
