@@ -45,14 +45,13 @@ export default function TaskKanbanBoard({ tasks, onTaskUpdate }: TaskKanbanBoard
         onTaskUpdate(res.data);
       }
       toast.success(`Task moved to ${newStatus}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error("Failed to update task status", error);
       // Rollback on error
       if (onTaskUpdate) {
         onTaskUpdate({ ...task, status: oldStatus });
       }
-      const err = error as { response?: { data?: { detail?: string } } };
-      const errorMsg = err.response?.data?.detail || "Failed to update status";
+      const errorMsg = error.response?.data?.detail || "Failed to update status";
       toast.error(typeof errorMsg === "string" ? errorMsg : "Failed to update status");
     }
   };

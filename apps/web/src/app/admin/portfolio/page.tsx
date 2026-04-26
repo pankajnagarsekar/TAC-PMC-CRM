@@ -1,17 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { PortfolioSummary, PortfolioData } from "@/components/dashboard/PortfolioSummary";
-import PortfolioGantt, { Milestone } from "@/components/dashboard/PortfolioGantt";
-import ResourceHeatmap, { ResourceStats } from "@/components/dashboard/ResourceHeatmap";
+import { PortfolioSummary } from "@/components/dashboard/PortfolioSummary";
+import PortfolioGantt from "@/components/dashboard/PortfolioGantt";
+import ResourceHeatmap from "@/components/dashboard/ResourceHeatmap";
 import * as Tabs from "@radix-ui/react-tabs";
-import { Loader2, RefreshCcw, AlertTriangle as AlertTriangleIcon } from "lucide-react";
+import { Loader2, RefreshCcw, Activity, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import { portfolioApi } from "@/lib/api";
 
 export default function PortfolioPage() {
-    const [data, setData] = useState<PortfolioData | null>(null);
-    const [milestones, setMilestones] = useState<Milestone[]>([]);
-    const [heatmap, setHeatmap] = useState<ResourceStats[]>([]);
+    const [data, setData] = useState<any>(null);
+    const [milestones, setMilestones] = useState<any[]>([]);
+    const [heatmap, setHeatmap] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +27,7 @@ export default function PortfolioPage() {
             setMilestones(ms);
             setHeatmap(hm);
             setError(null);
-        } catch (err: unknown) {
+        } catch (err: any) {
             setError("Failed to load portfolio statistics.");
             console.error(err);
         } finally {
@@ -94,7 +94,7 @@ export default function PortfolioPage() {
                 </Tabs.List>
 
                 <Tabs.Content value="overview" className="space-y-8 focus-visible:outline-none">
-                    {data && <PortfolioSummary data={data} />}
+                    <PortfolioSummary data={data} />
                     <PortfolioGantt milestones={milestones} />
                 </Tabs.Content>
 
@@ -107,12 +107,12 @@ export default function PortfolioPage() {
                         <RiskCard
                             title="Critical Path Exposure"
                             detail={`${data?.exposure_metrics?.critical_project_count || 0} projects have milestones on the critical path`}
-                            severity={data?.exposure_metrics && data.exposure_metrics.critical_project_count > 0 ? "HIGH" : "MEDIUM"}
+                            severity={data?.exposure_metrics?.critical_project_count > 0 ? "HIGH" : "MEDIUM"}
                         />
                         <RiskCard
                             title="At-Risk Milestones"
                             detail={`${data?.exposure_metrics?.at_risk_milestones || 0} upcoming milestones flagged as critical/delayed`}
-                            severity={data?.exposure_metrics && data.exposure_metrics.at_risk_milestones > 10 ? "HIGH" : "MEDIUM"}
+                            severity={data?.exposure_metrics?.at_risk_milestones > 10 ? "HIGH" : "MEDIUM"}
                         />
                     </div>
                 </Tabs.Content>
@@ -121,13 +121,7 @@ export default function PortfolioPage() {
     );
 }
 
-interface RiskCardProps {
-    title: string;
-    detail: string;
-    severity: "HIGH" | "MEDIUM";
-}
-
-const RiskCard = ({ title, detail, severity }: RiskCardProps) => (
+const RiskCard = ({ title, detail, severity }: any) => (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden group shadow-xl">
         <div className={`absolute top-0 left-0 w-1 h-full ${severity === 'HIGH' ? 'bg-rose-500' : 'bg-amber-500'}`} />
         <h4 className="text-white font-bold mb-2 flex items-center gap-2">

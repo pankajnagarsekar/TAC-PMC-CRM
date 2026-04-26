@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@tac-pmc/ui';
-import { Client } from '@/types/api';
+import { Client, ClientCreate, ClientUpdate } from '@/types/api';
 import api from '@/lib/api';
 import { Loader2 } from 'lucide-react';
 

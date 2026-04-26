@@ -2,9 +2,9 @@
 
 import React, { useMemo } from "react";
 import { format, parseISO, startOfMonth, addMonths, differenceInDays } from "date-fns";
-import { LayoutDashboard } from "lucide-react";
+import { Timer, LayoutDashboard } from "lucide-react";
 
-export interface Milestone {
+interface Milestone {
     task_id: string;
     project_id: string;
     project_name: string;

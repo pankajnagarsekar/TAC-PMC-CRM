@@ -6,10 +6,10 @@ import { Plus, Search, FileText, Loader2 } from 'lucide-react';
 import api, { fetcher } from '@/lib/api';
 import useSWR from 'swr';
 import { useProjectStore } from '@/store/projectStore';
-import { PaymentCertificate, CodeMaster } from '@/types/api';
+import { PaymentCertificate, CodeMaster, Vendor } from '@/types/api';
 import { formatCurrency, formatDate } from '@tac-pmc/ui';
 import FinancialGrid from '@/components/ui/FinancialGrid';
-import { ColDef, ICellRendererParams, ValueFormatterParams } from 'ag-grid-community';
+import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import NetworkErrorRetry from '@/components/ui/NetworkErrorRetry';
 import { useVendorNames } from '@/hooks/useVendorNames';
 
@@ -134,8 +134,8 @@ export default function PaymentCertificatesPage() {
       field: 'certification_date',
       headerName: 'Date',
       width: 150,
-      valueFormatter: (p: ValueFormatterParams<PaymentCertificate>) => {
-        const val = p.value || p.data?.created_at;
+      valueFormatter: (p: { value: string; data: any }) => {
+        const val = p.value || p.data.created_at;
         return val ? formatDate(val) : '-';
       }
     }

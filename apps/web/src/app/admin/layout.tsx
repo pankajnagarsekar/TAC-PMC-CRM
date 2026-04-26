@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (isProjectScoped && !isDetailPage && !activeProject) {
             setShowProjectModal(true);
         }
-    }, [pathname, activeProject, mounted, _hasHydrated, projectHydrated]);
+    }, [pathname, activeProject, mounted, _hasHydrated]);
 
     useEffect(() => {
         setMounted(true);

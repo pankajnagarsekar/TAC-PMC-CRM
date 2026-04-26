@@ -12,7 +12,6 @@ import useSWR from 'swr';
 import apiClient from '@/lib/api';
 import type {
   HistoryEntry,
-  ScheduleTask,
   StackInfo,
   UndoRedoResponse
 } from '@/types/schedule.types';
@@ -25,7 +24,7 @@ import type {
  */
 export function useUndoRedo(
   projectId: string | null,
-  onTasksChanged?: (tasks: ScheduleTask[]) => void
+  onTasksChanged?: (tasks: any[]) => void
 ) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,11 +78,10 @@ export function useUndoRedo(
 
       // Refresh history and stack info
       await Promise.all([mutateHistory(), mutateStackInfo()]);
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
+    } catch (err: any) {
       const message = err?.response?.data?.message || 'Undo failed';
       setError(message);
-      console.error('Undo error:', error);
+      console.error('Undo error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -109,11 +107,10 @@ export function useUndoRedo(
 
       // Refresh history and stack info
       await Promise.all([mutateHistory(), mutateStackInfo()]);
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
+    } catch (err: any) {
       const message = err?.response?.data?.message || 'Redo failed';
       setError(message);
-      console.error('Redo error:', error);
+      console.error('Redo error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -140,11 +137,10 @@ export function useUndoRedo(
 
         // Refresh history and stack info
         await Promise.all([mutateHistory(), mutateStackInfo()]);
-      } catch (error: unknown) {
-        const err = error as { response?: { data?: { message?: string } } };
+      } catch (err: any) {
         const message = err?.response?.data?.message || 'Restore failed';
         setError(message);
-        console.error('Restore error:', error);
+        console.error('Restore error:', err);
       } finally {
         setIsLoading(false);
       }

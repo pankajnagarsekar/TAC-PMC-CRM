@@ -10,7 +10,7 @@ import PaymentApprovalQueue from '@/components/financial/PaymentApprovalQueue';
 import MasterDataManager from '@/components/financial/MasterDataManager';
 
 export default function FinancialDashboard() {
-  const activeProject = useProjectStore((state) => state.activeProject);
+  const activeProject = useProjectStore((state: any) => state.activeProject);
   const projectId = activeProject?.project_id;
 
   // Default date range: last 30 days
@@ -70,7 +70,7 @@ export default function FinancialDashboard() {
 
   // Handle approve action
   const handleApprovePayment = async (id: string) => {
-    const payment = pendingApprovalsData?.find((p: { _id?: string, id?: string, version?: number }) => (p._id || p.id) === id);
+    const payment = pendingApprovalsData?.find((p: any) => (p._id || p.id) === id);
     const version = payment?.version || 1;
     try {
       await fetch(`/api/v1/payments/${id}/approve?expected_version=${version}`, {
@@ -88,7 +88,7 @@ export default function FinancialDashboard() {
 
   // Handle reject action
   const handleRejectPayment = async (id: string, reason: string) => {
-    const payment = pendingApprovalsData?.find((p: { _id?: string, id?: string, version?: number }) => (p._id || p.id) === id);
+    const payment = pendingApprovalsData?.find((p: any) => (p._id || p.id) === id);
     const version = payment?.version || 1;
     try {
       await fetch(
@@ -107,7 +107,7 @@ export default function FinancialDashboard() {
   };
 
   // Handle add code
-  const handleAddCode = async (codeData: unknown) => {
+  const handleAddCode = async (codeData: any) => {
     try {
       await fetch('/api/v1/settings/codes', {
         method: 'POST',
@@ -124,7 +124,7 @@ export default function FinancialDashboard() {
   };
 
   // Handle update code
-  const handleUpdateCode = async (id: string, codeData: unknown) => {
+  const handleUpdateCode = async (id: string, codeData: any) => {
     try {
       await fetch(`/api/v1/settings/codes/${id}`, {
         method: 'PUT',

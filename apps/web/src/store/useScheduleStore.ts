@@ -101,10 +101,11 @@ const executeCalculationRequest = async (
       // (2) the earliest non-null scheduled_start across all tasks (legacy fallback).
       // The project start is stored on tasks as project.scheduled_start via the load response.
       const firstTask = tasks[0];
-      const projectRecord = firstTask?.project as { scheduled_start?: string } | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const projectRecord = (firstTask as any)?.project;
       const stableStart =
-        toISODate(projectRecord?.scheduled_start) ||
-        toISODate(firstTask?.project_scheduled_start);
+        toISODate((projectRecord as any)?.scheduled_start) ||
+        toISODate((firstTask as any)?.project_scheduled_start);
 
       let projectStart: string;
       if (stableStart) {
@@ -149,7 +150,8 @@ const executeCalculationRequest = async (
     try {
       const { taskMap } = get();
       const updatedTasks = Object.values(taskMap);
-      const projectStart = (response as ScheduleCalculationResponse & { project_start?: string }).project_start || updatedTasks[0]?.project_scheduled_start;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const projectStart = response.project_start || (updatedTasks[0] as any)?.project_scheduled_start;
 
       await schedulerApi.save(
         request.project_id,
@@ -178,7 +180,7 @@ const executeCalculationRequest = async (
       calculationError: (() => {
         const detail = err?.response?.data?.detail;
         if (typeof detail === "string") return detail;
-        if (typeof detail === "object" && detail !== null && "message" in detail) return (detail as { message: string }).message;
+        if (typeof detail === "object" && (detail as any)?.message) return (detail as any).message;
 
         // Handle FastAPI Pydantic errors which usually have a different structure
         if (Array.isArray(detail)) {
@@ -283,7 +285,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         project_id: t.project_id || response.project_id,
         // S-BUG #4: Cache project's canonical start date on every task so
         // the full-recalc path can use a stable projectStart anchor
-        project_scheduled_start: (response as ScheduleCalculationResponse & { project_start?: string }).project_start || t.project_scheduled_start,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        project_scheduled_start: (response as any).project_start || t.project_scheduled_start,
       }));
 
       set({
@@ -431,7 +434,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         const tasks = Object.values(taskMap);
         if (tasks.length === 0) return;
         try {
-          await schedulerApi.save(tasks[0].project_id, tasks, tasks[0].project_scheduled_start || "", 0);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await schedulerApi.save(tasks[0].project_id, tasks, (tasks[0] as any).project_scheduled_start || "", 0);
           toast.success("Schedule committed to database.");
         } catch (e) {
           console.error("Failed to commit schedule after delete", e);

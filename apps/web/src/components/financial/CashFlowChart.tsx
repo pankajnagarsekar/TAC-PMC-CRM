@@ -49,7 +49,8 @@ export default function CashFlowChart({ cashFlow }: CashFlowChartProps) {
   const formatCurrency = (value: number) =>
     `₹${(value / 1000).toFixed(1)}k`;
 
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { displayDate: string; opening: number; closing: number; txnCount: number } }> }) => {
+  const CustomTooltip = (props: any) => {
+    const { active, payload } = props;
     if (active && payload && payload.length > 0) {
       const data = payload[0].payload;
       return (

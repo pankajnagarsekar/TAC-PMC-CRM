@@ -172,7 +172,7 @@ export default function ProjectDetailPage() {
         minWidth: 160,
       },
     ],
-    [mutateFinancials, mutateProject, savingId, setIsConflictModalOpen],
+    [mutateFinancials, savingId],
   );
 
   if (projectError || financialsError) {

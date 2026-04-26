@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 
 interface AISummaryProps {
@@ -21,7 +21,7 @@ export function AISummary({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchSummary = async () => {
     setIsLoading(true);
     setError(null);
     setText('');
@@ -66,11 +66,11 @@ export function AISummary({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, type]);
+  };
 
   useEffect(() => {
     fetchSummary();
-  }, [fetchSummary]);
+  }, [projectId, type]);
 
   const titleMap: Record<string, string> = {
     schedule: '📅 Schedule Health',

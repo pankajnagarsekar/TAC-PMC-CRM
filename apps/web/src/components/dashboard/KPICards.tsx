@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { Activity, BarChart3, Coins, DollarSign, Gauge, Timer } from "lucide-react";
-import { startOfDay, isAfter } from "date-fns";
+import { startOfDay, isBefore, isAfter } from "date-fns";
 
 import KPICard from "@/components/ui/KPICard";
 import { useScheduleStore } from "@/store/useScheduleStore";

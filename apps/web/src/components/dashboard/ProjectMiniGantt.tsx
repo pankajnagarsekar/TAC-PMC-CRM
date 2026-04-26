@@ -12,12 +12,12 @@ interface ProjectMiniGanttProps {
 
 export default function ProjectMiniGantt({ tasks }: ProjectMiniGanttProps) {
     // 1. Calculate Timeline Range (Next 6 months starting from current month)
-    const start = useMemo(() => startOfMonth(new Date()), []);
+    const start = startOfMonth(new Date());
     const months = useMemo(() => {
         return Array.from({ length: 6 }).map((_, i) => addMonths(start, i));
     }, [start]);
 
-    const end = useMemo(() => addMonths(start, 6), [start]);
+    const end = addMonths(start, 6);
 
     const totalDays = useMemo(() => {
         return differenceInDays(end, start);

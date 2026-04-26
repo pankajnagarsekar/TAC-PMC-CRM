@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import { ColDef, ICellRendererParams, ValueFormatterParams } from "ag-grid-community";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import {
   Users,
   Plus,
   Search,
   Edit2,
+  MoreHorizontal,
   Mail,
   Phone,
   Building2,
@@ -45,13 +45,13 @@ export default function ClientsPage() {
   const [deleteClient, setDeleteClient] = useState<Client | null>(null);
   const { toast } = useToast();
 
-  const columnDefs: ColDef<Client>[] = useMemo(
+  const columnDefs: any[] = useMemo(
     () => [
       {
         headerName: "Client Name",
         field: "client_name",
         flex: 2,
-        cellRenderer: (params: ICellRendererParams<Client>) => (
+        cellRenderer: (params: any) => (
           <div className="flex items-center gap-3 py-2">
             <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-500">
               <Building2 size={16} />
@@ -64,7 +64,7 @@ export default function ClientsPage() {
         headerName: "Contact Details",
         field: "client_email",
         flex: 2,
-        cellRenderer: (params: ICellRendererParams<Client>) => (
+        cellRenderer: (params: any) => (
           <div className="flex flex-col justify-center py-1">
             <div className="flex items-center gap-2 text-slate-300 text-xs">
               <Mail size={12} className="text-slate-500" />
@@ -81,7 +81,7 @@ export default function ClientsPage() {
         headerName: "GST Number",
         field: "gst_number",
         flex: 1,
-        cellRenderer: (params: ICellRendererParams<Client>) => (
+        cellRenderer: (params: any) => (
           <code className="text-[11px] bg-zinc-100 dark:bg-slate-900 px-2 py-0.5 rounded border border-zinc-200 dark:border-slate-800 text-zinc-600 dark:text-slate-400">
             {params.data?.gst_number || "N/A"}
           </code>
@@ -91,7 +91,7 @@ export default function ClientsPage() {
         headerName: "Status",
         field: "active_status",
         width: 120,
-        cellRenderer: (params: ICellRendererParams<Client, boolean>) => (
+        cellRenderer: (params: any) => (
           <div className="flex items-center h-full">
             <span
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${params.value
@@ -113,23 +113,23 @@ export default function ClientsPage() {
         headerName: "Created",
         field: "created_at",
         width: 130,
-        valueFormatter: (params: ValueFormatterParams<Client, string>) => formatDate(params.value || ""),
+        valueFormatter: (params: any) => formatDate(params.value),
       },
       {
         headerName: "",
         field: "_id",
         width: 120,
-        cellRenderer: (params: ICellRendererParams<Client>) => (
+        cellRenderer: (params: any) => (
           <div className="flex items-center justify-end h-full px-2 gap-1 admin-only">
             <button
-              onClick={() => handleEdit(params.data as Client)}
+              onClick={() => handleEdit(params.data)}
               className="p-2 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
               title="Edit Client"
             >
               <Edit2 size={16} />
             </button>
             <button
-              onClick={() => handleDelete(params.data as Client)}
+              onClick={() => handleDelete(params.data)}
               className="p-2 hover:bg-red-50 dark:hover:bg-red-800 rounded-lg text-zinc-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               title="Delete Client"
             >
@@ -163,11 +163,10 @@ export default function ClientsPage() {
       mutate();
       setDeleteClient(null);
       toast({ title: "Success", description: "Client deleted successfully" });
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
+    } catch (err: any) {
       toast({
         title: "Error",
-        description: error.response?.data?.detail || "Failed to delete client",
+        description: err.response?.data?.detail || "Failed to delete client",
         variant: "destructive",
       });
     }
@@ -229,7 +228,7 @@ export default function ClientsPage() {
             </div>
             <h3 className="empty-state-luxury-title">Connection Interrupted</h3>
             <p className="empty-state-luxury-desc">The server was unable to stream the client registry. Please check your network or try again.</p>
-            <button
+            <button 
               onClick={() => mutate()}
               className="mt-6 px-6 py-2.5 bg-orange-600/10 text-orange-500 border border-orange-500/20 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-orange-600/20 transition-all"
             >

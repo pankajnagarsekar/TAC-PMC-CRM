@@ -6,6 +6,7 @@ import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import {
   ExternalLink,
+  Calendar,
   MapPin,
   X,
   CheckCircle2,

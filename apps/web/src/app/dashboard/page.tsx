@@ -60,7 +60,7 @@ interface ProjectDashboardData {
 }
 
 export default function DashboardPage() {
-  const activeProject = useProjectStore((state) => state.activeProject);
+  const activeProject = useProjectStore((state: any) => state.activeProject);
 
   const {
     data: dashboardData,

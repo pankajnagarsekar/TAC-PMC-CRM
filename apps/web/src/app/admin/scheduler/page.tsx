@@ -224,7 +224,7 @@ function ProjectSchedulerContent() {
           <p className="text-[11px] font-semibold text-slate-900 dark:text-orange-300 leading-tight">
             Operational punch-lists and action items are tracked in the
             <button
-              onClick={() => router.push(`/admin/tasks?project_id=${activeProject.project_id}`)}
+              onClick={() => router.push(`/admin/tasks?project_id=${activeProject.project_id || (activeProject as any)._id}`)}
               className="mx-1 px-1.5 py-0.5 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-700 dark:text-orange-200 underline decoration-orange-500/30 underline-offset-2 transition-all"
             >
               Task Log
@@ -357,7 +357,7 @@ function ProjectSchedulerContent() {
                       title=""
                       data={(() => {
                         // PP-018: Derive category distribution from taskMap for better granularity
-                        const categoriesMap = Object.values(taskMap).reduce((acc: Record<string, { name: string; budget: number; committed: number }>, task: ScheduleTask) => {
+                        const categoriesMap = Object.values(taskMap).reduce((acc: Record<string, any>, task: ScheduleTask) => {
                           // Map WBS first segment to readable names
                           const code = task.wbs_code?.split('.')[0] || 'Misc';
                           const name = code === 'C' ? 'Construction' :

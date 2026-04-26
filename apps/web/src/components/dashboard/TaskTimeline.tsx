@@ -32,14 +32,8 @@ export default function TaskTimeline({
   const chartData = useMemo(() => {
     if (!daily_completion.length) return [];
 
-    interface ChartDataPoint {
-      date: string;
-      tasks: number;
-      utilization?: number;
-    }
-
     return daily_completion.map((item, index) => {
-      const dataPoint: ChartDataPoint = {
+      const dataPoint: any = {
         date: format(parseISO(item.date), "MMM dd"),
         tasks: item.value,
       };

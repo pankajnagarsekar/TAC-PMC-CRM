@@ -3,6 +3,7 @@
 import {
     Dialog,
     DialogContent,
+    DialogHeader,
     DialogTitle,
     DialogFooter,
 } from "@tac-pmc/ui";

@@ -3,12 +3,14 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { ColDef, ICellRendererParams } from "ag-grid-community";
+import { ColDef } from "ag-grid-community";
 import {
     Plus,
     Search,
     Edit2,
     Building,
+    CheckCircle2,
+    XCircle,
     Layout,
     MapPin,
     ExternalLink,
@@ -43,7 +45,7 @@ export default function ProjectsSettingsPage() {
                 headerName: "Project Identity",
                 field: "project_name",
                 flex: 2.5,
-                cellRenderer: (params: ICellRendererParams<Project>) => (
+                cellRenderer: (params: any) => (
                     <div className="flex items-center gap-3 py-2">
                         <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 shadow-inner">
                             <LayoutGrid size={18} />
@@ -53,7 +55,7 @@ export default function ProjectsSettingsPage() {
                                 {params.value}
                             </span>
                             <span className="text-[10px] text-slate-500 font-mono mt-0.5 tracking-wider">
-                                {params.data?.project_code || "NO-CODE"}
+                                {params.data.project_code || "NO-CODE"}
                             </span>
                         </div>
                     </div>
@@ -63,7 +65,7 @@ export default function ProjectsSettingsPage() {
                 headerName: "Stakeholder",
                 field: "client_name",
                 flex: 1.5,
-                cellRenderer: (params: ICellRendererParams<Project>) => (
+                cellRenderer: (params: any) => (
                     <div className="flex items-center gap-2 text-slate-300">
                         <Building size={14} className="text-slate-500" />
                         <span className="font-medium text-xs">{params.value || "Internal"}</span>
@@ -74,11 +76,11 @@ export default function ProjectsSettingsPage() {
                 headerName: "Location",
                 field: "address",
                 flex: 1.5,
-                cellRenderer: (params: ICellRendererParams<Project>) => (
+                cellRenderer: (params: any) => (
                     <div className="flex items-center gap-2 text-slate-400 text-xs">
                         <MapPin size={12} className="text-slate-600" />
                         <span className="truncate">
-                            {params.value || params.data?.city || "Remote"}
+                            {params.value || params.data.city || "Remote"}
                         </span>
                     </div>
                 ),
@@ -87,7 +89,7 @@ export default function ProjectsSettingsPage() {
                 headerName: "Operational Status",
                 field: "status",
                 width: 150,
-                cellRenderer: (params: ICellRendererParams<Project>) => {
+                cellRenderer: (params: any) => {
                     const status = params.value?.toLowerCase() || 'pending';
                     return (
                         <div className="flex items-center h-full">
@@ -115,17 +117,17 @@ export default function ProjectsSettingsPage() {
                 field: "_id",
                 width: 140,
                 cellClass: "admin-only",
-                cellRenderer: (params: ICellRendererParams<Project>) => (
+                cellRenderer: (params: any) => (
                     <div className="flex items-center justify-end h-full gap-1 px-1">
                         <button
-                            onClick={() => params.data && handleEdit(params.data)}
+                            onClick={() => handleEdit(params.data)}
                             className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all active:scale-90"
                             title="Edit Profile"
                         >
                             <Edit2 size={15} />
                         </button>
                         <button
-                            onClick={() => params.value && handleInitializeBudgets(params.value)}
+                            onClick={() => handleInitializeBudgets(params.value)}
                             disabled={!!initLoading}
                             className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-400 hover:text-emerald-500 transition-all active:scale-90 disabled:opacity-50"
                             title="Compute Budgets"
@@ -137,7 +139,7 @@ export default function ProjectsSettingsPage() {
                             )}
                         </button>
                         <Link
-                            href={`/admin/projects/${params.data?._id}`}
+                            href={`/admin/projects/${params.data._id}`}
                             className="p-2 hover:bg-orange-500/10 rounded-lg text-slate-400 hover:text-orange-500 transition-all active:scale-90"
                             title="Enterprise View"
                         >
@@ -169,8 +171,7 @@ export default function ProjectsSettingsPage() {
         try {
             await api.post(`/api/v1/projects/${projectId}/initialize-budgets`);
             alert("Project financial structure initialized.");
-        } catch (error: unknown) {
-            const err = error as { response?: { data?: { detail?: string } } };
+        } catch (err: any) {
             alert(err.response?.data?.detail || "Failed to initialize financials.");
         } finally {
             setInitLoading(null);

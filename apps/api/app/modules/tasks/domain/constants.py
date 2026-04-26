@@ -1,0 +1,41 @@
+"""Task module constants and configuration values."""
+
+# Cache settings
+TASK_AI_SUMMARY_CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
+TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS = 30
+
+# Pagination
+DEFAULT_PAGE_LIMIT = 50
+MAX_PAGE_LIMIT = 500
+
+# Summary generation
+MAX_TOP_ASSIGNEES_IN_SUMMARY = 3
+
+# Status values (mirrors TaskStatus enum)
+TASK_STATUS_OPEN = "Open"
+TASK_STATUS_IN_PROGRESS = "In Progress"
+TASK_STATUS_REVIEW = "Review"
+TASK_STATUS_COMPLETED = "Completed"
+TASK_STATUS_CLOSED = "Closed"
+
+# Valid task statuses
+VALID_TASK_STATUSES = {
+    TASK_STATUS_OPEN,
+    TASK_STATUS_IN_PROGRESS,
+    TASK_STATUS_REVIEW,
+    TASK_STATUS_COMPLETED,
+    TASK_STATUS_CLOSED,
+}
+
+# Task priorities
+TASK_PRIORITY_LOW = "Low"
+TASK_PRIORITY_NORMAL = "Normal"
+TASK_PRIORITY_HIGH = "High"
+TASK_PRIORITY_CRITICAL = "Critical"
+
+VALID_TASK_PRIORITIES = {
+    TASK_PRIORITY_LOW,
+    TASK_PRIORITY_NORMAL,
+    TASK_PRIORITY_HIGH,
+    TASK_PRIORITY_CRITICAL,
+}

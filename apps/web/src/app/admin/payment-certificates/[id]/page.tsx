@@ -29,7 +29,7 @@ import { useProjectStore } from "@/store/projectStore";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import { formatCurrency, formatDate } from "@tac-pmc/ui";
-import { PaymentCertificate, CodeMaster, WorkOrder } from "@/types/api";
+import { PaymentCertificate, CodeMaster, Vendor, WorkOrder } from "@/types/api";
 
 import { useVendorNames } from "@/hooks/useVendorNames";
 
@@ -63,7 +63,7 @@ export default function PaymentCertificateDetail({
     fetcher,
   );
 
-  const { getVendorName } = useVendorNames();
+  const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
 
   const { data: woResponse } = useSWR(
     activeProject
@@ -99,7 +99,7 @@ export default function PaymentCertificateDetail({
 
       await mutate();
     } catch (err: unknown) {
-      const axiosError = err as { response?: { status?: number, data?: { detail?: string } }, message?: string };
+      const axiosError = err as any;
       if (axiosError.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
@@ -131,10 +131,10 @@ export default function PaymentCertificateDetail({
   };
 
   const getCategoryName = (cid: string) =>
-    categories?.find((c) => String(c._id) === String(cid))?.category_name || cid;
+    categories?.find((c) => String((c as any)._id || (c as any).id) === String(cid))?.category_name || cid;
 
   const getWoRef = (woid: string) =>
-    workOrders.find((w) => String(w._id) === String(woid))?.wo_ref || woid;
+    workOrders.find((w) => String((w as any)._id || (w as any).id) === String(woid))?.wo_ref || woid;
 
   const columnDefs: ColDef[] = useMemo(() => [
     { field: "sr_no", headerName: "Sr No", width: 80, filter: false },

@@ -153,16 +153,16 @@ export function CreateUserModal({ open, onClose, onCreated }: CreateUserModalPro
 
       onCreated();
       onClose();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string | Array<{ loc: string[]; msg: string }> } } };
-      const detail = err.response?.data?.detail;
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string | any[] } } };
+      const detail = error.response?.data?.detail;
 
       let message = "Failed to create user";
       if (typeof detail === "string") {
         message = detail;
       } else if (Array.isArray(detail)) {
         // Handle FastAPI validation error list
-        message = detail.map((d) => `${d.loc.join('.')}: ${d.msg}`).join(", ");
+        message = detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(", ");
       } else if (typeof detail === "object" && detail !== null) {
         message = JSON.stringify(detail);
       }
