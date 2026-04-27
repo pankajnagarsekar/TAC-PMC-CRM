@@ -14,7 +14,7 @@ Architecture:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
 

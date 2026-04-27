@@ -2,9 +2,10 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-# In-memory store for demo/development. 
+# In-memory store for demo/development.
 # In production, this should be in Redis or MongoDB.
 _jobs = {}
+
 
 class JobTracker:
     @staticmethod

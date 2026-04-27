@@ -5,13 +5,54 @@ import { PortfolioSummary } from "@/components/dashboard/PortfolioSummary";
 import PortfolioGantt from "@/components/dashboard/PortfolioGantt";
 import ResourceHeatmap from "@/components/dashboard/ResourceHeatmap";
 import * as Tabs from "@radix-ui/react-tabs";
-import { Loader2, RefreshCcw, Activity, AlertTriangle as AlertTriangleIcon } from "lucide-react";
+import { Loader2, RefreshCcw, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import { portfolioApi } from "@/lib/api";
 
+interface PortfolioPageMilestone {
+    task_id: string;
+    project_id: string;
+    project_name: string;
+    task_name: string;
+    deadline: string;
+    finish_date: string; // Needed for PortfolioGantt
+    is_critical: boolean;
+}
+
+interface PortfolioPageStats {
+    organisation_id: string;
+    total_projects: number;
+    total_baseline_value: number;
+    total_work_order_value: number;
+    total_payment_value: number;
+    status_distribution: {
+        active: number;
+        planning: number;
+        other: number;
+    };
+    critical_milestones: PortfolioPageMilestone[];
+    exposure_metrics: {
+        critical_project_count: number;
+        at_risk_milestones: number;
+    };
+}
+
+interface HeatmapDay {
+    date: string;
+    utilization_percent: number;
+    project_ids: string[];
+}
+
+interface ResourceStats {
+    resource_id: string;
+    resource_name: string;
+    daily_utilization: HeatmapDay[];
+    total_availability_hours: number;
+}
+
 export default function PortfolioPage() {
-    const [data, setData] = useState<any>(null);
-    const [milestones, setMilestones] = useState<any[]>([]);
-    const [heatmap, setHeatmap] = useState<any[]>([]);
+    const [data, setData] = useState<PortfolioPageStats | null>(null);
+    const [milestones, setMilestones] = useState<PortfolioPageMilestone[]>([]);
+    const [heatmap, setHeatmap] = useState<ResourceStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -19,15 +60,15 @@ export default function PortfolioPage() {
         setLoading(true);
         try {
             const [summary, ms, hm] = await Promise.all([
-                portfolioApi.getSummary(),
-                portfolioApi.getMilestones(),
-                portfolioApi.getResourceHeatmap()
+                portfolioApi.getSummary() as Promise<PortfolioPageStats>,
+                portfolioApi.getMilestones() as Promise<PortfolioPageMilestone[]>,
+                portfolioApi.getResourceHeatmap() as Promise<ResourceStats[]>
             ]);
             setData(summary);
             setMilestones(ms);
             setHeatmap(hm);
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError("Failed to load portfolio statistics.");
             console.error(err);
         } finally {
@@ -94,7 +135,7 @@ export default function PortfolioPage() {
                 </Tabs.List>
 
                 <Tabs.Content value="overview" className="space-y-8 focus-visible:outline-none">
-                    <PortfolioSummary data={data} />
+                    {data && <PortfolioSummary data={data} />}
                     <PortfolioGantt milestones={milestones} />
                 </Tabs.Content>
 
@@ -107,12 +148,12 @@ export default function PortfolioPage() {
                         <RiskCard
                             title="Critical Path Exposure"
                             detail={`${data?.exposure_metrics?.critical_project_count || 0} projects have milestones on the critical path`}
-                            severity={data?.exposure_metrics?.critical_project_count > 0 ? "HIGH" : "MEDIUM"}
+                            severity={(data?.exposure_metrics?.critical_project_count ?? 0) > 0 ? "HIGH" : "MEDIUM"}
                         />
                         <RiskCard
                             title="At-Risk Milestones"
                             detail={`${data?.exposure_metrics?.at_risk_milestones || 0} upcoming milestones flagged as critical/delayed`}
-                            severity={data?.exposure_metrics?.at_risk_milestones > 10 ? "HIGH" : "MEDIUM"}
+                            severity={(data?.exposure_metrics?.at_risk_milestones ?? 0) > 10 ? "HIGH" : "MEDIUM"}
                         />
                     </div>
                 </Tabs.Content>
@@ -121,7 +162,13 @@ export default function PortfolioPage() {
     );
 }
 
-const RiskCard = ({ title, detail, severity }: any) => (
+interface RiskCardProps {
+    title: string;
+    detail: string;
+    severity: "HIGH" | "MEDIUM" | "LOW";
+}
+
+const RiskCard = ({ title, detail, severity }: RiskCardProps) => (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl relative overflow-hidden group shadow-xl">
         <div className={`absolute top-0 left-0 w-1 h-full ${severity === 'HIGH' ? 'bg-rose-500' : 'bg-amber-500'}`} />
         <h4 className="text-white font-bold mb-2 flex items-center gap-2">

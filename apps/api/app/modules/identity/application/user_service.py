@@ -1,8 +1,8 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..domain.authorization import IdentityAuthorizationManager
-from ..domain.exceptions import EmailAlreadyExistsError, UserNotFoundError
+from ..domain.exceptions import UserNotFoundError
 from ..domain.models import User as UserModel
 from ..infrastructure.repository import UserRepository
 from ..schemas.dto import UserCreateAdmin, UserUpdate

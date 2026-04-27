@@ -7,7 +7,6 @@ when attempting to recalculate schedules with locked tasks.
 
 import pytest
 from app.modules.shared.domain.exceptions import DataFreezeError
-from app.modules.scheduler.baseline_manager import BaselineManager
 
 
 @pytest.fixture

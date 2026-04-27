@@ -9,11 +9,13 @@ import { format } from 'date-fns';
 import type { ScheduleTask } from '../../types/api';
 import { STATUS_COLORS, STATUS_LABELS, CRITICAL_COLOR } from './scheduler-constants';
 import { parseTaskDate } from './scheduler-utils';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
 
 interface SchedulerListProps {
   tasks: ScheduleTask[];
 }
+
+type DynamicStyles = ReturnType<typeof createDynamicStyles>;
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -26,7 +28,15 @@ function formatDate(value: string | null | undefined): string {
   }
 }
 
-function TaskRow({ item, colors, dynamicStyles }: { item: ScheduleTask; colors: any; dynamicStyles: any }) {
+function TaskRow({
+  item,
+  colors,
+  dynamicStyles,
+}: {
+  item: ScheduleTask;
+  colors: ThemeContextType['colors'];
+  dynamicStyles: DynamicStyles;
+}) {
   const router = useRouter();
   const isCritical = item.is_critical;
   const statusColor = STATUS_COLORS[item.status] ?? colors.textMuted;
@@ -80,7 +90,7 @@ export function SchedulerList({ tasks }: SchedulerListProps) {
   );
 }
 
-function createDynamicStyles(colors: any) {
+function createDynamicStyles(colors: ThemeContextType['colors']) {
   return StyleSheet.create({
     row: {
       paddingVertical: 10,

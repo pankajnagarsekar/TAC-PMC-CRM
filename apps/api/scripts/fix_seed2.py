@@ -1,5 +1,3 @@
-import sys
-import re
 
 file_path = "apps/api/scripts/seed_production.py"
 with open(file_path, "r", encoding="utf-8") as f:
@@ -19,7 +17,10 @@ vendor_block = """        vendor_doc = await db.vendors.find_one({"name": "Defau
         else:
             vendor_id = str(vendor_doc["_id"])"""
 
-new_vendor_block = """        vendors_to_create = ["Default Vendor", "SS Construction", "Suraj Electrician", "Rajesh Construction", "CDSP Global"]
+new_vendor_block = """        vendors_to_create = [
+            "Default Vendor", "SS Construction", "Suraj Electrician",
+            "Rajesh Construction", "CDSP Global"
+        ]
         vendor_map = {}
         for v_name in vendors_to_create:
             v_doc = await db.vendors.find_one({"name": v_name})
@@ -75,7 +76,7 @@ injection_block = """        print(f"  Projected financial states for {len(finan
         print("\\n[STEP 7] Seeding Missing WOs, PCs and Site Tasks...")
         await db.work_orders.delete_many({"project_id": project_id})
         await db.payment_certificates.delete_many({"project_id": project_id})
-        
+
         await db.work_orders.insert_many([
             {
                 "wo_ref": "TAC_WO_25_003",
@@ -98,7 +99,7 @@ injection_block = """        print(f"  Projected financial states for {len(finan
                 "status": "Completed"
             }
         ])
-        
+
         await db.payment_certificates.insert_many([
             {
                 "pc_ref": "TAC_PC_25_001",
@@ -121,10 +122,13 @@ injection_block = """        print(f"  Projected financial states for {len(finan
                 "status": "Approved"
             }
         ])
-        
+
         print("  Created missing entities.")"""
 
-content = content.replace("""        print(f"  Projected financial states for {len(financial_categories)} categories")""", injection_block)
+content = content.replace(
+    """        print(f"  Projected financial states for {len(financial_categories)} categories")""",
+    injection_block
+)
 
 
 with open(file_path, "w", encoding="utf-8") as f:

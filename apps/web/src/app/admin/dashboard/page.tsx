@@ -21,7 +21,6 @@ import Link from "next/link";
 import { fetcher, schedulerApi } from "@/lib/api";
 import { Info, ChevronUp, ChevronDown } from "lucide-react";
 import { Project, DerivedFinancialState } from "@/types/api";
-import NextImage from "next/image";
 import { useProjectStore } from "@/store/projectStore";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
@@ -88,9 +87,9 @@ export default function AdminDashboard() {
   // Validate stored project against available projects — clears stale DB references
   React.useEffect(() => {
     if (!projects || projects.length === 0 || !activeProject) return;
-    const storedId = activeProject.project_id || (activeProject as any)._id;
+    const storedId = activeProject.project_id || activeProject._id;
     const exists = projects.some(
-      (p) => p.project_id === storedId || (p as any)._id === storedId
+      (p: Project) => p.project_id === storedId || p._id === storedId
     );
     if (!exists) {
       clearProject();
@@ -413,7 +412,7 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                   <div className="flex flex-col min-w-0">
                     <span className="text-zinc-500 truncate pr-2">
-                      {task.task_name || (task as any).task_description || 'Unnamed Task'}
+                      {task.task_name || (task as Record<string, unknown>).task_description as string || 'Unnamed Task'}
                     </span>
                     <span className="text-[10px] text-zinc-600 font-mono">
                       {task.wbs_code || '---'}
@@ -472,7 +471,7 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                   <span className="text-zinc-500 truncate max-w-[200px]">
                     {f.category_name || f.category_id}
-                    {(f as any).code && ` (${(f as any).code})`}
+                    {f.category_code && ` (${f.category_code})`}
                   </span>
                   <span className="text-primary shrink-0">{progress}% Progress</span>
                 </div>

@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { apiClient, authApi, dprApi, workerLogsApi } from '../../../services/apiClient';
+import { baseApiClient, authApi, dprApi, workerLogsApi } from '../../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 // eslint-disable-next-line import/no-named-as-default
 import VersionSelector from '../../../components/VersionSelector';
@@ -75,16 +75,16 @@ export default function DPRDetailScreen() {
       setWorkerLogs(logs);
 
       const editable: Record<string, WorkerLogEntry[]> = {};
-      logs.forEach((log: any) => {
-        const logId = log.log_id || log.id || log._id;
+      logs.forEach((log: WorkerLog) => {
+        const logId = log.log_id;
         if (!logId) return;
 
-        editable[logId] = (log.entries || []).map((e: any) => ({
+        editable[logId] = (log.entries || []).map((e: WorkerLogEntry) => ({
           vendor_name: e.vendor_name || '',
           workers_count: e.workers_count || 0,
           skill_type: e.skill_type || '',
           rate_per_worker: e.rate_per_worker || 0,
-          remarks: e.remarks || e.purpose || '',
+          remarks: e.remarks || '',
         }));
       });
       setEditableEntries(editable);
@@ -100,7 +100,7 @@ export default function DPRDetailScreen() {
 
     try {
       const response = await dprApi.getById(id);
-      setDpr(response as any);
+      setDpr(response as DPR);
       setProgressNotes(response.progress_notes || '');
 
       // M10: Initialize image captions
@@ -114,9 +114,10 @@ export default function DPRDetailScreen() {
       if (response.project_id && response.dpr_date) {
         fetchWorkerLogs(response.project_id, response.dpr_date);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching DPR:', error);
-      showAlert('Error', error.message || 'Failed to load DPR');
+      const msg = error instanceof Error ? error.message : 'Failed to load DPR';
+      showAlert('Error', msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -143,8 +144,9 @@ export default function DPRDetailScreen() {
       showAlert('Success', 'DPR updated successfully');
       setEditing(false);
       fetchDPR();
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to update DPR');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to update DPR';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -155,7 +157,7 @@ export default function DPRDetailScreen() {
     setSavingWorkerLog(true);
     try {
       const entries = editableEntries[logId] || [];
-      await apiClient.put(`/api/v1/worker-logs/${logId}`, {
+      await baseApiClient.put(`/api/v1/worker-logs/${logId}`, {
         entries: entries.map(e => ({
           vendor_name: e.vendor_name,
           workers_count: e.workers_count,
@@ -166,18 +168,19 @@ export default function DPRDetailScreen() {
       });
       showAlert('Success', 'Worker log updated successfully');
       if (dpr) fetchWorkerLogs(dpr.project_id, dpr.dpr_date);
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to save worker log');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to save worker log';
+      showAlert('Error', msg);
     } finally {
       setSavingWorkerLog(false);
     }
   };
 
   // Update a single worker log entry
-  const updateWorkerEntry = (logId: string, index: number, field: keyof WorkerLogEntry, value: any) => {
+  const updateWorkerEntry = (logId: string, index: number, field: keyof WorkerLogEntry, value: string | number) => {
     setEditableEntries(prev => {
       const entries = [...(prev[logId] || [])];
-      entries[index] = { ...entries[index], [field]: value };
+      entries[index] = { ...entries[index], [field]: value } as WorkerLogEntry;
       return { ...prev, [logId]: entries };
     });
   };
@@ -206,14 +209,15 @@ export default function DPRDetailScreen() {
 
     setSaving(true);
     try {
-      await apiClient.put(`/api/v1/dprs/${id}/images/${imageId}`, {
+      await baseApiClient.put(`/api/v1/dprs/${id}/images/${imageId}`, {
         caption: imageCaptions[imageId] || '',
       });
       showAlert('Success', 'Caption updated successfully');
       setExpandedImageId(null);
       fetchDPR();
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to update caption');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to update caption';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -232,8 +236,9 @@ export default function DPRDetailScreen() {
       await dprApi.submit(id!);
       showAlert('Success', 'DPR submitted successfully');
       fetchDPR();
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to submit DPR');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to submit DPR';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -249,8 +254,9 @@ export default function DPRDetailScreen() {
       });
       showAlert('Success', 'DPR approved successfully');
       fetchDPR();
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to approve DPR');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to approve DPR';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -275,8 +281,9 @@ export default function DPRDetailScreen() {
         showAlert('Success', 'Photo added!');
         fetchDPR();
       }
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to add photo');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to add photo';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -299,30 +306,36 @@ export default function DPRDetailScreen() {
       } else {
         showAlert('Error', 'Could not open the download URL in your browser.');
       }
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to trigger PDF download');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to trigger PDF download';
+      showAlert('Error', msg);
     } finally {
       setGeneratingPdf(false);
     }
   };
 
   // UI-3: Handle version selection
-  const handleVersionSelect = (version: number, snapshotData: any | null) => {
+  const handleVersionSelect = (version: number, snapshotData: unknown | null) => {
     if (snapshotData) {
       // Backend returns the data object directly now
       // Check if it's a string (old format) or object (new format)
-      let historicalDpr = snapshotData;
-      if (typeof snapshotData === 'string') {
+      let historicalDpr: DPR;
+
+      const data = snapshotData as any;
+      if (typeof data === 'string') {
         try {
-          historicalDpr = JSON.parse(snapshotData);
+          historicalDpr = JSON.parse(data);
         } catch (e) {
           console.error('Failed to parse historical DPR string', e);
+          return;
         }
-      } else if (snapshotData.data_json) {
+      } else if (data.data_json) {
         // Handle case where it's wrapped (original expectation)
-        historicalDpr = typeof snapshotData.data_json === 'string'
-          ? JSON.parse(snapshotData.data_json)
-          : snapshotData.data_json;
+        historicalDpr = typeof data.data_json === 'string'
+          ? JSON.parse(data.data_json)
+          : data.data_json;
+      } else {
+        historicalDpr = data as DPR;
       }
 
       setDpr(historicalDpr);
@@ -472,8 +485,8 @@ export default function DPRDetailScreen() {
               <Text style={styles.emptyText}>No worker logs submitted for this date</Text>
             </View>
           ) : (
-            workerLogs.map((log: any) => {
-              const logId = log.log_id || log.id || log._id;
+            workerLogs.map((log: WorkerLog) => {
+              const logId = log.log_id;
               const entries = editableEntries[logId] || [];
               return (
                 <View key={logId} style={styles.workerLogCard}>

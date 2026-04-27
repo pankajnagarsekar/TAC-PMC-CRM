@@ -9,7 +9,7 @@ Tests for Phase 1 Task #11: Baseline Locking
 """
 
 import pytest
-from datetime import datetime, timezone
+
 from app.modules.scheduler.baseline_manager import BaselineManager
 from app.modules.shared.domain.exceptions import DataFreezeError, ValidationError
 
@@ -93,7 +93,7 @@ async def test_lock_baseline_creates_snapshot(baseline_manager, sample_tasks):
         baseline_version=1,
     )
 
-    snapshot_id = result["snapshot_id"]
+    result["snapshot_id"]
     snapshot = await baseline_manager.get_snapshot(
         project_id="proj-001",
         organisation_id="org-001",
@@ -109,7 +109,7 @@ async def test_lock_baseline_creates_snapshot(baseline_manager, sample_tasks):
 @pytest.mark.asyncio
 async def test_lock_baseline_stores_baseline_dates(baseline_manager, sample_tasks):
     """Test that lock_baseline stores baseline_start/finish dates."""
-    result = await baseline_manager.lock_baseline(
+    await baseline_manager.lock_baseline(
         project_id="proj-001",
         organisation_id="org-001",
         user_id="user-001",
@@ -358,7 +358,7 @@ async def test_get_snapshot_not_found_returns_none(baseline_manager):
 @pytest.mark.asyncio
 async def test_snapshot_calculates_duration(baseline_manager, sample_tasks):
     """Test that snapshot correctly calculates project duration."""
-    result = await baseline_manager.lock_baseline(
+    await baseline_manager.lock_baseline(
         project_id="proj-001",
         organisation_id="org-001",
         user_id="user-001",
@@ -403,7 +403,7 @@ async def test_multiple_baseline_versions(baseline_manager, sample_tasks):
     ]
 
     # Lock version 1
-    v1 = await baseline_manager.lock_baseline(
+    await baseline_manager.lock_baseline(
         project_id="proj-001",
         organisation_id="org-001",
         user_id="user-001",
@@ -412,7 +412,7 @@ async def test_multiple_baseline_versions(baseline_manager, sample_tasks):
     )
 
     # Lock version 2 with modified tasks
-    v2 = await baseline_manager.lock_baseline(
+    await baseline_manager.lock_baseline(
         project_id="proj-001",
         organisation_id="org-001",
         user_id="user-001",

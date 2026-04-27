@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from ..infrastructure.repository import ContractRepository, WorkOrderRepository
@@ -19,12 +19,12 @@ class ContractService:
 
     async def create_contract(self, user: dict, wo_id: str, data: ContractCreate) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
-        
+
         # 1. Fetch WO
         wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
         if not wo:
             raise NotFoundError("Work Order", wo_id)
-            
+
         # 2. Check if contract already exists
         existing = await self.contract_repo.find_one({"work_order_id": wo_id})
         if existing:
@@ -32,7 +32,9 @@ class ContractService:
 
         # 3. Check WO status (Must be Approved to create contract)
         if wo.get("status") not in ["Approved", "Completed", "Closed"]:
-             raise ValidationError(f"Work Order must be Approved before creating a contract. Current: {wo.get('status')}")
+            raise ValidationError(
+                f"Work Order must be Approved before creating a contract. Current: {wo.get('status')}"
+            )
 
         contract_dict = data.dict()
         contract_dict.update({
@@ -74,8 +76,8 @@ class ContractService:
         update_dict["version"] = data.expected_version + 1
 
         updated = await self.contract_repo.update(
-            contract_id, 
-            update_dict, 
+            contract_id,
+            update_dict,
             expected_version=data.expected_version
         )
         if not updated:

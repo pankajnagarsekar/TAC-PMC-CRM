@@ -2,9 +2,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
 import type { ScheduleTask } from '../../../../types/api';
-import { schedulerApi } from '../../../../services/apiClient';
 import { TaskDetailModal } from '../../../../components/scheduler/TaskDetailModal';
 import { useProject } from '../../../../contexts/ProjectContext';
+import { schedulerApi } from '../../../../services/apiClient';
 
 export default function TaskDetailsScreen() {
   const { taskId } = useLocalSearchParams();
@@ -28,9 +28,22 @@ export default function TaskDetailsScreen() {
       return;
     }
 
-    // Load full task data if needed (taskId is available from route)
-    // For now, just show the modal and let parent handle it
-    setLoading(false);
+    const loadTask = async () => {
+      try {
+        setLoading(true);
+        const data = await schedulerApi.loadSchedule(selectedProject.project_id);
+        const found = data.tasks.find((t: ScheduleTask) => t.task_id === taskId);
+        if (found) {
+          setTask(found);
+        }
+      } catch (err) {
+        console.error('Failed to load task:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTask();
   }, [taskId, selectedProject, router]);
 
   return (
@@ -43,12 +56,12 @@ export default function TaskDetailsScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Task Not Found</Text>
           <Text style={{ textAlign: 'center', color: '#666' }}>
-            We couldn't load the task details. Please try again from the scheduler.
+            We couldn&apos;t load the task details. Please try again from the scheduler.
           </Text>
         </View>
       ) : (
         <TaskDetailModal
-          task={null}
+          task={task}
           projectId={selectedProject?.project_id ?? ''}
           visible={true}
           onClose={() => router.back()}

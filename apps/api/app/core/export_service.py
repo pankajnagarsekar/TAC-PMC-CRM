@@ -1,6 +1,6 @@
 import logging
 from app.core.time import now
-from datetime import datetime, timezone
+
 from io import BytesIO
 from typing import Any, Dict, Optional
 
@@ -155,7 +155,7 @@ class ExportService:
         company_info: Optional[Dict[str, Any]] = None,
     ) -> bytes:
         from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Border, Font, Side
+        from openpyxl.styles import Font
 
         wb = Workbook()
         ws = wb.active
@@ -202,14 +202,14 @@ class ExportService:
             os.path.join(os.path.dirname(__file__), "..", "templates"),
             os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates"),
         ]
-        
+
         template_dir = next((p for p in search_paths if os.path.exists(p)), search_paths[0])
         loader = jinja2.FileSystemLoader(template_dir)
         env = jinja2.Environment(loader=loader)
- 
+
         config = ExportService.REPORT_TEMPLATES.get(report_type, {})
         template_name = config.get("template", "generic_report.html")
- 
+
         try:
             template = env.get_template(template_name)
         except Exception as te:
@@ -239,7 +239,7 @@ class ExportService:
                 </body>
                 </html>
             """)
- 
+
         # Build context — explicit keys take priority; extra keys from report_data
         # (e.g. tasks, months for specialized templates) are merged in without
         # duplicating the named keys (which would cause a TypeError).
@@ -256,7 +256,7 @@ class ExportService:
             if k not in context:
                 context[k] = v
         html_out = template.render(**context)
- 
+
         try:
             # Check if WeasyPrint is likely to work before attempting import
             # This avoids system-level DLL hangs on Windows if missing GTK
@@ -265,12 +265,18 @@ class ExportService:
             return pdf_bytes
         except (ImportError, OSError, Exception) as e:
             # Fallback to ReportLab if WeasyPrint system dependencies are missing
-            logger.error(f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab. HTML length: {len(html_out)}")
+            logger.error(
+                f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab. "
+                f"HTML length: {len(html_out)}"
+            )
             try:
                 return ExportService._generate_pdf_reportlab(report_data, config)
             except Exception as re:
                 logger.error(f"ReportLab fallback also failed: {re}")
-                raise RuntimeError("PDF generation failed: Both WeasyPrint and ReportLab engines are unavailable or encountered a terminal error.")
+                raise RuntimeError(
+                    "PDF generation failed: Both WeasyPrint and ReportLab engines are "
+                    "unavailable or encountered a terminal error."
+                )
 
     @staticmethod
     def _generate_pdf_reportlab(report_data: Dict[str, Any], config: Dict[str, Any]) -> bytes:
@@ -292,7 +298,7 @@ class ExportService:
         # Table Data
         headers = [col[0] for col in config.get("columns", [])]
         col_widths_raw = [col[1] for col in config.get("columns", [])]
-        
+
         # Calculate absolute widths based on 500px content area
         total_relative = sum(col_widths_raw)
         if total_relative > 0:
@@ -306,31 +312,31 @@ class ExportService:
             # Fallback for scheduler/Gantt reports in ReportLab (Point 118)
             rows = report_data["tasks"]
             if not config.get("columns"):
-                 # Provide default columns for Gantt tasks if missing
-                 config["columns"] = [
-                     ("Task Name", 40),
-                     ("Start", 15),
-                     ("Finish", 15),
-                     ("Duration", 10),
-                     ("Predecessors", 20)
-                 ]
-                 headers = ["Task Name", "Start", "Finish", "Duration", "Predecessors"]
-                 col_widths_raw = [40, 15, 15, 10, 20]
-                 total_relative = sum(col_widths_raw)
-                 col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
-        
+                # Provide default columns for Gantt tasks if missing
+                config["columns"] = [
+                    ("Task Name", 40),
+                    ("Start", 15),
+                    ("Finish", 15),
+                    ("Duration", 10),
+                    ("Predecessors", 20)
+                ]
+                headers = ["Task Name", "Start", "Finish", "Duration", "Predecessors"]
+                col_widths_raw = [40, 15, 15, 10, 20]
+                total_relative = sum(col_widths_raw)
+                col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
+
         # Wrap data in Paragraphs to support multi-line text
         cell_style = styles["Normal"]
         cell_style.fontSize = 8
-        
+
         if not headers and rows:
-             # If no headers but we have rows, maybe they are dicts?
-             # For 'exact' templates, rows (items) are often dicts.
-             # ReportLab fallback is not great for dicts but let's try to show something.
-             first_row = rows[0]
-             if isinstance(first_row, dict):
-                 headers = list(first_row.keys())
-                 col_widths = [520 / len(headers)] * len(headers)
+            # If no headers but we have rows, maybe they are dicts?
+            # For 'exact' templates, rows (items) are often dicts.
+            # ReportLab fallback is not great for dicts but let's try to show something.
+            first_row = rows[0]
+            if isinstance(first_row, dict):
+                headers = list(first_row.keys())
+                col_widths = [520 / len(headers)] * len(headers)
 
         data = [[Paragraph(str(h), styles["Normal"]) for h in headers]]
         for row in rows:
@@ -357,5 +363,3 @@ class ExportService:
         elements.append(t)
         doc.build(elements)
         return buffer.getvalue()
-
-

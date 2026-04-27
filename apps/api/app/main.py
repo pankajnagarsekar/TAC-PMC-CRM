@@ -2,7 +2,7 @@ import logging
 import time
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.lifecycle import BackgroundGuardian
 from app.core.middleware import BackpressureMiddleware, StandardResponseMiddleware
 from app.db.mongodb import db_manager
-from app.modules.shared.domain.exceptions import DomainError
+
 from app.core.lifecycle import register_exception_handlers
 
 # Logging Configuration
@@ -66,7 +66,7 @@ def create_app() -> FastAPI:
                 logger.warning("LIFECYCLE: AI engine in MOCK mode (key missing)")
 
             yield
-            
+
             # Shutdown
             logger.info("LIFECYCLE: Initiating clean shutdown...")
             await guardian.stop()
@@ -82,7 +82,7 @@ def create_app() -> FastAPI:
     async def health_check():
         db = db_manager.get_db()
         db_healthy = await BackgroundGuardian.mongodb_health_check(db)
-        
+
         if not db_healthy:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { MoveLeft, LayoutGrid, Ghost, Compass } from "lucide-react";
+import { MoveLeft, LayoutGrid, Compass } from "lucide-react";
 
 export default function NotFound() {
     return (

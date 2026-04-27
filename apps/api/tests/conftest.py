@@ -1,10 +1,10 @@
 import pytest
-import asyncio
-from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.db.mongodb import db_manager
 from app.core.config import settings
 from app.core.dependencies import get_authenticated_user, verify_nonce
+from httpx import ASGITransport, AsyncClient
+
 
 @pytest.fixture
 async def client(request):
@@ -37,13 +37,16 @@ async def client(request):
             pass
     db_manager.close()
 
+
 @pytest.fixture
 def admin_token():
     return "test-admin-token-supreme-2026"
 
+
 @pytest.fixture
 def supervisor_token():
     return "test-supervisor-token-2026"
+
 
 @pytest.fixture
 def test_project():
@@ -54,9 +57,11 @@ def test_project():
         "organisation_id": "test-org-123"
     }
 
+
 @pytest.fixture
 def test_org_id():
     return "test-org-123"
+
 
 @pytest.fixture
 def test_project_id():

@@ -1,4 +1,3 @@
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.modules.shared.infrastructure.base_repository import BaseRepository
 from app.modules.tasks.schemas.dto import Task
 from app.modules.tasks.infrastructure.counter import AtomicCounter
@@ -16,7 +15,7 @@ class TaskRepository(BaseRepository):
             [("organisation_id", 1), ("project_id", 1), ("sr_no", 1)],
             unique=True
         )
-        
+
         # Atomic Counter unique index - CRITICAL for upsert atomicity
         counter_coll = self._db[AtomicCounter.COLLECTION_NAME]
         await counter_coll.create_index(

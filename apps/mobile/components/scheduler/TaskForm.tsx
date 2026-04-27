@@ -5,18 +5,20 @@ import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import type { ScheduleTask, ScheduleTaskStatus } from '../../types/api';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
 import { STATUS_LABELS } from './scheduler-constants';
+
+interface TaskEditState {
+  name?: string;
+  status?: ScheduleTaskStatus;
+  duration_days?: number;
+}
 
 interface TaskFormProps {
   task: ScheduleTask;
-  editState: {
-    name?: string;
-    status?: ScheduleTaskStatus;
-    duration_days?: number;
-  };
+  editState: TaskEditState;
   validationErrors: Record<string, string>;
-  onEditStateChange: (updates: any) => void;
+  onEditStateChange: (updates: TaskEditState) => void;
 }
 
 const STATUS_OPTIONS: ScheduleTaskStatus[] = [
@@ -93,7 +95,7 @@ interface FormFieldProps {
   label: string;
   error?: string;
   children: React.ReactNode;
-  colors: any;
+  colors: ThemeContextType['colors'];
 }
 
 function FormField({ label, error, children, colors }: FormFieldProps) {
@@ -106,7 +108,7 @@ function FormField({ label, error, children, colors }: FormFieldProps) {
   );
 }
 
-function createDynamicStyles(colors: any) {
+function createDynamicStyles(colors: ThemeContextType['colors']) {
   return StyleSheet.create({
     input: {
       backgroundColor: colors.surface,

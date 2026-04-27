@@ -1,5 +1,3 @@
-import sys
-import re
 
 file_path = "apps/api/scripts/seed_production.py"
 with open(file_path, "r", encoding="utf-8") as f:
@@ -51,7 +49,7 @@ new_step_3 = """        print("\\n[STEP 3.5] Creating Client & Vendor...")
             client_id = str(client_result.inserted_id)
         else:
             client_id = str(client_doc["_id"])
-            
+
         vendor_doc = await db.vendors.find_one({"name": "Default Vendor"})
         if not vendor_doc:
             vendor_result = await db.vendors.insert_one({
@@ -85,7 +83,14 @@ new_step_3 = """        print("\\n[STEP 3.5] Creating Client & Vendor...")
             else:
                 code_map[code["code"]] = str(existing_master["_id"])
                 # update fields if exists
-                await db.code_master.update_one({"_id": existing_master["_id"]}, {"$set": {"code_description": code["description"], "category_name": code["category"], "active_status": True}})
+                await db.code_master.update_one(
+                    {"_id": existing_master["_id"]},
+                    {"$set": {
+                        "code_description": code["description"],
+                        "category_name": code["category"],
+                        "active_status": True
+                    }}
+                )
         print(f"  Created/verified {len(codes)} financial codes in code_master")"""
 
 if old_step_3 in text:
@@ -98,7 +103,7 @@ old_project = """            # Ensure budget is updated
             await db.projects.update_one(
                 {"_id": project["_id"]},
                 {"$set": {
-                    "master_original_budget": original_budget, 
+                    "master_original_budget": original_budget,
                     "master_remaining_budget": remaining_budget,
                     "completion_percentage": 18,
                     "client_name": "Mr. Sanjay Rao",
@@ -135,7 +140,7 @@ new_project = """            # Ensure budget is updated
             await db.projects.update_one(
                 {"_id": project["_id"]},
                 {"$set": {
-                    "master_original_budget": original_budget, 
+                    "master_original_budget": original_budget,
                     "master_remaining_budget": remaining_budget,
                     "completion_percentage": 18,
                     "client_id": client_id,

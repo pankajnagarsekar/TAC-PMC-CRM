@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Card } from '../../../components/ui';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../../contexts/ThemeContext';
 
 export default function AdminSettings() {
   const router = useRouter();
@@ -99,7 +99,19 @@ export default function AdminSettings() {
   );
 }
 
-function SettingsItem({ icon, title, onPress, Colors, styles }: { icon: keyof typeof Ionicons.glyphMap; title: string; onPress: () => void; Colors: any, styles: any }) {
+function SettingsItem({
+  icon,
+  title,
+  onPress,
+  Colors,
+  styles
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  onPress: () => void;
+  Colors: ThemeContextType['colors'],
+  styles: ReturnType<typeof getStyles>
+}) {
   return (
     <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
       <Ionicons name={icon} size={22} color={Colors.textSecondary} />
@@ -109,7 +121,12 @@ function SettingsItem({ icon, title, onPress, Colors, styles }: { icon: keyof ty
   );
 }
 
-const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
+const getStyles = (
+  Colors: ThemeContextType['colors'],
+  Spacing: ThemeContextType['spacing'],
+  FontSizes: ThemeContextType['fontSizes'],
+  BorderRadius: ThemeContextType['borderRadius']
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

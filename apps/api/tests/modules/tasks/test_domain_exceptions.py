@@ -1,4 +1,3 @@
-import pytest
 from app.modules.tasks.domain.exceptions import (
     TaskNotFoundError,
     TaskStatusTransitionError,

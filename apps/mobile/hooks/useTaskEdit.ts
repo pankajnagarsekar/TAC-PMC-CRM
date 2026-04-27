@@ -33,7 +33,7 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const validate = (): boolean => {
+  const validate = useCallback((): boolean => {
     const errors: Record<string, string> = {};
 
     if (!editState.name?.trim()) {
@@ -50,7 +50,7 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [editState]);
 
   const setEditState = useCallback((updates: Partial<TaskEditState>) => {
     setEditStateInternal((prev) => ({ ...prev, ...updates }));
@@ -82,7 +82,7 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
 
         await schedulerApi.updateTask(projectId, task.task_id, payload);
         return true;
-      } catch (err) {
+      } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to save task';
         setSaveError(errorMessage);
         // Rollback to original state
@@ -96,7 +96,7 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
         setIsSaving(false);
       }
     },
-    [editState, task]
+    [editState, task, validate]
   );
 
   const reset = useCallback(() => {

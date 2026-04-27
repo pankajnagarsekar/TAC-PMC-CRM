@@ -156,19 +156,19 @@ class Client(BaseModel):
             # Map name -> client_name
             if not data.get("client_name") and data.get("name"):
                 data["client_name"] = data["name"]
-            
+
             # Map address -> client_address
             if not data.get("client_address") and data.get("address"):
                 data["client_address"] = data["address"]
-            
+
             # Map phone -> client_phone
             if not data.get("client_phone") and data.get("phone"):
                 data["client_phone"] = data["phone"]
-                
+
             # Map email -> client_email
             if not data.get("client_email") and data.get("email"):
                 data["client_email"] = data["email"]
-                
+
             # Map gstin -> gst_number
             if not data.get("gst_number") and data.get("gstin"):
                 data["gst_number"] = data["gstin"]

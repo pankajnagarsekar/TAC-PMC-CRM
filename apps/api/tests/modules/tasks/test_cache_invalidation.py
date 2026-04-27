@@ -130,7 +130,7 @@ async def test_cache_invalidated_on_task_update(test_db: AsyncIOMotorDatabase, a
 @pytest.mark.asyncio
 async def test_cache_invalidation_isolated_by_project(test_db: AsyncIOMotorDatabase, auth_user):
     """Test that cache invalidation is isolated per project."""
-    service = TaskService(test_db)
+    TaskService(test_db)
     summary_repo = TaskAISummaryRepository(test_db)
     org_id = auth_user["organisation_id"]
     project_1 = "proj-1"

@@ -14,7 +14,7 @@ export function useVendorNames() {
         const map: Record<string, string> = {};
         if (vendors && Array.isArray(vendors)) {
             vendors.forEach((v) => {
-                const vid = v._id || (v as any).id;
+                const vid = v._id;
                 if (vid) {
                     map[vid] = v.name;
                 }

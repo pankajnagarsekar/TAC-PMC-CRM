@@ -27,7 +27,7 @@ class CodeMaster(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     organisation_id: Optional[str] = None
     category_name: str
-    
+
     @computed_field
     @property
     def name(self) -> str:

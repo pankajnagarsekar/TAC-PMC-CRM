@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from bson import Decimal128
 
 from app.modules.shared.domain.financial_engine import FinancialEngine
 

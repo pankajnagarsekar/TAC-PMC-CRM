@@ -75,7 +75,7 @@ async def get_recorded_operation(
             {"operation_key": key}, session=session
         )
         return existing.get("response") if existing else None
-    
+
     return await guard.get_or_set(key, context, session=session)
 
 
@@ -93,5 +93,5 @@ async def record_operation(
     # and maintain key-based lookup
     if not context:
         context = {"key": key, "type": operation_type}
-    
+
     await guard.finalize(key, context, response_payload, session=session)

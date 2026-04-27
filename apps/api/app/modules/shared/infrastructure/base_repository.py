@@ -108,7 +108,7 @@ class BaseRepository(Generic[T]):
     ) -> Optional[Dict[str, Any]]:
         """
         Update a document with Optimistic Concurrency Control (Point 75, Hardened).
-        If expected_version is provided, the update will only succeed if the 
+        If expected_version is provided, the update will only succeed if the
         current version in DB matches.
         """
         effective_session = session or self.session
@@ -179,7 +179,7 @@ class BaseRepository(Generic[T]):
         effective_session = session or self.session
         if "_id" in query and isinstance(query["_id"], str) and ObjectId.is_valid(query["_id"]):
             query["_id"] = ObjectId(query["_id"])
-        
+
         from app.core.utils import prepare_for_db
         update = prepare_for_db(update)
         # ENSURE updated_at is always set (Fixes BUG-35 for $inc/other operators)

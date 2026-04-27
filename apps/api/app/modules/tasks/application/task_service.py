@@ -379,13 +379,15 @@ class TaskService:
                         created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                     except (ValueError, TypeError):
                         created_at = None
-                
+
                 # Ensure offset-aware for comparison (Fixes naive/aware mismatch)
                 if created_at and created_at.tzinfo is None:
                     created_at = created_at.replace(tzinfo=timezone.utc)
-                
-                if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < TASK_AI_SUMMARY_CACHE_TTL_SECONDS:
-                    return existing
+
+                if created_at:
+                    elapsed = (datetime.now(timezone.utc) - created_at).total_seconds()
+                    if elapsed < TASK_AI_SUMMARY_CACHE_TTL_SECONDS:
+                        return existing
         except Exception as e:
             logger.error(f"Error checking cache for task summary: {str(e)}", exc_info=True)
             # Continue to regenerate on cache lookup error
@@ -405,7 +407,7 @@ class TaskService:
         total = len(tasks)
         open_tasks = [t for t in tasks if t.get("status") in ["Open", "In Progress"]]
         now = datetime.now(timezone.utc)
-        
+
         overdue = 0
         for t in open_tasks:
             deadline = t.get("deadline")
@@ -416,11 +418,11 @@ class TaskService:
                         deadline = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
                     except (ValueError, TypeError):
                         continue
-                
+
                 # Critical Fix: Ensure comparison is aware vs aware
                 if deadline.tzinfo is None:
                     deadline = deadline.replace(tzinfo=timezone.utc)
-                
+
                 if deadline < now:
                     overdue += 1
 
@@ -467,7 +469,10 @@ class TaskService:
                 timeout=TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS
             )
         except asyncio.TimeoutError:
-            logger.warning(f"Task summary generation timed out after {TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS} seconds")
+            logger.warning(
+                "Task summary generation timed out after %s seconds",
+                TASK_AI_SUMMARY_GENERATION_TIMEOUT_SECONDS
+            )
             summary_text = f"Summary generation timed out. Report metrics: {report_data}"
         except Exception as e:
             logger.error(f"Error generating task summary: {str(e)}", exc_info=True)

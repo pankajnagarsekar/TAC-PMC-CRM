@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Sparkles, Loader2, AlertCircle, RefreshCw, Brain } from "lucide-react";
 import api from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
 import { GlassCard } from "@/components/ui/GlassCard";
-import { cn } from "@/lib/utils";
 
 interface TaskAISummaryProps {
   projectId: string;
@@ -28,24 +27,24 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await api.get<AISummaryData>(`/api/v1/tasks/ai-summary?project_id=${projectId}`);
       // res.data will be the object returned by GeneralResponse.data
       setData(res.data);
       setError(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("AI Summary fetch failed", err);
       setError("Unable to generate AI summary.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
     if (projectId) fetchSummary();
-  }, [projectId]);
+  }, [projectId, fetchSummary]);
 
   if (isLoading) {
     return (
@@ -132,8 +131,8 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
       <div className="bg-slate-950/30 border border-white/5 rounded-xl p-4 prose prose-sm dark:prose-invert max-w-none">
         <ReactMarkdown
           components={{
-            p: (props: any) => <p className="text-[11px] text-slate-300 leading-relaxed font-medium mb-2 last:mb-0" {...props} />,
-            strong: (props: any) => <span className="font-extrabold text-blue-400" {...props} />,
+            p: ({ children, ...props }: React.ComponentPropsWithoutRef<'p'>) => <p className="text-[11px] text-slate-300 leading-relaxed font-medium mb-2 last:mb-0" {...props}>{children}</p>,
+            strong: ({ children, ...props }: React.ComponentPropsWithoutRef<'span'>) => <span className="font-extrabold text-blue-400" {...props}>{children}</span>,
           }}
         >
           {(data.summary_text || "").replace(/\\n/g, '\n') || "Synthesizing project velocity and task distribution metrics..."}

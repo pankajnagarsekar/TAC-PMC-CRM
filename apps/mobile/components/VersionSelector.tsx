@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
-import { apiClient } from '../services/apiClient';
+import { baseApiClient } from '../services/apiClient';
 
 interface VersionInfo {
   version: number;
@@ -19,7 +19,7 @@ interface VersionSelectorProps {
   entityType: 'work_order' | 'payment_certificate' | 'dpr';
   entityId: string;
   currentVersion?: number;
-  onVersionSelect: (version: number, snapshotData: any | null) => void;
+  onVersionSelect: (version: number, snapshotData: unknown | null) => void;
 }
 
 export function VersionSelector({
@@ -38,7 +38,7 @@ export function VersionSelector({
     setLoading(true);
     try {
       const endpoint = getVersionsEndpoint(entityType, entityId);
-      const response: any = await apiClient.get(endpoint);
+      const response = (await baseApiClient.get(endpoint)) as { versions?: VersionInfo[] };
       const versionList: VersionInfo[] = response.versions || [];
 
       // Mark current as latest
@@ -81,7 +81,7 @@ export function VersionSelector({
       } else {
         // Historical version - load snapshot
         const endpoint = getSnapshotEndpoint(entityType, entityId, version);
-        const snapshotData: any = await apiClient.get(endpoint);
+        const snapshotData = await baseApiClient.get<unknown>(endpoint);
         setSelectedVersion(version);
         onVersionSelect(version, snapshotData);
       }

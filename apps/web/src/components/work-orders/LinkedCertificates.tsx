@@ -22,7 +22,7 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
     : `/api/v1/payments/${projectId}`;
 
   const { data: pcsData, isLoading: isPcsLoading } = useSWR(projectId ? url : null, fetcher);
-  const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
+  const { getVendorName } = useVendorNames();
 
   const columnDefs: ColDef[] = useMemo(() => [
     {
@@ -68,7 +68,7 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
         </Link>
       )
     }
-  ], []);
+  ], [getVendorName]);
 
   if (isPcsLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
 

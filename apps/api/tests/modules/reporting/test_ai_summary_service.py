@@ -5,8 +5,7 @@ Tests: summarize_*, stream_summary, generate_and_store, get_latest, refresh.
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock
 
 from app.modules.reporting.application.ai_summary_service import (
     AISummaryService,

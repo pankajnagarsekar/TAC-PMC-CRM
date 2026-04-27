@@ -36,7 +36,7 @@ import {
 } from "../../constants/theme";
 import { useProject } from "../../contexts/ProjectContext";
 import { cashApi } from "../../services/apiClient";
-import type { CashCategory } from "../../services/apiClient";
+import type { CashCategory, CashTransaction } from "../../services/apiClient";
 
 // --------------------------------------------------------
 // LOCAL TYPES
@@ -44,15 +44,7 @@ import type { CashCategory } from "../../services/apiClient";
 
 type FundType = "PETTY_CASH" | "OVH";
 
-interface CashTransaction {
-  id: string;
-  category_id: string;
-  amount: number;
-  type: "DEBIT" | "CREDIT";
-  purpose: string;
-  recorded_by: string;
-  recorded_at: string;
-}
+// DELETED LOCAL CASHTRANSACTION INTERFACE
 
 // --------------------------------------------------------
 // HELPERS
@@ -107,11 +99,11 @@ const TransactionRow = React.memo(({ item }: { item: CashTransaction }) => {
     <View style={styles.txRow}>
       <View style={styles.txLeft}>
         <Text style={styles.txPurpose} numberOfLines={1}>
-          {item.purpose}
+          {item.purpose || item.description}
         </Text>
         <Text style={styles.txMeta}>
-          {format(new Date(item.recorded_at), "dd MMM, HH:mm")} •{" "}
-          {item.recorded_by}
+          {format(new Date(item.recorded_at || item.created_at || new Date()), "dd MMM, HH:mm")} •{" "}
+          {item.recorded_by || item.created_by}
         </Text>
       </View>
       <View style={styles.txRight}>
@@ -193,7 +185,7 @@ export default function SiteFundsScreen() {
         } else {
           setTransactions([]);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("[SiteFunds] sync error:", err);
         Alert.alert("Sync Error", "Failed to retrieve site funds.");
       } finally {
@@ -264,7 +256,8 @@ export default function SiteFundsScreen() {
       setFormData({ amount: "", purpose: "" });
       syncFunds(true);
       Alert.alert("Recorded", "Expense logged successfully.");
-    } catch {
+    } catch (err: unknown) {
+      console.error("[SiteFunds] create error:", err);
       Alert.alert("Error", "Failed to log transaction.");
     } finally {
       setSubmitting(false);
@@ -293,21 +286,21 @@ export default function SiteFundsScreen() {
           </View>
           {(currentCategory.is_negative ||
             currentCategory.threshold_breached) && (
-            <View style={styles.flagContainer}>
-              {currentCategory.is_negative && (
-                <View style={styles.flagPillError}>
-                  <Ionicons name="alert-circle" size={14} color="white" />
-                  <Text style={styles.flagText}>Deficit</Text>
-                </View>
-              )}
-              {currentCategory.threshold_breached && (
-                <View style={styles.flagPillWarning}>
-                  <Ionicons name="warning" size={14} color="white" />
-                  <Text style={styles.flagText}>Strict Limit</Text>
-                </View>
-              )}
-            </View>
-          )}
+              <View style={styles.flagContainer}>
+                {currentCategory.is_negative && (
+                  <View style={styles.flagPillError}>
+                    <Ionicons name="alert-circle" size={14} color="white" />
+                    <Text style={styles.flagText}>Deficit</Text>
+                  </View>
+                )}
+                {currentCategory.threshold_breached && (
+                  <View style={styles.flagPillWarning}>
+                    <Ionicons name="warning" size={14} color="white" />
+                    <Text style={styles.flagText}>Strict Limit</Text>
+                  </View>
+                )}
+              </View>
+            )}
         </Card>
       ) : loading ? (
         <View style={styles.placeholderCard}>
@@ -343,7 +336,7 @@ export default function SiteFundsScreen() {
 
       <FlatList
         data={transactions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || item.transaction_id}
         renderItem={({ item }) => <TransactionRow item={item} />}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}

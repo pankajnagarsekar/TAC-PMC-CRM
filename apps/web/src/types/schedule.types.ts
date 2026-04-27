@@ -95,6 +95,11 @@ export type ScheduleTask = {
   calc_reason?: string;
   project_scheduled_start?: string | null;  // Cached project anchor date for stable full-recalc
   crm_task_ids?: string[];  // Optional links to Tasks module (operational Kanban tasks)
+  task_description?: string | null;
+  project?: {
+    scheduled_start?: string | null;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 };
 
@@ -114,6 +119,7 @@ export type ScheduleCalculationResponse = {
   schedule_version: number;
   system_state: "draft" | "initialized" | "active" | "locked";
   calculated_at: string;
+  project_start?: string | null;
   status: "success" | "partial_failure" | "failure";
   errors?: { task_id: string; error: string }[];
   warnings?: { type: string; detail: string }[];

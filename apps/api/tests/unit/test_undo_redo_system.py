@@ -3,12 +3,9 @@ Comprehensive tests for Undo/Redo System (Task #15)
 Tests snapshot capture, deduplication, stack operations, and state validation.
 """
 import pytest
-import json
-from datetime import datetime, timezone
 from typing import List, Dict, Any
-
-from app.modules.project.application.undo_redo_service import UndoRedoService
-from app.modules.project.infrastructure.schedule_history_repo import (
+from app.modules.project.application.undo_redo_service import (
+    UndoRedoService,
     ScheduleHistoryRepository,
 )
 from app.modules.shared.domain.exceptions import ValidationError
@@ -486,7 +483,7 @@ class TestHistoryQueries:
             summary="V1",
             tasks=sample_tasks,
         )
-        entry_id_2 = await undo_redo_service.capture_snapshot(
+        await undo_redo_service.capture_snapshot(
             project_id=project_id,
             org_id=org_id,
             user_id=user_id,

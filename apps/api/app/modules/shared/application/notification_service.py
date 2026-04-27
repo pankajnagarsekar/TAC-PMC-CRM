@@ -82,7 +82,7 @@ class NotificationService:
             {"is_read": True, "read_at": datetime.now(timezone.utc)},
             organisation_id=user["organisation_id"],
         )
-        
+
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],
             module_name="NOTIFICATIONS",

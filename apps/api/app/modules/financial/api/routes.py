@@ -70,13 +70,11 @@ async def export_payment_certificate_excel(
     from fastapi.responses import StreamingResponse
     import io
     from app.core.template_export_service import TemplateExportService
-    from app.modules.identity.application.settings_service import SettingsService
-    from app.core.dependencies import get_settings_service, get_vendor_service, get_db
 
     pc = await payment_service.get_payment_certificate(user, pc_id)
-    
+
     excel_bytes = TemplateExportService.export_payment_certificate_exact(pc, fmt="excel")
-    
+
     return StreamingResponse(
         io.BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -146,7 +144,8 @@ async def export_payment_certificate_pdf(
         }
     else:
         from bson import ObjectId
-        query = {"_id": ObjectId(user["organisation_id"])} if ObjectId.is_valid(user["organisation_id"]) else {"organisation_id": user["organisation_id"]}
+        is_oid = ObjectId.is_valid(user["organisation_id"])
+        query = {"_id": ObjectId(user["organisation_id"])} if is_oid else {"organisation_id": user["organisation_id"]}
         org = await db.organisations.find_one(query)
         pc["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": ""}
 

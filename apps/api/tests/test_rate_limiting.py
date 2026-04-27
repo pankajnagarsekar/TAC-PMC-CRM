@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.asyncio
 async def test_rate_limiting_work_orders(client):
     """
@@ -9,7 +10,7 @@ async def test_rate_limiting_work_orders(client):
     # Temporarily lower the limit to 5 per second for testing
     original_rate = limiter.TIERS["Standard"]["rate"]
     limiter.TIERS["Standard"]["rate"] = 5
-    
+
     try:
         responses = []
         for _ in range(10):

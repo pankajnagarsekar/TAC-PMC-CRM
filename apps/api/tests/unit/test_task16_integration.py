@@ -11,8 +11,7 @@ Tests for Phase 1 Task #16: Undo/Redo System Cross-Module Integration
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from app.modules.scheduler.bulk_operations import (
     BulkOperationService,
     BulkOperationValidator,
@@ -714,7 +713,7 @@ class TestConcurrentModificationsWithUndoRedo:
         # Bulk op 1: T1, T2
         sample_schedule["T1"]["duration"] = 12
         sample_schedule["T2"]["duration"] = 10
-        bulk_op_1_snapshot = {
+        {
             "T1": sample_schedule["T1"].copy(),
             "T2": sample_schedule["T2"].copy(),
         }
@@ -722,7 +721,7 @@ class TestConcurrentModificationsWithUndoRedo:
         # Bulk op 2: T3, T1
         sample_schedule["T3"]["duration"] = 8
         sample_schedule["T1"]["duration"] = 14  # T1 changes again
-        bulk_op_2_snapshot = {
+        {
             "T3": sample_schedule["T3"].copy(),
             "T1": sample_schedule["T1"].copy(),
         }

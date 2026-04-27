@@ -8,6 +8,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { fetcher } from "@/lib/api";
 import ExpenseEntryModal from "@/components/petty-cash/ExpenseEntryModal";
 import { formatCurrency } from "@tac-pmc/ui";
+import { CashTransaction } from "@/types/api";
 import { ColDef, ICellRendererParams } from "ag-grid-community";
 
 export default function FundsTab() {
@@ -26,9 +27,9 @@ export default function FundsTab() {
             headerName: "Entry Date",
             field: "created_at",
             flex: 1.2,
-            cellRenderer: (params: ICellRendererParams) => (
+            cellRenderer: (params: ICellRendererParams<CashTransaction>) => (
                 <span className="text-slate-400 font-mono text-[11px] uppercase tracking-tighter">
-                    {params.value ? new Date(params.value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                    {params.value ? new Date(params.value as string).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                 </span>
             )
         },
@@ -48,9 +49,9 @@ export default function FundsTab() {
             headerName: "Disbursement",
             field: "amount",
             flex: 1,
-            cellRenderer: (params: ICellRendererParams) => (
+            cellRenderer: (params: ICellRendererParams<CashTransaction>) => (
                 <span className="font-mono font-bold text-rose-500 dark:text-rose-400">
-                    {formatCurrency(params.value || 0)}
+                    {formatCurrency((params.value as number) || 0)}
                 </span>
             )
         },
@@ -58,20 +59,20 @@ export default function FundsTab() {
             headerName: "Originator",
             field: "created_by_name",
             flex: 1.2,
-            cellRenderer: (params: ICellRendererParams) => (
+            cellRenderer: (params: ICellRendererParams<CashTransaction & { created_by_name?: string }>) => (
                 <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 flex items-center justify-center text-zinc-500 dark:text-slate-500 text-[9px] font-black uppercase">
-                        {params.data.created_by_name?.[0] || 'U'}
+                        {params.data?.created_by_name?.[0] || 'U'}
                     </div>
-                    <span className="text-zinc-500 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest">{params.data.created_by_name || "System"}</span>
+                    <span className="text-zinc-500 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest">{params.data?.created_by_name || "System"}</span>
                 </div>
             )
         }
     ], []);
 
     const totalOverheads = useMemo(() => {
-        const trans = transactions as Record<string, unknown>[];
-        return trans?.reduce((sum: number, o: Record<string, unknown>) => sum + (parseFloat(o.amount as string) || 0), 0) || 0;
+        const trans = transactions as CashTransaction[];
+        return trans?.reduce((sum: number, o: CashTransaction) => sum + (Number(o.amount) || 0), 0) || 0;
     }, [transactions]);
 
     if (!activeProject) {

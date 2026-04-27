@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
@@ -81,7 +81,10 @@ class ApprovalEvent:
             action=data["action"],
             user_id=data["user_id"],
             user_role=data["user_role"],
-            timestamp=data["timestamp"] if isinstance(data["timestamp"], datetime) else datetime.fromisoformat(data["timestamp"]),
+            timestamp=(
+                data["timestamp"] if isinstance(data["timestamp"], datetime)
+                else datetime.fromisoformat(data["timestamp"])
+            ),
             comment=data["comment"],
             payment_state_before=data["payment_state_before"],
             payment_state_after=data["payment_state_after"],

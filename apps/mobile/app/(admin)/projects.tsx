@@ -16,9 +16,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
-import { apiClient } from '../../services/apiClient';
+import { baseApiClient } from '../../services/apiClient';
 import { Card } from '../../components/ui';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
+import { Project } from '../../types/api';
 
 interface BudgetCategory {
   code_id: string;
@@ -75,11 +76,11 @@ export default function AdminProjectsScreen() {
   const fetchOverview = useCallback(async () => {
     setFetchError(null);
     try {
-      const data = await apiClient.get<any>('/api/v1/admin/projects-overview');
+      const data = await baseApiClient.get<{ projects: ProjectOverview[] }>('/api/v1/admin/projects-overview');
       setProjects(data.projects || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching projects overview:', err);
-      const msg = err?.data?.detail || err?.message || 'Unable to load projects';
+      const msg = err instanceof Error ? err.message : 'Unable to load projects';
       setFetchError(msg);
       setProjects([]);
     } finally {
@@ -102,8 +103,8 @@ export default function AdminProjectsScreen() {
       project_id: project.project_id,
       project_name: project.project_name,
       project_code: project.project_code,
-    } as any);
-    router.push('/(admin)/dashboard' as any);
+    } as Project);
+    router.push('/(admin)/dashboard');
   };
 
   const handleProjectTap = (project: ProjectOverview) => {
@@ -111,8 +112,8 @@ export default function AdminProjectsScreen() {
       project_id: project.project_id,
       project_name: project.project_name,
       project_code: project.project_code,
-    } as any);
-    router.push('/(admin)/dpr' as any);
+    } as Project);
+    router.push('/(admin)/dpr');
   };
 
   const toggleExpand = (projectId: string) => {
@@ -331,8 +332,8 @@ export default function AdminProjectsScreen() {
                             project_id: project.project_id,
                             project_name: project.project_name,
                             project_code: project.project_code,
-                          } as any);
-                          router.push('/(admin)/worker-log' as any);
+                          } as Project);
+                          router.push('/(admin)/worker-log');
                         }}
                       >
                         <Ionicons name="people" size={18} color={Colors.white} />
@@ -345,8 +346,8 @@ export default function AdminProjectsScreen() {
                             project_id: project.project_id,
                             project_name: project.project_name,
                             project_code: project.project_code,
-                          } as any);
-                          router.push('/(admin)/petty-cash' as any);
+                          } as Project);
+                          router.push('/(admin)/petty-cash');
                         }}
                       >
                         <Ionicons name="wallet" size={18} color={Colors.white} />
@@ -364,7 +365,12 @@ export default function AdminProjectsScreen() {
   );
 }
 
-const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
+const getStyles = (
+  Colors: ThemeContextType['colors'],
+  Spacing: ThemeContextType['spacing'],
+  FontSizes: ThemeContextType['fontSizes'],
+  BorderRadius: ThemeContextType['borderRadius']
+) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: Spacing.md, color: Colors.textSecondary, fontFamily: 'Inter_500Medium' },

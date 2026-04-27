@@ -22,7 +22,7 @@ import { Card } from '../../../components/ui';
 export default function NewTaskScreen() {
     const router = useRouter();
     const { selectedProject } = useProject();
-    const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
+    const { colors: Colors } = useTheme();
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -35,19 +35,18 @@ export default function NewTaskScreen() {
         setIsSubmitting(true);
         try {
             await tasksApi.create(selectedProject.project_id, {
-                title: title.trim(),
-                description: description.trim(),
+                task_description: title.trim(),
                 priority,
                 status: 'In Progress',
                 project_id: selectedProject.project_id,
-                created_at: new Date().toISOString(),
-            } as any);
+            });
 
             Alert.alert('Success', 'Task created successfully');
             router.back();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error creating task:', error);
-            Alert.alert('Error', error.message || 'Failed to create task');
+            const msg = error instanceof Error ? error.message : 'Failed to create task';
+            Alert.alert('Error', msg);
         } finally {
             setIsSubmitting(false);
         }

@@ -44,7 +44,7 @@ def test_soft_dependency_constrains_dates():
     assert tasks_dict["B"]["scheduled_start"] == "2024-01-06"
 
     # But B should NOT be critical (has slack because C is longer)
-    assert tasks_dict["B"]["is_critical"] == False
+    assert tasks_dict["B"]["is_critical"] is False
     assert tasks_dict["B"]["total_slack"] > 0
 
 
@@ -70,7 +70,7 @@ def test_soft_dependency_no_criticality_propagation():
     tasks_dict = {t["task_id"]: t for t in result["tasks"]}
 
     # C is critical because B is critical
-    assert tasks_dict["C"]["is_critical"] == True
+    assert tasks_dict["C"]["is_critical"] is True
 
     # But if A is extended such that soft dep to A is slack:
     # C can still have slack relative to A (because dep is soft)
@@ -96,8 +96,8 @@ def test_hard_dependency_propagates_criticality():
     tasks_dict = {t["task_id"]: t for t in result["tasks"]}
 
     # Both should be critical (hard dependency)
-    assert tasks_dict["A"]["is_critical"] == True
-    assert tasks_dict["B"]["is_critical"] == True
+    assert tasks_dict["A"]["is_critical"] is True
+    assert tasks_dict["B"]["is_critical"] is True
     assert tasks_dict["B"]["total_slack"] == 0
 
 
@@ -128,14 +128,17 @@ def test_mixed_soft_and_hard_dependencies():
     assert tasks_dict["C"]["scheduled_start"] == "2024-01-11"
 
     # C is critical because hard predecessor B is critical
-    assert tasks_dict["C"]["is_critical"] == True
+    assert tasks_dict["C"]["is_critical"] is True
 
 
 def test_soft_dependency_in_parallel_path():
     """Soft dependency in non-critical path"""
     tasks = [
         {"task_id": "A", "duration": 5, "predecessors": []},
-        {"task_id": "B", "duration": 2, "predecessors": [{"task_id": "A", "type": "FS", "lag_days": 0, "strength": "soft"}]},
+        {
+            "task_id": "B", "duration": 2,
+            "predecessors": [{"task_id": "A", "type": "FS", "lag_days": 0, "strength": "soft"}]
+        },
         {"task_id": "C", "duration": 20, "predecessors": []},  # Long task, critical path
         {
             "task_id": "D",
@@ -154,11 +157,11 @@ def test_soft_dependency_in_parallel_path():
     tasks_dict = {t["task_id"]: t for t in result["tasks"]}
 
     # Critical path: C → D
-    assert tasks_dict["C"]["is_critical"] == True
-    assert tasks_dict["D"]["is_critical"] == True
+    assert tasks_dict["C"]["is_critical"] is True
+    assert tasks_dict["D"]["is_critical"] is True
 
     # B is not critical (soft dep from A doesn't make it critical)
-    assert tasks_dict["B"]["is_critical"] == False
+    assert tasks_dict["B"]["is_critical"] is False
     assert tasks_dict["B"]["total_slack"] > 0
 
 
@@ -185,7 +188,7 @@ def test_soft_dependency_with_lag():
     assert tasks_dict["B"]["scheduled_start"] == "2024-01-09"
 
     # B should not be critical
-    assert tasks_dict["B"]["is_critical"] == False
+    assert tasks_dict["B"]["is_critical"] is False
 
 
 def test_soft_dependency_ss_type():
@@ -210,7 +213,7 @@ def test_soft_dependency_ss_type():
     assert tasks_dict["B"]["scheduled_start"] == "2024-01-03"
 
     # B should not be critical
-    assert tasks_dict["B"]["is_critical"] == False
+    assert tasks_dict["B"]["is_critical"] is False
 
 
 def test_all_soft_dependencies():
@@ -241,9 +244,9 @@ def test_all_soft_dependencies():
     assert tasks_dict["C"]["scheduled_start"] == "2024-01-08"
 
     # But none should be critical (all soft deps - soft deps don't propagate criticality)
-    assert tasks_dict["A"]["is_critical"] == False
-    assert tasks_dict["B"]["is_critical"] == False
-    assert tasks_dict["C"]["is_critical"] == False
+    assert tasks_dict["A"]["is_critical"] is False
+    assert tasks_dict["B"]["is_critical"] is False
+    assert tasks_dict["C"]["is_critical"] is False
 
     # All have slack since there are only soft dependencies
     assert tasks_dict["A"]["total_slack"] > 0
@@ -276,9 +279,9 @@ def test_soft_to_hard_transition():
     # Critical path: only C is critical (hard dep from B→C makes C critical)
     # B is critical only because it's on the backward path from C (hard dep B→C)
     # A is NOT critical (soft dep A→B doesn't make it critical)
-    assert tasks_dict["A"]["is_critical"] == False  # Soft predecessor, not critical
-    assert tasks_dict["B"]["is_critical"] == True   # B has hard successor C, so critical
-    assert tasks_dict["C"]["is_critical"] == True   # C has hard predecessor B, so critical
+    assert tasks_dict["A"]["is_critical"] is False  # Soft predecessor, not critical
+    assert tasks_dict["B"]["is_critical"] is True   # B has hard successor C, so critical
+    assert tasks_dict["C"]["is_critical"] is True   # C has hard predecessor B, so critical
 
 
 def test_default_strength_is_hard():
@@ -299,7 +302,7 @@ def test_default_strength_is_hard():
     tasks_dict = {t["task_id"]: t for t in result["tasks"]}
 
     # Should behave as hard dependency
-    assert tasks_dict["B"]["is_critical"] == True
+    assert tasks_dict["B"]["is_critical"] is True
     assert tasks_dict["B"]["total_slack"] == 0
 
 

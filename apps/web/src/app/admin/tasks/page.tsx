@@ -31,7 +31,7 @@ export default function TasksPage() {
       const res = await api.get<Task[]>(url);
       setItems(res.data || []);
       setFetchError(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to fetch Tasks", err);
       setFetchError("Failed to load tasks.");
     } finally {
@@ -80,7 +80,7 @@ export default function TasksPage() {
               <p className="text-[11px] font-semibold text-indigo-900 dark:text-indigo-300 leading-tight">
                 Strategic production milestones and construction schedules are orchestrated within the
                 <button
-                  onClick={() => router.push(`/admin/scheduler?project_id=${activeProject.project_id || (activeProject as any)._id}`)}
+                  onClick={() => router.push(`/admin/scheduler?project_id=${activeProject.project_id || activeProject._id}`)}
                   className="mx-1 px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-700 dark:text-indigo-200 underline decoration-indigo-500/30 underline-offset-2 transition-all"
                 >
                   Project Planner

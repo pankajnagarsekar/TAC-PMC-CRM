@@ -1,11 +1,10 @@
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from bson import ObjectId
 
 from app.modules.financial.application.cash_service import CashService
-from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
 
@@ -160,11 +159,7 @@ class TestCashServiceIntegration:
     @pytest.mark.asyncio
     async def test_create_fund_allocation_success(self, test_db, test_user):
         """Create fund allocation, verify DB write."""
-        from app.core.dependencies import (
-            get_authenticated_user,
-            get_cash_service,
-            get_db,
-        )
+
         from unittest.mock import AsyncMock
 
         # Setup

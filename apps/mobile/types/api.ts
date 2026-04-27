@@ -20,10 +20,11 @@ export interface LoginResponse {
 
 export interface User {
   user_id: string;
+  _id?: string;
   organisation_id: string;
   name: string;
   email: string;
-  role: "Admin" | "Supervisor" | "Client" | "Other";
+  role: "Admin" | "Supervisor" | "Client" | "User" | "Other";
   active_status: boolean;
   dpr_generation_permission: boolean;
   screen_permissions?: string[];
@@ -47,8 +48,10 @@ export interface Organisation {
 // ============================================
 export interface Project {
   project_id: string;
+  _id?: string;
   organisation_id: string;
   project_name: string;
+  project_code?: string;
   client_name: string;
   start_date: string;
   end_date?: string;
@@ -428,12 +431,12 @@ export interface Task {
   version: number;
   created_at: string;
   updated_at: string;
-  audit_log: Array<{
+  audit_log: {
     action: string;
     timestamp: string;
     user: string;
     detail: string;
-  }>;
+  }[];
 }
 
 export interface TaskAISummary {
@@ -818,7 +821,7 @@ export interface ScheduleTask {
   duration_days: number;
   status: ScheduleTaskStatus;
   is_critical: boolean;
-  predecessors?: Array<{ task_id: string; type: "FS" | "SS" | "FF" | "SF"; lag_days?: number }>;
+  predecessors?: { task_id: string; type: "FS" | "SS" | "FF" | "SF"; lag_days?: number }[];
   progress_pct?: number;
   baseline_start?: string | null;
   baseline_end?: string | null;

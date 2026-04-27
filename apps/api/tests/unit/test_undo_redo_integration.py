@@ -3,7 +3,6 @@ Integration tests for Undo/Redo API endpoints with Scheduler Service
 Tests full workflow including API endpoints and snapshot capture on scheduler operations.
 """
 import pytest
-from httpx import AsyncClient
 from app.modules.project.application.scheduler_service import SchedulerService
 from app.modules.project.application.undo_redo_service import UndoRedoService
 
@@ -323,7 +322,7 @@ class TestSchedulerServiceSnapshotIntegration:
         await scheduler_service.save_schedule(
             project_id, org_id, user_id, sample_schedule
         )
-        initial_tasks = sample_schedule["tasks"]
+        sample_schedule["tasks"]
 
         # Modify and save
         modified_schedule = sample_schedule.copy()

@@ -33,15 +33,22 @@ interface CheckInData {
   location: { latitude: number; longitude: number } | null;
 }
 
+interface LocationResult {
+  coords: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
 export default function SupervisorDashboard() {
   const router = useRouter();
   const { user, logout, checkCanLogout } = useAuth();
   const { selectedProject, isProjectSelected } = useProject();
-  
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [logoutBlockedModal, setLogoutBlockedModal] = useState(false);
-  
+
   // Check-in state
   const [checkInData, setCheckInData] = useState<CheckInData>({
     isCheckedIn: false,
@@ -76,7 +83,7 @@ export default function SupervisorDashboard() {
   const handleCheckIn = async () => {
     console.log('handleCheckIn called, Platform:', Platform.OS);
     setIsProcessing(true);
-    
+
     try {
       // For web - simulate check-in directly
       if (Platform.OS === 'web') {
@@ -92,14 +99,14 @@ export default function SupervisorDashboard() {
         window.alert('Check-in Successful!\nTime: ' + new Date(checkInTime).toLocaleTimeString());
         return;
       }
-      
+
       // Mobile - try to use camera, with fallback
       let selfieUri: string | null = null;
-      
+
       try {
         const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
         console.log('Camera permission status:', cameraStatus);
-        
+
         if (cameraStatus === 'granted') {
           const result = await ImagePicker.launchCameraAsync({
             allowsEditing: false,
@@ -117,7 +124,7 @@ export default function SupervisorDashboard() {
           // Camera permission denied - show alert but still allow check-in
           console.log('Camera permission denied, proceeding without photo');
           Alert.alert(
-            'Camera Access', 
+            'Camera Access',
             'Camera permission not granted. Checking in without selfie.',
             [{ text: 'OK' }]
           );
@@ -134,11 +141,11 @@ export default function SupervisorDashboard() {
         if (status === 'granted') {
           const loc = await Promise.race([
             Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-            new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
-          ]) as any;
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Location timeout')), 5000))
+          ]) as LocationResult;
           locationData = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         }
-      } catch (e) {
+      } catch (e: unknown) {
         console.log('Location skipped:', e);
       }
 
@@ -151,20 +158,21 @@ export default function SupervisorDashboard() {
         location: locationData,
       });
       setIsProcessing(false);
-      
+
       Alert.alert(
-        'Check-in Successful!', 
+        'Check-in Successful!',
         `Time: ${new Date(checkInTime).toLocaleTimeString()}${selfieUri ? '\nSelfie captured.' : ''}${locationData.latitude !== 0 ? '\nLocation captured.' : ''}`,
         [{ text: 'OK' }]
       );
-      
-    } catch (error) {
+
+    } catch (error: unknown) {
       console.error('Check-in error:', error);
       setIsProcessing(false);
+      const msg = error instanceof Error ? error.message : 'Check-in failed. Please try again.';
       if (Platform.OS === 'web') {
-        window.alert('Check-in failed. Please try again.');
+        window.alert(msg);
       } else {
-        Alert.alert('Error', 'Check-in failed. Please try again.');
+        Alert.alert('Error', msg);
       }
     }
   };
@@ -221,10 +229,10 @@ export default function SupervisorDashboard() {
               styles.checkInIcon,
               isStep1Complete && styles.checkInIconComplete
             ]}>
-              <Ionicons 
-                name={isStep1Complete ? "checkmark-circle" : "camera"} 
-                size={32} 
-                color={isStep1Complete ? Colors.success : Colors.white} 
+              <Ionicons
+                name={isStep1Complete ? "checkmark-circle" : "camera"}
+                size={32}
+                color={isStep1Complete ? Colors.success : Colors.white}
               />
             </View>
             <View style={styles.checkInInfo}>
@@ -234,8 +242,8 @@ export default function SupervisorDashboard() {
               ]}>
                 {isStep1Complete ? 'Checked In' : 'Check-in Required'}
               </Text>
-              <Text style={[styles.checkInSubtitle, isStep1Complete && {color: Colors.textSecondary}]}>
-                {isStep1Complete 
+              <Text style={[styles.checkInSubtitle, isStep1Complete && { color: Colors.textSecondary }]}>
+                {isStep1Complete
                   ? `${new Date(checkInData.checkInTime!).toLocaleTimeString()}`
                   : 'Take a selfie to start your day'}
               </Text>
@@ -244,14 +252,14 @@ export default function SupervisorDashboard() {
               <Image source={{ uri: checkInData.selfieUri }} style={styles.selfieThumb} />
             )}
           </View>
-          
+
           {!isStep1Complete && (
-            <Pressable 
+            <Pressable
               style={({ pressed }) => [
-                styles.checkInButton, 
-                isProcessing && {opacity: 0.7},
-                pressed && {opacity: 0.8, transform: [{scale: 0.98}]}
-              ]} 
+                styles.checkInButton,
+                isProcessing && { opacity: 0.7 },
+                pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
+              ]}
               onPress={() => {
                 console.log('Check-in button pressed');
                 handleCheckIn();
@@ -290,10 +298,10 @@ export default function SupervisorDashboard() {
             !canAccessStep2 && styles.actionIconDisabled,
             isStep2Complete && styles.actionIconComplete,
           ]}>
-            <Ionicons 
-              name={isStep2Complete ? "checkmark" : "business"} 
-              size={24} 
-              color={!canAccessStep2 ? Colors.textMuted : isStep2Complete ? Colors.white : Colors.accent} 
+            <Ionicons
+              name={isStep2Complete ? "checkmark" : "business"}
+              size={24}
+              color={!canAccessStep2 ? Colors.textMuted : isStep2Complete ? Colors.white : Colors.accent}
             />
           </View>
           <View style={styles.actionInfo}>
@@ -310,10 +318,10 @@ export default function SupervisorDashboard() {
               {isStep2Complete ? 'Tap to change' : 'Choose your work site'}
             </Text>
           </View>
-          <Ionicons 
-            name="chevron-forward" 
-            size={24} 
-            color={!canAccessStep2 ? Colors.textMuted : Colors.accent} 
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color={!canAccessStep2 ? Colors.textMuted : Colors.accent}
           />
         </TouchableOpacity>
 
@@ -340,10 +348,10 @@ export default function SupervisorDashboard() {
             styles.actionIcon,
             { backgroundColor: canAccessOthers ? Colors.info + '20' : Colors.border },
           ]}>
-            <Ionicons 
-              name="people" 
-              size={24} 
-              color={canAccessOthers ? Colors.info : Colors.textMuted} 
+            <Ionicons
+              name="people"
+              size={24}
+              color={canAccessOthers ? Colors.info : Colors.textMuted}
             />
           </View>
           <View style={styles.actionInfo}>
@@ -360,10 +368,10 @@ export default function SupervisorDashboard() {
               Log vendor workers for today
             </Text>
           </View>
-          <Ionicons 
-            name="chevron-forward" 
-            size={24} 
-            color={canAccessOthers ? Colors.info : Colors.textMuted} 
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color={canAccessOthers ? Colors.info : Colors.textMuted}
           />
         </TouchableOpacity>
 
@@ -381,10 +389,10 @@ export default function SupervisorDashboard() {
             styles.actionIcon,
             { backgroundColor: canAccessOthers ? Colors.success + '20' : Colors.border },
           ]}>
-            <Ionicons 
-              name="document-text" 
-              size={24} 
-              color={canAccessOthers ? Colors.success : Colors.textMuted} 
+            <Ionicons
+              name="document-text"
+              size={24}
+              color={canAccessOthers ? Colors.success : Colors.textMuted}
             />
           </View>
           <View style={styles.actionInfo}>
@@ -401,10 +409,10 @@ export default function SupervisorDashboard() {
               Daily Progress Report with photos
             </Text>
           </View>
-          <Ionicons 
-            name="chevron-forward" 
-            size={24} 
-            color={canAccessOthers ? Colors.success : Colors.textMuted} 
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color={canAccessOthers ? Colors.success : Colors.textMuted}
           />
         </TouchableOpacity>
 
@@ -507,7 +515,7 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontWeight: '600',
   },
-  
+
   // Check-in Card
   checkInCard: {
     padding: Spacing.lg,

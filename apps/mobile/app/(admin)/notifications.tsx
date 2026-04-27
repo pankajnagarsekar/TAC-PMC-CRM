@@ -10,38 +10,16 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Href } from 'expo-router';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
+import { useProject } from '../../contexts/ProjectContext';
+import { Project } from '../../types/api';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getToken();
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
-  }
-  return response.json();
-};
+import { baseApiClient } from '../../services/apiClient';
 
 interface Notification {
   _id: string;
@@ -62,6 +40,7 @@ interface Notification {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { selectedProject, setSelectedProject } = useProject();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,16 +49,18 @@ export default function NotificationsScreen() {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const response = await apiRequest(`/api/notifications?unread_only=${filter === 'unread'}`);
+      const response = await baseApiClient.get<{ notifications: Notification[]; unread_count: number }>(
+        `/api/v1/notifications?project_id=${selectedProject?.project_id || ''}&unread_only=${filter === 'unread'}`
+      );
       setNotifications(response.notifications || []);
       setUnreadCount(response.unread_count || 0);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading notifications:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter]);
+  }, [filter, selectedProject]);
 
   useEffect(() => {
     loadNotifications();
@@ -87,24 +68,24 @@ export default function NotificationsScreen() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await apiRequest(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
+      await baseApiClient.put(`/api/v1/notifications/${notificationId}/read`);
       setNotifications(prev =>
         prev.map(n =>
           n._id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
         )
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error marking notification as read:', error);
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      await apiRequest('/api/notifications/mark-all-read', { method: 'PUT' });
+      await baseApiClient.put('/api/v1/notifications/mark-all-read');
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
       setUnreadCount(0);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error marking all as read:', error);
     }
   };
@@ -117,13 +98,18 @@ export default function NotificationsScreen() {
 
     // Navigate based on notification type
     if (notification.reference_type === 'dpr' && notification.reference_id) {
-      router.push(`/(admin)/dpr/${notification.reference_id}` as any);
+      router.push(`/(admin)/dpr/${notification.reference_id}` as Href);
     } else if (notification.project_id) {
-      router.push(`/(admin)/projects/${notification.project_id}` as any);
+      // Set project context before navigating
+      setSelectedProject({
+        project_id: notification.project_id,
+        project_name: notification.project_name || 'Project',
+      } as Project);
+      router.push('/(admin)/dashboard');
     }
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string): { name: keyof typeof Ionicons.glyphMap; color: string } => {
     switch (type) {
       case 'dpr_submitted':
         return { name: 'document-text', color: Colors.success };
@@ -152,13 +138,13 @@ export default function NotificationsScreen() {
 
   const renderNotification = ({ item }: { item: Notification }) => {
     const icon = getNotificationIcon(item.notification_type);
-    
+
     return (
       <TouchableOpacity onPress={() => handleNotificationPress(item)}>
         <Card style={[styles.notificationCard, !item.is_read && styles.unreadCard]}>
           <View style={styles.notificationContent}>
             <View style={[styles.iconContainer, { backgroundColor: icon.color + '20' }]}>
-              <Ionicons name={icon.name as any} size={24} color={icon.color} />
+              <Ionicons name={icon.name} size={24} color={icon.color} />
             </View>
             <View style={styles.textContent}>
               <View style={styles.titleRow}>

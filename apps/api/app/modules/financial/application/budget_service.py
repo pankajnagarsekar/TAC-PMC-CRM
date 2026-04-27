@@ -8,7 +8,7 @@ Enforces invariants via domain model and persists via repository.
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from bson import ObjectId
 
@@ -16,7 +16,7 @@ from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.shared.application.audit_service import AuditService
 
-from ..domain.budget import Budget, BudgetAllocation
+from ..domain.budget import Budget
 from ..infrastructure.repository import BudgetRepository
 from ..schemas.dto import BudgetCreate, BudgetUpdate
 
@@ -149,10 +149,10 @@ class BudgetService:
         budget_updates = old_budget.to_dict()
         budget_updates["version"] = allocation_data.expected_version + 1
         budget_updates["updated_at"] = datetime.now(timezone.utc)
-        
+
         updated = await self.budget_repo.update(
-            budget_id, 
-            budget_updates, 
+            budget_id,
+            budget_updates,
             organisation_id=organisation_id,
             expected_version=allocation_data.expected_version
         )
@@ -218,8 +218,8 @@ class BudgetService:
         budget_updates["updated_at"] = datetime.now(timezone.utc)
 
         updated = await self.budget_repo.update(
-            budget_id, 
-            budget_updates, 
+            budget_id,
+            budget_updates,
             organisation_id=organisation_id,
             expected_version=current_version
         )
@@ -310,8 +310,8 @@ class BudgetService:
         budget_updates["updated_at"] = datetime.now(timezone.utc)
 
         updated = await self.budget_repo.update(
-            budget_id, 
-            budget_updates, 
+            budget_id,
+            budget_updates,
             organisation_id=organisation_id,
             expected_version=expected_version
         )
@@ -366,8 +366,8 @@ class BudgetService:
         budget_updates["updated_at"] = datetime.now(timezone.utc)
 
         updated = await self.budget_repo.update(
-            budget_id, 
-            budget_updates, 
+            budget_id,
+            budget_updates,
             organisation_id=organisation_id,
             expected_version=expected_version
         )

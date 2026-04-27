@@ -7,7 +7,6 @@ from app.core.dependencies import (
     get_vendor_service,
     get_work_order_service,
     get_contract_service,
-    get_db,
     verify_nonce,
 )
 from app.modules.shared.domain.schemas import GenericResponse
@@ -192,13 +191,11 @@ async def export_work_order_excel(
     from fastapi.responses import StreamingResponse
     import io
     from app.core.template_export_service import TemplateExportService
-    from app.modules.identity.application.settings_service import SettingsService
-    from app.core.dependencies import get_settings_service, get_vendor_service, get_db
 
     wo = await wo_service.get_work_order(user, wo_id)
-    
+
     excel_bytes = TemplateExportService.export_work_order_exact(wo, fmt="excel")
-    
+
     return StreamingResponse(
         io.BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -219,7 +216,7 @@ async def export_work_order_pdf(
     from fastapi.responses import StreamingResponse
     import io
     from app.core.template_export_service import TemplateExportService
-    from app.core.dependencies import get_db, get_settings_service
+    from app.core.dependencies import get_db
 
     from fastapi import HTTPException as _HTTPException
     wo = await wo_service.get_work_order(user, wo_id)
@@ -268,7 +265,8 @@ async def export_work_order_pdf(
         }
     else:
         from bson import ObjectId
-        query = {"_id": ObjectId(user["organisation_id"])} if ObjectId.is_valid(user["organisation_id"]) else {"organisation_id": user["organisation_id"]}
+        is_oid = ObjectId.is_valid(user["organisation_id"])
+        query = {"_id": ObjectId(user["organisation_id"])} if is_oid else {"organisation_id": user["organisation_id"]}
         org = await db.organisations.find_one(query)
         wo["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": ""}
 
@@ -306,14 +304,9 @@ async def approve_work_order(
     wo_service: WorkOrderService = Depends(get_work_order_service),
 ):
     """Approve a pending WO (Admin only)."""
-    from app.core.dependencies import get_permission_checker
-    db = await get_db() if "get_db" in globals() else None # Fallback
     # Use injected db or similar. Better: use permission checker dependency if available in scope.
     # Actually get_authenticated_user already validated.
     # But C3 says Admin only.
-    from app.core.permissions import PermissionChecker
-    # We can use the one from dependencies or instantiate a new one with db
-    # For now, simplistic check as per service
     result = await wo_service.approve_work_order(user, wo_id, expected_version)
     return GenericResponse(data=result, message="Work order approved")
 
@@ -345,7 +338,12 @@ async def delete_work_order(
 
 # --- CONTRACT ENDPOINTS ---
 
-@router.post("/work-orders/{wo_id}/contract", response_model=GenericResponse[Contract], status_code=status.HTTP_201_CREATED, tags=["Contracts"])
+@router.post(
+    "/work-orders/{wo_id}/contract",
+    response_model=GenericResponse[Contract],
+    status_code=status.HTTP_201_CREATED,
+    tags=["Contracts"]
+)
 async def create_contract(
     wo_id: str,
     contract_data: ContractCreate,
@@ -378,4 +376,3 @@ async def update_contract(
     """Update contract details."""
     updated = await contract_service.update_contract(user, contract_id, contract_data)
     return GenericResponse(data=updated, message="Contract updated successfully")
-

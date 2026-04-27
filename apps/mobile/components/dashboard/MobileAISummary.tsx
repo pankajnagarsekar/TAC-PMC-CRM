@@ -5,19 +5,12 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useProject } from '../../contexts/ProjectContext';
-import apiClient from '../../services/apiClient';
+import { authApi } from '../../services/apiClient';
 import { Card } from '../ui';
-
-interface AISummaryData {
-  type: 'schedule' | 'financial' | 'resources';
-  summary: string;
-  model: string;
-}
 
 export function MobileAISummary() {
   const { selectedProject } = useProject();
@@ -41,7 +34,7 @@ export function MobileAISummary() {
       setLoading((prev) => ({ ...prev, [type]: true }));
       try {
         // Stream AI summary from backend
-        const token = await apiClient.auth.getToken();
+        const token = await authApi.getToken();
         const response = await fetch(
           `${process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/v1/reporting/${selectedProject.project_id}/ai-summary/stream/${type}`,
           {

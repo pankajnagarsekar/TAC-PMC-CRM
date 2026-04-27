@@ -25,11 +25,11 @@ class BackgroundGuardian:
     async def start(self):
         """Boot maintenance loops."""
         self.active = True
-        
+
         # Lazy load ConcurrencyManager (Point 118, BUG-31)
         from app.core.concurrency import ConcurrencyManager
         self._concurrency_manager = ConcurrencyManager()
-        
+
         self._task = asyncio.create_task(self._run_loop())
         logger.info("BACKGROUND_GUARDIAN: Maintenance loops initiated.")
 
@@ -82,6 +82,7 @@ class BackgroundGuardian:
             logger.error(f"HEALTH_CHECK_FAILURE: MongoDB unreachable: {e}")
             return False
 
+
 def register_exception_handlers(app):
     """
     Centralized Fault Normalization (Point 10, BUG-10).
@@ -99,7 +100,7 @@ def register_exception_handlers(app):
             status_code = status.HTTP_404_NOT_FOUND
         elif isinstance(exc, ValidationError):
             status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-            
+
         return JSONResponse(
             status_code=status_code,
             content={

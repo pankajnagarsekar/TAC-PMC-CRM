@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
-from bson import Decimal128
 
 from app.modules.financial.infrastructure.repository import FinancialStateRepository
 from app.modules.project.infrastructure.repository import (
@@ -205,7 +204,7 @@ class AnalyticsService:
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
         else:
             query["project_id"] = project_id
-            
+
         schedule = await self.schedule_repo.find_one(query)
 
         if not schedule or "tasks" not in schedule:
@@ -290,7 +289,7 @@ class AnalyticsService:
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
         else:
             query["project_id"] = project_id
-            
+
         schedule = await self.schedule_repo.find_one(query)
 
         if not schedule or "tasks" not in schedule:
@@ -372,7 +371,7 @@ class AnalyticsService:
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
         else:
             query["project_id"] = project_id
-            
+
         master_state = await self.fin_state_repo.find_one(query)
 
         if not master_state:
@@ -382,7 +381,7 @@ class AnalyticsService:
                 agg_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
             else:
                 agg_query["project_id"] = project_id
-                
+
             agg_cursor = self.fin_state_repo.aggregate(
                 [
                     {"$match": agg_query},
@@ -422,17 +421,17 @@ class AnalyticsService:
 
         # EVM Multi-Module Core Logic (Constitution §9 - BUG-023)
         # AC (Actual Cost) = Committed Value (Contracts signed)
-        ac = data.budget_spent 
-        
+        ac = data.budget_spent
+
         # PV (Planned Value) = Baseline work scheduled to be completed by today
         # EV (Earned Value) = Baseline work actually performed
         pv = Decimal("0.00")
         ev = Decimal("0.00")
-        
+
         # Fetch schedule for EVM calculations
         schedule = await self.schedule_repo.find_one({"project_id": project_id})
         project = await self.project_repo.get_by_id(project_id)
-        
+
         tasks_raw = schedule.get("tasks") if schedule else None
         if isinstance(tasks_raw, list) and len(tasks_raw) > 0:
             cat_pv_map = {}
@@ -443,38 +442,42 @@ class AnalyticsService:
             )
             if isinstance(states, list):
                 for s in states:
-                     cat_pv_map[s["category_id"]] = FinancialEngine.to_decimal(s.get("original_budget", 0))
-            
+                    cat_pv_map[s["category_id"]] = FinancialEngine.to_decimal(s.get("original_budget", 0))
+
             # --- Calculation Engine ---
             today_str = datetime.now(timezone.utc).date().isoformat()
-            
-            cat_tasks = {} # category_id -> [tasks]
+
+            cat_tasks = {}  # category_id -> [tasks]
             for t in tasks_raw:
                 rid = t.get("external_ref_id")
                 if rid:
-                    if rid not in cat_tasks: cat_tasks[rid] = []
+                    if rid not in cat_tasks:
+                        cat_tasks[rid] = []
                     cat_tasks[rid].append(t)
-            
+
             for cat_id, cat_total_pv in cat_pv_map.items():
                 if cat_id in cat_tasks:
                     category_tasks = cat_tasks[cat_id]
-                    
+
                     # 1. Earned Value (Category PV * Average Completion %)
                     avg_comp = sum(float(t.get("percent_complete", 0)) for t in category_tasks) / len(category_tasks)
                     ev += cat_total_pv * Decimal(str(avg_comp / 100.0))
-                    
+
                     # 2. Planned Value (Category PV * Weight of Tasks Scheduled to Finish)
                     # We assume task weight = 1/N within category if specific task-level PV is not set
-                    scheduled_tasks = [t for t in category_tasks if (t.get("baseline_finish") or t.get("scheduled_finish") or "9999") <= today_str]
+                    scheduled_tasks = [
+                        t for t in category_tasks
+                        if (t.get("baseline_finish") or t.get("scheduled_finish") or "9999") <= today_str
+                    ]
                     if category_tasks:
                         planned_weight = Decimal(str(len(scheduled_tasks))) / Decimal(str(len(category_tasks)))
                         pv += cat_total_pv * planned_weight
-        
+
         # Fallbacks for projects without granular schedules
         if pv == Decimal("0.00") and data.budget_total > 0:
             # Linear PV fallback based on project duration if available
-            pv = data.budget_total # Default to 100% PV if no schedule (conservative)
-            
+            pv = data.budget_total  # Default to 100% PV if no schedule (conservative)
+
         if ev == Decimal("0.00") and data.budget_total > 0:
             proj_comp = float(project.get("completion_percentage", 0) if project else 0)
             ev = data.budget_total * Decimal(str(proj_comp / 100.0))
@@ -487,7 +490,7 @@ class AnalyticsService:
             days_elapsed = (datetime.now(timezone.utc) - start).days
             if days_elapsed > 0:
                 data.burn_rate_daily = data.budget_spent / Decimal(str(days_elapsed))
-        
+
         # Simple projected overrun if over budget
         if data.is_over_budget:
             data.projected_overrun = data.budget_spent - data.budget_total

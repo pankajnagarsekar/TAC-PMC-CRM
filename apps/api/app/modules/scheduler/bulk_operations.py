@@ -11,7 +11,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -377,7 +377,6 @@ class BulkOperationService:
             BulkOperationResult with results of all operations
         """
         import uuid
-        from datetime import datetime
 
         result = BulkOperationResult(
             batch_id=batch_id,

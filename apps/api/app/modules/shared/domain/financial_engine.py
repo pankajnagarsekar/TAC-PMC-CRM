@@ -112,11 +112,11 @@ class FinancialEngine:
         actual_payable = cls.round(grand_total - retention_amount)
 
         if grand_total < 0:
-             raise FinancialIntegrityError("Grand total cannot be negative.")
-        
+            raise FinancialIntegrityError("Grand total cannot be negative.")
+
         if actual_payable < 0:
-             # This can happen if retention > grand_total (unlikely but possible with weird pct)
-             actual_payable = Decimal("0.00")
+            # This can happen if retention > grand_total (unlikely but possible with weird pct)
+            actual_payable = Decimal("0.00")
 
         return {
             "subtotal": subtotal,
@@ -150,11 +150,11 @@ class FinancialEngine:
         pc_value = cls.round(pc_value)
         retention_amount = cls.calculate_retention(pc_value, retention_pct)
         total_after_retention = cls.round(pc_value - retention_amount)
-        
+
         cgst_amount = cls.calculate_tax(total_after_retention, cgst_pct)
         sgst_amount = cls.calculate_tax(total_after_retention, sgst_pct)
         gst_amount = cls.round(cgst_amount + sgst_amount)
-        
+
         grand_total = cls.round(total_after_retention + gst_amount)
 
         return {

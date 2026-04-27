@@ -25,7 +25,12 @@ class AuditService:
         self.db = db
         self.audit_repo = AuditRepository(db)
 
-    def enforce_financial_delete_guard(self, entity_type: str, action_type: str, old_value: Optional[Dict[str, Any]] = None):
+    def enforce_financial_delete_guard(
+        self,
+        entity_type: str,
+        action_type: str,
+        old_value: Optional[Dict[str, Any]] = None
+    ):
         """
         ARCHITECTURAL GUARD: Prevent DELETE operations on final financial entities.
         Allows deletion of 'Draft' entities to support record purging (Track I3).
@@ -37,7 +42,8 @@ class AuditService:
 
             from ..domain.exceptions import FinancialIntegrityError
             raise FinancialIntegrityError(
-                f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type} in its current state. Financial entities are immutable once finalized."
+                f"ARCHITECTURAL GUARD: Cannot DELETE {entity_type} in its current state. "
+                "Financial entities are immutable once finalized."
             )
 
     @staticmethod
@@ -168,7 +174,7 @@ class AuditService:
                     p_filter,
                     {"_id": 1, "project_id": 1, "project_name": 1},
                 ).to_list(length=len(project_ids) * 2)
-                
+
                 for p in projects:
                     p_name = p.get("project_name") or p.get("name", "")
                     # Map both ObjectId string and project_id string
@@ -186,16 +192,16 @@ class AuditService:
             log["previous_state"] = log.get("old_value_json") or log.get("old_value")
             if "new_value_json" in log and "new_value" not in log:
                 log["new_value"] = log["new_value_json"]
-            
+
             uid = str(log.get("user_id", ""))
             log["user_name"] = user_map.get(uid, "System")
-            
+
             pid = str(log.get("project_id", ""))
             if pid and pid != "None":
                 log["project_name"] = project_map.get(pid, "Unknown Project")
             else:
                 log["project_name"] = "Global"
-            
+
             result.append(log)
 
         return result

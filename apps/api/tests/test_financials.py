@@ -305,7 +305,8 @@ class TestWOAndPCDifference(unittest.TestCase):
         # WO: tax on full 1000, retention on grand_total
         # grand_total = 1000 + 90 + 90 = 1180
         self.assertEqual(wo["grand_total"], Decimal("1180.00"))
-        self.assertEqual(wo["retention_amount"], Decimal("100.00"))  # 1000 × 10% per spec — retention on total_before_tax
+        # 1000 × 10% per spec — retention on total_before_tax
+        self.assertEqual(wo["retention_amount"], Decimal("100.00"))
 
         # PC: retention on 1000 first (100), tax on 900
         # grand_total = 900 + 81 + 81 = 1062

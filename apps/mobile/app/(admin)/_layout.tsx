@@ -11,7 +11,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 export default function AdminLayout() {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuth();
-  const { colors: Colors, isDark } = useTheme();
+  const { colors: Colors } = useTheme();
 
   // Redirect to login if not authenticated or not admin
   useEffect(() => {

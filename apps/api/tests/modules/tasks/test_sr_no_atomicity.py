@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.modules.tasks.infrastructure.repository import TaskRepository
 from app.db.mongodb import db_manager
 from app.core.config import settings

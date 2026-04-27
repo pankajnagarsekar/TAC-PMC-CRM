@@ -7,7 +7,7 @@ import { mutate } from 'swr';
 // Project Store — project context is mandatory after login
 // Switching project purges ALL SWR cache to prevent cross-project data mixing
 // ──────────────────────────────────────────────────────────────────────────
-interface ProjectState {
+export interface ProjectState {
   activeProject: Project | null;
   /** Global override for breadcrumb labels (e.g. {taskId: 'Fix Layout Bug'}) */
   breadcrumbTitle: string | null;

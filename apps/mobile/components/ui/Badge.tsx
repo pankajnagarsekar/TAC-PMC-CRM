@@ -21,7 +21,7 @@ export const Badge = ({
   accessibilityLabel,
   accessibilityHint,
 }: BadgeProps) => {
-  const { colors, spacing, borderRadius, fontSizes } = useTheme();
+  const { colors, spacing, borderRadius } = useTheme();
 
   const badgeColor = color || colors.primary;
 

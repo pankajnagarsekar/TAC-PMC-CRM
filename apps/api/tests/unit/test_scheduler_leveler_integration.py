@@ -10,7 +10,6 @@ Tests for Phase 1 Task #13: Resource Leveling Integration
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from app.modules.scheduler.calculate_critical_path import run_calculation
 from app.modules.scheduler.resource_leveler import (
     ResourceLeveler,
     ResourceAssignment,

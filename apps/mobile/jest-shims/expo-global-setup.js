@@ -14,7 +14,7 @@ const defineNonConfigurable = (name, value) => {
         enumerable: true,
       });
     }
-  } catch (e) {
+  } catch {
     // ignore — some globals can't be redefined
   }
 };

@@ -6,8 +6,10 @@ from ..application.portfolio_service import PortfolioService
 
 router = APIRouter()
 
-async def get_portfolio_service(db = Depends(get_db)) -> PortfolioService:
+
+async def get_portfolio_service(db=Depends(get_db)) -> PortfolioService:
     return PortfolioService(db)
+
 
 @router.get("/summary", response_model=GenericResponse[Dict[str, Any]])
 async def get_portfolio_summary(
@@ -18,6 +20,7 @@ async def get_portfolio_summary(
     data = await service.get_summary(user["organisation_id"])
     return GenericResponse(data=data)
 
+
 @router.get("/resource-heatmap", response_model=GenericResponse[List[Dict[str, Any]]])
 async def get_resource_heatmap(
     user: dict = Depends(get_authenticated_user),
@@ -26,6 +29,7 @@ async def get_resource_heatmap(
     """Task distribution and utilization heatmap across resources."""
     data = await service.get_resource_heatmap(user["organisation_id"])
     return GenericResponse(data=data)
+
 
 @router.get("/milestones", response_model=GenericResponse[List[Dict[str, Any]]])
 async def get_portfolio_milestones(

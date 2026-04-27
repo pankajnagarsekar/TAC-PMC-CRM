@@ -47,15 +47,14 @@ async function uriToBase64(uri: string): Promise<string> {
     });
   }
   // Native: expo-file-system
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const FileSystem = require('expo-file-system');
+  const FileSystem = await import('expo-file-system');
   return await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
 }
 
 // ─── component ──────────────────────────────────────────────────────────────
 
 export default function VoiceLogScreen() {
-  const { selectedProject } = useProject();
+  const { projectId } = useProject();
 
   // Recording state
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -70,8 +69,6 @@ export default function VoiceLogScreen() {
   const [logs, setLogs] = useState<VoiceLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [showCodePicker, setShowCodePicker] = useState(false);
-
-  const projectId = (selectedProject as any)?.project_id || (selectedProject as any)?.id || '';
 
   // Load codes + recent logs on mount
   useEffect(() => {
@@ -180,9 +177,9 @@ export default function VoiceLogScreen() {
       Alert.alert('Success', 'Voice log saved and sent for transcription.');
       await loadLogs();
     } catch (error: unknown) {
-      const err = error as { message?: string };
       console.error('Voice log submit failed:', error);
-      Alert.alert('Error', err.message || 'Failed to save voice log. Please try again.');
+      const msg = error instanceof Error ? error.message : 'Failed to save voice log. Please try again.';
+      Alert.alert('Error', msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -274,8 +271,8 @@ export default function VoiceLogScreen() {
             {isSubmitting
               ? 'Saving...'
               : isRecording
-              ? `Recording  ${formatDuration(duration)}`
-              : 'Tap to record'}
+                ? `Recording  ${formatDuration(duration)}`
+                : 'Tap to record'}
           </Text>
 
           {isRecording && (

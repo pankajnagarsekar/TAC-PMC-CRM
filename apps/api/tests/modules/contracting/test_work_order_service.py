@@ -1,11 +1,10 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from app.modules.contracting.application.work_order_service import WorkOrderService
 from app.modules.contracting.schemas.dto import WorkOrderCreate, WorkOrderUpdate, WOLineItem
-from app.modules.shared.domain.exceptions import ValidationError, NotFoundError, DomainError
-from decimal import Decimal
+from app.modules.shared.domain.exceptions import ValidationError, DomainError
 from bson import ObjectId
-from datetime import datetime, timezone
+
 
 @pytest.fixture
 def mock_audit_service():
@@ -34,7 +33,7 @@ async def test_create_work_order_flow(work_order_service, test_db, test_user, te
     # Setup dependencies
     vendor_id = str(ObjectId())
     await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    
+
     await test_db.project_category_budgets.insert_one({
         "project_id": test_project_id,
         "category_id": "CAT1",
@@ -53,7 +52,7 @@ async def test_create_work_order_flow(work_order_service, test_db, test_user, te
     wo = await work_order_service.create_work_order(test_user, test_project_id, data)
     assert wo["wo_ref"].startswith("WO-")
     assert wo["status"] == "Draft"
-    
+
     # Verify Ledger Entry
     ledger = await test_db.vendor_ledger.find_one({"ref_id": str(wo["id"])})
     assert ledger["entry_type"] == "COMMITTED"
@@ -143,14 +142,14 @@ async def test_list_work_orders(work_order_service, test_user, test_project_id, 
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
     ))
-    
+
     result = await work_order_service.list_work_orders(test_user, test_project_id, limit=10, cursor=None)
     assert len(result["items"]) == 1
 
 @pytest.mark.asyncio
 async def test_create_work_order_invalid_vendor(work_order_service, test_user, test_project_id, test_db):
     await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000})
-    
+
     with pytest.raises(ValidationError, match="Vendor not found"):
         await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
             project_id=test_project_id, category_id="C1", vendor_id=str(ObjectId()),
@@ -161,7 +160,7 @@ async def test_create_work_order_invalid_vendor(work_order_service, test_user, t
 async def test_create_work_order_invalid_budget(work_order_service, test_user, test_db):
     vendor_id = str(ObjectId())
     await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    
+
     with pytest.raises(ValidationError, match="Category budget not initialized"):
         await work_order_service.create_work_order(test_user, "P_MISSING", WorkOrderCreate(
             project_id="P_MISSING", category_id="CAT_NONE", vendor_id=vendor_id,
@@ -177,8 +176,7 @@ async def test_approve_non_pending_wo(work_order_service, test_db, test_user, te
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
     ))
-    
+
     # Status is Draft, trying to approve directly
     with pytest.raises(DomainError, match="Only Pending Work Orders can be approved"):
         await work_order_service.approve_work_order(test_user, str(wo["id"]), expected_version=1)
-

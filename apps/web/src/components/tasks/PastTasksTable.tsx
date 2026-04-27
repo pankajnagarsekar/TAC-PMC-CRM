@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Task } from "@/types/api";
 import { formatDate } from "@tac-pmc/ui";
 import FinancialGrid from "@/components/ui/FinancialGrid";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams, ValueFormatterParams } from "ag-grid-community";
 
 interface PastTasksTableProps {
   tasks: Task[];
@@ -22,7 +22,7 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         headerName: "NO.",
         width: 80,
         sortable: true,
-        cellRenderer: (p: any) => (
+        cellRenderer: (p: ICellRendererParams<Task>) => (
           <span className="text-slate-500 font-mono text-xs">#{p.value}</span>
         ),
       },
@@ -31,9 +31,9 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         headerName: "Description",
         flex: 1,
         minWidth: 200,
-        cellRenderer: (p: any) => (
+        cellRenderer: (p: ICellRendererParams<Task>) => (
           <div
-            onClick={() => router.push(`/admin/tasks/${p.data._id}`)}
+            onClick={() => p.data?._id && router.push(`/admin/tasks/${p.data._id}`)}
             className="font-medium text-white hover:text-blue-400 hover:underline cursor-pointer transition-colors"
           >
             {p.value}
@@ -49,13 +49,13 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         field: "deadline",
         headerName: "Deadline",
         width: 130,
-        valueFormatter: (p: any) => (p.value ? formatDate(p.value) : "N/A"),
+        valueFormatter: (p: ValueFormatterParams<Task>) => (p.value ? formatDate(p.value) : "N/A"),
       },
       {
         field: "priority",
         headerName: "Priority",
         width: 110,
-        cellRenderer: (p: any) => {
+        cellRenderer: (p: ICellRendererParams<Task>) => {
           const priority = p.value;
           const colors: Record<string, string> = {
             Low: "bg-slate-500/10 text-slate-400 border-slate-500/20",
@@ -77,7 +77,7 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         field: "status",
         headerName: "Status",
         width: 130,
-        cellRenderer: (p: any) => {
+        cellRenderer: (p: ICellRendererParams<Task>) => {
           const status = p.value;
           const colors: Record<string, string> = {
             Open: "bg-slate-500/10 text-slate-400 border-slate-500/20",

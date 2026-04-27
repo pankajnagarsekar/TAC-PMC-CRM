@@ -22,15 +22,15 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
         try:
             start_time = time.time()
             request_id = str(uuid.uuid4())
-    
+
             # 1. RATE LIMIT ENFORCEMENT (Point 5, 116)
             try:
                 client_host = getattr(request.client, "host", "anonymous") if request.client else "anonymous"
             except Exception:
                 client_host = "anonymous"
-            
+
             identity = request.headers.get("Authorization", client_host)
-            
+
             # 2. PATH EXCLUSION CHECK
             if request.url.path not in ["/docs", "/redoc", "/openapi.json"]:
                 try:
@@ -52,7 +52,10 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
 
             logger.info(f"REQUEST START: {request.method} {request.url.path} | ID: {request_id}")
             response = await call_next(request)
-            logger.info(f"REQUEST END: {request.method} {request.url.path} | Status: {response.status_code} | ID: {request_id}")
+            logger.info(
+                f"REQUEST END: {request.method} {request.url.path} | "
+                f"Status: {response.status_code} | ID: {request_id}"
+            )
             process_time = time.time() - start_time
 
             if request.url.path in ["/docs", "/redoc", "/openapi.json"]:
@@ -62,17 +65,17 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
             response.headers["X-Process-Time"] = f"{process_time:.4f}"
 
             return response
-    
+
         except HTTPException as he:
             return self._standard_error(
                 he.status_code, he.detail, request_id, start_time
             )
-    
+
         except Exception as exc:
             from app.modules.shared.domain.exceptions import DomainError, ValidationError
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             error_msg = "A critical system fault occurred."
-            
+
             if isinstance(exc, ValidationError):
                 status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
                 error_msg = str(exc)
@@ -88,7 +91,7 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
                 traceback.print_exc()
                 logger.error(f"SYSTEM_FAULT: {exc} | ID: {request_id}", exc_info=True)
                 error_msg = f"SYSTEM_FAULT: {str(exc)}"
-                
+
             logger.error(f"API_ERROR: {error_msg} | Path: {request.url.path} | ID: {request_id}")
             return self._standard_error(
                 status_code,
@@ -101,23 +104,29 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
         self, code: int, message: Any, request_id: str, start_time: float
     ):
         process_time = time.time() - start_time
-        
+
         # Normalize code to string for better DX (BUG-10)
         error_code = "SYSTEM_FAULT"
-        if code == 429: error_code = "RATE_LIMIT_EXCEEDED"
-        elif code == 503: error_code = "SERVICE_UNAVAILABLE"
-        elif code == 400: error_code = "BAD_REQUEST"
-        elif code == 401: error_code = "UNAUTHORIZED"
-        elif code == 403: error_code = "FORBIDDEN"
-        elif code == 404: error_code = "NOT_FOUND"
+        if code == 429:
+            error_code = "RATE_LIMIT_EXCEEDED"
+        elif code == 503:
+            error_code = "SERVICE_UNAVAILABLE"
+        elif code == 400:
+            error_code = "BAD_REQUEST"
+        elif code == 401:
+            error_code = "UNAUTHORIZED"
+        elif code == 403:
+            error_code = "FORBIDDEN"
+        elif code == 404:
+            error_code = "NOT_FOUND"
 
         return JSONResponse(
             status_code=code,
             content={
                 "success": False,
                 "error": {
-                    "code": error_code, 
-                    "message": message, 
+                    "code": error_code,
+                    "message": message,
                     "request_id": request_id,
                     "status": code
                 },
@@ -127,6 +136,7 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
 
 
 import asyncio
+
 
 class BackpressureMiddleware(BaseHTTPMiddleware):
     """
@@ -142,13 +152,16 @@ class BackpressureMiddleware(BaseHTTPMiddleware):
         if cls._semaphore is None:
             cls._semaphore = asyncio.Semaphore(cls.MAX_CONCURRENT)
         return cls._semaphore
- 
+
     async def dispatch(self, request: Request, call_next):
         sem = self.get_semaphore()
         print(f"DEBUG: BackpressureMiddleware checking {request.url.path} | Sem Locked: {sem.locked()}")
         if sem.locked():
             print("DEBUG: BackpressureMiddleware DETECTED LOCK - returning 503")
-            logger.warning(f"BACKPRESSURE_REJECTION: System saturated at {self.MAX_CONCURRENT} concurrent requests. Path: {request.url.path}")
+            logger.warning(
+                f"BACKPRESSURE_REJECTION: System saturated at {self.MAX_CONCURRENT} "
+                f"concurrent requests. Path: {request.url.path}"
+            )
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={

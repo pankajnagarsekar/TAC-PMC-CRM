@@ -13,7 +13,6 @@ import {
   FlatList,
   Modal,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,7 +61,17 @@ export default function WorkerLogScreen() {
   const loadVendors = async () => {
     try {
       const data = await vendorsApi.getAll();
-      const formattedVendors = (data || []).map((v: any) => ({
+      interface VendorApiResponse {
+        id?: string;
+        vendor_id?: string;
+        _id?: string;
+        gstin?: string;
+        vendor_type?: string;
+        name?: string;
+        vendor_name?: string;
+        display_name?: string;
+      }
+      const formattedVendors = (data as VendorApiResponse[] || []).map((v) => ({
         code_id: v.id || v.vendor_id || v._id || '',
         code: v.gstin || v.vendor_type || v.vendor_id || '',
         first_name: v.name || v.vendor_name || '',
@@ -70,7 +79,7 @@ export default function WorkerLogScreen() {
         display_name: v.name || v.vendor_name || v.display_name || '',
       }));
       setVendors(formattedVendors);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load vendors:', error);
     } finally {
       setIsLoading(false);
@@ -154,9 +163,10 @@ export default function WorkerLogScreen() {
 
     try {
       setIsSaving(true);
+      if (!selectedProject) throw new Error('No project selected');
 
       const payload = {
-        project_id: selectedProject?.project_id,
+        project_id: selectedProject.project_id || selectedProject._id,
         date: new Date().toISOString().split('T')[0],
         entries: entries.map((e: WorkerEntry) => ({
           vendor_code: e.vendor?.code,
@@ -174,9 +184,10 @@ export default function WorkerLogScreen() {
         'Worker log saved successfully!',
         [{ text: 'OK', onPress: () => router.back() }]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Save error:', error);
-      Alert.alert('Error', error.message || 'Failed to save worker log');
+      const message = error instanceof Error ? error.message : 'Failed to save worker log';
+      Alert.alert('Error', message);
     } finally {
       setIsSaving(false);
     }

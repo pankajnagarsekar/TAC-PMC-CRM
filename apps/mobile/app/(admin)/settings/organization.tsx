@@ -19,27 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 import ScreenHeader from '../../../components/ScreenHeader';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getToken();
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) throw new Error('Request failed');
-  return response.json();
-};
+import { baseApiClient } from '../../../services/apiClient';
 
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') window.alert(`${title}: ${message}`);
@@ -88,9 +68,9 @@ export default function OrganizationSettingsScreen() {
 
   const loadSettings = async () => {
     try {
-      const data = await apiRequest('/api/organisation-settings');
-      setSettings((prev: OrgSettings) => ({ ...prev, ...data }));
-    } catch (error: any) {
+      const data = await baseApiClient.get<OrgSettings>('/api/v1/organisation-settings');
+      setSettings((prev) => ({ ...prev, ...data }));
+    } catch (error: unknown) {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
@@ -100,14 +80,12 @@ export default function OrganizationSettingsScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await apiRequest('/api/organisation-settings', {
-        method: 'PUT',
-        body: JSON.stringify(settings),
-      });
+      await baseApiClient.put('/api/v1/organisation-settings', settings);
       showAlert('Success', 'Organisation settings saved successfully!');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
-      showAlert('Error', 'Failed to save settings');
+      const msg = error instanceof Error ? error.message : 'Failed to save settings';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -138,12 +116,12 @@ export default function OrganizationSettingsScreen() {
   };
 
   const updateField = <K extends keyof OrgSettings>(field: K, value: OrgSettings[K]) => {
-    setSettings((prev: OrgSettings) => ({ ...prev, [field]: value }));
+    setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
   interface SectionProps {
     title: string;
-    icon: string;
+    icon: keyof typeof Ionicons.glyphMap;
     id: string;
     children: React.ReactNode;
   }
@@ -152,7 +130,7 @@ export default function OrganizationSettingsScreen() {
     <View style={styles.section}>
       <Pressable style={styles.sectionHeader} onPress={() => setActiveSection(activeSection === id ? null : id)}>
         <View style={styles.sectionTitleRow}>
-          <Ionicons name={icon as any} size={20} color={Colors.primary} />
+          <Ionicons name={icon} size={20} color={Colors.primary} />
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <Ionicons name={activeSection === id ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.textMuted} />
@@ -200,7 +178,7 @@ export default function OrganizationSettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <ScreenHeader title="Organisation Settings" />
-      
+
       <ScrollView contentContainerStyle={styles.content}>
         {/* Basic Info */}
         <Section title="Basic Information" icon="business" id="basic">
@@ -282,8 +260,8 @@ export default function OrganizationSettingsScreen() {
         </Section>
 
         {/* Save Button */}
-        <Pressable 
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+        <Pressable
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}
         >

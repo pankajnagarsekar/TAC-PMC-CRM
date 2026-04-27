@@ -19,56 +19,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import { usersApi, projectsApi } from '../../../services/apiClient';
+import { baseApiClient, usersApi, projectsApi } from '../../../services/apiClient';
+import { Project, User as GlobalUser } from '../../../types/api';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 import ScreenHeader from '../../../components/ScreenHeader';
-
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getToken();
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
-  }
-  return response.json();
-};
 
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') window.alert(`${title}: ${message}`);
   else Alert.alert(title, message);
 };
 
-interface Project {
-  project_id: string;
-  project_name: string;
-}
-
-interface User {
-  user_id?: string;
-  _id?: string;
-  name: string;
-  email: string;
-  role: string;
-  active_status: boolean;
-  dpr_generation_permission?: boolean;
-  screen_permissions?: string[];
-  assigned_projects?: string[];
-}
+// USING GLOBAL USER AND PROJECT INTERFACES
 
 const ROLES = ['Admin', 'Supervisor', 'User'];
 const SCREENS = [
@@ -84,13 +45,13 @@ const SCREENS = [
 ];
 
 export default function UserManagementScreen() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<GlobalUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<GlobalUser | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -110,7 +71,7 @@ export default function UserManagementScreen() {
       ]);
       setUsers(usersData || []);
       setProjects(projectsData || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
@@ -141,7 +102,7 @@ export default function UserManagementScreen() {
     setModalVisible(true);
   };
 
-  const openEditModal = (user: User) => {
+  const openEditModal = (user: GlobalUser) => {
     setEditingUser(user);
     setName(user.name);
     setEmail(user.email);
@@ -155,8 +116,8 @@ export default function UserManagementScreen() {
   };
 
   const toggleScreenPermission = (screenId: string) => {
-    setScreenPermissions(prev => 
-      prev.includes(screenId) 
+    setScreenPermissions(prev =>
+      prev.includes(screenId)
         ? prev.filter(s => s !== screenId)
         : [...prev, screenId]
     );
@@ -186,7 +147,7 @@ export default function UserManagementScreen() {
     try {
       if (editingUser) {
         // Update user
-        const payload: any = {
+        const payload = {
           name: name.trim(),
           role,
           active_status: activeStatus,
@@ -194,22 +155,16 @@ export default function UserManagementScreen() {
           screen_permissions: screenPermissions,
           assigned_projects: assignedProjects,
         };
-        
-        await apiRequest(`/api/users/${editingUser.user_id || editingUser._id}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        });
+
+        await baseApiClient.put(`/api/v1/users/${editingUser.user_id || editingUser._id}`, payload);
         showAlert('Success', 'User updated successfully');
       } else {
         // Create user
-        await apiRequest('/api/auth/register', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: name.trim(),
-            email: email.trim(),
-            password,
-            role,
-          }),
+        await baseApiClient.post('/api/v1/auth/register', {
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role,
         });
         showAlert('Success', 'User created successfully');
       }
@@ -217,21 +172,23 @@ export default function UserManagementScreen() {
       setModalVisible(false);
       resetForm();
       loadData();
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to save user');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to save user';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = (user: User) => {
+  const handleDelete = (user: GlobalUser) => {
     const doDelete = async () => {
       try {
-        await apiRequest(`/api/users/${user.user_id || user._id}`, { method: 'DELETE' });
+        await baseApiClient.delete(`/api/v1/users/${user.user_id || user._id}`);
         showAlert('Success', 'User deactivated successfully');
         loadData();
-      } catch (error: any) {
-        showAlert('Error', error.message);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Failed to deactivate user';
+        showAlert('Error', msg);
       }
     };
 
@@ -253,7 +210,7 @@ export default function UserManagementScreen() {
     }
   };
 
-  const renderUser = ({ item }: { item: User }) => (
+  const renderUser = ({ item }: { item: GlobalUser }) => (
     <View style={styles.userCard}>
       <View style={styles.userHeader}>
         <View style={styles.avatarContainer}>
@@ -333,7 +290,7 @@ export default function UserManagementScreen() {
       <FlatList
         data={users}
         renderItem={renderUser}
-        keyExtractor={(item) => item.user_id || item._id || item.email}
+        keyExtractor={(item) => (item.user_id || item._id || item.email) as string}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
         ListEmptyComponent={
@@ -434,8 +391,8 @@ export default function UserManagementScreen() {
                   <Text style={styles.hintText}>Select projects this user can access (for supervisors)</Text>
                   {projects.length > 0 ? (
                     <View style={styles.projectGrid}>
-                      {projects.map((project: any) => {
-                        const projectId = project.project_id || project._id;
+                      {projects.map((project: Project) => {
+                        const projectId = (project.project_id || project._id) as string;
                         const isSelected = assignedProjects.includes(projectId);
                         return (
                           <Pressable

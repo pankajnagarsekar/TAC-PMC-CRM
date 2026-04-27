@@ -64,4 +64,3 @@ class ContractRepository(BaseRepository[Contract]):
         await super().ensure_indexes()
         await self.collection.create_index([("work_order_id", ASCENDING)], unique=True)
         await self.collection.create_index([("vendor_id", ASCENDING)])
-

@@ -132,7 +132,7 @@ export default function ExpenseEntryModal({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await api.post(
+      const response = await api.post<OcrResult & { extracted_invoice_number?: string; extracted_amount?: number }>(
         `/api/v1/ai/ocr?project_id=${projectId}`,
         formData,
         {
@@ -177,7 +177,7 @@ export default function ExpenseEntryModal({
     setIsLoading(true);
 
     try {
-      const response = await api.post(
+      const response = await api.post<{ warnings?: string[] }>(
         `/api/v1/petty-cash/transaction`,
         {
           project_id: projectId,

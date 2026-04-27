@@ -5,10 +5,7 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.modules.tasks.application.task_service import TaskService
 from app.modules.tasks.infrastructure.repository import TaskAISummaryRepository
-from app.modules.tasks.infrastructure.cache_manager import TaskAISummaryCache
 from app.modules.tasks.schemas.dto import TaskCreate, TaskUpdate
-from app.modules.shared.domain.state_machine import StateMachine
-from app.modules.shared.domain.exceptions import DataFreezeError, IllegalTransitionError
 from app.db.mongodb import db_manager
 from app.core.config import settings
 from fastapi import HTTPException

@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import api from "@/lib/api";
 import {
-  Calendar,
   Filter,
   RotateCcw,
   Loader2,
@@ -15,7 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import FinancialGrid from "@/components/ui/FinancialGrid";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams } from "ag-grid-community";
 import { StyledDateInput } from "@/components/ui/StyledDateInput";
 
 type ReportType =
@@ -87,6 +86,11 @@ const REPORT_OPTIONS: {
     },
   ];
 
+interface ReportData {
+  rows: (string | number | null)[][];
+  summary?: Record<string, number>;
+}
+
 export default function ReportsPage() {
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
@@ -95,18 +99,10 @@ export default function ReportsPage() {
     useState<ReportType>("project_summary");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<"excel" | "pdf" | null>(null);
-  // Removed redirect - using conditional render instead
-  /*
-  useEffect(() => {
-    if (!activeProject?.project_id) {
-      router.push("/admin/dashboard");
-    }
-  }, [activeProject, router]);
-  */
 
   if (!activeProject) {
     return (
@@ -132,14 +128,15 @@ export default function ReportsPage() {
       if (startDate) params.append("start_date", startDate);
       if (endDate) params.append("end_date", endDate);
 
-      const response = await api.get(
+      const response = await api.get<ReportData>(
         `${url}${params.toString() ? `?${params.toString()}` : ""}`,
       );
       setReportData(response.data);
       toast({ title: "Intelligence Ready", description: "Report datasets successfully generated." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Report generation failed:", error);
-      const msg = error?.response?.data?.detail || error?.message || "Failed to assemble report.";
+      const err = error as { response?: { data?: { detail?: string } }, message?: string };
+      const msg = err?.response?.data?.detail || err?.message || "Failed to assemble report.";
       setReportError(msg);
       toast({
         title: "Interface Error",
@@ -171,11 +168,10 @@ export default function ReportsPage() {
       if (contentType.includes("application/json")) {
         const payload = JSON.parse(new TextDecoder().decode(response.data));
         if (payload?.job_id) {
-          // Poll logic... for simplicity in this redesign I'll keep the existing polling
           let attempts = 0;
           while (attempts < 60) {
             await new Promise((resolve) => setTimeout(resolve, 2000));
-            const statusRes = await api.get(`/api/v1/jobs/${payload.job_id}`);
+            const statusRes = await api.get<{ ready?: boolean; status?: string }>(`/api/v1/jobs/${payload.job_id}`);
             if (
               statusRes.data?.ready ||
               statusRes.data?.status === "SUCCESS" ||
@@ -194,8 +190,7 @@ export default function ReportsPage() {
           const syncUrl = window.URL.createObjectURL(syncBlob);
           const syncLink = document.createElement("a");
           syncLink.href = syncUrl;
-          syncLink.download = `${selectedReport}_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xlsx" : "pdf"
-            }`;
+          syncLink.download = `${selectedReport}_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xlsx" : "pdf"}`;
           document.body.appendChild(syncLink);
           syncLink.click();
           window.URL.revokeObjectURL(syncUrl);
@@ -214,8 +209,7 @@ export default function ReportsPage() {
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = `${selectedReport}_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xlsx" : "pdf"
-        }`;
+      link.download = `${selectedReport}_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xlsx" : "pdf"}`;
       document.body.appendChild(link);
       link.click();
       window.URL.revokeObjectURL(downloadUrl);
@@ -225,18 +219,18 @@ export default function ReportsPage() {
         title: "Registry Exported",
         description: `Downloaded ${format.toUpperCase()} successfully.`,
       });
-    } catch (error: any) {
-      console.error("Export failure:", error);
+    } catch (err: unknown) {
+      console.error("Export failure:", err);
+      const error = err as { response?: { data?: ArrayBuffer | Record<string, unknown>; status?: number }; message?: string };
       let errorMsg = "The analytical engine encountered a stall during compilation.";
 
-      // Try to parse error message from arraybuffer/blob response
       if (error.response?.data) {
         try {
           const data = error.response.data;
-          const text = data instanceof ArrayBuffer ? new TextDecoder().decode(data) : await data.text();
+          const text = data instanceof ArrayBuffer ? new TextDecoder().decode(data) : JSON.stringify(data);
           const parsed = JSON.parse(text);
           errorMsg = parsed.detail || errorMsg;
-        } catch (e) {
+        } catch {
           if (error.response.status === 503) {
             errorMsg = "Export engine is unavailable. Please check backend dependencies (GTK+ for PDF).";
           }
@@ -272,7 +266,7 @@ export default function ReportsPage() {
             field: "2",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
           {
@@ -280,7 +274,7 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
           {
@@ -288,7 +282,7 @@ export default function ReportsPage() {
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
           {
@@ -296,7 +290,7 @@ export default function ReportsPage() {
             field: "5",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : p.value,
           },
           { headerName: "Deadline", field: "6", flex: 0.8 },
@@ -311,7 +305,7 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
           },
           {
@@ -319,7 +313,7 @@ export default function ReportsPage() {
             field: "4",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
           },
           { headerName: "Start Date", field: "5", flex: 0.8 },
@@ -335,7 +329,7 @@ export default function ReportsPage() {
             field: "3",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
           },
           { headerName: "PC Date", field: "4", flex: 0.8 },
@@ -344,12 +338,11 @@ export default function ReportsPage() {
             field: "5",
             flex: 1,
             cellStyle: { textAlign: "right" },
-            cellRenderer: (p: any) =>
+            cellRenderer: (p: ICellRendererParams) =>
               typeof p.value === "number" ? p.value.toLocaleString("en-IN") : p.value,
           },
           { headerName: "Payment Date", field: "6", flex: 0.8 },
         ];
-      // ... default and other cases handled ...
       default:
         return [
           { headerName: "Column 1", field: "0", flex: 1 },
@@ -363,7 +356,6 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
-      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
@@ -378,10 +370,8 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Main Glass Shell */}
       <div className="bg-slate-900/40 border border-white/5 rounded-[2.5rem] p-8 space-y-8 shadow-2xl backdrop-blur-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
-          {/* Report Type */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Analytical Framework</label>
             <div className="relative group">
@@ -406,7 +396,6 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Date range */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Temporal Filter</label>
             <div className="flex items-center gap-3 bg-slate-950 border border-white/5 rounded-2xl p-1 shadow-inner">
@@ -448,7 +437,6 @@ export default function ReportsPage() {
 
       {reportData && (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="glass-panel-luxury p-6 rounded-[2rem] border border-white/5 space-y-4">
               <div className="flex items-center justify-between">

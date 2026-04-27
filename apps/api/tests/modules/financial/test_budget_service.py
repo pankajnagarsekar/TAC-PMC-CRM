@@ -11,12 +11,10 @@ from datetime import datetime, timezone
 from bson import ObjectId
 
 from app.modules.financial.application.budget_service import BudgetService
-from app.modules.financial.domain.budget import Budget, BudgetAllocation
-from app.modules.financial.infrastructure.repository import BudgetRepository
-from app.modules.financial.schemas.dto import BudgetCreate, BudgetUpdate, BudgetAllocationUpdate
+from app.modules.financial.domain.budget import Budget
+from app.modules.financial.schemas.dto import BudgetCreate
 from app.modules.shared.application.audit_service import AuditService
-from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
-from app.modules.shared.domain.financial_engine import FinancialEngine
+from app.modules.shared.domain.exceptions import ValidationError
 
 
 # ============================================================================
@@ -366,7 +364,7 @@ class TestBudgetServiceIntegration:
         created = await budget_service.create_budget(test_user, test_project_id, budget_data)
         budget_id = str(created["_id"])
 
-        locked = await budget_service.lock_budget(test_user, budget_id, expected_version=1)
+        await budget_service.lock_budget(test_user, budget_id, expected_version=1)
         closed = await budget_service.close_budget(test_user, budget_id, expected_version=2)
         assert closed["status"] == "CLOSED"
 
@@ -377,7 +375,7 @@ class TestBudgetServiceIntegration:
         # Actually, if the unique index is (project_id, category_id) and category_id is None,
         # we can only have ONE per project. So we test across different projects
         # OR we check if the behavior should allow multiple.
-        # Fix: For this test, use unique projects to verify listing across a project works 
+        # Fix: For this test, use unique projects to verify listing across a project works
         # (though currently it would only allow one per project)
         # Wait, if we want to test listing, we need at least one.
         for i in range(3):

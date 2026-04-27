@@ -14,7 +14,7 @@ import { SchedulerList } from './SchedulerList';
 
 type ViewMode = 'gantt' | 'list';
 
-export function SchedulerScreen() {
+function SchedulerScreen() {
   const { selectedProject } = useProject();
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>('list');

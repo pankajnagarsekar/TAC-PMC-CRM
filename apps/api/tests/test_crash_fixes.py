@@ -5,7 +5,7 @@ from app.modules.site_operations.application.site_service import SiteService
 from app.core.middleware import StandardResponseMiddleware
 from app.core.uow import UnitOfWork
 from pydantic import BaseModel
-from datetime import datetime, timezone
+
 
 class MockModel(BaseModel):
     name: str
@@ -15,14 +15,14 @@ async def test_base_repository_update_one_timestamp_fix(test_db):
     """BUG-35: Verify updated_at is set even with $inc."""
     repo = BaseRepository(test_db, "test_collection", MockModel)
     await repo.collection.delete_many({})
-    
+
     # Create initial doc
     doc = await repo.create({"name": "test", "value": 10})
     initial_updated_at = doc.get("updated_at")
-    
+
     # Update with $inc only
     await repo.update_one({"_id": doc["id"]}, {"$inc": {"value": 5}})
-    
+
     updated_doc = await repo.get_by_id(doc["id"])
     assert updated_doc["value"] == 15
     assert "updated_at" in updated_doc
@@ -45,7 +45,7 @@ async def test_uow_sequences_repo_added(test_db):
 @pytest.mark.asyncio
 async def test_middleware_request_client_guard(test_db):
     """BUG-01: Verify middleware guards request.client."""
-    middleware = StandardResponseMiddleware(None)
+    StandardResponseMiddleware(None)
     # This is a unit test for the logic inside dispatch
     # We can't easily call dispatch without a full app, but we verified the code.
     pass
@@ -55,6 +55,6 @@ async def test_financial_service_cursers_awaited(test_db):
     """BUG-25: Verify aggregate results are awaited."""
     from app.modules.shared.application.audit_service import AuditService
     audit = AuditService(test_db)
-    service = FinancialService(test_db, audit)
+    FinancialService(test_db, audit)
     # We verified the code uses .to_list(length=1) which is awaited.
     pass

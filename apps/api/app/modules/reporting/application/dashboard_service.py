@@ -118,12 +118,6 @@ class DashboardService:
         )
 
         # Convert analytics objects to dicts for Pydantic model validation
-        from app.modules.reporting.domain.metrics import (
-            ScheduleHealthMetrics as ScheduleModel,
-            ResourceUtilizationData as ResourceModel,
-            FinancialSummaryData as FinancialModel,
-            TimelineAnalytics as TimelineModel,
-        )
 
         schedule_dict = schedule.to_dict() if hasattr(schedule, "to_dict") else schedule
         resources_dict = resources.to_dict() if hasattr(resources, "to_dict") else resources
@@ -194,7 +188,7 @@ class DashboardService:
         # 5. Construct high-level stats with EVM Engine (BUG-023)
         pv = float(FinancialEngine.to_decimal(master_state.get("original_budget", 0)) if master_state else 0)
         ac = float(FinancialEngine.to_decimal(master_state.get("committed_value", 0)) if master_state else 0)
-        
+
         # Earned Value (EV) calculation: Sum(Category PV * Category Completion %)
         ev = 0.0
         if schedule and schedule.get("tasks"):
@@ -203,21 +197,22 @@ class DashboardService:
             cat_pv_map = {}
             cursor = self.db.financial_state.find({"project_id": project_id, "category_id": {"$ne": "MASTER"}})
             async for s in cursor:
-                 cat_pv_map[s["category_id"]] = float(FinancialEngine.to_decimal(s.get("original_budget", 0)))
-            
+                cat_pv_map[s["category_id"]] = float(FinancialEngine.to_decimal(s.get("original_budget", 0)))
+
             # Aggregate completion by category
-            cat_tasks = {} # category_id -> [completion_percentages]
+            cat_tasks = {}  # category_id -> [completion_percentages]
             for t in tasks:
                 rid = t.get("external_ref_id")
                 if rid:
-                    if rid not in cat_tasks: cat_tasks[rid] = []
+                    if rid not in cat_tasks:
+                        cat_tasks[rid] = []
                     cat_tasks[rid].append(float(t.get("percent_complete", 0)))
-            
+
             for cat_id, pvs in cat_pv_map.items():
                 if cat_id in cat_tasks:
                     avg_comp = sum(cat_tasks[cat_id]) / len(cat_tasks[cat_id])
                     ev += pvs * (avg_comp / 100.0)
-        
+
         # If no granular data, fallback to total PV * project completion
         if ev == 0 and pv > 0:
             proj_comp = float(project.get("completion_percentage", 0) if project else 0)
@@ -225,7 +220,7 @@ class DashboardService:
 
         # KPI Metrics
         cpi = ev / ac if ac > 0 else 1.0
-        spi = ev / pv if pv > 0 else 1.0 # Simple SPI relative to total budget
+        spi = ev / pv if pv > 0 else 1.0  # Simple SPI relative to total budget
 
         stats = {
             "overview": {
@@ -234,7 +229,10 @@ class DashboardService:
                 "overdue_milestones": overdue_milestones_count,
                 "total_budget": pv,
                 "net_committed": ac,
-                "net_certified": float(FinancialEngine.to_decimal(master_state.get("certified_value", 0)) if master_state else 0),
+                "net_certified": float(
+                    FinancialEngine.to_decimal(master_state.get("certified_value", 0))
+                    if master_state else 0
+                ),
                 "planned_value": pv,
                 "earned_value": ev,
                 "actual_cost": ac,

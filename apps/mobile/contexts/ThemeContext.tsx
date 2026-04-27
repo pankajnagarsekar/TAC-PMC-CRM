@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import { useColorScheme as useDeviceColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors as BaseColors, Spacing as BaseSpacing, FontSizes as BaseFontSizes, BorderRadius, Shadows } from '../constants/theme';
@@ -21,16 +21,7 @@ export const defaultSettings: AppearanceSettings = {
   colorScheme: 'blue',
 };
 
-// Color palettes based on appearance.tsx options
-const COLOR_SCHEME_PALETTES: Record<string, { primary: string, primaryDark: string, primaryLight: string }> = {
-  blue: { primary: '#2563eb', primaryDark: '#1d4ed8', primaryLight: '#3b82f6' },
-  green: { primary: '#059669', primaryDark: '#047857', primaryLight: '#10b981' },
-  purple: { primary: '#7c3aed', primaryDark: '#6d28d9', primaryLight: '#8b5cf6' },
-  orange: { primary: '#ea580c', primaryDark: '#c2410c', primaryLight: '#f97316' },
-  red: { primary: '#dc2626', primaryDark: '#b91c1c', primaryLight: '#ef4444' },
-};
-
-interface ThemeContextType {
+export interface ThemeContextType {
   settings: AppearanceSettings;
   updateSettings: (newSettings: Partial<AppearanceSettings>) => Promise<void>;
   colors: typeof BaseColors;
@@ -47,42 +38,43 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const deviceColorScheme = useDeviceColorScheme();
   const [settings, setSettings] = useState<AppearanceSettings>(defaultSettings);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+        setSettings((prev) => ({ ...prev, ...JSON.parse(stored) }));
       }
     } catch (error) {
       console.error('Failed to load theme settings:', error);
-    } finally {
-      setIsLoaded(true);
     }
-  };
+  }, []);
 
-  const updateSettings = async (newSettings: Partial<AppearanceSettings>) => {
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const updateSettings = useCallback(async (newSettings: Partial<AppearanceSettings>) => {
     try {
-      const merged = { ...settings, ...newSettings };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      setSettings(merged);
+      setSettings((prev) => {
+        const merged = { ...prev, ...newSettings };
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged)).catch((e) =>
+          console.error('Failed to save theme settings:', e)
+        );
+        return merged;
+      });
     } catch (error) {
-      console.error('Failed to save theme settings:', error);
+      console.error('Failed to update theme settings:', error);
     }
-  };
-
-  const toggleTheme = () => {
-    const nextTheme = isDark ? 'light' : 'dark';
-    updateSettings({ theme: nextTheme });
-  };
+  }, []);
 
   // Determine actual theme mode
   const isDark = settings.theme === 'system' ? deviceColorScheme === 'dark' : settings.theme === 'dark';
+
+  const toggleTheme = useCallback(() => {
+    const nextTheme = isDark ? 'light' : 'dark';
+    updateSettings({ theme: nextTheme });
+  }, [isDark, updateSettings]);
 
   // CM-06: Memoize derived tokens so consumers don't re-render on unrelated state changes
   const colors = useMemo(() => {
@@ -151,9 +143,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     shadows: Shadows,
     isDark,
     toggleTheme,
-  }), [settings, colors, spacing, fontSizes, isDark, updateSettings, toggleTheme]);
-
-  // FIX: Removed the 'return null' block. Always render children so Expo Router's <Stack> doesn't get unmounted and lose its __store.
+  }), [settings, updateSettings, colors, spacing, fontSizes, isDark, toggleTheme]);
 
   return (
     <ThemeContext.Provider value={value}>

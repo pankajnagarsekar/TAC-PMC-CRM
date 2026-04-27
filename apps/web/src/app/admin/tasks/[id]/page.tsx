@@ -91,7 +91,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
     try {
       await api.delete(`/api/v1/tasks/${taskId}`);
       router.push("/admin/tasks");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Task deletion failed", err);
       setError("Failed to delete task.");
       setShowDeleteConfirm(false);
@@ -338,10 +338,10 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
               <div className="text-slate-300 leading-relaxed text-lg font-light">
                 <ReactMarkdown
                   components={{
-                    p: (props: any) => <p className="mb-4 last:mb-0" {...props} />,
-                    strong: (props: any) => <span className="font-bold text-blue-400" {...props} />,
-                    ul: (props: any) => <ul className="list-disc pl-6 mb-4 space-y-2" {...props} />,
-                    li: (props: any) => <li {...props} />,
+                    p: ({ children, ...props }: React.ComponentPropsWithoutRef<'p'>) => <p className="mb-4 last:mb-0" {...props}>{children}</p>,
+                    strong: ({ children, ...props }: React.ComponentPropsWithoutRef<'span'>) => <span className="font-bold text-blue-400" {...props}>{children}</span>,
+                    ul: ({ children, ...props }: React.ComponentPropsWithoutRef<'ul'>) => <ul className="list-disc pl-6 mb-4 space-y-2" {...props}>{children}</ul>,
+                    li: ({ children, ...props }: React.ComponentPropsWithoutRef<'li'>) => <li {...props}>{children}</li>,
                   }}
                 >
                   {task.task_description || ""}

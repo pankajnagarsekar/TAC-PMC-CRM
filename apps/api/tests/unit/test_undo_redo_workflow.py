@@ -3,7 +3,6 @@ End-to-End Workflow Test for Undo/Redo System
 Validates the complete lifecycle of undo/redo operations with scheduler integration.
 """
 import pytest
-from typing import List, Dict, Any
 from app.modules.project.application.undo_redo_service import UndoRedoService
 from app.modules.project.application.scheduler_service import SchedulerService
 

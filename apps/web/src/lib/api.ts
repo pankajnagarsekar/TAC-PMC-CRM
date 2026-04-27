@@ -3,6 +3,7 @@ import { errorLogger } from "./errorLogger";
 import type {
   ScheduleCalculationResponse,
   ScheduleChangeRequest,
+  ScheduleTask,
 } from "@/types/schedule.types";
 import { toast } from "sonner";
 
@@ -189,7 +190,7 @@ export const fetcher = (url: string) =>
 // Scheduler Service
 // ──────────────────────────────────────────────────────────────────────────
 export const schedulerApi = {
-  calculate: (projectId: string, tasks: unknown[], projectStart: string) => {
+  calculate: (projectId: string, tasks: ScheduleTask[], projectStart: string) => {
     if (!projectId || projectId === "" || projectId === "undefined") {
       console.error("SCHEDULER_API: Invalid projectId for calculation", { projectId });
       return Promise.reject(new Error("Valid Project ID is required for calculation"));
@@ -215,7 +216,7 @@ export const schedulerApi = {
       .then((res) => res.data);
   },
 
-  save: (projectId: string, tasks: unknown[], projectStart: string, totalCost: number) =>
+  save: (projectId: string, tasks: ScheduleTask[], projectStart: string, totalCost: number) =>
     api.post(`/api/v1/projects/${projectId}/save-schedule`, {
       tasks,
       project_start: projectStart,

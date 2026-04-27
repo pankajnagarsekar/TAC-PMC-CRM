@@ -22,15 +22,7 @@ import { Card } from './ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 import { aiApi, dprApi } from '../services/apiClient';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 const MIN_PHOTOS = 4;
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
 
 export interface Photo {
   id: string;
@@ -179,9 +171,10 @@ export default function DPRForm({
       } else {
         showAlert('Transcription Failed', 'No text returned from AI');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Transcription error:', error);
-      showAlert('Error', error.message || 'Failed to transcribe audio');
+      const message = error instanceof Error ? error.message : 'Failed to transcribe audio';
+      showAlert('Error', message);
     } finally {
       setIsTranscribing(false);
     }
@@ -320,7 +313,7 @@ export default function DPRForm({
         dprData = await dprApi.create(dprPayload);
       }
 
-      dprId = dprData.dpr_id || dprData.id || (dprData as any)._id || '';
+      dprId = dprData.dpr_id || dprData.id || '';
 
       // Upload photos with captions
       for (const photo of photos) {
@@ -363,21 +356,24 @@ export default function DPRForm({
               );
             } else {
               try {
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
-                const FileSystem = require('expo-file-system');
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
-                const Sharing = require('expo-sharing');
+                // Use type-only import for proper typed dynamic import
+                const FileSystem = await import('expo-file-system');
+                const Sharing = await import('expo-sharing');
+
+                // Access through default if necessary or directly if available
+                const fs = (FileSystem as any).default || FileSystem;
+                const sh = (Sharing as any).default || Sharing;
 
                 const fileName = submitData.file_name || 'DPR.pdf';
-                const fileUri = FileSystem.documentDirectory + fileName;
+                const fileUri = (fs.documentDirectory || '') + fileName;
 
-                await FileSystem.writeAsStringAsync(fileUri, submitData.pdf_data, {
+                await fs.writeAsStringAsync(fileUri, submitData.pdf_data, {
                   encoding: 'base64',
                 });
 
-                const canShare = await Sharing.isAvailableAsync();
+                const canShare = await sh.isAvailableAsync();
                 if (canShare) {
-                  await Sharing.shareAsync(fileUri, {
+                  await sh.shareAsync(fileUri, {
                     mimeType: 'application/pdf',
                     dialogTitle: `Share ${fileName}`,
                   });
@@ -385,21 +381,21 @@ export default function DPRForm({
 
                 showAlert('Success', `DPR submitted!\n\nFilename: ${fileName}`, onSuccess);
               } catch (mobileError: unknown) {
-                const mErr = mobileError as { message?: string };
+                const mErr = mobileError instanceof Error ? mobileError.message : 'unknown error';
                 console.error('Mobile PDF error:', mobileError);
                 showAlert(
                   'DPR Submitted',
-                  `DPR submitted but PDF could not be saved: ${mErr.message || 'unknown error'}`,
+                  `DPR submitted but PDF could not be saved: ${mErr}`,
                   onSuccess
                 );
               }
             }
           } catch (downloadError: unknown) {
-            const dErr = downloadError as { message?: string };
+            const dErr = downloadError instanceof Error ? downloadError.message : 'unknown error';
             console.error('PDF download error:', downloadError);
             showAlert(
               'DPR Submitted',
-              `DPR submitted but PDF download failed: ${dErr.message || 'unknown error'}`,
+              `DPR submitted but PDF download failed: ${dErr}`,
               onSuccess
             );
           }
@@ -407,9 +403,10 @@ export default function DPRForm({
           showAlert('Success', 'DPR submitted successfully!', onSuccess);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Submit error:', error);
-      showAlert('Error', error.message || 'Failed to submit DPR. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to submit DPR. Please try again.';
+      showAlert('Error', message);
     } finally {
       setIsSubmitting(false);
     }

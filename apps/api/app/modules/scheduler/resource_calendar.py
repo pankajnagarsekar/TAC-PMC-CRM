@@ -8,8 +8,8 @@ Manages individual work calendars per resource with support for:
 - Working day calculations with non-working period skipping
 """
 
-from datetime import datetime, timedelta, time
-from typing import List, Dict, Optional, Tuple, Set
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional
 from enum import Enum
 
 
@@ -18,7 +18,7 @@ class ExceptionType(str, Enum):
     HOLIDAY = "holiday"          # Non-working day
     WORKING = "working"          # Working day (overrides weekend)
     HALF_DAY = "half_day"       # Half working day (4 hours)
-    UNAVAILABLE = "unavailable" # Partially available (custom hours)
+    UNAVAILABLE = "unavailable"  # Partially available (custom hours)
 
 
 class WorkingHours:

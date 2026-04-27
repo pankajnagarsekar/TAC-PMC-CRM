@@ -2,7 +2,7 @@
 // Reusable card container
 
 import React, { ReactNode } from 'react';
-import { View, ViewStyle, StyleProp, TouchableOpacity, Platform } from 'react-native';
+import { View, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../contexts/ThemeContext';
 

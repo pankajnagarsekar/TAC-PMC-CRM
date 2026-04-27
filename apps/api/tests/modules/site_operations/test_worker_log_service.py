@@ -1,6 +1,5 @@
 """Track B: Worker log service tests — create, update, list."""
 import pytest
-from decimal import Decimal
 
 
 @pytest.mark.asyncio

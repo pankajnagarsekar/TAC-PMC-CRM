@@ -5,7 +5,6 @@ Tests aggregation, caching, and error handling.
 
 import asyncio
 from datetime import datetime, timezone
-from decimal import Decimal
 
 import pytest
 
@@ -38,8 +37,8 @@ class TestDashboardService:
     @pytest.fixture
     async def project_with_schedule(self, test_db, test_project_id, test_org_id):
         """Create a test project with schedule."""
-        project_repo = ProjectRepository(test_db)
-        schedule_repo = ScheduleRepository(test_db)
+        ProjectRepository(test_db)
+        ScheduleRepository(test_db)
 
         # Create project
         project = {

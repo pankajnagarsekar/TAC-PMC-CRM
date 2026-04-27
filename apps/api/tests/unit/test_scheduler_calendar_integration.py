@@ -6,7 +6,7 @@ when integrated into the critical path calculator.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.modules.scheduler.resource_calendar import ResourceCalendar
 from app.modules.scheduler.resource_calendar_service import ResourceCalendarService
 from app.modules.scheduler.calculate_critical_path import run_calculation
@@ -343,7 +343,7 @@ class TestCalendarServicePersistence:
         org_id = "org-test"
 
         # Create calendar
-        cal = await calendar_service.get_or_create_calendar(resource_id, org_id)
+        await calendar_service.get_or_create_calendar(resource_id, org_id)
 
         # Add holiday
         updated = await calendar_service.add_holiday(

@@ -13,7 +13,8 @@ import apiClient from '@/lib/api';
 import type {
   HistoryEntry,
   StackInfo,
-  UndoRedoResponse
+  UndoRedoResponse,
+  ScheduleTask,
 } from '@/types/schedule.types';
 
 /**
@@ -24,7 +25,7 @@ import type {
  */
 export function useUndoRedo(
   projectId: string | null,
-  onTasksChanged?: (tasks: any[]) => void
+  onTasksChanged?: (tasks: ScheduleTask[]) => void
 ) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,8 +79,9 @@ export function useUndoRedo(
 
       // Refresh history and stack info
       await Promise.all([mutateHistory(), mutateStackInfo()]);
-    } catch (err: any) {
-      const message = err?.response?.data?.message || 'Undo failed';
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      const message = error.response?.data?.message || 'Undo failed';
       setError(message);
       console.error('Undo error:', err);
     } finally {
@@ -107,8 +109,9 @@ export function useUndoRedo(
 
       // Refresh history and stack info
       await Promise.all([mutateHistory(), mutateStackInfo()]);
-    } catch (err: any) {
-      const message = err?.response?.data?.message || 'Redo failed';
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      const message = error.response?.data?.message || 'Redo failed';
       setError(message);
       console.error('Redo error:', err);
     } finally {
@@ -137,8 +140,9 @@ export function useUndoRedo(
 
         // Refresh history and stack info
         await Promise.all([mutateHistory(), mutateStackInfo()]);
-      } catch (err: any) {
-        const message = err?.response?.data?.message || 'Restore failed';
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        const message = error.response?.data?.message || 'Restore failed';
         setError(message);
         console.error('Restore error:', err);
       } finally {

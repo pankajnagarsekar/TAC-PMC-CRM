@@ -2,15 +2,13 @@
 
 import { useState, useRef } from "react";
 import useSWR from "swr";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
   Receipt,
   Loader2,
-  IndianRupee,
   AlertTriangle,
-  Upload,
   Scan,
   Sparkles,
 } from "lucide-react";
@@ -31,7 +29,6 @@ import {
 
 export default function CategoryLedgerPage() {
   const params = useParams();
-  const router = useRouter();
   const categoryId = params.categoryId as string;
   const { activeProject } = useProjectStore();
 
@@ -54,6 +51,13 @@ export default function CategoryLedgerPage() {
     setIdempotencyKey(uuidv4());
   });
 
+  interface OcrResult {
+    extracted_amount?: number;
+    extracted_vendor_name?: string;
+    extracted_invoice_number?: string;
+    confidence_score: number;
+  }
+
   const handleOCR = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeProject) return;
@@ -65,11 +69,11 @@ export default function CategoryLedgerPage() {
     formData.append("project_id", activeProject.project_id);
 
     try {
-      const res = await api.post("/api/v1/ai/ocr", formData, {
+      const res = await api.post<OcrResult>("/api/v1/ai/ocr", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const result = res.data;
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
         amount: result.extracted_amount?.toString() || prev.amount,
         vendor_name: result.extracted_vendor_name || prev.vendor_name,
@@ -140,10 +144,11 @@ export default function CategoryLedgerPage() {
       setIdempotencyKey(uuidv4()); // Success, new key for next
       mutateTx();
       // Optionally mutate global site allocations via SWR global mutate if configured
-    } catch (error) {
-      console.error("Failed to log expense:", error);
+    } catch (err: unknown) {
+      console.error("Failed to log expense:", err);
+      const error = err as { response?: { data?: { detail?: string } } };
       alert(
-        "Failed to log expense. Be sure it does not exceed the remaining allocation.",
+        error.response?.data?.detail || "Failed to log expense. Be sure it does not exceed the remaining allocation.",
       );
     } finally {
       setIsSubmitting(false);

@@ -171,7 +171,7 @@ class SiteService:
         }
 
         await self.dpr_repo.update(dpr_id, update_data)
-        
+
         # Return PDF data as base64 for mobile apps to download/share immediately
         import base64
         return {
@@ -327,7 +327,7 @@ class SiteService:
             await self.permission_checker.check_project_access(user, dpr["project_id"])
 
             snapshot_data = await self._build_dpr_snapshot_data(dpr)
-            
+
             pdf_bytes = pdf_generator.generate_pdf(
                 project_data=snapshot_data["project"],
                 dpr_data={
@@ -478,17 +478,17 @@ class SiteService:
 
         out_time = ts_now()
         in_time = existing.get("check_in_timestamp")
-        
+
         total_hours = 0
         if in_time:
             # Handle both datetime objects and string timestamps if any
             if isinstance(in_time, str):
                 from dateutil import parser
                 in_time = parser.parse(in_time)
-            
+
             if in_time.tzinfo is None:
                 in_time = in_time.replace(tzinfo=timezone.utc)
-            
+
             delta = out_time - in_time
             total_hours = round(delta.total_seconds() / 3600.0, 2)
 
@@ -501,7 +501,7 @@ class SiteService:
         }
 
         result = await self.attendance_repo.update(existing["id"], update_data)
-        
+
         await self.audit_service.log_action(
             organisation_id=user["organisation_id"],
             module_name="SITE_OPERATIONS",
@@ -600,7 +600,7 @@ class SiteService:
         return await self.site_overhead_repo.list({"project_id": project_id})
 
     async def update_site_overhead(
-        self, user: dict, entry_id: str, overhead_data: Any # SiteOverheadUpdate
+        self, user: dict, entry_id: str, overhead_data: Any  # SiteOverheadUpdate
     ) -> Dict[str, Any]:
         """Update site overhead with optimistic locking."""
         existing = await self.site_overhead_repo.get_by_id(entry_id)
@@ -615,8 +615,8 @@ class SiteService:
         # Optimistic Locking check (BUG-31 context)
         incoming_version = getattr(overhead_data, "version", None)
         if incoming_version is not None and incoming_version != existing.get("version", 1):
-             from app.modules.shared.domain.exceptions import ValidationError
-             raise ValidationError(f"Version conflict. Expected {existing.get('version')}, got {incoming_version}")
+            from app.modules.shared.domain.exceptions import ValidationError
+            raise ValidationError(f"Version conflict. Expected {existing.get('version')}, got {incoming_version}")
 
         update_dict = {k: v for k, v in overhead_data.model_dump().items() if v is not None}
         update_dict["updated_at"] = ts_now()
@@ -646,7 +646,7 @@ class SiteService:
         await self.permission_checker.check_project_access(
             user, dpr["project_id"], require_write=True
         )
-        
+
         # Enforce StateMachine rules
         dpr_model = DailyProgressReport(dpr)
         dpr_model.can_modify()
@@ -674,7 +674,7 @@ class SiteService:
             project_id=dpr["project_id"],
             metadata={"image_id": image_id}
         )
-        
+
         return {"status": "deleted", "image_id": image_id}
 
     async def create_site_overhead(
@@ -708,7 +708,7 @@ class SiteService:
         return result
 
     async def update_worker_log(
-        self, user: dict, log_id: str, log_data: Any # WorkersDailyLogUpdate
+        self, user: dict, log_id: str, log_data: Any  # WorkersDailyLogUpdate
     ) -> Dict[str, Any]:
         """Partial update of a worker log."""
         existing = await self.worker_log_repo.get_by_id(log_id)
@@ -720,19 +720,19 @@ class SiteService:
         )
 
         update_dict = {k: v for k, v in log_data.model_dump().items() if v is not None}
-        
+
         # Recalculate totals if entries or workers changed
         if "entries" in update_dict or "workers" in update_dict:
             entries = update_dict.get("entries") or existing.get("entries", [])
             workers = update_dict.get("workers") or existing.get("workers", [])
-            
+
             # Using model logic to calculate totals
             totals = WorkerLog.calculate_totals(entries, workers)
             update_dict["total_workers"] = totals["total_workers"]
             update_dict["total_hours"] = totals["total_hours"]
 
         update_dict["updated_at"] = ts_now()
-        
+
         result = await self.worker_log_repo.update(log_id, update_dict)
 
         await self.audit_service.log_action(
@@ -822,7 +822,7 @@ class SiteService:
                 project = await self.db.projects.find_one({"_id": ObjectId(dpr.get("project_id"))})
             except Exception:
                 project = None
-        
+
         project = serialize_doc(project) or {
             "project_name": "Project",
             "project_code": "N/A"

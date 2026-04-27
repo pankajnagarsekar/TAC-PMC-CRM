@@ -2,8 +2,7 @@
 Comprehensive CPM algorithm tests covering all calculation paths.
 Tests: simple chains, parallel tasks, constraints, dependencies, circular detection, rollup.
 """
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.modules.scheduler.calculate_critical_path import run_calculation
 
 
@@ -195,7 +194,7 @@ def test_summary_task_rollup():
     # Summary should span from earliest child start to latest child finish
     summary = tasks_dict["Summary"]
     child1 = tasks_dict["Child1"]
-    child2 = tasks_dict["Child2"]
+    tasks_dict["Child2"]
 
     assert summary["scheduled_start"] == child1["scheduled_start"]  # Both start at project start
     assert summary["scheduled_finish"] == child1["scheduled_finish"]  # Longest child
@@ -231,7 +230,11 @@ def test_slack_calculation():
 def test_manual_mode_dates():
     """Test manual mode (scheduled dates are fixed)"""
     tasks = [
-        {"task_id": "A", "duration": 5, "predecessors": [], "task_mode": "Manual", "scheduled_start": "2024-02-01", "scheduled_finish": "2024-02-10"},
+        {
+            "task_id": "A", "duration": 5, "predecessors": [],
+            "task_mode": "Manual",
+            "scheduled_start": "2024-02-01", "scheduled_finish": "2024-02-10"
+        },
     ]
     project_start = "2024-01-01"
 
@@ -294,7 +297,11 @@ def test_multiple_constraints_on_same_task():
     """Test task with predecessor and constraint"""
     tasks = [
         {"task_id": "A", "duration": 5, "predecessors": []},
-        {"task_id": "B", "duration": 3, "predecessors": [{"task_id": "A", "type": "FS", "lag_days": 0}], "constraint_type": "SNET", "constraint_date": "2024-01-10"},
+        {
+            "task_id": "B", "duration": 3,
+            "predecessors": [{"task_id": "A", "type": "FS", "lag_days": 0}],
+            "constraint_type": "SNET", "constraint_date": "2024-01-10"
+        },
     ]
     project_start = "2024-01-01"
 
@@ -323,7 +330,7 @@ def test_deadline_variance():
 
     # A finishes 2024-01-05, deadline 2024-01-08, variance = -3 days (early)
     assert tasks_dict["A"]["deadline_variance_days"] == -3
-    assert tasks_dict["A"]["is_deadline_breached"] == False
+    assert tasks_dict["A"]["is_deadline_breached"] is False
 
 
 def test_deadline_breached():
@@ -340,7 +347,7 @@ def test_deadline_breached():
 
     # A finishes 2024-01-05, deadline 2024-01-02, breached
     assert tasks_dict["A"]["deadline_variance_days"] > 0
-    assert tasks_dict["A"]["is_deadline_breached"] == True
+    assert tasks_dict["A"]["is_deadline_breached"] is True
 
 
 def test_backward_pass_late_dates():

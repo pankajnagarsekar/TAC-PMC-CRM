@@ -375,13 +375,13 @@ class TestIntegrityVerification:
         """Valid checksum should verify"""
         data = {"amount": Decimal("100.00"), "tax": Decimal("18.00")}
         checksum = FinancialEngine.generate_fingerprint(data)
-        assert FinancialEngine.verify_integrity(data, checksum) == True
+        assert FinancialEngine.verify_integrity(data, checksum) is True
 
     def test_verify_integrity_invalid(self):
         """Invalid checksum should fail verification"""
         data = {"amount": Decimal("100.00"), "tax": Decimal("18.00")}
         wrong_checksum = "wrong_hash"
-        assert FinancialEngine.verify_integrity(data, wrong_checksum) == False
+        assert FinancialEngine.verify_integrity(data, wrong_checksum) is False
 
     def test_verify_integrity_tampered_data(self):
         """Tampered data should fail verification"""
@@ -389,7 +389,7 @@ class TestIntegrityVerification:
         checksum = FinancialEngine.generate_fingerprint(data)
 
         tampered = {"amount": Decimal("101.00"), "tax": Decimal("18.00")}
-        assert FinancialEngine.verify_integrity(tampered, checksum) == False
+        assert FinancialEngine.verify_integrity(tampered, checksum) is False
 
 
 if __name__ == "__main__":

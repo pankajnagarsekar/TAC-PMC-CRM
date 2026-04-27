@@ -41,9 +41,9 @@ export default function SupervisorDPRScreen() {
     );
   }
 
-  const projectId = (selectedProject as any).project_id || (selectedProject as any)._id || '';
+  const projectId = selectedProject.project_id || selectedProject._id || '';
   const projectName = selectedProject.project_name || 'Project';
-  const projectCode = (selectedProject as any).project_code;
+  const projectCode = selectedProject.project_code;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>

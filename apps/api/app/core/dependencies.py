@@ -105,7 +105,10 @@ async def get_authenticated_user(
     if user and ("organisation_id" not in user or not user["organisation_id"]):
         user["organisation_id"] = user.get("organisation_id") or ""
         if not user["organisation_id"]:
-            logger.warning(f"AUTH_CONTEXT_WARNING: organisation_id missing for user {user.get('user_id')}. Downstream entity filters may fail.")
+            logger.warning(
+                f"AUTH_CONTEXT_WARNING: organisation_id missing for user {user.get('user_id')}. "
+                "Downstream entity filters may fail."
+            )
 
     return user
 
@@ -316,11 +319,6 @@ async def get_ai_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AIServic
 async def get_alert_service(db: AsyncIOMotorDatabase = Depends(get_db)) -> AlertService:
     return AlertService(db)
 
-from app.modules.shared.application.audit_service import AuditService
-from app.core.permissions import PermissionChecker
-from app.modules.shared.application.snapshot_service import SnapshotService
-from app.modules.tasks.application.task_service import TaskService
-
 
 async def get_task_service(
     db: AsyncIOMotorDatabase = Depends(get_db),
@@ -329,4 +327,3 @@ async def get_task_service(
     snap: SnapshotService = Depends(get_snapshot_service)
 ) -> TaskService:
     return TaskService(db, audit, perm, snap)
-

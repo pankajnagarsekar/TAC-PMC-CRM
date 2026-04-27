@@ -20,7 +20,7 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
         fetcher
     );
 
-    const { getVendorName, isLoading: isVendorsLoading } = useVendorNames();
+    const { getVendorName } = useVendorNames();
 
     const columnDefs: ColDef[] = useMemo(() => [
         {

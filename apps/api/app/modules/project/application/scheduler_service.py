@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, List
@@ -26,7 +25,6 @@ class SchedulerService:
         self.audit_service = audit_service
         self.baseline_manager = BaselineManager(db)
         self.undo_redo_service = undo_redo_service
-
 
     async def run_scheduler_script(self, script_name: str, input_data: dict) -> dict:
         """Orchestrate calls to standalone, deterministic Python scripts (Async)."""
@@ -54,7 +52,7 @@ class SchedulerService:
                 error_msg = f"Scheduler execution timeout for {script_name} (exceeded 30s)"
                 logger.error(f"SCHEDULER_TIMEOUT: {error_msg}")
                 raise ValidationError(error_msg)
-            
+
             stdout_str = stdout.decode()
             stderr_str = stderr.decode()
 
@@ -75,7 +73,7 @@ class SchedulerService:
         self, project_id: str, tasks: List[Dict[str, Any]], project_start: str
     ) -> Dict[str, Any]:
         if not project_id:
-             raise ValidationError("CRITICAL: Calculation aborted - project_id is None or empty")
+            raise ValidationError("CRITICAL: Calculation aborted - project_id is None or empty")
 
         input_payload = {"tasks": tasks, "project_start": project_start}
 
@@ -83,7 +81,10 @@ class SchedulerService:
         # Removed debug write to "last_scheduler_payload.json" for production stability
 
         task_count = len(tasks) if tasks is not None else 0
-        logger.info(f"SCHEDULER: Calculating for project {project_id} with {task_count} tasks starting at {project_start}")
+        logger.info(
+            f"SCHEDULER: Calculating for project {project_id} with {task_count} tasks "
+            f"starting at {project_start}"
+        )
 
         if task_count == 0:
             return {
@@ -117,7 +118,7 @@ class SchedulerService:
     ) -> Dict[str, Any]:
         """Save schedule with undo/redo snapshot capture (after-capture pattern)."""
         tasks = data.get("tasks", [])
-        
+
         # 1. VALIDATION (BUG-014/015)
         self._validate_tasks(tasks)
 
@@ -241,7 +242,7 @@ class SchedulerService:
                 ],
                 "organisation_id": organisation_id
             }
-            
+
             schedule = await self.collection.find_one(query)
 
             if not schedule:
@@ -283,7 +284,7 @@ class SchedulerService:
         (Track H1: Data Linking).
         """
         financial_state_repo = self.db["financial_state"]
-        
+
         # Load all states for this project
         cursor = financial_state_repo.find({"project_id": project_id}, session=session)
         states = await cursor.to_list(length=100)
@@ -298,7 +299,7 @@ class SchedulerService:
 
         tasks = schedule.get("tasks", [])
         modified = False
-        
+
         for task in tasks:
             # Root/Summary task mapping (Master)
             if str(task.get("task_id")) == "0" and master_state:
@@ -306,7 +307,7 @@ class SchedulerService:
                 if task.get("wo_value") != new_val:
                     task["wo_value"] = new_val
                     modified = True
-            
+
             # Granular category mapping via external_ref_id or wbs_code
             mapping_id = task.get("external_ref_id") or task.get("wbs_code")
             if mapping_id and mapping_id in state_map:
@@ -315,7 +316,7 @@ class SchedulerService:
                 if task.get("wo_value") != new_val:
                     task["wo_value"] = new_val
                     modified = True
-                    
+
         if modified:
             await self.collection.update_one(
                 {"project_id": project_id, "organisation_id": organisation_id},
@@ -495,16 +496,16 @@ class SchedulerService:
     def _validate_tasks(self, tasks: List[Dict[str, Any]]) -> None:
         """Core validation for task hierarchy and baseline constraints (BUG-014/015/020/021)."""
         valid_task_ids = {str(t.get("task_id")) for t in tasks if t.get("task_id")}
-        
+
         for t in tasks:
             tid = str(t.get("task_id", "unknown"))
             pid = t.get("parent_id")
-            
+
             # 1. Orphan Check: If a parent is specified, it MUST exist in the payload
             if pid and str(pid) not in valid_task_ids:
                 logger.warning(f"SCHEDULER_REPAIR: Task {tid} referenced missing parent {pid}. Removing broken link.")
                 t["parent_id"] = None
-            
+
             # 2. Description/Name Check (BUG-020/021): Prevent tasks with empty names
             # Resilience Policy: If a name is missing, seed it with a default rather than crashing the engine.
             # This prevents the 'clearing names' loop where a single bad record blocks all updates.
@@ -515,11 +516,11 @@ class SchedulerService:
                 default_name = f"Unnamed Task ({tid})" if status_val != "draft" else "New Draft Task"
                 t["task_name"] = default_name
                 logger.warning(f"SCHEDULER_RECOVERY: Seeding missing name for task {tid} with '{default_name}'")
-                
+
             # 3. Baseline Check: Modifications to locked tasks are strictly forbidden
             if t.get("baseline_locked"):
                 logger.warning(f"BASELINE_LOCK_VIOLATION: Attempted change to Task {tid}")
                 raise DataFreezeError(
-                    "TASK", 
+                    "TASK",
                     f"Baseline (v{t.get('baseline_version', '1')})"
                 )

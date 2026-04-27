@@ -21,9 +21,9 @@ import { useProject } from '../../contexts/ProjectContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 import { vendorsApi, workerLogsApi } from '../../services/apiClient';
-import type { Vendor as ApiVendor } from '../../types/api';
+import { Vendor as ApiVendor } from '../../types/api';
 
-interface Vendor {
+interface UIWorkerVendor {
   code_id: string;
   code: string;
   first_name: string;
@@ -33,7 +33,7 @@ interface Vendor {
 
 interface WorkerEntry {
   id: string;
-  vendor: Vendor | null;
+  vendor: UIWorkerVendor | null;
   workers_count: number;
   purpose: string;
   isCollapsed: boolean;
@@ -43,7 +43,7 @@ export default function WorkerLogScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
 
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<UIWorkerVendor[]>([]);
   const [entries, setEntries] = useState<WorkerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -56,18 +56,17 @@ export default function WorkerLogScreen() {
   // Load vendors
   useEffect(() => {
     loadVendors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadVendors = async () => {
     try {
       const data = await vendorsApi.getAll(true);
-      const formattedVendors = (data || []).map((v: any) => ({
-        code_id: v.id || v.vendor_id || v._id || '',
-        code: v.gstin || v.vendor_code || v.vendor_id || '',
-        first_name: v.name || v.vendor_name || '',
+      const formattedVendors: UIWorkerVendor[] = (data || []).map((v: ApiVendor) => ({
+        code_id: v.vendor_id || '',
+        code: v.vendor_code || '',
+        first_name: v.vendor_name || '',
         last_name: '',
-        display_name: v.name || v.vendor_name || v.display_name || '',
+        display_name: v.vendor_name || v.vendor_code || '',
       }));
       setVendors(formattedVendors);
     } catch (error) {
@@ -108,7 +107,7 @@ export default function WorkerLogScreen() {
   };
 
   // Update entry
-  const updateEntry = (id: string, field: keyof WorkerEntry, value: any) => {
+  const updateEntry = (id: string, field: keyof WorkerEntry, value: WorkerEntry[keyof WorkerEntry]) => {
     setEntries(entries.map(e =>
       e.id === id ? { ...e, [field]: value } : e
     ));
@@ -122,7 +121,7 @@ export default function WorkerLogScreen() {
   };
 
   // Select vendor
-  const selectVendor = (vendor: Vendor) => {
+  const selectVendor = (vendor: UIWorkerVendor) => {
     if (activeEntryId) {
       updateEntry(activeEntryId, 'vendor', vendor);
     }

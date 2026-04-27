@@ -3,7 +3,7 @@ Undo/Redo API Routes
 RESTful endpoints for schedule undo/redo functionality.
 """
 from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from app.core.dependencies import (
     get_authenticated_user,
     get_undo_redo_service,

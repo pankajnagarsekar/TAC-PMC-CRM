@@ -143,7 +143,8 @@ def run_calculation(input_data: dict) -> dict:
         if not project_start_str:
             project_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         else:
-            project_start = _parse_date(project_start_str) or datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            p_start = _parse_date(project_start_str)
+            project_start = p_start or datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
         if not tasks_input:
             return {
@@ -159,7 +160,8 @@ def run_calculation(input_data: dict) -> dict:
         task_map = {}
         for t in tasks_input:
             tid = str(t.get("task_id", ""))
-            if not tid: continue
+            if not tid:
+                continue
 
             # Duration parsing
             raw_dur = t.get("duration") or t.get("scheduled_duration") or 0
@@ -174,7 +176,7 @@ def run_calculation(input_data: dict) -> dict:
             seen_preds = set()
             raw_preds = t.get("predecessors", [])
             raw_deps = t.get("dependencies", [])
-            
+
             for p in raw_preds:
                 p_id = str(p.get("task_id", "")) if isinstance(p, dict) else str(p)
                 if p_id and p_id not in seen_preds:
@@ -252,7 +254,7 @@ def run_calculation(input_data: dict) -> dict:
         for tid in topo_order:
             task = task_map[tid]
             dur_delta = timedelta(days=max(0, task["duration"] - 1))
-            
+
             if task["is_manual"]:
                 orig = task["original"]
                 task["es"] = _parse_date(orig.get("scheduled_start")) or project_start
@@ -265,14 +267,19 @@ def run_calculation(input_data: dict) -> dict:
                     task["ef"] = max(k["ef"] for k in kids if k["ef"] is not None)
                     task["duration"] = max(0, (task["ef"] - task["es"]).days + 1)
                     task["calc_reason"] = f"Rolled up from {len(kids)} child tasks"
-                    
+
                     # Progress Rollup with Clamping
                     total_weight = sum(float(k["original"].get("baseline_cost", 1.0) or 1.0) for k in kids)
                     if total_weight > 0:
-                        w_sum = sum(float(k["original"].get("percent_complete", 0) or 0) * float(k["original"].get("baseline_cost", 1.0) or 1.0) for k in kids)
+                        w_sum = sum(
+                            float(k["original"].get("percent_complete", 0) or 0) *
+                            float(k["original"].get("baseline_cost", 1.0) or 1.0)
+                            for k in kids
+                        )
                         p_val = round(w_sum / total_weight, 2)
                     else:
-                        p_val = round(sum(float(k["original"].get("percent_complete", 0) or 0) for k in kids) / len(kids), 2)
+                        p_sum = sum(float(k["original"].get("percent_complete", 0) or 0) for k in kids)
+                        p_val = round(p_sum / len(kids), 2)
                     task["original"]["percent_complete"] = max(0, min(100, p_val))
                 else:
                     task["es"] = _compute_es_from_predecessors(tid, task_map, project_start)
@@ -290,14 +297,16 @@ def run_calculation(input_data: dict) -> dict:
                     driver = "Project Start"
                     for pred_entry in task_preds:
                         pred_id = pred_entry["task_id"]
-                        if pred_id not in task_map: continue
+                        if pred_id not in task_map:
+                            continue
                         pred = task_map[pred_id]
                         p_ef = pred.get("ef")
-                        if p_ef is None: continue
-                        
+                        if p_ef is None:
+                            continue
+
                         link_type = pred_entry.get("type", "FS").upper()
                         lag = int(pred_entry.get("lag_days", 0) or 0)
-                        
+
                         if link_type == "FS":
                             # Successor starts after predecessor finishes (Default)
                             candidate = p_ef + timedelta(days=lag + 1)
@@ -314,20 +323,23 @@ def run_calculation(input_data: dict) -> dict:
                             candidate = pred.get("es") + timedelta(days=lag) - dur_delta
                         else:
                             candidate = p_ef + timedelta(days=lag + 1)
-                            
+
                         if candidate > max_es:
                             max_es = candidate
                             driver = f"Predecessor {pred_id} ({link_type}+{lag}d)"
-                    
+
                     task["es"] = max_es
                     task["calc_reason"] = driver
 
                 task["ef"] = task["es"] + dur_delta
-                
+
                 # Apply constraint influence
                 if task["constraint_type"] != "ASAP":
                     old_es = task["es"]
-                    task["es"], task["ef"] = _apply_constraint(task["es"], task["ef"], task["duration"], task["constraint_type"], task["constraint_date"], project_start)
+                    task["es"], task["ef"] = _apply_constraint(
+                        task["es"], task["ef"], task["duration"],
+                        task["constraint_type"], task["constraint_date"], project_start
+                    )
                     if task["es"] != old_es:
                         task["calc_reason"] += f" | Adjusted by {task['constraint_type']} constraint"
 
@@ -376,16 +388,16 @@ def run_calculation(input_data: dict) -> dict:
         for tid in reversed(topo_order):
             task = task_map[tid]
             dur_delta = timedelta(days=max(0, task["duration"] - 1))
-            
+
             if task["is_manual"]:
                 task["lf"], task["ls"], task["slack"], task["is_critical"] = task["ef"], task["es"], 0, True
                 continue
-            
+
             task["lf"] = final_ef
-            valid_successors = False
             for succ_id in task["successors"]:
                 succ = task_map[succ_id]
-                if succ["parent_id"] == tid: continue
+                if succ["parent_id"] == tid:
+                    continue
 
                 # SOFT DEPS: Only hard dependencies affect backward pass (criticality)
                 # Soft deps constrain ES/EF (forward pass) but not criticality
@@ -403,8 +415,6 @@ def run_calculation(input_data: dict) -> dict:
                 if strength == "soft":
                     continue
 
-                valid_successors = True
-                
                 # Derive s_lf first — it's more likely to be set than s_ls
                 s_lf = succ["lf"] if succ["lf"] is not None else succ["ef"]
                 if s_lf is None:
@@ -419,21 +429,22 @@ def run_calculation(input_data: dict) -> dict:
                 else:
                     s_ls = final_ef
 
-                if link_type == "FS": 
+                if link_type == "FS":
                     # pred_LF <= succ_LS - 1 - lag
                     candidate = s_ls - timedelta(days=lag + 1)
-                elif link_type == "SS": 
+                elif link_type == "SS":
                     # pred_LS <= succ_LS - lag => pred_LF <= succ_LS - lag + (dur - 1)
                     candidate = s_ls - timedelta(days=lag) + dur_delta
-                elif link_type == "FF": 
+                elif link_type == "FF":
                     candidate = s_lf - timedelta(days=lag)
-                elif link_type == "SF": 
+                elif link_type == "SF":
                     # pred_LS <= succ_LF - lag => pred_LF <= succ_LF - lag + (dur - 1)
                     candidate = s_lf - timedelta(days=lag) + dur_delta
-                else: 
+                else:
                     candidate = s_ls - timedelta(days=lag + 1)
-                
-                if candidate < task["lf"]: task["lf"] = candidate
+
+                if candidate < task["lf"]:
+                    task["lf"] = candidate
 
             task["ls"] = task["lf"] - dur_delta
 
@@ -462,24 +473,25 @@ def run_calculation(input_data: dict) -> dict:
                     task["es"] = min(k["es"] for k in kids if k["es"] is not None)
                     task["ef"] = max(k["ef"] for k in kids if k["ef"] is not None)
                     task["duration"] = (task["ef"] - task["es"]).days + 1
-                    
+
                     # LS/LF Rollup
                     task["ls"] = min(k["ls"] for k in kids if k["ls"] is not None)
                     task["lf"] = max(k["lf"] for k in kids if k["lf"] is not None)
-                    
+
                     # Slack & Criticality Rollup
                     task["slack"] = min(k["slack"] for k in kids)
-                    task["is_critical"] = any(k["is_critical"] for k in kids) and (tid in is_hard_path or not task["preds_full"])
+                    is_crit = any(k["is_critical"] for k in kids)
+                    task["is_critical"] = is_crit and (tid in is_hard_path or not task["preds_full"])
                 else:
                     task["slack"] = (task["ls"] - task["es"]).days
                     task["is_critical"] = (task["slack"] <= 0) and (tid in is_hard_path or not task["preds_full"])
- 
+
         # Step 7.5: WBS Generation (Hierarchical numbering)
         def assign_wbs(parent_tid, prefix=""):
             # Find children and sort by early start to ensure logical numbering
             siblings = [tid for tid in topo_order if task_map[tid]["parent_id"] == parent_tid]
             siblings.sort(key=lambda tid: (task_map[tid]["es"] or datetime.max, tid))
-            
+
             for idx, tid in enumerate(siblings, 1):
                 wbs = f"{prefix}{idx}"
                 task_map[tid]["wbs"] = wbs
@@ -495,7 +507,8 @@ def run_calculation(input_data: dict) -> dict:
 
         for tid in topo_order:
             t = task_map[tid]
-            if t["is_critical"]: critical_path.append(tid)
+            if t["is_critical"]:
+                critical_path.append(tid)
 
             node = dict(t["original"])
             # Remove silent promotion check - preserve status as is
@@ -525,11 +538,11 @@ def run_calculation(input_data: dict) -> dict:
                 "calculated_at": calc_at,
                 "calc_reason": t.get("calc_reason"),
             })
-            
+
             # Add WBS Code if generated
             if "wbs" in t:
                 node["wbs_code"] = t["wbs"]
-                
+
             output_tasks.append(node)
 
         return {

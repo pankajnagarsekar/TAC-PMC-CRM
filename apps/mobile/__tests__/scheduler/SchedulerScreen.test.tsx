@@ -1,22 +1,20 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { SchedulerScreen } from '../../components/scheduler/SchedulerScreen';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import SchedulerScreen from '../../components/scheduler/SchedulerScreen';
+import { useSchedulerData } from '../../hooks/useSchedulerData';
 import type { ScheduleTask } from '../../types/api';
 
 // Mock @shopify/flash-list
-jest.mock('@shopify/flash-list', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
-      <View>
-        {data.map((item, index) => (
-          <View key={index}>{renderItem({ item })}</View>
-        ))}
-      </View>
-    ),
-  };
-});
+jest.mock('@shopify/flash-list', () => ({
+  FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
+    <View>
+      {data.map((item, index) => (
+        <View key={index}>{renderItem({ item })}</View>
+      ))}
+    </View>
+  ),
+}));
 
 // Mock expo-router
 jest.mock('expo-router', () => ({
@@ -53,30 +51,24 @@ jest.mock('react-native-reanimated', () => ({
 }));
 
 // Mock scheduler components to avoid internal dependency issues
-jest.mock('../../components/scheduler/SchedulerGantt', () => {
-  const { View, Text } = require('react-native');
-  return {
-    SchedulerGantt: ({ tasks }: { tasks: ScheduleTask[] }) => (
-      <View testID="scheduler-gantt">
-        <Text>Gantt View ({tasks.length} tasks)</Text>
-      </View>
-    ),
-  };
-});
+jest.mock('../../components/scheduler/SchedulerGantt', () => ({
+  SchedulerGantt: ({ tasks }: { tasks: ScheduleTask[] }) => (
+    <View testID="scheduler-gantt">
+      <Text>Gantt View ({tasks.length} tasks)</Text>
+    </View>
+  ),
+}));
 
-jest.mock('../../components/scheduler/SchedulerList', () => {
-  const { View, Text } = require('react-native');
-  return {
-    SchedulerList: ({ tasks }: { tasks: ScheduleTask[] }) => (
-      <View testID="scheduler-list">
-        {tasks.map((t: ScheduleTask) => (
-          <Text key={t.task_id}>{t.name}</Text>
-        ))}
-        {tasks.length === 0 && <Text>No scheduled tasks yet</Text>}
-      </View>
-    ),
-  };
-});
+jest.mock('../../components/scheduler/SchedulerList', () => ({
+  SchedulerList: ({ tasks }: { tasks: ScheduleTask[] }) => (
+    <View testID="scheduler-list">
+      {tasks.map((t: ScheduleTask) => (
+        <Text key={t.task_id}>{t.name}</Text>
+      ))}
+      {tasks.length === 0 && <Text>No scheduled tasks yet</Text>}
+    </View>
+  ),
+}));
 
 // Mock contexts
 const mockProject = { project_id: 'p1', project_name: 'Test Project' };
@@ -135,7 +127,6 @@ jest.mock('../../hooks/useSchedulerData', () => ({
   })),
 }));
 
-import { useSchedulerData } from '../../hooks/useSchedulerData';
 const mockUseSchedulerData = useSchedulerData as jest.Mock;
 
 describe('SchedulerScreen', () => {
@@ -186,7 +177,6 @@ describe('SchedulerScreen', () => {
     });
 
     const { UNSAFE_getByType } = render(<SchedulerScreen />);
-    const { ActivityIndicator } = require('react-native');
     expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
     expect(screen.queryByTestId('scheduler-list')).toBeFalsy();
   });
@@ -214,7 +204,7 @@ describe('SchedulerScreen', () => {
     render(<SchedulerScreen />);
 
     // List mode should render tasks (both names appear in the list view)
-    const listView = screen.getByTestId('scheduler-list');
+    expect(screen.getByTestId('scheduler-list')).toBeTruthy();
     expect(screen.getByText('Foundation Work')).toBeTruthy();
     expect(screen.getByText('Structural Steel')).toBeTruthy();
 

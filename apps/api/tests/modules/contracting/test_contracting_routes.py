@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from bson import ObjectId
 
+
 @pytest.mark.asyncio
 async def test_vendor_routes(client: AsyncClient):
     # 1. Create
@@ -9,28 +10,29 @@ async def test_vendor_routes(client: AsyncClient):
         "name": "Integration Test Vendor"
     })
     assert resp.status_code == 201
-    
+
     # 2. List
     resp = await client.get("/api/v1/vendors/")
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert any(v["name"] == "Integration Test Vendor" for v in data)
 
+
 @pytest.mark.asyncio
 async def test_work_order_routes(client: AsyncClient, test_db, test_user, test_project_id):
     # Setup
     vendor_id = str(ObjectId())
     await test_db.vendors.insert_one({
-        "_id": ObjectId(vendor_id), 
-        "organisation_id": test_user["organisation_id"], 
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
         "name": "Route Vendor",
         "active_status": True
     })
     await test_db.project_category_budgets.insert_one({
-        "project_id": test_project_id, 
-        "category_id": "C1", 
-        "organisation_id": test_user["organisation_id"], 
-        "remaining_budget": 10000.0, 
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "organisation_id": test_user["organisation_id"],
+        "remaining_budget": 10000.0,
         "committed_amount": 0.0
     })
 
@@ -42,7 +44,7 @@ async def test_work_order_routes(client: AsyncClient, test_db, test_user, test_p
         "line_items": [{"sr_no": 1, "qty": 1, "rate": 500}],
         "idempotency_key": "test-nonce"
     }, headers={"X-Request-Nonce": "test-nonce"})
-    
+
     assert resp.status_code == 201
     wo_id = resp.json()["data"]["id"]
 
@@ -55,6 +57,7 @@ async def test_work_order_routes(client: AsyncClient, test_db, test_user, test_p
     resp = await client.post(f"/api/v1/work-orders/{wo_id}/approve?expected_version=2")
     assert resp.status_code == 200
     assert resp.json()["data"]["status"] == "Approved"
+
 
 @pytest.mark.asyncio
 async def test_wo_cancel(client: AsyncClient, test_db, test_user, test_project_id):
@@ -132,7 +135,7 @@ async def test_contract_routes(client: AsyncClient, test_db, test_user, test_pro
         "terms": "Route test terms"
     })
     assert resp.status_code == 201
-    
+
     # Get Contract
     resp = await client.get(f"/api/v1/work-orders/{wo_id}/contract")
     assert resp.status_code == 200

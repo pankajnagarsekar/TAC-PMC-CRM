@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProjectDashboardData } from '../types/api';
 import apiClient from '../services/apiClient';
 
@@ -19,7 +19,7 @@ export function useDashboardData({ projectId, refetchInterval }: UseDashboardDat
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     if (!projectId) {
       setData(null);
       setError(null);
@@ -40,12 +40,12 @@ export function useDashboardData({ projectId, refetchInterval }: UseDashboardDat
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
     fetchDashboard();
 
-    let interval: NodeJS.Timeout | undefined;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (refetchInterval && refetchInterval > 0) {
       interval = setInterval(fetchDashboard, refetchInterval);
     }
@@ -53,7 +53,7 @@ export function useDashboardData({ projectId, refetchInterval }: UseDashboardDat
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [projectId, refetchInterval]);
+  }, [projectId, refetchInterval, fetchDashboard]);
 
   return {
     data,

@@ -155,12 +155,12 @@ class FinancialService:
                 totals["total_budget"] += FinancialEngine.to_decimal(
                     res["original_budget"]
                 )
-                
+
                 # CALC-4: For fund transfer categories, Certified amount acts as a commitment
                 cat = await self.code_master_repo.get_by_id(cat_id, session=session)
                 if not cat:
                     cat = await self.code_master_repo.find_one({"code": cat_id}, session=session)
-                
+
                 if cat and cat.get("budget_type") == "fund_transfer":
                     totals["total_committed"] += FinancialEngine.to_decimal(
                         res["certified_value"]
@@ -169,7 +169,7 @@ class FinancialService:
                     totals["total_committed"] += FinancialEngine.to_decimal(
                         res["committed_value"]
                     )
-                
+
                 totals["total_certified"] += FinancialEngine.to_decimal(
                     res["certified_value"]
                 )
@@ -259,7 +259,7 @@ class FinancialService:
         """Validate financial document data before creation (BUG-29, BUG-009)."""
         line_items = data.get("line_items", [])
         if not line_items or len(line_items) == 0:
-             raise ValidationError(f"{doc_type.replace('_', ' ').title()} requires at least one line item.")
+            raise ValidationError(f"{doc_type.replace('_', ' ').title()} requires at least one line item.")
 
         # BUG-009: Authoritative Invariant: Declared Subtotal must match Line Item Sum
         declared_subtotal = FinancialEngine.to_decimal(data.get("subtotal", 0))
@@ -268,11 +268,13 @@ class FinancialService:
             qty = FinancialEngine.to_decimal(item.get("qty", 0))
             rate = FinancialEngine.to_decimal(item.get("rate", 0))
             calculated_subtotal += FinancialEngine.round(qty * rate)
-        
+
         if declared_subtotal != calculated_subtotal and declared_subtotal != Decimal("0.00"):
-            # If subtotal is provided but mismatched, fail. 
+            # If subtotal is provided but mismatched, fail.
             # If 0.00, we might be in 'creation' where it's not yet set in dict.
-            raise ValidationError(f"Document subtotal mismatch. Declared: {declared_subtotal}, Calculated: {calculated_subtotal}")
+            raise ValidationError(
+                f"Document subtotal mismatch. Declared: {declared_subtotal}, Calculated: {calculated_subtotal}"
+            )
 
         if doc_type == "WORK_ORDER":
             if not data.get("vendor_id"):
@@ -317,7 +319,7 @@ class FinancialService:
             "created_at": now(),
             "updated_at": now(),
         }
-        
+
         budget_doc = await self.budget_repo.create(budget_doc, session=session)
 
         # BUG-007: Audit Logging
@@ -364,9 +366,11 @@ class FinancialService:
             # Status should have the budget doc ID as 'id' or '_id'
             budget_id = str(status.get("_id") or status.get("id"))
             if not budget_id or budget_id == "None":
-                 # Fallback to direct fetch if status doesn't have ID
-                 existing = await self.budget_repo.get_by_project_and_category(project_id, category_id, session=session)
-                 budget_id = str(existing["_id"])
+                # Fallback to direct fetch if status doesn't have ID
+                existing = await self.budget_repo.get_by_project_and_category(
+                    project_id, category_id, session=session
+                )
+                budget_id = str(existing["_id"])
 
         # 2. H1: Backend Validation
         if original_budget < 0:
@@ -383,7 +387,7 @@ class FinancialService:
             "updated_at": now(),
             "version": expected_version + 1,
         }
-        
+
         result = await self.budget_repo.update(
             budget_id,
             update_data,
@@ -391,7 +395,7 @@ class FinancialService:
             expected_version=expected_version,
             session=session
         )
-        
+
         if not result:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 

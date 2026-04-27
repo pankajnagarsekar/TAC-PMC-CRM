@@ -4,13 +4,14 @@ import React from 'react';
 import useSWR from 'swr';
 import { useProjectStore } from '@/store/projectStore';
 import { fetcher } from '@/lib/api';
+import { CodeMaster } from '@/types/api';
 import BudgetTracker from '@/components/financial/BudgetTracker';
 import CashFlowChart from '@/components/financial/CashFlowChart';
 import PaymentApprovalQueue from '@/components/financial/PaymentApprovalQueue';
 import MasterDataManager from '@/components/financial/MasterDataManager';
 
 export default function FinancialDashboard() {
-  const activeProject = useProjectStore((state: any) => state.activeProject);
+  const activeProject = useProjectStore((state) => state.activeProject);
   const projectId = activeProject?.project_id;
 
   // Default date range: last 30 days
@@ -70,7 +71,8 @@ export default function FinancialDashboard() {
 
   // Handle approve action
   const handleApprovePayment = async (id: string) => {
-    const payment = pendingApprovalsData?.find((p: any) => (p._id || p.id) === id);
+    interface PendingPayment { _id?: string; id?: string; version?: number; }
+    const payment = (pendingApprovalsData as PendingPayment[])?.find((p) => (p._id || p.id) === id);
     const version = payment?.version || 1;
     try {
       await fetch(`/api/v1/payments/${id}/approve?expected_version=${version}`, {
@@ -88,7 +90,8 @@ export default function FinancialDashboard() {
 
   // Handle reject action
   const handleRejectPayment = async (id: string, reason: string) => {
-    const payment = pendingApprovalsData?.find((p: any) => (p._id || p.id) === id);
+    interface PendingPayment { _id?: string; id?: string; version?: number; }
+    const payment = (pendingApprovalsData as PendingPayment[])?.find((p) => (p._id || p.id) === id);
     const version = payment?.version || 1;
     try {
       await fetch(
@@ -107,7 +110,7 @@ export default function FinancialDashboard() {
   };
 
   // Handle add code
-  const handleAddCode = async (codeData: any) => {
+  const handleAddCode = async (codeData: Partial<CodeMaster>) => {
     try {
       await fetch('/api/v1/settings/codes', {
         method: 'POST',
@@ -124,7 +127,7 @@ export default function FinancialDashboard() {
   };
 
   // Handle update code
-  const handleUpdateCode = async (id: string, codeData: any) => {
+  const handleUpdateCode = async (id: string, codeData: Partial<CodeMaster>) => {
     try {
       await fetch(`/api/v1/settings/codes/${id}`, {
         method: 'PUT',

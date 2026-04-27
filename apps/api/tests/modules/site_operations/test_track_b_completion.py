@@ -1,8 +1,7 @@
 import pytest
-from datetime import datetime, timedelta
+
 from app.core.time import now as ts_now
 from decimal import Decimal
-import uuid
 
 @pytest.mark.asyncio
 async def test_worker_log_partial_update(client, supervisor_token, test_project):
@@ -18,7 +17,7 @@ async def test_worker_log_partial_update(client, supervisor_token, test_project)
         "workers": [],
         "remarks": "Initial"
     }
-    
+
     resp = await client.post(
         "/api/v1/worker-logs/",
         json=create_payload,
@@ -56,7 +55,7 @@ async def test_attendance_checkout_calculation(client, supervisor_token, test_pr
         json=payload,
         headers={"Authorization": f"Bearer {supervisor_token}"}
     )
-    
+
     # 2. Check-out
     resp = await client.post(
         "/api/v1/attendance/check-out",
@@ -91,7 +90,7 @@ async def test_site_overhead_occ(client, admin_token, test_project):
         json=update_payload,
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert resp.status_code == 422 
+    assert resp.status_code == 422
 
     # 3. Update with correct version
     update_payload = {"amount": 2000, "version": version}
@@ -124,7 +123,7 @@ async def test_dpr_image_deletion(client, supervisor_token, test_project):
         json=img_payload,
         headers={"Authorization": f"Bearer {supervisor_token}"}
     )
-    
+
     # 3. Get DPR to find real image_id
     resp = await client.get(
         f"/api/v1/dprs/{dpr_id}",
@@ -140,7 +139,7 @@ async def test_dpr_image_deletion(client, supervisor_token, test_project):
         headers={"Authorization": f"Bearer {supervisor_token}"}
     )
     assert resp.status_code == 200
-    
+
     # 5. Verify it's gone
     resp = await client.get(
         f"/api/v1/dprs/{dpr_id}",

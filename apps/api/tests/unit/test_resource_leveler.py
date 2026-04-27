@@ -693,7 +693,7 @@ class TestDateHandling:
 
     def test_iso_format_date_parsing(self, leveler):
         """ISO format strings are properly parsed."""
-        base_date = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
         tasks = {
             "A": {
                 "task_id": "A",

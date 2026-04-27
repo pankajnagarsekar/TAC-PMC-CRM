@@ -8,8 +8,7 @@ Integrates with the scheduler to account for working days and holidays.
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
-from app.modules.scheduler.resource_calendar import ResourceCalendar, CalendarManager, CalendarException, ExceptionType
-from app.modules.shared.domain.exceptions import ValidationError
+from app.modules.scheduler.resource_calendar import ResourceCalendar, CalendarManager
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +71,7 @@ class ResourceCalendarService:
             "updated_at": datetime.utcnow()
         }
 
-        result = await self.collection.update_one(
+        await self.collection.update_one(
             {"resource_id": resource_id, "organisation_id": organisation_id},
             {"$set": doc},
             upsert=True
@@ -176,7 +175,6 @@ class ResourceCalendarService:
         """
         if not calendar:
             # Standard behavior
-            from datetime import timedelta
             delta = (end_date - start_date).days + 1
             return max(0, delta)
 

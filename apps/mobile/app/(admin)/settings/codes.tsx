@@ -18,35 +18,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { codesApi } from '../../../services/apiClient';
+import { baseApiClient, codesApi } from '../../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
 import ScreenHeader from '../../../components/ScreenHeader';
-
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getToken();
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
-  }
-  if (response.status === 204) return null;
-  return response.json();
-};
 
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') window.alert(`${title}: ${message}`);
@@ -78,7 +52,7 @@ export default function ActivityCodesScreen() {
     try {
       const data = await codesApi.getAll(false);
       setCodes(data || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading codes:', error);
     } finally {
       setLoading(false);
@@ -125,24 +99,19 @@ export default function ActivityCodesScreen() {
       };
 
       if (editingCode) {
-        await apiRequest(`/api/codes/${editingCode.code_id || editingCode._id}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        });
+        await baseApiClient.put(`/api/v1/codes/${editingCode.code_id || editingCode._id}`, payload);
         showAlert('Success', 'Activity code updated');
       } else {
-        await apiRequest('/api/codes', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        await baseApiClient.post('/api/v1/codes', payload);
         showAlert('Success', 'Activity code created');
       }
 
       setModalVisible(false);
       resetForm();
       loadCodes();
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to save code');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to save code';
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -151,11 +120,12 @@ export default function ActivityCodesScreen() {
   const handleDelete = (code: Code) => {
     const doDelete = async () => {
       try {
-        await apiRequest(`/api/codes/${code.code_id || code._id}`, { method: 'DELETE' });
+        await baseApiClient.delete(`/api/v1/codes/${code.code_id || code._id}`);
         showAlert('Success', 'Activity code deleted');
         loadCodes();
-      } catch (error: any) {
-        showAlert('Error', error.message);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Failed to delete code';
+        showAlert('Error', msg);
       }
     };
 

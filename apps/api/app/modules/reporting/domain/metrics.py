@@ -3,9 +3,7 @@ Domain models for dashboard metrics and analytics.
 Used as response DTOs for analytics endpoints.
 """
 
-from datetime import datetime
-from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -150,7 +148,7 @@ class FinancialSummaryData(BaseModel):
         ..., description="Projected amount over budget at current burn rate"
     )
     is_over_budget: bool = Field(..., description="Whether spending exceeds budget")
-    
+
     # EVM Metrics (BUG-023)
     planned_value: float = Field(0.0, description="BCWS: Budgeted Cost of Work Scheduled")
     earned_value: float = Field(0.0, description="BCWP: Budgeted Cost of Work Performed")

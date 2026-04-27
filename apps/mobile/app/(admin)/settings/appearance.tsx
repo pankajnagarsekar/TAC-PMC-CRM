@@ -38,14 +38,14 @@ const COLOR_SCHEMES = [
 export default function AppearanceSettingsScreen() {
   const { settings, updateSettings } = useTheme();
 
-  const updateSetting = (key: keyof typeof settings, value: any) => {
+  const updateSetting = <K extends keyof typeof settings>(key: K, value: typeof settings[K]) => {
     updateSettings({ [key]: value });
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]} edges={['left', 'right']}>
       <ScreenHeader title="Appearance" />
-      
+
       <ScrollView contentContainerStyle={styles.content}>
         {/* Theme Selection */}
         <View style={styles.section}>
@@ -58,10 +58,10 @@ export default function AppearanceSettingsScreen() {
                   styles.themeOption,
                   settings.theme === theme.id && styles.themeOptionActive,
                 ]}
-                onPress={() => updateSetting('theme', theme.id as any)}
+                onPress={() => updateSetting('theme', theme.id as "light" | "dark" | "system")}
               >
                 <Ionicons
-                  name={theme.icon as any}
+                  name={theme.icon as keyof typeof Ionicons.glyphMap}
                   size={24}
                   color={settings.theme === theme.id ? Colors.primary : Colors.textMuted}
                 />
@@ -89,7 +89,7 @@ export default function AppearanceSettingsScreen() {
                   styles.sizeOption,
                   settings.fontSize === size.id && styles.sizeOptionActive,
                 ]}
-                onPress={() => updateSetting('fontSize', size.id as any)}
+                onPress={() => updateSetting('fontSize', size.id as "small" | "medium" | "large")}
               >
                 <Text
                   style={[
@@ -136,7 +136,7 @@ export default function AppearanceSettingsScreen() {
         {/* Toggle Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Display Options</Text>
-          
+
           <View style={styles.toggleItem}>
             <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Compact Mode</Text>

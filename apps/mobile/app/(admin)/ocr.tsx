@@ -69,9 +69,10 @@ export default function OCRScreen() {
       const base64Data = image.split(',')[1];
       const response = await ocrApi.scanInvoice({ image_base64: base64Data });
       setResult(response);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('OCR Scan failed:', err);
-      setError(err.message || 'Scanning failed');
+      const message = err instanceof Error ? err.message : 'Scanning failed';
+      setError(message);
     } finally {
       setScanning(false);
     }
@@ -93,8 +94,8 @@ export default function OCRScreen() {
                 <Ionicons name="image" size={24} color={Colors.primary} />
                 <Text style={styles.changeText}>Change Image</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.scanButton, scanning && styles.disabledButton]} 
+              <TouchableOpacity
+                style={[styles.scanButton, scanning && styles.disabledButton]}
                 onPress={handleScan}
                 disabled={scanning}
               >

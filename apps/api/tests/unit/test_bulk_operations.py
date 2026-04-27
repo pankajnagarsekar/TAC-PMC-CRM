@@ -10,7 +10,6 @@ Tests for Phase 1 Task #14: Bulk Operations
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 from app.modules.scheduler.bulk_operations import (
     BulkOperationService,
     BulkOperationValidator,

@@ -51,7 +51,7 @@ export default function AdminProjectSelectionScreen() {
   };
 
   const renderProject = ({ item }: { item: Project }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.projectCard}
       onPress={() => handleProjectSelect(item)}
       activeOpacity={0.7}
@@ -105,7 +105,7 @@ export default function AdminProjectSelectionScreen() {
           <FlatList
             data={projects}
             renderItem={renderProject}
-            keyExtractor={(item: any) => item.project_id || item._id}
+            keyExtractor={(item: Project) => item.project_id || item._id || ''}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
@@ -125,7 +125,7 @@ export default function AdminProjectSelectionScreen() {
             <Text style={styles.emptyText}>
               No projects exist in your organization yet. Create one from settings.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.refreshButton}
               onPress={() => { setLoading(true); loadProjects(); }}
             >

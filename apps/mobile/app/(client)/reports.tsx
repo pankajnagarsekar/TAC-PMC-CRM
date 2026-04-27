@@ -9,7 +9,6 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +17,7 @@ import * as Sharing from 'expo-sharing';
 import { reportingApi, projectsApi } from '../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius, Shadows } from '../../constants/theme';
 import ScreenHeader from '../../components/ScreenHeader';
-import { useAuth } from '../../contexts/AuthContext';
+import { Project } from '../../types/api';
 
 const REPORTS = [
   { id: 'weekly_progress', name: 'Weekly Progress', icon: 'calendar-outline', color: Colors.info },
@@ -32,8 +31,7 @@ const REPORTS = [
 ];
 
 export default function ClientReportsScreen() {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
@@ -47,9 +45,9 @@ export default function ClientReportsScreen() {
       const data = await projectsApi.getAll();
       setProjects(data || []);
       if (data && data.length > 0) {
-        setSelectedProjectId(data[0].project_id);
+        setSelectedProjectId(data[0].project_id || data[0]._id || '');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading projects:', error);
     } finally {
       setLoading(false);
@@ -65,19 +63,20 @@ export default function ClientReportsScreen() {
     setExporting(reportType);
     try {
       const url = reportingApi.getExportUrl(selectedProjectId, reportType, 'pdf');
-      
+
       // Since it's a secured endpoint, we need to pass the token if possible
       // standard downloadResumable might not support custom headers easily for the final redirect if not careful
       // But repo-provided request() usually handles this.
       // For simplicity in mobile parity, we assume the backend supports a session or we use a fetch-blob approach
-      
+
       // In Expo, we can use downloadAsync for simple GETs
       const filename = `${reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
-      const fileUri = (FileSystem as any).documentDirectory + filename;
+      const fs = (FileSystem as any).default || FileSystem;
+      const fileUri = (fs.documentDirectory || '') + filename;
 
       // We need the token for the request
-      // (Re-using logic from apiClient to get token)
-      const SecureStore = require('expo-secure-store');
+      // Use the helper from apiClient if possible, or SecureStore directly
+      const SecureStore = await import('expo-secure-store');
       const token = await SecureStore.getItemAsync('access_token');
 
       const downloadResult = await FileSystem.downloadAsync(url, fileUri, {
@@ -99,9 +98,10 @@ export default function ClientReportsScreen() {
       } else {
         throw new Error(`Server returned ${downloadResult.status}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Export error:', error);
-      Alert.alert('Export Failed', error.message || 'Could not generate report.');
+      const msg = error instanceof Error ? error.message : 'Could not generate report.';
+      Alert.alert('Export Failed', msg);
     } finally {
       setExporting(null);
     }
@@ -121,29 +121,32 @@ export default function ClientReportsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <ScreenHeader title="Project Reports" showBack />
-      
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.projectSelection}>
           <Text style={styles.label}>Selected Project</Text>
           <View style={styles.projectChips}>
-            {projects.map(p => (
-              <Pressable 
-                key={p.project_id} 
-                style={[styles.chip, selectedProjectId === p.project_id && styles.chipActive]}
-                onPress={() => setSelectedProjectId(p.project_id)}
-              >
-                <Text style={[styles.chipText, selectedProjectId === p.project_id && styles.chipTextActive]}>
-                  {p.project_name}
-                </Text>
-              </Pressable>
-            ))}
+            {projects.map(p => {
+              const pid = p.project_id || p._id || '';
+              return (
+                <Pressable
+                  key={pid}
+                  style={[styles.chip, selectedProjectId === pid && styles.chipActive]}
+                  onPress={() => setSelectedProjectId(pid)}
+                >
+                  <Text style={[styles.chipText, selectedProjectId === pid && styles.chipTextActive]}>
+                    {p.project_name}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
         <View style={styles.reportList}>
           {REPORTS.map(report => (
-            <Pressable 
-              key={report.id} 
+            <Pressable
+              key={report.id}
               style={styles.reportCard}
               onPress={() => handleExport(report.id)}
               disabled={!!exporting}
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: Spacing.lg },
-  
+
   projectSelection: { marginBottom: Spacing.xl },
   label: { fontSize: FontSizes.sm, fontWeight: '700', color: Colors.textSecondary, marginBottom: Spacing.sm, textTransform: 'uppercase' },
   projectChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },

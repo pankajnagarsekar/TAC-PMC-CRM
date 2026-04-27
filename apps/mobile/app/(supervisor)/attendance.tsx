@@ -22,6 +22,7 @@ import { useProject } from '../../contexts/ProjectContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 import { attendanceApi, dprApi } from '../../services/apiClient';
+import { Attendance } from '../../types/api';
 
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') window.alert(`${title}: ${message}`);
@@ -76,7 +77,7 @@ export default function SupervisorAttendance() {
     if (!selectedProject) return;
 
     try {
-      const projectId = (selectedProject as any).project_id || (selectedProject as any)._id;
+      const projectId = selectedProject.project_id || selectedProject._id || '';
       const dateStr = new Date().toISOString().split('T')[0];
 
       // Check today's attendance
@@ -87,7 +88,7 @@ export default function SupervisorAttendance() {
           id: todayRecord.id || 'today',
           date: todayRecord.date || dateStr,
           checkInTime: todayRecord.check_in_time || '',
-          status: 'checked_in',
+          status: (todayRecord.status as any) || 'checked_in',
           hasDPR: !!todayRecord.dpr_id,
         });
       }
@@ -106,19 +107,19 @@ export default function SupervisorAttendance() {
       try {
         const historyResponse = await attendanceApi.getHistory(projectId, 10);
         if (historyResponse && historyResponse.attendance) {
-          const records: AttendanceRecord[] = historyResponse.attendance.map((a: any) => ({
-            id: a.id || a.attendance_id || 'unknown',
+          const records: AttendanceRecord[] = historyResponse.attendance.map((a: Attendance) => ({
+            id: a.id || 'unknown',
             date: a.date || new Date().toISOString().split('T')[0],
             checkInTime: a.check_in_time || '',
             checkOutTime: a.check_out_time,
-            status: a.status || 'absent',
+            status: a.status as 'checked_in' | 'checked_out' | 'absent',
             hasDPR: !!a.dpr_id,
             location: a.location,
           }));
           setAttendanceHistory(records);
         }
-      } catch {
-        console.log('No attendance history available');
+      } catch (historyError: unknown) {
+        console.log('No attendance history available:', historyError);
       }
 
     } catch (error) {
@@ -228,7 +229,7 @@ export default function SupervisorAttendance() {
       setLocation(loc);
 
       // Step 3: Submit attendance
-      const projectId = (selectedProject as any).project_id || (selectedProject as any).id || (selectedProject as any)._id;
+      const projectId = selectedProject.project_id || selectedProject._id || '';
 
       await attendanceApi.checkIn({
         project_id: projectId,
@@ -251,8 +252,8 @@ export default function SupervisorAttendance() {
 
       showAlert('Success', 'Check-in successful! You can now submit your DPR.');
     } catch (error: unknown) {
-      const err = error as any;
-      if (err.message?.includes('already marked')) {
+      const msg = error instanceof Error ? error.message : 'Failed to check in';
+      if (msg.includes('already marked')) {
         showAlert('Already Checked In', 'You have already marked attendance for today');
         setTodayAttendance({
           id: 'today',
@@ -262,7 +263,7 @@ export default function SupervisorAttendance() {
           hasDPR: false,
         });
       } else {
-        showAlert('Error', err.message || 'Failed to check in');
+        showAlert('Error', msg);
       }
     } finally {
       setCheckingIn(false);
@@ -277,7 +278,8 @@ export default function SupervisorAttendance() {
 
     setCheckingOut(true);
     try {
-      const projectId = (selectedProject as any).project_id || (selectedProject as any).id || (selectedProject as any)._id;
+      if (!selectedProject) throw new Error('No project selected');
+      const projectId = selectedProject.project_id || selectedProject._id || '';
       await attendanceApi.checkOut(projectId, {});
 
       setTodayAttendance(prev => prev ? {
@@ -288,8 +290,8 @@ export default function SupervisorAttendance() {
 
       showAlert('Success', 'Check-out successful! Have a great day.');
     } catch (error: unknown) {
-      const err = error as any;
-      showAlert('Error', err.message || 'Failed to check out');
+      const msg = error instanceof Error ? error.message : 'Failed to check out';
+      showAlert('Error', msg);
     } finally {
       setCheckingOut(false);
     }

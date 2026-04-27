@@ -6,7 +6,7 @@ import { Modal, View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView
 import { format, parseISO } from 'date-fns';
 import type { ScheduleTask } from '../../types/api';
 import { useTaskEdit } from '../../hooks/useTaskEdit';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
 import { TaskForm } from './TaskForm';
 import { STATUS_LABELS, CRITICAL_COLOR } from './scheduler-constants';
 
@@ -144,7 +144,7 @@ export function TaskDetailModal({
   );
 }
 
-function TaskDetailView({ task, colors }: { task: ScheduleTask; colors: any }) {
+function TaskDetailView({ task, colors }: { task: ScheduleTask; colors: ThemeContextType['colors'] }) {
   const formatDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return '—';
     try {
@@ -177,7 +177,7 @@ function TaskDetailView({ task, colors }: { task: ScheduleTask; colors: any }) {
   );
 }
 
-function DetailRow({ label, value, colors }: { label: string; value: string; colors: any }) {
+function DetailRow({ label, value, colors }: { label: string; value: string; colors: ThemeContextType['colors'] }) {
   return (
     <View style={styles.detailRow}>
       <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>{label}</Text>
@@ -186,15 +186,7 @@ function DetailRow({ label, value, colors }: { label: string; value: string; col
   );
 }
 
-function createDynamicStyles(colors: any) {
-  return StyleSheet.create({
-    header: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-  });
-}
+
 
 const styles = StyleSheet.create({
   container: {

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
-from bson import Decimal128, ObjectId
+from bson import ObjectId
 
 from app.core.uow import UnitOfWork
 
@@ -52,11 +52,11 @@ class WorkOrderService:
         # 1. Check Project Settings
         project = await self.project_repo.get_by_id(project_id, organisation_id=organisation_id, session=session)
         if project and project.get("project_cgst_percentage") is not None:
-             return {
-                 "cgst": Decimal(str(project["project_cgst_percentage"])),
-                 "sgst": Decimal(str(project.get("project_sgst_percentage", "9.0")))
-             }
-        
+            return {
+                "cgst": Decimal(str(project["project_cgst_percentage"])),
+                "sgst": Decimal(str(project.get("project_sgst_percentage", "9.0")))
+            }
+
         # 2. Check Global Organisation Settings
         settings = await self.db.organisation_settings.find_one({"organisation_id": organisation_id}, session=session)
         if settings:
@@ -64,7 +64,7 @@ class WorkOrderService:
                 "cgst": Decimal(str(settings.get("cgst_percentage", "9.0"))),
                 "sgst": Decimal(str(settings.get("sgst_percentage", "9.0")))
             }
-            
+
         # 3. Final Fallback
         return {"cgst": Decimal("9.0"), "sgst": Decimal("9.0")}
 
@@ -204,7 +204,7 @@ class WorkOrderService:
                         ],
                         session=uow.session,
                     ).to_list(None)
-                    
+
                     # Manual sum to avoid group empty result complexity
                     total_commit = Decimal("0.0")
                     for w in agg:
@@ -358,10 +358,10 @@ class WorkOrderService:
             }
             if update_req.status is not None:
                 update_dict["status"] = update_req.status
-            
+
             if update_req.category_id is not None:
                 update_dict["category_id"] = update_req.category_id
-            
+
             if update_req.vendor_id is not None:
                 update_dict["vendor_id"] = update_req.vendor_id
 
@@ -483,31 +483,34 @@ class WorkOrderService:
         wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
         if not wo:
             raise NotFoundError("Work Order", wo_id)
-        
+
         # Ensure total_payable consistency (BUG-006)
         if "total_payable" not in wo or FinancialEngine.to_decimal(wo.get("total_payable", 0)) == Decimal("0"):
             wo["total_payable"] = wo.get("grand_total")
-            
+
         return wo
 
     async def submit_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
         """Orchestrate WO submission for approval."""
         async with UnitOfWork(self.db) as uow:
-            wo_data = await uow.work_orders.get_by_id(wo_id, organisation_id=user["organisation_id"], session=uow.session)
-            if not wo_data: raise NotFoundError("Work Order", wo_id)
-            
+            wo_data = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=user["organisation_id"], session=uow.session
+            )
+            if not wo_data:
+                raise NotFoundError("Work Order", wo_id)
+
             wo_model = WorkOrderModel(wo_data)
             wo_model.submit()
-            
+
             result = await uow.work_orders.update(
-                wo_id, 
-                {"status": "Pending", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1}, 
+                wo_id,
+                {"status": "Pending", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1},
                 expected_version=expected_version,
                 session=uow.session
             )
             if not result:
                 raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
-            
+
             await self.audit_service.log_action(
                 organisation_id=user["organisation_id"],
                 module_name="WORK_ORDERS",
@@ -532,21 +535,24 @@ class WorkOrderService:
         """Orchestrate WO approval (Admin only)."""
         # Note: Permission check should happen in Route or via permission_checker
         async with UnitOfWork(self.db) as uow:
-            wo_data = await uow.work_orders.get_by_id(wo_id, organisation_id=user["organisation_id"], session=uow.session)
-            if not wo_data: raise NotFoundError("Work Order", wo_id)
-            
+            wo_data = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=user["organisation_id"], session=uow.session
+            )
+            if not wo_data:
+                raise NotFoundError("Work Order", wo_id)
+
             wo_model = WorkOrderModel(wo_data)
             wo_model.approve()
-            
+
             result = await uow.work_orders.update(
-                wo_id, 
-                {"status": "Approved", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1}, 
+                wo_id,
+                {"status": "Approved", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1},
                 expected_version=expected_version,
                 session=uow.session
             )
             if not result:
                 raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
-            
+
             await self.audit_service.log_action(
                 organisation_id=user["organisation_id"],
                 module_name="WORK_ORDERS",
@@ -570,24 +576,27 @@ class WorkOrderService:
     async def cancel_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
         """Orchestrate WO cancellation."""
         async with UnitOfWork(self.db) as uow:
-            wo_data = await uow.work_orders.get_by_id(wo_id, organisation_id=user["organisation_id"], session=uow.session)
-            if not wo_data: raise NotFoundError("Work Order", wo_id)
-            
+            wo_data = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=user["organisation_id"], session=uow.session
+            )
+            if not wo_data:
+                raise NotFoundError("Work Order", wo_id)
+
             wo_model = WorkOrderModel(wo_data)
             wo_model.cancel()
-            
+
             result = await uow.work_orders.update(
-                wo_id, 
-                {"status": "Cancelled", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1}, 
+                wo_id,
+                {"status": "Cancelled", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1},
                 expected_version=expected_version,
                 session=uow.session
             )
             if not result:
                 raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
-            
+
             # Reverse budget commitment? (Optional depending on business rule, but common)
             # For now just status change as per plan
-            
+
             await self.audit_service.log_action(
                 organisation_id=user["organisation_id"],
                 module_name="WORK_ORDERS",

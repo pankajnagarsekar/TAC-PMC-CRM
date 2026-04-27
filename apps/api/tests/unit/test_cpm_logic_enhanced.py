@@ -1,6 +1,6 @@
 import sys
 import os
-from datetime import datetime, timedelta
+
 
 # Add the app directory to sys.path to import the module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -9,7 +9,7 @@ from app.modules.scheduler.calculate_critical_path import run_calculation
 
 def test_cpm_all_features():
     project_start = "2026-04-01"
-    
+
     tasks = [
         # 1. Manual task: should stay on 2026-05-01
         {
@@ -93,14 +93,14 @@ def test_cpm_all_features():
     }
 
     result = run_calculation(input_data)
-    
+
     if "error" in result:
         print(f"FAILED: {result['error']}")
         print(f"TRACE: {result.get('trace')}")
         return
 
     task_results = {t["task_id"]: t for t in result["tasks"]}
-    
+
     # Assert T1 (Manual)
     assert task_results["T1"]["scheduled_start"] == "2026-05-01"
     assert task_results["T1"]["scheduled_finish"] == "2026-05-06"
@@ -126,7 +126,7 @@ def test_cpm_all_features():
     # P1 finishes at 2026-04-19. T_SUCC should start at 2026-04-20
     assert task_results["T_SUCC"]["scheduled_start"] == "2026-04-20"
     print("PASS: Summary-to-Successor Date Cascade working.")
-    
+
     # Progress Rollup: (50*1000 + 10*3000) / 4000 = 20
     assert task_results["P1"]["percent_complete"] == 20.0
     print("PASS: Cost-weighted progress working.")

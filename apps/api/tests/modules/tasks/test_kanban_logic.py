@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from app.modules.tasks.domain.constants import TASK_STATUS_OPEN, TASK_STATUS_IN_PROGRESS, TASK_STATUS_REVIEW
 
+
 @pytest.mark.asyncio
 async def test_task_status_transitions(client: AsyncClient, admin_token: str, test_project_id: str):
     # 1. Create a task
@@ -18,7 +19,7 @@ async def test_task_status_transitions(client: AsyncClient, admin_token: str, te
     )
     assert create_res.status_code == 201
     task_id = create_res.json()["data"]["_id"]
-    
+
     # 2. Transition to In Progress
     patch_res = await client.patch(
         f"/api/v1/tasks/{task_id}/status",
@@ -27,7 +28,7 @@ async def test_task_status_transitions(client: AsyncClient, admin_token: str, te
     )
     assert patch_res.status_code == 200
     assert patch_res.json()["data"]["status"] == TASK_STATUS_IN_PROGRESS
-    
+
     # 3. Transition to Review (New Status)
     patch_res = await client.patch(
         f"/api/v1/tasks/{task_id}/status",
@@ -36,7 +37,7 @@ async def test_task_status_transitions(client: AsyncClient, admin_token: str, te
     )
     assert patch_res.status_code == 200
     assert patch_res.json()["data"]["status"] == TASK_STATUS_REVIEW
-    
+
     # 4. Try illegal transition (Review -> Open is not allowed in state_machine.py)
     # Review -> {Completed, In Progress, Closed}
     patch_res = await client.patch(

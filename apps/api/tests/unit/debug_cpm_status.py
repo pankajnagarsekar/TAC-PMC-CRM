@@ -1,7 +1,6 @@
 import sys
 import os
-import json
-from datetime import datetime, timedelta
+
 
 # Add the app directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -15,7 +14,7 @@ def debug_cpm_status():
     ]
     input_data = {"project_start": project_start, "tasks": tasks}
     result = run_calculation(input_data)
-    
+
     if "error" in result:
         print(f"ERROR: {result['error']}")
         return

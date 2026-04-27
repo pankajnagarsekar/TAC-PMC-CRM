@@ -7,14 +7,13 @@ idempotency, and audit trail. Uses real MongoDB test database.
 
 import pytest
 from decimal import Decimal
-from datetime import datetime, timezone
+
 from bson import ObjectId
 
 from app.modules.financial.application.payment_service import PaymentService
 from app.modules.financial.schemas.dto import PaymentCertificateCreate
 from app.modules.shared.application.audit_service import AuditService
-from app.modules.shared.domain.exceptions import ValidationError, NotFoundError
-from app.modules.shared.domain.state_machine import StateMachine
+from app.modules.shared.domain.exceptions import ValidationError
 
 
 # ============================================================================
@@ -69,11 +68,11 @@ async def audit_service(test_db_with_payments):
 async def payment_service(test_db_with_payments, audit_service):
     """Payment service with test database."""
     from unittest.mock import AsyncMock, MagicMock
-    
+
     mock_financial = MagicMock()
     mock_financial.validate_financial_document = AsyncMock(return_value=None)
     mock_financial.recalculate_master_budget = AsyncMock(return_value={})
-    
+
     mock_permission = MagicMock()
     mock_permission.check_project_access = AsyncMock(return_value=None)
     mock_permission.check_write_access_with_role = AsyncMock(return_value=None)

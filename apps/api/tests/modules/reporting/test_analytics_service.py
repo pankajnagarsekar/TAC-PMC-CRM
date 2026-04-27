@@ -6,7 +6,7 @@ Tests schedule health, resource utilization, financial summary, and timeline ana
 import pytest
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.modules.reporting.application.analytics_service import (
     AnalyticsService,

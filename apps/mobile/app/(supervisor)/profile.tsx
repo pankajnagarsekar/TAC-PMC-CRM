@@ -2,14 +2,14 @@
 // Profile and settings for supervisors - Only password change and attendance
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { baseApiClient } from '../../services/apiClient';
 
 export default function SupervisorProfile() {
   const { user } = useAuth();
@@ -20,16 +20,6 @@ export default function SupervisorProfile() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
-
-  // Get token helper
-  const getToken = async () => {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem('access_token');
-    }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SecureStore = require('expo-secure-store');
-    return await SecureStore.getItemAsync('access_token');
-  };
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -47,31 +37,19 @@ export default function SupervisorProfile() {
 
     try {
       setChangingPassword(true);
-      const token = await getToken();
-      const response = await fetch(`${BASE_URL}/api/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
+      await baseApiClient.post('/api/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
       });
 
-      if (response.ok) {
-        Alert.alert('Success', 'Password changed successfully');
-        setShowPasswordModal(false);
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-      } else {
-        const error = await response.json();
-        Alert.alert('Error', error.detail || 'Failed to change password');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to change password');
+      Alert.alert('Success', 'Password changed successfully');
+      setShowPasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to change password';
+      Alert.alert('Error', msg);
     } finally {
       setChangingPassword(false);
     }
@@ -99,8 +77,8 @@ export default function SupervisorProfile() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account Settings</Text>
           <Card padding="none">
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => setShowPasswordModal(true)}
             >
               <Ionicons name="key" size={22} color={Colors.textSecondary} />

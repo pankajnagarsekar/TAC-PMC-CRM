@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../contexts/ThemeContext';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -59,12 +59,22 @@ export default function LoginScreen() {
         console.warn('Unknown user role:', role);
         router.replace('/login');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      if (err?.data?.detail) {
-        setError(err.data.detail);
-      } else if (err?.message) {
-        setError(err.message);
+
+      // Type guard for expected error structure
+      const isApiError = (e: unknown): e is { data?: { detail?: string }; message?: string } => {
+        return typeof e === 'object' && e !== null;
+      };
+
+      if (isApiError(err)) {
+        if (err.data?.detail) {
+          setError(err.data.detail);
+        } else if (err.message) {
+          setError(err.message);
+        } else {
+          setError('Login failed. Please check your credentials and try again.');
+        }
       } else {
         setError('Login failed. Please check your credentials and try again.');
       }
@@ -157,7 +167,13 @@ export default function LoginScreen() {
   );
 }
 
-const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any, Shadows: any) => StyleSheet.create({
+const getStyles = (
+  Colors: ThemeContextType['colors'],
+  Spacing: ThemeContextType['spacing'],
+  FontSizes: ThemeContextType['fontSizes'],
+  BorderRadius: ThemeContextType['borderRadius'],
+  Shadows: ThemeContextType['shadows']
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

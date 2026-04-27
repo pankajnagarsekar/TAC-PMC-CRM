@@ -11,18 +11,18 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Platform,
   Alert,
   TextInput,
+  GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useProject } from '../../../contexts/ProjectContext';
 import { Card } from '../../../components/ui';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../../contexts/ThemeContext';
 import { dprApi } from '../../../services/apiClient';
-import { DPR } from '../../../types/api';
+import { DPR, Project } from '../../../types/api';
 
 export default function AdminDPRListScreen() {
   const router = useRouter();
@@ -46,7 +46,8 @@ export default function AdminDPRListScreen() {
     }
   }, [selectedProject, router]);
 
-  const projectId = (selectedProject as any)?.project_id || (selectedProject as any)?._id || '';
+  const project = selectedProject as Project | null;
+  const projectId = project?.project_id || project?._id || '';
 
   const loadDPRs = useCallback(async () => {
     if (!projectId) return;
@@ -68,8 +69,6 @@ export default function AdminDPRListScreen() {
     if (projectId) loadDPRs();
   }, [loadDPRs, projectId]);
 
-  // Refresh when screen focused
-  const { useFocusEffect } = require('expo-router');
   useFocusEffect(
     React.useCallback(() => {
       if (projectId) loadDPRs();
@@ -100,9 +99,10 @@ export default function AdminDPRListScreen() {
       setDprs(prev => prev.map(dpr =>
         (dpr.dpr_id === dprId || (dpr as any).id === dprId) ? { ...dpr, status: 'Approved' } : dpr
       ));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error approving DPR:', error);
-      Alert.alert('Error', error.message || 'Failed to approve DPR');
+      const msg = error instanceof Error ? error.message : 'Failed to approve DPR';
+      Alert.alert('Error', msg);
     } finally {
       setApprovingId(null);
     }
@@ -136,7 +136,7 @@ export default function AdminDPRListScreen() {
               {item.status?.toLowerCase() === 'submitted' && (
                 <TouchableOpacity
                   style={styles.quickApproveBtn}
-                  onPress={(e) => {
+                  onPress={(e: GestureResponderEvent) => {
                     e.stopPropagation();
                     if (dprId) approveDPR(dprId);
                   }}
@@ -260,7 +260,12 @@ export default function AdminDPRListScreen() {
   );
 }
 
-const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
+const getStyles = (
+  Colors: ThemeContextType['colors'],
+  Spacing: ThemeContextType['spacing'],
+  FontSizes: ThemeContextType['fontSizes'],
+  BorderRadius: ThemeContextType['borderRadius']
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

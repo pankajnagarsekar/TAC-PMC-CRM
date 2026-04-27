@@ -61,24 +61,27 @@ class UnitOfWork:
             # Transaction numbers are only allowed on replica sets
             print(f"UOW DEBUG: start_transaction failed: {e}")
             if "Transaction numbers" in str(e) or "IllegalOperation" in str(type(e).__name__):
-                logger.warning("UOW: MongoDB Transactions NOT SUPPORTED (Standalone mode). Proceeding without session/transaction.")
+                logger.warning(
+                    "UOW: MongoDB Transactions NOT SUPPORTED (Standalone mode). "
+                    "Proceeding without session/transaction."
+                )
                 # If transactions fail, we probably can't use sessions reliably for atomicity here
                 # Nullify session so repositories don't use it
-                self.session = None 
+                self.session = None
             else:
                 raise e
-        
+
         # Inject session into all managed repos (Stateful UOW - BUG-04)
         repo_names = [
-            'projects', 'work_orders', 'payments', 'budgets', 
-            'cash_transactions', 'fund_allocations', 'dprs', 
+            'projects', 'work_orders', 'payments', 'budgets',
+            'cash_transactions', 'fund_allocations', 'dprs',
             'vendors', 'ledger', 'sequences', 'code_master'
         ]
         for name in repo_names:
             repo = getattr(self, name)
             if repo:
                 repo.session = self.session
-                
+
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

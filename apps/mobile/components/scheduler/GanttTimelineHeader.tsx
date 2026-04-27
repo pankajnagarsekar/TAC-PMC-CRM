@@ -6,7 +6,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { Svg, Line, Text as SvgText } from 'react-native-svg';
 import { format, addDays } from 'date-fns';
-import { DAY_WIDTH_MAX, HEADER_HEIGHT } from './scheduler-constants';
+import { HEADER_HEIGHT } from './scheduler-constants';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface TimelineRange {

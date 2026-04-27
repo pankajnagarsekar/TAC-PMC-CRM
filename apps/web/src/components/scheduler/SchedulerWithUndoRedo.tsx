@@ -9,7 +9,7 @@
 
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { useProjectStore } from '@/store/projectStore';
 import SchedulerGrid from './SchedulerGrid';
 import { UndoRedoHistory } from './UndoRedoHistory';
@@ -33,9 +33,7 @@ interface SchedulerWithUndoRedoProps {
 export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
   projectId,
 }) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeProject = useProjectStore((state: any) => state.activeProject);
-  const [showError, setShowError] = useState(false);
+  const activeProject = useProjectStore((state) => state.activeProject);
 
   const resolvedProjectId = projectId || activeProject?.project_id || null;
 
@@ -53,17 +51,10 @@ export const SchedulerWithUndoRedo: React.FC<SchedulerWithUndoRedoProps> = ({
     canRedo,
   } = useUndoRedo(resolvedProjectId);
 
-  // Handle errors
-  const handleError = useCallback(
-    (err: string) => {
-      setShowError(true);
-      setTimeout(() => setShowError(false), 5000);
-    },
-    []
-  );
+
 
   // Show error alert if undo/redo fails
-  if (error && showError) {
+  if (error) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="w-96 rounded-lg border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300">

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -76,7 +76,7 @@ class PaymentService:
 
         fund_request = pc_data.fund_request
         pc_type = "PETTY_OVH" if fund_request else "WO_LINKED"
-        
+
         # BUG-29: Validate document schema and project invariants via authoritative service
         doc_data = pc_data.dict()
         doc_data["pc_type"] = pc_type
@@ -112,15 +112,15 @@ class PaymentService:
                 category = await uow.code_master.get_by_id(pc_data.category_id, session=uow.session)
                 if not category:
                     category = await uow.code_master.find_one({"code": pc_data.category_id}, session=uow.session)
-                
+
                 if not category:
                     raise ValidationError(f"Category {pc_data.category_id} not found")
-                
+
                 if category.get("budget_type") != "fund_transfer":
                     raise ValidationError("Fund request category must be of type 'fund_transfer'")
-                
-                pc_data.category_id = category["code"] # Store the Code for consistent lookups (Point 75)
-                
+
+                pc_data.category_id = category["code"]  # Store the Code for consistent lookups (Point 75)
+
                 # 2. CALC-5: allocation_remaining > 0
                 allocation = await uow.fund_allocations.find_one(
                     {"project_id": project_id, "category_id": pc_data.category_id},
@@ -128,7 +128,7 @@ class PaymentService:
                 )
                 if not allocation:
                     raise ValidationError(f"Fund allocation for category {pc_data.category_id} not initialized")
-                
+
                 remaining = FinancialEngine.to_decimal(allocation.get("allocation_remaining", 0))
                 if remaining <= 0:
                     raise ValidationError("Cannot raise PC: no allocation remaining")
@@ -164,7 +164,7 @@ class PaymentService:
                 {
                     "organisation_id": organisation_id,
                     "pc_ref": pc_ref,
-                    "pc_type": pc_type, # Mode identification
+                    "pc_type": pc_type,  # Mode identification
                     "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
                     "retention_amount": FinancialEngine.to_d128(
                         fin["retention_amount"]
@@ -242,7 +242,9 @@ class PaymentService:
                 session=uow.session,
             )
             if not updated_pc:
-                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
+                raise ValidationError(
+                    "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
+                )
 
             if pc_type == "WO_LINKED" and pc.get("vendor_id"):
                 await uow.vendors.update_one(
@@ -351,7 +353,7 @@ class PaymentService:
         pc = await self.pc_repo.get_by_id(pc_id, organisation_id=organisation_id)
         if not pc:
             raise NotFoundError("Payment Certificate", pc_id)
-        
+
         # Ensure total_payable is populated for frontend (Point 3.3/75 consistency)
         if "total_payable" not in pc:
             pc["total_payable"] = pc.get("grand_total") or pc.get("total_after_retention", 0)
@@ -398,7 +400,9 @@ class PaymentService:
                 session=uow.session,
             )
             if not updated:
-                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
+                raise ValidationError(
+                    "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
+                )
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
@@ -472,7 +476,9 @@ class PaymentService:
                 session=uow.session,
             )
             if not updated:
-                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
+                raise ValidationError(
+                    "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
+                )
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,
@@ -497,7 +503,7 @@ class PaymentService:
                     "amount": FinancialEngine.to_d128(amount),
                     "created_at": now()
                 }, session=uow.session)
-            
+
             # Authoritative Recalculation
             await self.financial_service.recalculate_master_budget(
                 updated["project_id"], session=uow.session
@@ -547,7 +553,9 @@ class PaymentService:
                 session=uow.session,
             )
             if not updated:
-                raise ValidationError("CONFLICT: Payment Certificate was modified by another process (Version Mismatch).")
+                raise ValidationError(
+                    "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
+                )
 
             await self.audit_service.log_action(
                 organisation_id=organisation_id,

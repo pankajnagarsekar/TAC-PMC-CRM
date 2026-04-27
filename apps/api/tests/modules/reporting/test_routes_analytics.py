@@ -4,8 +4,7 @@ Tests HTTP endpoints for analytics and full dashboard data.
 """
 
 import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
+from datetime import datetime, timezone
 
 from app.main import app
 

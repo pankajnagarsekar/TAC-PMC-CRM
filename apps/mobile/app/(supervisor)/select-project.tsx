@@ -36,19 +36,19 @@ export default function ProjectSelectionScreen() {
   const loadProjects = async () => {
     try {
       const allProjects = await projectsApi.getAll();
-      
+
       // Filter projects based on user's assigned_projects
       const assignedProjectIds = user?.assigned_projects || [];
-      
+
       let filteredProjects = allProjects;
       if (assignedProjectIds.length > 0) {
-        filteredProjects = allProjects.filter((p: any) => 
-          assignedProjectIds.includes(p.project_id || p._id)
+        filteredProjects = allProjects.filter((p: Project) =>
+          assignedProjectIds.includes(p.project_id || p._id || '')
         );
       }
-      
+
       setProjects(filteredProjects);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load projects:', error);
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ export default function ProjectSelectionScreen() {
   };
 
   const renderProject = ({ item }: { item: Project }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.projectCard}
       onPress={() => handleProjectSelect(item)}
       activeOpacity={0.7}
@@ -75,9 +75,9 @@ export default function ProjectSelectionScreen() {
         {item.client_name && (
           <Text style={styles.projectClient}>{item.client_name}</Text>
         )}
-        {(item as any).project_code && (
+        {item.project_code && (
           <View style={styles.codeBadge}>
-            <Text style={styles.codeText}>{(item as any).project_code}</Text>
+            <Text style={styles.codeText}>{item.project_code}</Text>
           </View>
         )}
       </View>
@@ -116,7 +116,7 @@ export default function ProjectSelectionScreen() {
           <FlatList
             data={projects}
             renderItem={renderProject}
-            keyExtractor={(item: any) => item.project_id || item._id}
+            keyExtractor={(item: Project) => item.project_id || item._id || ''}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
@@ -136,7 +136,7 @@ export default function ProjectSelectionScreen() {
             <Text style={styles.emptyText}>
               Contact your administrator to get projects assigned to your account.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.refreshButton}
               onPress={() => { setLoading(true); loadProjects(); }}
             >

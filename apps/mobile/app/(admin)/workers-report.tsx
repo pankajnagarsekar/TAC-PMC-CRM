@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Platform,
   TextInput,
   Modal,
 } from 'react-native';
@@ -20,32 +19,10 @@ import { Card } from '../../components/ui';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../constants/theme';
 import ScreenHeader from '../../components/ScreenHeader';
 
-const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { baseApiClient } from '../../services/apiClient';
+import { Project } from '../../types/api';
 
-const getToken = async () => {
-  if (Platform.OS === 'web') return localStorage.getItem('access_token');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require('expo-secure-store');
-  return await SecureStore.getItemAsync('access_token');
-};
-
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getToken();
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || 'Request failed');
-  }
-  return response.json();
-};
-
-interface WorkerLog {
+interface WorkerLogReport {
   log_id: string;
   project_id: string;
   project_name?: string;
@@ -66,11 +43,7 @@ interface WorkerLog {
   }[];
 }
 
-interface Project {
-  project_id?: string;
-  _id?: string;
-  project_name: string;
-}
+// USING GLOBAL PROJECT INTERFACE
 
 interface ReportSummary {
   total_logs: number;
@@ -82,18 +55,18 @@ interface ReportSummary {
 export default function WorkersReportScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [logs, setLogs] = useState<WorkerLog[]>([]);
+  const [logs, setLogs] = useState<WorkerLogReport[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [summary, setSummary] = useState<ReportSummary | null>(null);
-  
+
   // Filters
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  
+
   // Detail modal
-  const [selectedLog, setSelectedLog] = useState<WorkerLog | null>(null);
+  const [selectedLog, setSelectedLog] = useState<WorkerLogReport | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
   // Set default date range (last 7 days)
@@ -101,7 +74,7 @@ export default function WorkersReportScreen() {
     const today = new Date();
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
-    
+
     setEndDate(today.toISOString().split('T')[0]);
     setStartDate(weekAgo.toISOString().split('T')[0]);
   }, []);
@@ -109,27 +82,29 @@ export default function WorkersReportScreen() {
   const loadData = useCallback(async () => {
     try {
       // Load projects
-      const projectsData = await apiRequest('/api/projects');
+      const projectsData = await baseApiClient.get<Project[]>('/api/v1/projects');
       setProjects(projectsData || []);
 
       // Build query params
-      let queryParams = '';
+      const params = new URLSearchParams();
       if (selectedProject !== 'all') {
-        queryParams += `project_id=${selectedProject}&`;
+        params.append('project_id', selectedProject);
       }
       if (startDate) {
-        queryParams += `start_date=${startDate}&`;
+        params.append('start_date', startDate);
       }
       if (endDate) {
-        queryParams += `end_date=${endDate}&`;
+        params.append('end_date', endDate);
       }
 
+      const queryString = params.toString();
+
       // Load worker logs
-      const logsData = await apiRequest(`/api/worker-logs?${queryParams}`);
-      
+      const logsData = await baseApiClient.get<WorkerLogReport[]>(`/api/v1/worker-logs?${queryString}`);
+
       // Enrich logs with project names
-      const enrichedLogs = (logsData || []).map((log: WorkerLog) => {
-        const project = projectsData.find((p: Project) => 
+      const enrichedLogs = (logsData || []).map((log) => {
+        const project = projectsData.find((p) =>
           (p.project_id || p._id) === log.project_id
         );
         return {
@@ -137,14 +112,14 @@ export default function WorkersReportScreen() {
           project_name: project?.project_name || 'Unknown Project'
         };
       });
-      
+
       setLogs(enrichedLogs);
 
       // Load summary
-      const summaryData = await apiRequest(`/api/worker-logs/report/summary?${queryParams}`);
+      const summaryData = await baseApiClient.get<ReportSummary>(`/api/v1/worker-logs/report/summary?${queryString}`);
       setSummary(summaryData);
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading report data:', error);
     } finally {
       setLoading(false);
@@ -173,7 +148,7 @@ export default function WorkersReportScreen() {
     setStartDate(weekAgo.toISOString().split('T')[0]);
   };
 
-  const openLogDetail = (log: WorkerLog) => {
+  const openLogDetail = (log: WorkerLogReport) => {
     setSelectedLog(log);
     setDetailModalVisible(true);
   };
@@ -209,7 +184,7 @@ export default function WorkersReportScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <ScreenHeader title="Workers Report" />
-      
+
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -275,9 +250,9 @@ export default function WorkersReportScreen() {
         {/* Logs List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Daily Logs ({logs.length})</Text>
-          
+
           {logs.length > 0 ? (
-            logs.map(log => (
+            logs.map((log: WorkerLogReport) => (
               <TouchableOpacity key={log.log_id} onPress={() => openLogDetail(log)}>
                 <Card style={styles.logCard}>
                   <View style={styles.logHeader}>
@@ -297,10 +272,10 @@ export default function WorkersReportScreen() {
                       </Text>
                     </View>
                   </View>
-                  
+
                   <Text style={styles.logProject}>{log.project_name}</Text>
                   <Text style={styles.logSupervisor}>by {log.supervisor_name}</Text>
-                  
+
                   <View style={styles.logStats}>
                     <View style={styles.logStat}>
                       <Ionicons name="people" size={16} color={Colors.accent} />
@@ -355,10 +330,10 @@ export default function WorkersReportScreen() {
                   >
                     <Picker.Item label="All Projects" value="all" />
                     {projects.map(project => (
-                      <Picker.Item 
-                        key={project.project_id || project._id} 
-                        label={project.project_name} 
-                        value={project.project_id || project._id} 
+                      <Picker.Item
+                        key={project.project_id || project._id}
+                        label={project.project_name}
+                        value={project.project_id || project._id}
                       />
                     ))}
                   </Picker>
@@ -391,7 +366,7 @@ export default function WorkersReportScreen() {
 
               {/* Quick date presets */}
               <View style={styles.presetRow}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.presetBtn}
                   onPress={() => {
                     const today = new Date();
@@ -401,7 +376,7 @@ export default function WorkersReportScreen() {
                 >
                   <Text style={styles.presetText}>Today</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.presetBtn}
                   onPress={() => {
                     const today = new Date();
@@ -413,7 +388,7 @@ export default function WorkersReportScreen() {
                 >
                   <Text style={styles.presetText}>Last 7 Days</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.presetBtn}
                   onPress={() => {
                     const today = new Date();
@@ -481,7 +456,7 @@ export default function WorkersReportScreen() {
                 <Text style={styles.detailSectionTitle}>
                   Workers ({selectedLog.workers?.length || 0})
                 </Text>
-                
+
                 {selectedLog.workers?.map((worker, index) => (
                   <View key={index} style={styles.workerItem}>
                     <View style={styles.workerIndex}>

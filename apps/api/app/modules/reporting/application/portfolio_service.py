@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-from bson import ObjectId
 from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.project.infrastructure.repository import ProjectRepository
 
 logger = logging.getLogger(__name__)
+
 
 class PortfolioService:
     """
@@ -106,7 +106,7 @@ class PortfolioService:
         ]
 
         results = await self.db.tasks.aggregate(pipeline).to_list(length=100)
-        
+
         return [
             {
                 "resource_name": r["_id"] or "Unassigned",
@@ -143,7 +143,10 @@ class PortfolioService:
                 "deadline": m.get("deadline"),
                 "status": m.get("status"),
                 "percent_complete": m.get("percent_complete", 0),
-                "is_overdue": m.get("status") in ["Open", "In Progress"] and m.get("deadline") < datetime.now(timezone.utc).isoformat() if m.get("deadline") else False
+                "is_overdue": (
+                    m.get("status") in ["Open", "In Progress"]
+                    and m.get("deadline") < datetime.now(timezone.utc).isoformat()
+                ) if m.get("deadline") else False
             })
 
         return results

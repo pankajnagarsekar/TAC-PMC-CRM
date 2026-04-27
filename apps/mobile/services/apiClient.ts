@@ -39,7 +39,6 @@ import {
   DPRSubmitResponse,
   GenerateDPRRequest,
   WorkerLog,
-  WorkerLogEntry,
   Image,
   CreateImageRequest,
   TimelineEvent,
@@ -339,7 +338,7 @@ async function request<T>(
 // ============================================
 // GENERIC API CLIENT HELPER
 // ============================================
-export const apiClient = {
+export const baseApiClient = {
   get: <T>(endpoint: string): Promise<T> => request<T>(endpoint),
   post: <T>(endpoint: string, body?: object): Promise<T> => request<T>(endpoint, {
     method: 'POST',
@@ -455,7 +454,7 @@ export const authApi = {
   async checkCanLogout(): Promise<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }> {
     try {
       return await request<{ can_logout: boolean; reason?: string; message?: string; has_draft?: boolean }>('/api/v1/auth/can-logout');
-    } catch (error) {
+    } catch {
       return { can_logout: true };
     }
   },
@@ -724,19 +723,24 @@ export interface CashSummaryResponse {
 
 export interface CashTransaction {
   transaction_id: string;
+  id?: string; // Alias for UI
   project_id: string;
   category_id: string;
   description: string;
+  purpose?: string; // Alias for UI
   amount: number;
+  type?: "DEBIT" | "CREDIT"; // Added for UI logic
   transaction_date: string;
   created_by: string;
+  recorded_by?: string; // Alias for UI
   created_at: string;
+  recorded_at?: string; // Alias for UI
 }
 
 export const cashApi = {
   getSummary: (projectId: string): Promise<CashSummaryResponse> =>
     request(`/api/v1/cash/summary/${projectId}`),
-  listTransactions: (projectId: string, params?: { category_id?: string; limit?: number; cursor?: string }): Promise<{ items: any[]; next_cursor?: string }> => {
+  listTransactions: (projectId: string, params?: { category_id?: string; limit?: number; cursor?: string }): Promise<{ items: CashTransaction[]; next_cursor?: string }> => {
     let url = `/api/v1/cash/transactions?project_id=${projectId}`;
     if (params?.category_id) url += `&category_id=${params.category_id}`;
     if (params?.limit) url += `&limit=${params.limit}`;

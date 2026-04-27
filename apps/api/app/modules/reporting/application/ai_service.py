@@ -96,7 +96,8 @@ class AIService:
             1. Action items (task name, assignee, deadline).
             2. A suggested duration in working days for the next phase.
 
-            Return output as JSON only with keys: action_items (list), suggested_duration_days (int), confidence_score (float 0-1).
+            Return output as JSON only with keys: action_items (list),
+            suggested_duration_days (int), confidence_score (float 0-1).
 
             Notes:
             {raw_notes}

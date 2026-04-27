@@ -77,7 +77,7 @@ export default function ProjectDashboard() {
                     <Button
                         title="Browse Projects"
                         onPress={() => router.push('/(admin)/projects')}
-                        style={{ marginTop: Spacing.xl } as any}
+                        style={{ marginTop: Spacing.xl }}
                     />
                 </View>
             </SafeAreaView>
@@ -190,18 +190,20 @@ export default function ProjectDashboard() {
 
                     {/* Shortcut Matrix */}
                     <View style={styles.shortcutGrid}>
-                        {[
-                            { label: 'FUNDS', icon: 'wallet', route: '/(admin)/petty-cash' },
-                            { label: 'DPR', icon: 'file-text', route: '/(admin)/dpr' },
-                            { label: 'TASKS', icon: 'check-square', route: '/(admin)/tasks' },
-                            { label: 'MORE', icon: 'grid', route: '/(admin)/settings' }
-                        ].map((item, idx) => (
+                        {(
+                            [
+                                { label: 'FUNDS', icon: 'credit-card', route: '/(admin)/petty-cash' },
+                                { label: 'DPR', icon: 'file-text', route: '/(admin)/dpr' },
+                                { label: 'TASKS', icon: 'check-square', route: '/(admin)/tasks' },
+                                { label: 'MORE', icon: 'grid', route: '/(admin)/settings' }
+                            ] as const
+                        ).map((item, idx) => (
                             <Pressable
                                 key={idx}
                                 style={[styles.shortcutBox, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
                                 onPress={() => router.push(item.route as any)}
                             >
-                                <Feather name={item.icon as any} size={22} color={Colors.primary} />
+                                <Feather name={item.icon} size={22} color={Colors.primary} />
                                 <Text style={[styles.shortcutText, { color: Colors.text }]}>{item.label}</Text>
                             </Pressable>
                         ))}

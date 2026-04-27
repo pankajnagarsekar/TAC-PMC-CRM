@@ -57,8 +57,9 @@ export default function NewTaskPage() {
         description: "The task has been successfully scheduled.",
       });
       router.push("/admin/tasks");
-    } catch (error: any) {
-      console.error(error);
+    } catch (err: unknown) {
+      console.error(err);
+      const error = err as { response?: { data?: { detail?: string } } };
       toast({
         title: "Failed to create task",
         description: error?.response?.data?.detail || "An error occurred",

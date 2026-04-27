@@ -17,26 +17,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useProject } from '../../contexts/ProjectContext';
 import { useRouter } from 'expo-router';
-import { apiClient, authApi, attendanceApi, workerLogsApi } from '../../services/apiClient';
+import { authApi, attendanceApi, workerLogsApi } from '../../services/apiClient';
 import { Attendance, WorkerLogSummary } from '../../types/api';
 import { Card, Input, Button } from '../../components/ui';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
 import * as Linking from 'expo-linking';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 type TabType = 'supervisor' | 'worker';
 
-interface AttendanceRecord {
-  attendance_id: string;
-  user_id: string;
-  user_name: string;
-  role: string;
-  project_id: string;
-  project_name?: string;
-  check_in_time: string;
-  location?: { latitude: number; longitude: number; address?: string };
-  status: string;
-}
 
 // WorkerLogSummary interface moved to centralized types/api.ts
 
@@ -106,7 +95,7 @@ export default function AttendanceViewScreen() {
         vendor: vendorFilter || undefined,
       });
       setWorkerLogs(logs || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching attendance:', err);
     } finally {
       setLoading(false);
@@ -216,7 +205,7 @@ export default function AttendanceViewScreen() {
         <View style={styles.centerContent}>
           <Ionicons name="business-outline" size={48} color={Colors.textMuted} />
           <Text style={styles.emptyTitle}>No Project Selected</Text>
-          <Pressable style={styles.selectBtn} onPress={() => router.push('/(admin)/select-project' as any)}>
+          <Pressable style={styles.selectBtn} onPress={() => router.push('/(admin)/select-project')}>
             <Text style={styles.selectBtnText}>Select Project</Text>
           </Pressable>
         </View>
@@ -238,7 +227,7 @@ export default function AttendanceViewScreen() {
           <View>
             <Text style={styles.pageTitle}>Attendance</Text>
             <Text style={styles.projectLabel}>
-              {(selectedProject as any)?.project_name || 'Project'}
+              {selectedProject?.project_name || 'Project'}
             </Text>
           </View>
           <View style={styles.headerBtns}>
@@ -500,7 +489,12 @@ export default function AttendanceViewScreen() {
   );
 }
 
-const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
+const getStyles = (
+  Colors: ThemeContextType['colors'],
+  Spacing: ThemeContextType['spacing'],
+  FontSizes: ThemeContextType['fontSizes'],
+  BorderRadius: ThemeContextType['borderRadius']
+) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { padding: Spacing.md, paddingBottom: 100 },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },

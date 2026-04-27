@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { Colors, Spacing, FontSizes, BorderRadius } from '../constants/theme';
 
 // Simple fetch wrapper for transitions
@@ -19,8 +20,6 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   let authToken = token;
   if (!authToken && Platform.OS !== 'web') {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const SecureStore = require('expo-secure-store');
       authToken = await SecureStore.getItemAsync('access_token');
     } catch { }
   }
@@ -108,20 +107,13 @@ export function TransitionActions({
   const [fetched, setFetched] = useState(!!allowedTransitions);
   const [periodLocked, setPeriodLocked] = useState<PeriodLockedState>({ isLocked: false });
 
-  // Fetch allowed transitions if not provided
-  React.useEffect(() => {
-    if (!allowedTransitions && !fetched) {
-      fetchTransitions();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityType, entityId, currentStatus]);
 
   // UI-5: Reset period locked state when entity changes
   React.useEffect(() => {
     setPeriodLocked({ isLocked: false });
   }, [entityId]);
 
-  const fetchTransitions = async () => {
+  const fetchTransitions = React.useCallback(async () => {
     try {
       const endpoint = getTransitionsEndpoint(entityType, entityId);
       const response = await apiRequest(endpoint);
@@ -133,7 +125,14 @@ export function TransitionActions({
       setTransitions(getFallbackTransitions(entityType, currentStatus));
       setFetched(true);
     }
-  };
+  }, [entityType, entityId, currentStatus]);
+
+  // Fetch allowed transitions if not provided
+  React.useEffect(() => {
+    if (!allowedTransitions && !fetched) {
+      fetchTransitions();
+    }
+  }, [allowedTransitions, fetched, fetchTransitions]);
 
   const handleTransition = async (targetStatus: string) => {
     // UI-5: Block if period is locked
@@ -173,10 +172,11 @@ export function TransitionActions({
       await apiRequest(endpoint, { method: 'POST', body: JSON.stringify({ target_status: targetStatus }) });
       showAlert('Success', `Status changed to ${targetStatus}`);
       onTransitionComplete?.(targetStatus);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Transition failed:', error);
-      showAlert('Error', error.message || 'Failed to update status');
-      onError?.(error);
+      const message = error instanceof Error ? error.message : 'Failed to update status';
+      showAlert('Error', message);
+      onError?.(error as Error);
     } finally {
       setLoading(null);
     }
@@ -239,7 +239,7 @@ export function TransitionActions({
             ) : (
               <>
                 <Ionicons
-                  name={meta.icon as any}
+                  name={meta.icon as keyof typeof Ionicons.glyphMap}
                   size={compact ? 16 : 18}
                   color={periodLocked.isLocked ? Colors.textMuted : meta.color}
                 />

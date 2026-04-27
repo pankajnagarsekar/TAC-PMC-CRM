@@ -14,7 +14,7 @@ import {
   X,
   Download,
 } from "lucide-react";
-import { ColDef } from "ag-grid-community";
+import { ColDef, ICellRendererParams, ValueFormatterParams, GridApi } from "ag-grid-community";
 import api, { fetcher } from "@/lib/api";
 import { useRequestLock } from "@/lib/requestLock";
 import FinancialGrid from "@/components/ui/FinancialGrid";
@@ -30,6 +30,7 @@ interface LineItem {
   qty: number;
   rate: number;
   total: number;
+  id?: string;
 }
 
 export default function WorkOrderDetailPage() {
@@ -50,7 +51,7 @@ export default function WorkOrderDetailPage() {
   });
   const [editLineItems, setEditLineItems] = useState<LineItem[]>([]);
 
-  const { isLocked: isSavingLock, executeWithLock: executeWoUpdateWithLock } = useRequestLock({
+  const { executeWithLock: executeWoUpdateWithLock } = useRequestLock({
     operationId: "WO_UPDATE",
     timeoutMs: 30000,
   });
@@ -72,7 +73,7 @@ export default function WorkOrderDetailPage() {
     fetcher,
   );
 
-  const columnDefs: ColDef<any>[] = useMemo(
+  const columnDefs: ColDef<LineItem>[] = useMemo(
     () => [
       { field: "description", headerName: "Description", flex: 2, editable: isEditing },
       {
@@ -88,14 +89,14 @@ export default function WorkOrderDetailPage() {
         flex: 1,
         editable: isEditing,
         type: "numericColumn",
-        valueFormatter: (p: any) => formatCurrency(p.value),
+        valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(p.value),
       },
       {
         field: "total",
         headerName: "Total (₹)",
         flex: 1,
         editable: false,
-        valueFormatter: (p: any) => formatCurrency(p.value),
+        valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(p.value),
         cellClass: "bg-slate-800/20 font-bold",
       },
     ],
@@ -103,20 +104,20 @@ export default function WorkOrderDetailPage() {
   );
 
   // Handle grid cell changes
-  const handleCellValueChanged = useCallback((event: any) => {
+  const handleCellValueChanged = useCallback((event: { data: LineItem; colDef: ColDef<LineItem>; api: GridApi<LineItem> }) => {
     const { data, colDef } = event;
 
     // When qty or rate changes, recalculate total
     if (colDef.field === "qty" || colDef.field === "rate") {
-      const qty = parseFloat(data.qty) || 0;
-      const rate = parseFloat(data.rate) || 0;
+      const qty = parseFloat(data.qty as unknown as string) || 0;
+      const rate = parseFloat(data.rate as unknown as string) || 0;
       data.total = qty * rate;
       event.api.applyTransaction({ update: [data] });
     }
 
     // Refresh totals and state
     const updatedItems: LineItem[] = [];
-    event.api.forEachNode((node: any) => {
+    event.api.forEachNode((node: { data?: LineItem }) => {
       if (node.data) updatedItems.push(node.data);
     });
     setEditLineItems(updatedItems);
@@ -212,11 +213,12 @@ export default function WorkOrderDetailPage() {
 
       await mutateWO();
       setIsEditing(false);
-    } catch (err: any) {
-      if (err.response?.status === 409) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { detail?: string } } };
+      if (error.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
-        alert(err.response?.data?.detail || "Failed to save work order");
+        alert(error.response?.data?.detail || "Failed to save work order");
       }
     } finally {
       setIsSaving(false);
@@ -239,11 +241,12 @@ export default function WorkOrderDetailPage() {
       );
       setShowCancelConfirm(false);
       mutateWO();
-    } catch (err: any) {
-      if (err.response?.status === 409) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { detail?: string } } };
+      if (error.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
-        alert(err.response?.data?.detail || "Failed to update status");
+        alert(error.response?.data?.detail || "Failed to update status");
       }
     }
   };
@@ -590,9 +593,9 @@ export default function WorkOrderDetailPage() {
               headerName: "",
               width: 50,
               pinned: "right" as const,
-              cellRenderer: (p: { node: { rowIndex: number } }) => (
+              cellRenderer: (p: ICellRendererParams<LineItem>) => (
                 <button
-                  onClick={() => removeLineItem(p.node.rowIndex)}
+                  onClick={() => p.node.rowIndex != null && removeLineItem(p.node.rowIndex)}
                   className="text-red-500 hover:text-red-400 flex items-center justify-center h-full w-full"
                 >
                   <X size={14} />

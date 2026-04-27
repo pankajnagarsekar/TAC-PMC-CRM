@@ -139,10 +139,10 @@ class ProjectService:
         current_version = existing.get("version", 1)
         update_dict["version"] = current_version + 1
         update_dict["updated_at"] = now()
-        
+
         result = await self.project_repo.update(
-            project_id, 
-            update_dict, 
+            project_id,
+            update_dict,
             organisation_id=user["organisation_id"],
             expected_version=current_version
         )

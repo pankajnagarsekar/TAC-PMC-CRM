@@ -52,7 +52,7 @@ class SettingsService:
             # Strip internal and deprecated nested fields
             organisation_id = settings.get("organisation_id", user["organisation_id"])
             legacy_profile = settings.get("company_profile", {})
-            
+
             return {
                 "organisation_id": organisation_id,
                 "name": settings.get("name") or legacy_profile.get("name") or "TAC PMC",

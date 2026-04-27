@@ -254,9 +254,9 @@ async def generate_dpr_pdf(
     """Generate and download DPR PDF."""
     from fastapi.responses import StreamingResponse
     import io
-    
+
     pdf_bytes = await site_service.get_dpr_pdf(user, dpr_id)
-    
+
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
@@ -379,9 +379,9 @@ async def export_attendance_excel(
         ]
         for r in records
     ]
-    
+
     excel_bytes = ExportService.export_to_excel("attendance", {"rows": rows})
-    
+
     return StreamingResponse(
         io.BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -419,9 +419,9 @@ async def export_attendance_pdf(
         ]
         for r in records
     ]
-    
+
     pdf_bytes = ExportService.export_to_pdf_service("attendance", {"rows": rows, "title": "Attendance Report"})
-    
+
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

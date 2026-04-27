@@ -9,17 +9,14 @@ Phase 1 Task #13: Resource Leveling
 """
 
 import logging
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Any
 from datetime import datetime
-from dataclasses import asdict
 
 from app.modules.scheduler.resource_leveler import (
     ResourceLeveler,
     ResourceAssignment,
     ResourceCapacity,
-    LevelingResult,
     LevelingStatus,
-    Conflict,
 )
 
 logger = logging.getLogger(__name__)

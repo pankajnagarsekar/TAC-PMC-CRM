@@ -148,7 +148,7 @@ async def seed_production():
             client_id = str(client_result.inserted_id)
         else:
             client_id = str(client_doc["_id"])
-            
+
         vendors_to_create = [
             {
                 "name": "Default Vendor",
@@ -215,8 +215,6 @@ async def seed_production():
                     }}
                 )
                 vendor_map[v_name] = str(v_doc["_id"])
-        vendor_id = vendor_map["Default Vendor"]
-
         code_map = {}
         for code in codes:
             existing_master = await db.code_master.find_one({"code": code["code"]})
@@ -244,11 +242,11 @@ async def seed_production():
         # 4. PROJECT: MAJORDA VILLA
         print("\n[STEP 4] Creating Majorda Villa Project...")
         project = await db.projects.find_one({"project_name": "Majorda Villa - Civil Works"})
-        
+
         # Consistent realistic budget values from MIS
         original_budget = 70000000 # 70M Cr
         remaining_budget = 68465000 # Adjusted
-        
+
         if project:
             project_id = str(project["_id"])
             print(f"  Project exists: {project_id}")
@@ -1067,7 +1065,7 @@ async def seed_production():
         except Exception as e:
             print(f"Skipping index creation: {e}")
             pass
-            
+
         financial_categories = [
             {"category_id": "CIV", "original": 15000000, "committed": 10072425, "certified": 1535000},
             {"category_id": "PLB", "original": 5000000, "committed": 0, "certified": 0},
@@ -1118,12 +1116,12 @@ async def seed_production():
         print("\n[STEP 7] Seeding Missing WOs, PCs and Site Tasks...")
         await db.work_orders.delete_many({"project_id": project_id})
         await db.payment_certificates.delete_many({"project_id": project_id})
-        
+
         from bson import ObjectId as WO_OID
         wo_civ_id = WO_OID()
         wo_elc_id = WO_OID()
         wo_prf_id = WO_OID()
-        wo_result = await db.work_orders.insert_many([
+        await db.work_orders.insert_many([
             {
                 "_id": wo_civ_id,
                 "wo_ref": "TAC_WO_25_002",
@@ -1209,7 +1207,7 @@ async def seed_production():
                 "updated_at": datetime.now(timezone.utc),
             }
         ])
-        
+
         await db.payment_certificates.insert_many([
             {
                 "pc_ref": "TAC_PC_25_001",
@@ -1268,7 +1266,7 @@ async def seed_production():
                 "updated_at": datetime.now(timezone.utc),
             }
         ])
-        
+
         print("  Created missing entities.")
 
         # Seed action tasks into `tasks` collection (task management module)

@@ -12,7 +12,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -36,11 +36,11 @@ export function Input({
   style,
   ...props
 }: InputProps) {
-  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius, isDark } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isSecure, setIsSecure] = useState(secureTextEntry);
 
-  const dynamicStyles = getStyles(Colors, Spacing, FontSizes, BorderRadius);
+  const dynamicStyles = getStyles(Colors, Spacing, FontSizes, BorderRadius, isDark);
 
   const inputContainerStyles = [
     dynamicStyles.inputContainer,
@@ -51,7 +51,7 @@ export function Input({
   return (
     <View style={[dynamicStyles.container, containerStyle]}>
       {label && <Text style={dynamicStyles.label}>{label}</Text>}
-      
+
       <View style={inputContainerStyles}>
         {leftIcon && (
           <Ionicons
@@ -61,7 +61,7 @@ export function Input({
             style={dynamicStyles.leftIcon}
           />
         )}
-        
+
         <TextInput
           style={[
             dynamicStyles.input,
@@ -75,7 +75,7 @@ export function Input({
           secureTextEntry={isSecure}
           {...props}
         />
-        
+
         {secureTextEntry ? (
           <TouchableOpacity
             onPress={() => setIsSecure(!isSecure)}
@@ -101,14 +101,20 @@ export function Input({
           </TouchableOpacity>
         ) : null}
       </View>
-      
+
       {error && <Text style={dynamicStyles.error}>{error}</Text>}
       {hint && !error && <Text style={dynamicStyles.hint}>{hint}</Text>}
     </View>
   );
 }
 
-const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any) => StyleSheet.create({
+const getStyles = (
+  Colors: ThemeContextType['colors'],
+  Spacing: ThemeContextType['spacing'],
+  FontSizes: ThemeContextType['fontSizes'],
+  BorderRadius: ThemeContextType['borderRadius'],
+  isDark: boolean
+) => StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
   },
@@ -129,7 +135,7 @@ const getStyles = (Colors: any, Spacing: any, FontSizes: any, BorderRadius: any)
   },
   inputContainerFocused: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.isDark ? Colors.surface : Colors.white,
+    backgroundColor: isDark ? Colors.surface : Colors.white,
   },
   inputContainerError: {
     borderColor: Colors.error,

@@ -288,7 +288,7 @@ async def export_report_excel(
         user, project_id, report_type, start_date, end_date
     )
     excel_bytes = ExportService.export_to_excel(report_type, report_data)
-    
+
     return StreamingResponse(
         io.BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -336,7 +336,7 @@ async def export_report_pdf(
         user, project_id, report_type, start_date, end_date
     )
     pdf_bytes = ExportService.export_to_pdf_service(report_type, report_data)
-    
+
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

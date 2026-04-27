@@ -1,6 +1,6 @@
 // CLIENT DASHBOARD (PHASE 7 PARITY)
 // Shows project overview based on enabled client permissions
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,21 +14,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { settingsApi, dashboardApi } from '../../services/apiClient';
+import { settingsApi } from '../../services/apiClient';
 import { Colors, Spacing, FontSizes, BorderRadius, Shadows } from '../../constants/theme';
+
+interface ClientPermissions {
+  budget: boolean;
+  commitments: boolean;
+  dpr: boolean;
+  site_images: boolean;
+  issues: boolean;
+  reports: boolean;
+}
+
+interface ClientSettings {
+  client_permissions?: ClientPermissions;
+}
 
 export default function ClientDashboard() {
   const { user } = useAuth();
   const router = useRouter();
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<ClientSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadSettings = useCallback(async () => {
     try {
       const data = await settingsApi.getGlobalSettings();
-      setSettings(data);
-    } catch (error) {
+      setSettings(data as ClientSettings);
+    } catch (error: unknown) {
       console.error('Error loading client settings:', error);
     } finally {
       setLoading(false);
@@ -83,55 +96,55 @@ export default function ClientDashboard() {
         {/* Dynamic Permissions Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Project Overview</Text>
-          
+
           <View style={styles.grid}>
             {permissions.budget && (
-              <DashboardCard 
-                icon="pie-chart" 
-                title="Budget" 
+              <DashboardCard
+                icon="pie-chart"
+                title="Budget"
                 subtitle="Financial overview"
-                color={Colors.primary} 
+                color={Colors.primary}
               />
             )}
             {permissions.commitments && (
-              <DashboardCard 
-                icon="document-attach" 
-                title="Commitments" 
+              <DashboardCard
+                icon="document-attach"
+                title="Commitments"
                 subtitle="Work Orders"
-                color={Colors.info} 
+                color={Colors.info}
               />
             )}
             {permissions.dpr && (
-              <DashboardCard 
-                icon="document-text" 
-                title="DPR" 
+              <DashboardCard
+                icon="document-text"
+                title="DPR"
                 subtitle="Progress Reports"
-                color={Colors.success} 
+                color={Colors.success}
               />
             )}
             {permissions.site_images && (
-              <DashboardCard 
-                icon="images" 
-                title="Photos" 
+              <DashboardCard
+                icon="images"
+                title="Photos"
                 subtitle="Site progress"
-                color={Colors.accent} 
+                color={Colors.accent}
               />
             )}
             {permissions.issues && (
-              <DashboardCard 
-                icon="alert-circle" 
-                title="Issues" 
+              <DashboardCard
+                icon="alert-circle"
+                title="Issues"
                 subtitle="Site observations"
-                color={Colors.error} 
+                color={Colors.error}
               />
             )}
             {permissions.reports && (
-              <DashboardCard 
-                icon="bar-chart" 
-                title="Reports" 
+              <DashboardCard
+                icon="bar-chart"
+                title="Reports"
                 subtitle="Export analytics"
-                color={Colors.secondary} 
-                onPress={() => router.push('/(client)/reports' as any)}
+                color={Colors.secondary}
+                onPress={() => router.push('/(client)/reports')}
               />
             )}
           </View>
@@ -158,7 +171,15 @@ export default function ClientDashboard() {
   );
 }
 
-function DashboardCard({ icon, title, subtitle, color, onPress }: any) {
+interface DashboardCardProps {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  subtitle: string;
+  color: string;
+  onPress?: () => void;
+}
+
+function DashboardCard({ icon, title, subtitle, color, onPress }: DashboardCardProps) {
   return (
     <Pressable style={styles.card} onPress={onPress}>
       <View style={[styles.cardIcon, { backgroundColor: color + '15' }]}>

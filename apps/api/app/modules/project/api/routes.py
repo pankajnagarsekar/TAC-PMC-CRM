@@ -144,9 +144,16 @@ async def list_clients(
     """List all clients within the organisation with pagination support."""
     try:
         if not user or not user.get("organisation_id"):
-            logger.error(f"LIST_CLIENTS_AUTH_ERROR: Missing organisation_id for user {user.get('user_id') if user else 'Unknown'}")
-            return GenericResponse(success=False, message="Authorization error: Missing organisation context", status_code=403)
-            
+            logger.error(
+                f"LIST_CLIENTS_AUTH_ERROR: Missing organisation_id for user "
+                f"{user.get('user_id') if user else 'Unknown'}"
+            )
+            return GenericResponse(
+                success=False,
+                message="Authorization error: Missing organisation context",
+                status_code=403
+            )
+
         clients = await client_service.list_clients(user["organisation_id"], skip=skip, limit=limit)
         return GenericResponse(data=clients)
     except Exception as e:
@@ -155,11 +162,11 @@ async def list_clients(
         from pydantic import ValidationError as PydanticValidationError
         error_msg = f"Internal server error in Client Registry: {str(e)}"
         if isinstance(e, PydanticValidationError):
-             error_msg = f"Data integrity fault: Backend schema mismatch. Details: {str(e)}"
-        
+            error_msg = f"Data integrity fault: Backend schema mismatch. Details: {str(e)}"
+
         return GenericResponse(
-            success=False, 
-            message=error_msg, 
+            success=False,
+            message=error_msg,
             status_code=500
         )
 
@@ -253,7 +260,7 @@ async def calculate_granular_schedule(
     load_time = time.time() - start_time
     tasks = schedule.get("tasks", [])
     project_start = schedule.get("project_start") or datetime.now().strftime("%Y-%m-%d")
- 
+
     # 2. Apply change to the specific task
     found = False
     for t in tasks:
@@ -261,24 +268,27 @@ async def calculate_granular_schedule(
             t.update(request.changes)
             found = True
             break
-    
+
     if not found:
         # If it's a new task (draft), add it to the list
         new_task = request.changes
         if "task_id" not in new_task:
             new_task["task_id"] = request.task_id
         tasks.append(new_task)
- 
+
     apply_time = time.time() - (start_time + load_time)
-    
+
     # 3. Recalculate
     result = await service.calculate_schedule(
         project_id, tasks, project_start
     )
     total_time = time.time() - start_time
-    
-    logger.info(f"PERF: scheduler_calculate | total={total_time:.3f}s | load={load_time:.3f}s | apply={apply_time:.3f}s")
-    
+
+    logger.info(
+        f"PERF: scheduler_calculate | total={total_time:.3f}s | "
+        f"load={load_time:.3f}s | apply={apply_time:.3f}s"
+    )
+
     return GenericResponse(data=result)
 
 
@@ -415,7 +425,6 @@ async def unlock_baseline(
         raise HTTPException(status_code=500, detail=f"Baseline unlock error: {str(e)}")
 
 
-
 @router.post(
     "/projects/{project_id}/export/pdf",
     tags=["Scheduler"],
@@ -442,7 +451,7 @@ async def download_scheduler_export_pdf(
     from fastapi.responses import StreamingResponse
     import io
     from app.core.export_service import ExportService
-    
+
     # We generate on-the-fly for now
     try:
         # Fixed: Use 'scheduler_gantt' template for scheduler export
@@ -450,7 +459,7 @@ async def download_scheduler_export_pdf(
             user, project_id, "scheduler_gantt", None, None
         )
         pdf_bytes = ExportService.export_to_pdf_service("scheduler_gantt", report_data)
-        
+
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
@@ -463,8 +472,6 @@ async def download_scheduler_export_pdf(
         raise
 
 
-
-
 @router.get(
     "/projects/{project_id}/export/status",
     tags=["Scheduler"],
@@ -475,8 +482,6 @@ async def get_scheduler_export_status(
 ):
     """Check status of background export job."""
     return GenericResponse(data={"status": "COMPLETED"})
-
-
 
 
 @router.post(
