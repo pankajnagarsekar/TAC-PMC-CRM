@@ -64,7 +64,7 @@ export default function ExpenseEntryModal({
       const response = await api.get(
         `/api/v1/cash/allocations?project_id=${projectId}`,
       );
-      const allocations = response.data.items || [];
+      const allocations = Array.isArray(response.data) ? response.data : (response.data.items || []);
 
       // Extract unique categories and filter by user requirement (Petty Cash/OVH only)
       const uniqueCategories: Category[] = [];

@@ -88,14 +88,15 @@ export default function CategoryLedgerPage() {
   };
 
   // Fetch Allocations to find the specific category details
-  const { data: allocData } = useSWR<{ items: FundAllocation[] }>(
+  const { data: allocData } = useSWR<FundAllocation[] | { items: FundAllocation[] }>(
     activeProject
       ? `/api/v1/cash/allocations?project_id=${activeProject.project_id}`
       : null,
     fetcher,
   );
 
-  const currentAllocation = allocData?.items.find(
+  const allocationsList = Array.isArray(allocData) ? allocData : (allocData?.items || []);
+  const currentAllocation = allocationsList.find(
     (a: FundAllocation) => a.category_id === categoryId,
   );
   const isNegative = (currentAllocation?.allocation_remaining || 0) < 0;
