@@ -16,7 +16,7 @@ import { ScheduleTask } from "@/types/schedule.types";
 import SchedulerGrid from "@/components/scheduler/SchedulerGrid";
 import GanttChart from "@/components/scheduler/GanttChart";
 import KanbanBoard from "@/components/scheduler/KanbanBoard";
-import TaskDrawer from "@/components/scheduler/TaskDrawer";
+import TaskDetailsModal from "@/components/scheduler/TaskDetailsModal";
 import FinancialChart from "@/components/ui/FinancialChart";
 import { Button } from "@/components/ui/button";
 import SCurveChart from "@/components/scheduler/SCurveChart";
@@ -324,13 +324,8 @@ function ProjectSchedulerContent() {
 
       {!loading && (taskCount > 0 || activeTab === "export") && (
         <Tabs.Root value={activeTab} onValueChange={handleTabChange} className="space-y-8">
-          <div className={`grid grid-cols-1 gap-8 ${['grid', 'gantt', 'kanban'].includes(activeTab) ? 'xl:grid-cols-[420px_minmax(0,1fr)]' : 'xl:grid-cols-1'}`}>
-            {/* Task Drawer - Left Sidebar */}
-            {(currentTab === "grid" || currentTab === "gantt" || currentTab === "kanban") && (
-              <div className="w-[420px] hidden xl:block">
-                <TaskDrawer />
-              </div>
-            )}
+          <div className="grid grid-cols-1 gap-8">
+
 
             <div className="min-w-0 space-y-8">
               <Tabs.Content value="grid" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
@@ -482,6 +477,7 @@ function ProjectSchedulerContent() {
         confirmText="Migrate Data"
         variant="warning"
       />
+      <TaskDetailsModal />
     </div>
   );
 }

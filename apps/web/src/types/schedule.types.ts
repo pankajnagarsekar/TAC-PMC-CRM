@@ -202,6 +202,7 @@ export interface ScheduleStoreState {
   lastConfirmedVersion: string | null;
   calculationError: string | null;
   collapsedParents: Set<string>;
+  isTaskModalOpen: boolean;
 
   // Baseline Comparison
   comparisonData: BaselineComparisonResult[] | null;
@@ -214,6 +215,7 @@ export interface ScheduleStoreState {
   createDraftTask: (projectId: string) => ScheduleTask;
   removeTask: (taskId: string) => Promise<void>;
   openTask: (taskId: string | null) => void;
+  setTaskModalOpen: (open: boolean) => void;
   rollbackToUndo: () => void;
   undo: () => void;
   selectTask: (taskId: string) => void;

@@ -274,6 +274,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     lastConfirmedVersion: null,
     calculationError: null,
     collapsedParents: new Set(),
+    isTaskModalOpen: false,
     comparisonData: null,
     selectedBaselineA: null,
     selectedBaselineB: null,
@@ -611,10 +612,15 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       });
     },
 
+    setTaskModalOpen: (open) => set({ isTaskModalOpen: open }),
+
     openTask: (taskId) => {
       set(() => {
         const selected = taskId ? new Set([taskId]) : new Set<string>();
-        return { selectedTasks: selected };
+        return {
+          selectedTasks: selected,
+          isTaskModalOpen: taskId ? true : false
+        };
       });
     },
 
