@@ -9,6 +9,8 @@ import {
   DialogFooter,
 } from "@tac-pmc/ui";
 import api from "@/lib/api";
+import { sanitizeText } from "@/lib/sanitize";
+
 import {
   Loader2,
   Mail,
@@ -97,7 +99,10 @@ export default function VendorModal({
     try {
       const payload = {
         ...formData,
-        name: trimmedName,
+        name: sanitizeText(trimmedName),
+        contact_person: sanitizeText(formData.contact_person),
+        email: sanitizeText(formData.email),
+        address: sanitizeText(formData.address),
       };
 
       if (vendor) {

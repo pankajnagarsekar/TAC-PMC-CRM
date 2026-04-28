@@ -72,9 +72,9 @@ export const PortfolioSummary: React.FC<{ data: PortfolioData }> = ({ data }) =>
                 />
                 <KPICard
                     title="Baseline Value"
-                    value={formatCurrency(data.total_baseline_value)}
+                    value={data.total_baseline_value > 0 ? formatCurrency(data.total_baseline_value) : "Not Initialized"}
                     icon={<LayoutDashboard className="w-5 h-5 text-emerald-500" />}
-                    description="Budgeted total"
+                    description={data.total_baseline_value > 0 ? "Budgeted total" : "Pending initialization"}
                 />
                 <KPICard
                     title="Awarded (WO)"

@@ -658,10 +658,10 @@ export default function AdminDashboard() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle size={14} className="text-rose-500" />
-                  <span className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">Overdue Milestones</span>
+                  <AlertTriangle size={14} className={(stats?.overview?.overdue_milestones ?? 0) > 0 ? "text-rose-500" : "text-emerald-500"} />
+                  <span className={`text-[10px] font-bold uppercase tracking-tight ${(stats?.overview?.overdue_milestones ?? 0) > 0 ? "text-rose-500" : "text-emerald-500"}`}>Overdue Milestones</span>
                 </div>
-                <span className="text-sm font-black text-rose-500">{stats?.overview?.overdue_milestones ?? 0}</span>
+                <span className={`text-sm font-black ${(stats?.overview?.overdue_milestones ?? 0) > 0 ? "text-rose-500" : "text-emerald-500"}`}>{stats?.overview?.overdue_milestones ?? 0}</span>
               </div>
             </div>
           </GlassCard>

@@ -12,6 +12,8 @@ import {
   Loader2,
 } from "lucide-react";
 import api, { fetcher } from "@/lib/api";
+import { sanitizeText } from "@/lib/sanitize";
+
 import { useRequestLock } from "@/lib/requestLock";
 import { idempotency } from "@/lib/idempotency";
 import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
@@ -115,7 +117,7 @@ export default function NewWorkOrderPage() {
         flex: 1,
         editable: true,
         type: "numericColumn",
-        valueParser: (p: ValueParserParams<LineItem>) => Number(p.newValue) || 0,
+        valueParser: (p: ValueParserParams<LineItem>) => Math.max(0, Number(p.newValue) || 0),
       },
       {
         field: "rate",
@@ -123,7 +125,7 @@ export default function NewWorkOrderPage() {
         flex: 1,
         editable: true,
         type: "numericColumn",
-        valueParser: (p: ValueParserParams<LineItem>) => Number(p.newValue) || 0,
+        valueParser: (p: ValueParserParams<LineItem>) => Math.max(0, Number(p.newValue) || 0),
         valueFormatter: (p: ValueFormatterParams<LineItem>) => formatCurrency(Number(p.value) || 0),
       },
       {
@@ -234,8 +236,12 @@ export default function NewWorkOrderPage() {
       const projectId = activeProject.project_id || activeProject._id;
       const payload = {
         ...formData,
+        description: sanitizeText(formData.description),
         project_id: projectId,
-        line_items: lineItems,
+        line_items: lineItems.map(item => ({
+          ...item,
+          description: sanitizeText(item.description)
+        })),
       };
 
       const response = await executeWorkOrderSaveWithLock(async () => {
@@ -465,6 +471,7 @@ export default function NewWorkOrderPage() {
                     setIsDirty(true);
                   }}
                   className="w-24 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right text-white"
+                  min={0}
                 />
               </div>
             </div>
@@ -508,6 +515,8 @@ export default function NewWorkOrderPage() {
                   setIsDirty(true);
                 }}
                 className="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right text-white"
+                min={0}
+                max={100}
               />
             </div>
 

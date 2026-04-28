@@ -52,7 +52,7 @@ export default function NotFound() {
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/20" />
                         </div>
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Security Clearance: AUTHENTICATED</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Security Clearance: UNKNOWN</span>
                     </div>
                 </div>
             </div>

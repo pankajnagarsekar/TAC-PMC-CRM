@@ -115,30 +115,31 @@ class EmergentSummaryProvider(SummaryProvider):
         """Build a detailed prompt for AI summarization."""
         if "status" in report_data:  # Schedule health
             return (
-                f"Provide a brief 1-sentence executive summary of schedule health for {name}:\n"
+                f"Provide a clear executive summary of schedule health for {name}:\n"
                 f"- Status: {report_data.get('status', 'unknown')}\n"
                 f"- On Track Tasks: {report_data.get('on_track_tasks', 0)}\n"
                 f"- At Risk Tasks: {report_data.get('at_risk_tasks', 0)}\n"
                 f"- Critical Path: {report_data.get('critical_path_days', 0)} days\n"
-                f"Say concisely if on track or at risk, and why."
+                f"Explain if the project is on track or at risk, highlight critical path issues, and give a professional recommendation."
             )
         elif "total_budget" in report_data:  # Financial
             return (
-                f"Provide a brief 1-sentence executive summary of financial status for {name}:\n"
+                f"Provide a clear executive summary of financial status for {name}:\n"
                 f"- Total Budget: ${report_data.get('total_budget', 0):.2f}\n"
                 f"- Total Spent: ${report_data.get('total_spent', 0):.2f}\n"
                 f"- Remaining: ${report_data.get('remaining_budget', 0):.2f}\n"
                 f"- Burn Rate: {report_data.get('burn_rate_pct', 0)}%\n"
-                f"Say concisely: is budget healthy, at risk, or overrun?"
+                f"Assess if the budget is healthy, at risk, or overrun. Mentions any significant variance and next steps."
             )
         elif "average_utilization_pct" in report_data:  # Resources
             return (
-                f"Provide a brief 1-sentence executive summary of resource allocation for {name}:\n"
+                f"Provide a clear executive summary of resource allocation for {name}:\n"
                 f"- Average Utilization: {report_data.get('average_utilization_pct', 0)}%\n"
                 f"- Over-Allocated: {report_data.get('over_allocated_count', 0)} people\n"
                 f"- Total Resources: {report_data.get('total_resources', 0)}\n"
-                f"Say concisely: is team healthy, busy, or overloaded?"
+                f"Assess if the team is healthy, busy, or overloaded. Highlight resource bottlenecks."
             )
+
         else:
             return f"Executive summary for {name}. Data: {report_data}"
 

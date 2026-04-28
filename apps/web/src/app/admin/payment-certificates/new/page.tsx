@@ -162,17 +162,22 @@ export default function NewPaymentCertificatePage() {
         fund_request: !isWoLinked,
         pc_type: isWoLinked ? "WO_LINKED" : "PETTY_OVH",
         retention_percent: retentionPercent,
-        line_items: lineItems.map((item, index) => ({
-          sr_no: index + 1,
-          scope_of_work: item.scope_of_work,
-          unit: item.unit,
-          qty: Number(item.qty),
-          rate: Number(item.rate),
-          total: Number(item.qty) * Number(item.rate),
-        })),
-        cgst: Number(((lineItems.reduce((acc, i) => acc + (Number(i.total) || 0), 0)) * (cgstRate / 100)).toFixed(2)),
-        sgst: Number(((lineItems.reduce((acc, i) => acc + (Number(i.total) || 0), 0)) * (sgstRate / 100)).toFixed(2)),
+        line_items: lineItems.map((item, index) => {
+          const qty = Math.max(0, Number(item.qty) || 0);
+          const rate = Math.max(0, Number(item.rate) || 0);
+          return {
+            sr_no: index + 1,
+            scope_of_work: item.scope_of_work,
+            unit: item.unit,
+            qty: qty,
+            rate: rate,
+            total: qty * rate,
+          };
+        }),
+        cgst: Number((subtotal * (cgstRate / 100)).toFixed(2)),
+        sgst: Number((subtotal * (sgstRate / 100)).toFixed(2)),
       };
+
 
       const res = await executePcCreateWithLock(async () => {
         return await api.post(
@@ -496,13 +501,15 @@ export default function NewPaymentCertificatePage() {
               <div className="relative">
                 <input
                   type="number"
+                  min={0}
                   value={retentionPercent}
                   onChange={(e) => {
                     setIsDirty(true);
-                    setRetentionPercent(Number(e.target.value));
+                    setRetentionPercent(Math.max(0, Math.min(100, Number(e.target.value))));
                   }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-4 pr-8 py-2.5 text-white focus:outline-none focus:border-emerald-500"
                 />
+
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
                   %
                 </span>

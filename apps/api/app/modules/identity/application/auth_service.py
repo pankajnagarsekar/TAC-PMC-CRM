@@ -113,7 +113,11 @@ class AuthService:
             )
 
     async def login(self, login_data: LoginRequest) -> Token:
+        if len(login_data.password) > 128:
+            raise AuthenticationError("INVALID_CREDENTIALS")
+
         user = await self.user_repo.get_by_email(login_data.email.lower().strip())
+
         if not user or not self.verify_password(
             login_data.password, user["hashed_password"]
         ):

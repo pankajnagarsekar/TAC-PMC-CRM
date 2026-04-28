@@ -11,7 +11,7 @@ from app.modules.shared.domain.types import PyObjectId
 # AUTH DTOs
 class LoginRequest(BaseModel):
     email: str
-    password: str
+    password: str = Field(..., max_length=128)
 
 
 class RefreshTokenRequest(BaseModel):
@@ -155,6 +155,16 @@ class GlobalSettings(BaseModel):
                 raise ValueError("Invalid PAN format")
         return v
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if v:
+            v = v.strip().lower()
+            if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", v):
+                raise ValueError("Invalid email format")
+        return v
+
+
 
 class GlobalSettingsUpdate(BaseModel):
     name: Optional[str] = None
@@ -174,6 +184,17 @@ class GlobalSettingsUpdate(BaseModel):
     terms_and_conditions: Optional[str] = None
     logo_base64: Optional[str] = None
     client_permissions: Optional[ClientPermissions] = None
+    expected_version: int
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().lower()
+            if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", v):
+                raise ValueError("Invalid email format")
+        return v
+
 
 
 class ChangePasswordRequest(BaseModel):

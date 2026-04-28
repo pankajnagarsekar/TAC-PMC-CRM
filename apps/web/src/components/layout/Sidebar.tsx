@@ -82,12 +82,7 @@ export default function Sidebar({
       label: "Dashboard",
       key: "dashboard",
     },
-    ...(activeProject ? [{
-      href: `/admin/projects/${activeProject.project_id || activeProject._id}`,
-      icon: Wallet,
-      label: "Project Financials",
-      key: "project_financials",
-    }] : []),
+
     { href: "/admin/clients", icon: Users, label: "Clients", key: "clients" },
     {
       href: "/admin/scheduler",

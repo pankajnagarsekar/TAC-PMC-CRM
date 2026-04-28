@@ -5,6 +5,7 @@ import { z } from "zod";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
 import api from "@/lib/api";
+import { sanitizeText } from "@/lib/sanitize";
 import {
   Save,
   Settings,
@@ -29,6 +30,7 @@ const settingsSchema = z.object({
   cgst_percentage: z.number().min(0).max(100),
   sgst_percentage: z.number().min(0).max(100),
   retention_percentage: z.number().min(0).max(100),
+  email: z.string().email().optional().or(z.literal("")),
 });
 
 export default function SettingsPage() {
@@ -157,6 +159,18 @@ export default function SettingsPage() {
     const { client_permissions, logo_base64, ...baseSettings } = globalSettings;
     return {
       ...baseSettings,
+      name: sanitizeText(baseSettings.name),
+      address: sanitizeText(baseSettings.address),
+      email: sanitizeText(baseSettings.email),
+      phone: sanitizeText(baseSettings.phone),
+      gst_number: sanitizeText(baseSettings.gst_number),
+      pan_number: sanitizeText(baseSettings.pan_number),
+      wo_prefix: sanitizeText(baseSettings.wo_prefix),
+      pc_prefix: sanitizeText(baseSettings.pc_prefix),
+      invoice_prefix: sanitizeText(baseSettings.invoice_prefix),
+      currency: sanitizeText(baseSettings.currency),
+      currency_symbol: sanitizeText(baseSettings.currency_symbol),
+      terms_and_conditions: sanitizeText(baseSettings.terms_and_conditions),
       client_permissions,
       logo_base64,
     };
@@ -173,7 +187,13 @@ export default function SettingsPage() {
     }
     const parsed = parseFloat(rawValue);
     if (!isNaN(parsed)) {
-      setGlobalSettings(prev => ({ ...prev, [key]: parsed }));
+      let clamped = parsed;
+      if (key === 'cgst_percentage' || key === 'sgst_percentage' || key === 'retention_percentage') {
+        clamped = Math.max(0, Math.min(100, parsed));
+      } else {
+        clamped = Math.max(0, parsed);
+      }
+      setGlobalSettings(prev => ({ ...prev, [key]: clamped }));
     }
   };
 
@@ -421,6 +441,8 @@ export default function SettingsPage() {
                   value={globalSettings.cgst_percentage}
                   onChange={(e) => handleNumericChange('cgst_percentage', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  min={0}
+                  max={100}
                 />
               </div>
               <div className="space-y-2">
@@ -433,6 +455,8 @@ export default function SettingsPage() {
                   value={globalSettings.sgst_percentage}
                   onChange={(e) => handleNumericChange('sgst_percentage', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  min={0}
+                  max={100}
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -445,6 +469,8 @@ export default function SettingsPage() {
                   value={globalSettings.retention_percentage}
                   onChange={(e) => handleNumericChange('retention_percentage', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 font-mono"
+                  min={0}
+                  max={100}
                 />
               </div>
             </div>

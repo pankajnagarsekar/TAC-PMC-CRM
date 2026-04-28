@@ -80,7 +80,7 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
     const rawCpi = (actualCost > 0) ? earnedValue / actualCost : null;
 
     const spi = (rawSpi !== null && isFinite(rawSpi)) ? rawSpi : null;
-    const cpi = (rawCpi !== null && isFinite(rawCpi)) ? rawCpi : null;
+    const cpi = (rawCpi !== null && isFinite(rawCpi)) ? (rawCpi > 10 ? 10 : rawCpi) : null;
 
     return {
       totalBaselineCost,
@@ -108,8 +108,8 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
     <div className="grid gap-5 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
       <KPICard
         label="Total Baseline"
-        value={formatCurrency(stats.totalBaselineCost)}
-        subtitle="Original project value"
+        value={stats.totalBaselineCost > 0 ? formatCurrency(stats.totalBaselineCost) : "Not Initialized"}
+        subtitle={stats.totalBaselineCost > 0 ? "Original project value" : "Action required: Initialize budget"}
         status="neutral"
         icon={<Coins size={18} />}
       />

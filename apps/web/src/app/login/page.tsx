@@ -192,6 +192,7 @@ export default function LoginPage() {
                       autoComplete="new-password"
                       required
                       value={password}
+                      maxLength={128}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       className="input-glass w-full pl-[5.5rem] pr-16 py-5 rounded-2xl text-white text-base placeholder:text-slate-800 outline-none"
