@@ -25,6 +25,7 @@ interface KPICardsProps {
     spi?: number;
     cpi?: number;
     master_budget?: number;
+    total_budget?: number;
   };
 }
 
@@ -40,11 +41,11 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
 
   const stats = useMemo(() => {
     // If we have authoritative backend EVA stats, use them
-    if (backendStats && backendStats.planned_value !== undefined && backendStats.earned_value !== undefined) {
+    if (backendStats && (backendStats.planned_value !== undefined || backendStats.total_budget !== undefined)) {
       return {
-        totalBaselineCost: backendStats.master_budget || 0,
-        plannedValue: backendStats.planned_value,
-        earnedValue: backendStats.earned_value,
+        totalBaselineCost: backendStats.master_budget || backendStats.total_budget || 0,
+        plannedValue: backendStats.planned_value || 0,
+        earnedValue: backendStats.earned_value || 0,
         actualCost: backendStats.actual_cost || 0,
         spi: backendStats.spi ?? null,
         cpi: backendStats.cpi ?? null,
@@ -140,7 +141,11 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
         subtitle="Schedule Perf. (EV/PV)"
         status={stats.spi !== null ? getSpiStatus(stats.spi) : "neutral"}
         icon={<Gauge size={18} />}
-        trend={stats.spi !== null ? `${((stats.spi - 1) * 100).toFixed(1)}%` : undefined}
+        trend={stats.spi !== null ? (() => {
+          const val = (stats.spi - 1) * 100;
+          if (Math.abs(val) > 1000) return ">1000%";
+          return `${val.toFixed(1)}%`;
+        })() : undefined}
         trendUp={stats.spi !== null ? stats.spi >= 1 : undefined}
       />
       <KPICard
@@ -149,7 +154,11 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
         subtitle="Cost Perf. (EV/AC)"
         status={stats.cpi !== null ? getCpiStatus(stats.cpi) : "neutral"}
         icon={<BarChart3 size={18} />}
-        trend={stats.cpi !== null ? `${((stats.cpi - 1) * 100).toFixed(1)}%` : undefined}
+        trend={stats.cpi !== null ? (() => {
+          const val = (stats.cpi - 1) * 100;
+          if (Math.abs(val) > 1000) return ">1000%";
+          return `${val.toFixed(1)}%`;
+        })() : undefined}
         trendUp={stats.cpi !== null ? stats.cpi >= 1 : undefined}
       />
     </div>

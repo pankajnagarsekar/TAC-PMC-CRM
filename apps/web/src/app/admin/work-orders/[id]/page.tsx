@@ -401,13 +401,16 @@ export default function WorkOrderDetailPage() {
                   <option value="">Select Category</option>
                   {categories?.map((cat) => (
                     <option key={cat._id} value={cat._id}>
-                      {cat.description}
+                      {cat.category_name} ({cat.code})
                     </option>
                   ))}
                 </select>
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                  {categories?.find((c) => c._id === wo.category_id)?.category_name || wo.category_id}
+                  {categories ?
+                    (categories.find((c) => c._id === wo.category_id)?.category_name || wo.category_name || "Unknown Category") :
+                    (wo.category_name || <Loader2 size={14} className="animate-spin" />)
+                  }
                 </div>
               )}
             </div>
@@ -431,10 +434,14 @@ export default function WorkOrderDetailPage() {
                 </select>
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
-                  {vendors?.find((v) => v._id === wo.vendor_id)?.name || wo.vendor_id || "Unknown Vendor"}
+                  {vendors ?
+                    (vendors.find((v) => v._id === wo.vendor_id)?.name || wo.vendor_name || "Unknown Vendor") :
+                    (wo.vendor_name || <Loader2 size={14} className="animate-spin" />)
+                  }
                 </div>
               )}
             </div>
+
 
             <div>
               <span className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">

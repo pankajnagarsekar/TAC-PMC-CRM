@@ -109,10 +109,10 @@ export default function Sidebar({
       ],
     },
     {
-      href: "/admin/categories",
-      icon: LayoutDashboard,
-      label: "Categories",
-      key: "categories",
+      href: "/admin/financials",
+      icon: Wallet,
+      label: "Project Financials",
+      key: "financials",
     },
     { href: "/admin/vendors", icon: Store, label: "Vendors", key: "vendors" },
     {

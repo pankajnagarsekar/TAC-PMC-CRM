@@ -198,13 +198,14 @@ export default function VendorModal({
                 )}
               </div>
               <div>
-                <label className={labelStyle}>Contact Person</label>
+                <label className={labelStyle}>Contact Person <span className="text-orange-500">*</span></label>
                 <div className="relative">
                   <User
                     className="absolute left-3 top-3 text-slate-500"
                     size={16}
                   />
                   <input
+                    required
                     className={`${inputStyle} pl-10`}
                     placeholder="John Doe"
                     value={formData.contact_person}
@@ -221,13 +222,14 @@ export default function VendorModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelStyle}>Phone Number</label>
+                <label className={labelStyle}>Phone Number <span className="text-orange-500">*</span></label>
                 <div className="relative">
                   <Phone
                     className="absolute left-3 top-3 text-slate-500"
                     size={16}
                   />
                   <input
+                    required
                     className={`${inputStyle} pl-10`}
                     placeholder="+91 98765 43210"
                     value={formData.phone}
@@ -238,13 +240,14 @@ export default function VendorModal({
                 </div>
               </div>
               <div>
-                <label className={labelStyle}>Email Address</label>
+                <label className={labelStyle}>Email Address <span className="text-orange-500">*</span></label>
                 <div className="relative">
                   <Mail
                     className="absolute left-3 top-3 text-slate-500"
                     size={16}
                   />
                   <input
+                    required
                     type="email"
                     className={`${inputStyle} pl-10`}
                     placeholder="contact@vendor.com"

@@ -117,13 +117,13 @@ export default function WorkOrdersPage() {
       field: "category_id",
       headerName: "Category",
       width: 150,
-      valueFormatter: (p: { value: string }) => categoryMap[p.value] || p.value || "-",
+      valueFormatter: (p: { value: string; data?: WorkOrder }) => p.data?.category_name || categoryMap[p.value] || p.value || "-",
     },
     {
       field: "vendor_id",
       headerName: "Vendor",
       width: 180,
-      valueFormatter: (p: { value: string }) => getVendorName(p.value),
+      valueFormatter: (p: { value: string; data?: WorkOrder }) => p.data?.vendor_name || getVendorName(p.value),
     },
     {
       field: "wo_date",

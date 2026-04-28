@@ -48,6 +48,8 @@ class WorkOrder(BaseModel):
     status: Literal["Draft", "Pending", "Approved", "Completed", "Closed", "Cancelled"] = "Draft"
     line_items: List[WOLineItem] = Field(default_factory=list)
     version: int = 1
+    vendor_name: Optional[str] = None
+    category_name: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -65,8 +67,11 @@ class WorkOrderCreate(BaseModel):
     category_id: str
     vendor_id: Optional[str] = None
     line_items: List[WOLineItem] = Field(default_factory=list)
+    description: str = ""
+    terms: str = ""
     discount: Decimal = Field(Decimal("0.0"), ge=0)
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    wo_date: Optional[datetime] = None
     idempotency_key: Optional[str] = None
 
 
@@ -75,8 +80,11 @@ class WorkOrderUpdate(BaseModel):
     vendor_id: Optional[str] = None
     status: Optional[Literal["Draft", "Pending", "Approved", "Completed", "Closed", "Cancelled"]] = None
     line_items: Optional[List[WOLineItem]] = None
+    description: Optional[str] = None
+    terms: Optional[str] = None
     discount: Optional[Decimal] = Field(None, ge=0)
     retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)
+    wo_date: Optional[datetime] = None
     expected_version: int
 
     @field_validator("status")
@@ -107,9 +115,9 @@ class Vendor(BaseModel):
 class VendorCreate(BaseModel):
     name: str
     gstin: Optional[str] = None
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
+    contact_person: str = Field(..., min_length=1)
+    phone: str = Field(..., min_length=5)
+    email: str = Field(..., min_length=3)
 
     @field_validator("name", mode="before")
     @classmethod
@@ -149,7 +157,7 @@ class VendorUpdate(BaseModel):
         v = re.sub(r"<[^>]+>", "", str(v)).strip()
         if not v:
             raise ValueError("Vendor name cannot be empty")
-        return html.escape(v)
+        return v
 
     @field_validator("gstin")
     @classmethod

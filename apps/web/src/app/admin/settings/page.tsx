@@ -111,6 +111,7 @@ export default function SettingsPage() {
       cgst_percentage: globalSettings.cgst_percentage,
       sgst_percentage: globalSettings.sgst_percentage,
       retention_percentage: globalSettings.retention_percentage,
+      email: globalSettings.email,
     });
 
     if (!validation.success) {
@@ -131,11 +132,13 @@ export default function SettingsPage() {
         title: "Success",
         description: "Global settings synchronized successfully across all modules.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      const errData = err.response?.data;
+      const detail = errData?.detail || errData?.message || "Encountered a server error while attempting to sync settings.";
       toast({
         title: "Update Failed",
-        description: "Encountered a server error while attempting to sync settings.",
+        description: Array.isArray(detail) ? JSON.stringify(detail) : detail,
         variant: "destructive",
       });
     } finally {
@@ -173,6 +176,7 @@ export default function SettingsPage() {
       terms_and_conditions: sanitizeText(baseSettings.terms_and_conditions),
       client_permissions,
       logo_base64,
+      expected_version: globalSettings.version || 1,
     };
   };
 
@@ -440,10 +444,13 @@ export default function SettingsPage() {
                   step="0.01"
                   value={globalSettings.cgst_percentage}
                   onChange={(e) => handleNumericChange('cgst_percentage', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  className={`w-full bg-slate-950 border ${globalSettings.cgst_percentage > 100 || globalSettings.cgst_percentage < 0 ? 'border-red-500' : 'border-slate-800'} rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono`}
                   min={0}
                   max={100}
                 />
+                {(globalSettings.cgst_percentage > 100 || globalSettings.cgst_percentage < 0) && (
+                  <p className="text-[10px] text-red-500 mt-1 uppercase font-bold text-center">Invalid Range</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-400 uppercase tracking-tighter">
@@ -454,10 +461,13 @@ export default function SettingsPage() {
                   step="0.01"
                   value={globalSettings.sgst_percentage}
                   onChange={(e) => handleNumericChange('sgst_percentage', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono"
+                  className={`w-full bg-slate-950 border ${globalSettings.sgst_percentage > 100 || globalSettings.sgst_percentage < 0 ? 'border-red-500' : 'border-slate-800'} rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 text-center font-mono`}
                   min={0}
                   max={100}
                 />
+                {(globalSettings.sgst_percentage > 100 || globalSettings.sgst_percentage < 0) && (
+                  <p className="text-[10px] text-red-500 mt-1 uppercase font-bold text-center">Invalid Range</p>
+                )}
               </div>
               <div className="space-y-2 col-span-2">
                 <label className="text-xs font-medium text-slate-400 uppercase">
@@ -468,10 +478,13 @@ export default function SettingsPage() {
                   step="0.01"
                   value={globalSettings.retention_percentage}
                   onChange={(e) => handleNumericChange('retention_percentage', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 font-mono"
+                  className={`w-full bg-slate-950 border ${globalSettings.retention_percentage > 100 || globalSettings.retention_percentage < 0 ? 'border-red-500' : 'border-slate-800'} rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 font-mono`}
                   min={0}
                   max={100}
                 />
+                {(globalSettings.retention_percentage > 100 || globalSettings.retention_percentage < 0) && (
+                  <p className="text-[10px] text-red-500 mt-1 uppercase font-bold">Invalid Range (0-100%)</p>
+                )}
               </div>
             </div>
 

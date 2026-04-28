@@ -244,6 +244,16 @@ class WorkOrderService:
                         project_id, session=uow.session
                     )
 
+                    # Populate names for immediate UI feedback
+                    if "vendor_id" in new_wo:
+                        vendor = await self.db.vendors.find_one({"_id": ObjectId(new_wo["vendor_id"]) if ObjectId.is_valid(new_wo["vendor_id"]) else new_wo["vendor_id"]})
+                        if vendor:
+                            new_wo["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
+                    if "category_id" in new_wo:
+                        cat = await self.db.code_master.find_one({"$or": [{"_id": ObjectId(new_wo["category_id"]) if ObjectId.is_valid(new_wo["category_id"]) else None}, {"code": new_wo["category_id"]}]})
+                        if cat:
+                            new_wo["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
+
                     return new_wo
         except Exception as e:
             import traceback
@@ -393,6 +403,16 @@ class WorkOrderService:
                 old_wo["project_id"], session=uow.session
             )
 
+            # Populate names for return
+            if "vendor_id" in result:
+                vendor = await self.db.vendors.find_one({"_id": ObjectId(result["vendor_id"]) if ObjectId.is_valid(result["vendor_id"]) else result["vendor_id"]})
+                if vendor:
+                    result["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
+            if "category_id" in result:
+                cat = await self.db.code_master.find_one({"$or": [{"_id": ObjectId(result["category_id"]) if ObjectId.is_valid(result["category_id"]) else None}, {"code": result["category_id"]}]})
+                if cat:
+                    result["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
+
             return result
 
     async def delete_work_order(self, user: dict, wo_id: str) -> bool:
@@ -466,10 +486,41 @@ class WorkOrderService:
 
         docs = await self.wo_repo.list(query, sort=[("created_at", -1)], limit=limit)
 
+        # BUG-09: Populate human-readable names for IDs to prevent UI leaks
+        vendor_ids = {d["vendor_id"] for d in docs if "vendor_id" in d and ObjectId.is_valid(d["vendor_id"])}
+        category_ids = {d["category_id"] for d in docs if "category_id" in d and ObjectId.is_valid(d["category_id"])}
+        
+        vendors = {}
+        if vendor_ids:
+            v_recs = await self.db.vendors.find({"_id": {"$in": [ObjectId(vid) for vid in vendor_ids]}}).to_list(None)
+            vendors = {str(v["_id"]): v.get("name") or v.get("vendor_name", "Unknown") for v in v_recs}
+            
+        categories = {}
+        if category_ids:
+            # BUG-09: Category data is in 'code_master' collection, not 'categories'
+            c_recs = await self.db.code_master.find({
+                "$or": [
+                    {"_id": {"$in": [ObjectId(cid) for cid in category_ids]}},
+                    {"code": {"$in": list(category_ids)}}
+                ]
+            }).to_list(None)
+            for c in c_recs:
+                k = str(c["_id"])
+                name = c.get("category_name") or c.get("name") or c.get("code") or "Unknown"
+                categories[k] = name
+                if "code" in c:
+                    categories[c["code"]] = name
+
         # Ensure total_payable consistency for all docs (BUG-006)
         for doc in docs:
             if "total_payable" not in doc or FinancialEngine.to_decimal(doc.get("total_payable", 0)) == Decimal("0"):
                 doc["total_payable"] = doc.get("grand_total")
+            
+            # Map IDs to names for UI safety
+            if "vendor_id" in doc:
+                doc["vendor_name"] = vendors.get(str(doc["vendor_id"]), "Unknown Vendor")
+            if "category_id" in doc:
+                doc["category_name"] = categories.get(str(doc["category_id"]), "Unknown Category")
 
         # Fixed CR-23: Safe handling of empty list to prevent IndexError
         next_cursor = None
@@ -483,6 +534,22 @@ class WorkOrderService:
         wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
         if not wo:
             raise NotFoundError("Work Order", wo_id)
+
+        # BUG-09: Populate names for UI transparency
+        if "vendor_id" in wo:
+            vendor = await self.db.vendors.find_one({"_id": ObjectId(wo["vendor_id"]) if ObjectId.is_valid(wo["vendor_id"]) else wo["vendor_id"]})
+            if vendor:
+                wo["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
+
+        if "category_id" in wo:
+            cat = await self.db.code_master.find_one({
+                "$or": [
+                    {"_id": ObjectId(wo["category_id"]) if ObjectId.is_valid(wo["category_id"]) else None},
+                    {"code": wo["category_id"]}
+                ]
+            })
+            if cat:
+                wo["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
 
         # Ensure total_payable consistency (BUG-006)
         if "total_payable" not in wo or FinancialEngine.to_decimal(wo.get("total_payable", 0)) == Decimal("0"):

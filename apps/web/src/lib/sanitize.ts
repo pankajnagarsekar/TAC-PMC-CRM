@@ -7,7 +7,10 @@ import DOMPurify from 'dompurify';
 export function sanitizeText(input: string): string {
     if (!input) return '';
     // Force string and trim
-    const str = String(input).trim();
+    let str = String(input).trim();
+    // Aggressive JS stripping: remove common execution patterns
+    str = str.replace(/(alert|eval|prompt|confirm|javascript:)\s*\(.*\)/gi, '[REDACTED]');
+    str = str.replace(/on\w+\s*=.*(?=\s|>|$)/gi, ''); // event handlers
     // Strip all tags
     const clean = DOMPurify.sanitize(str, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     // Decode entities to get pure text

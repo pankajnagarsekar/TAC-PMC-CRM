@@ -76,6 +76,7 @@ class SettingsService:
                     "can_view_reports": True,
                     "can_view_scheduler": False,
                 }),
+                "version": settings.get("version", 1),
             }
         return settings
 
@@ -94,10 +95,22 @@ class SettingsService:
         existing = await self.settings_repo.find_one(
             {"organisation_id": user["organisation_id"]}
         )
+        
+        expected_version = payload.pop("expected_version", None)
         if existing:
-            updated = await self.settings_repo.update(existing["id"], payload)
+            # Atomic update with version check
+            payload["version"] = (existing.get("version", 1)) + 1
+            updated = await self.settings_repo.update(
+                existing["id"], 
+                payload, 
+                expected_version=expected_version
+            )
+            if not updated:
+                from app.modules.shared.domain.exceptions import ValidationError
+                raise ValidationError("CONFLICT: Settings updated by another user or version mismatch.")
         else:
             payload["organisation_id"] = user["organisation_id"]
+            payload["version"] = 1
             updated = await self.settings_repo.create(payload)
 
         # Mandatory Audit Logging

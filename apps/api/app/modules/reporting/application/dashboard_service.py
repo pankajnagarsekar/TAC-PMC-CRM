@@ -213,21 +213,25 @@ class DashboardService:
                     avg_comp = sum(cat_tasks[cat_id]) / len(cat_tasks[cat_id])
                     ev += pvs * (avg_comp / 100.0)
 
-        # If no granular data, fallback to total PV * project completion
-        if ev == 0 and pv > 0:
-            proj_comp = float(project.get("completion_percentage", 0) if project else 0)
-            ev = pv * (proj_comp / 100.0)
+        # Final fallback for Total Budget if master snapshots are missing
+        if pv == 0 and project:
+            pv = float(FinancialEngine.to_decimal(project.get("master_original_budget", 0)))
+            # If still 0, we might need to check if there are any budget records at all
+            # but usually master_original_budget is the source of truth for "Baseline"
 
         # KPI Metrics
         cpi = ev / ac if ac > 0 else 1.0
         spi = ev / pv if pv > 0 else 1.0  # Simple SPI relative to total budget
 
         stats = {
+            "project_id": project_id,
+            "operational_id": project.get("project_code") or project_id,
             "overview": {
                 "total_phases": tasks_count,
                 "active_items": active_tasks_count + active_wos_count,
                 "overdue_milestones": overdue_milestones_count,
                 "total_budget": pv,
+                "master_budget": pv, # Standardized key for KPICards
                 "net_committed": ac,
                 "net_certified": float(
                     FinancialEngine.to_decimal(master_state.get("certified_value", 0))
@@ -236,7 +240,7 @@ class DashboardService:
                 "planned_value": pv,
                 "earned_value": ev,
                 "actual_cost": ac,
-                "cpi": round(cpi, 2),
+                "cpi": round(min(10.0, max(0.0, cpi)), 2),
                 "spi": round(spi, 2),
                 "cost_variance": ev - ac,
                 "schedule_variance": ev - pv

@@ -201,6 +201,8 @@ export interface WorkOrder {
   actual_payable: number;
   status: "Draft" | "Pending" | "Completed" | "Closed" | "Cancelled";
   line_items: WOLineItem[];
+  category_name?: string;
+  vendor_name?: string;
   version: number;
   created_at?: string;
   updated_at?: string;
@@ -247,6 +249,8 @@ export interface PaymentCertificate {
   status: "Draft" | "Pending" | "Approved" | "Completed" | "Closed" | "Cancelled";
   fund_request?: boolean;
   line_items: PCLineItem[];
+  category_name?: string;
+  vendor_name?: string;
   idempotency_key?: string;
   version?: number;
   created_at?: string;
@@ -443,6 +447,7 @@ export interface GlobalSettings {
     can_view_scheduler: boolean;
   };
   updated_at?: string;
+  version?: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

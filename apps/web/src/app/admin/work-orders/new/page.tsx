@@ -58,6 +58,7 @@ export default function NewWorkOrderPage() {
     cgst: 9, // Example default, ideally from Settings
     sgst: 9,
     retention_percent: 5,
+    wo_date: new Date().toISOString().split('T')[0],
   });
 
   const [lineItems, setLineItems] = useState<LineItem[]>([
@@ -237,6 +238,7 @@ export default function NewWorkOrderPage() {
       const payload = {
         ...formData,
         description: sanitizeText(formData.description),
+        terms: sanitizeText(formData.terms),
         project_id: projectId,
         line_items: lineItems.map(item => ({
           ...item,
@@ -426,6 +428,21 @@ export default function NewWorkOrderPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              Work Order Date
+            </label>
+            <input
+              type="date"
+              value={formData.wo_date}
+              onChange={(e) => {
+                setFormData({ ...formData, wo_date: e.target.value });
+                setIsDirty(true);
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
               Description of Work
             </label>
             <textarea
@@ -434,8 +451,24 @@ export default function NewWorkOrderPage() {
                 setFormData({ ...formData, description: e.target.value });
                 setIsDirty(true);
               }}
-              rows={3}
+              rows={2}
               placeholder="e.g., Supply of Ready Mix Concrete for Foundation..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              Terms & Conditions
+            </label>
+            <textarea
+              value={formData.terms}
+              onChange={(e) => {
+                setFormData({ ...formData, terms: e.target.value });
+                setIsDirty(true);
+              }}
+              rows={2}
+              placeholder="e.g., Delivery within 7 days, 15% advance..."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
@@ -447,7 +480,7 @@ export default function NewWorkOrderPage() {
             Financial Preview
           </h2>
 
-          <div className="space-y-2 text-sm">
+          <div className="space-y-4 text-sm">
             <div className="flex justify-between text-slate-400">
               <span>Subtotal:</span>
               <span className="font-mono text-white">
@@ -457,77 +490,101 @@ export default function NewWorkOrderPage() {
 
             <div className="flex justify-between items-center text-slate-400">
               <span>Discount:</span>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500">₹</span>
-                <input
-                  type="number"
-                  value={formData.discount || ""}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    setFormData({
-                      ...formData,
-                      discount: Math.min(val, subtotal),
-                    });
-                    setIsDirty(true);
-                  }}
-                  className="w-24 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right text-white"
-                  min={0}
-                />
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.discount || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setFormData({
+                        ...formData,
+                        discount: Math.max(0, Math.min(val, subtotal)),
+                      });
+                      if (val < 0) {
+                        setFieldErrors(prev => ({ ...prev, discount: "Discount cannot be negative" }));
+                      } else {
+                        setFieldErrors(prev => {
+                          const next = { ...prev };
+                          delete next.discount;
+                          return next;
+                        });
+                      }
+                      setIsDirty(true);
+                    }}
+                    className={`w-32 bg-slate-950 border ${fieldErrors.discount ? 'border-red-500' : 'border-slate-700'} text-white p-1 rounded text-right focus:outline-none focus:border-amber-500`}
+                  />
+                </div>
+                {fieldErrors.discount && <span className="text-[10px] text-red-500 mt-1 font-bold uppercase tracking-wider">{fieldErrors.discount}</span>}
               </div>
             </div>
 
-            <div className="flex justify-between text-slate-400 pt-2 border-t border-slate-800/50">
-              <span>Total Before Tax:</span>
-              <span className="font-mono text-white">
+            <div className="flex justify-between text-slate-400 p-2 bg-slate-800/20 rounded">
+              <span className="font-medium">Total Before Tax:</span>
+              <span className="font-mono text-white font-medium">
                 {formatCurrency(totalBeforeTax)}
               </span>
             </div>
 
-            <div className="flex justify-between text-slate-400">
+            <div className="flex justify-between text-slate-400 px-2">
               <span>CGST ({formData.cgst}%):</span>
               <span className="font-mono text-white">
                 {formatCurrency(cgstAmount)}
               </span>
             </div>
 
-            <div className="flex justify-between text-slate-400">
+            <div className="flex justify-between text-slate-400 px-2">
               <span>SGST ({formData.sgst}%):</span>
               <span className="font-mono text-white">
                 {formatCurrency(sgstAmount)}
               </span>
             </div>
 
-            <div className="flex justify-between items-center text-orange-500 font-bold pt-2 border-t border-slate-800/50 text-lg">
+            <div className="flex justify-between items-center text-orange-500 font-bold p-3 bg-orange-500/5 rounded-lg border border-orange-500/10">
               <span>Grand Total:</span>
-              <span className="font-mono">{formatCurrency(grandTotal)}</span>
+              <span className="font-mono text-lg">
+                {formatCurrency(grandTotal)}
+              </span>
             </div>
 
-            <div className="flex justify-between items-center text-slate-400 pt-4">
+            <div className="flex justify-between text-slate-400 px-2 pt-2 border-t border-slate-800/50">
               <span>Retention (%):</span>
-              <input
-                type="number"
-                value={formData.retention_percent}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    retention_percent: parseFloat(e.target.value) || 0,
-                  });
-                  setIsDirty(true);
-                }}
-                className="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-right text-white"
-                min={0}
-                max={100}
-              />
+              <div className="flex flex-col items-end">
+                <input
+                  type="number"
+                  value={formData.retention_percent}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setFormData({
+                      ...formData,
+                      retention_percent: Math.max(0, Math.min(100, val)),
+                    });
+                    if (val < 0) {
+                      setFieldErrors(prev => ({ ...prev, retention: "Retention cannot be negative" }));
+                    } else {
+                      setFieldErrors(prev => {
+                        const next = { ...prev };
+                        delete next.retention;
+                        return next;
+                      });
+                    }
+                    setIsDirty(true);
+                  }}
+                  className={`w-16 bg-slate-950 border ${fieldErrors.retention ? 'border-red-500' : 'border-slate-700'} text-white p-1 rounded text-right focus:outline-none focus:border-amber-500`}
+                />
+                {fieldErrors.retention && <span className="text-[10px] text-red-500 mt-1 font-bold uppercase tracking-wider">{fieldErrors.retention}</span>}
+              </div>
             </div>
 
-            <div className="flex justify-between text-slate-500 text-xs">
+            <div className="flex justify-between text-slate-500 px-2 text-xs">
               <span>Retention Amount:</span>
               <span className="font-mono">
                 -{formatCurrency(retentionAmount)}
               </span>
             </div>
 
-            <div className="flex justify-between items-center text-emerald-500 font-bold pt-2 border-t border-slate-800/50">
+            <div className="flex justify-between items-center text-emerald-500 font-bold p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
               <span>Net Payable (After Retention):</span>
               <span className="font-mono text-lg">
                 {formatCurrency(totalPayable)}

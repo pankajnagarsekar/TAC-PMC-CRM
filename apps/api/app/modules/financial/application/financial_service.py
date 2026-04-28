@@ -176,6 +176,11 @@ class FinancialService:
                 totals["categories_recalculated"] += 1
 
         # Final snapshot for executive dashboard
+        if totals["total_budget"] == Decimal("0") and totals["categories_recalculated"] == 0:
+            project = await self.project_repo.get_by_id(project_id, session=session)
+            if project:
+                totals["total_budget"] = FinancialEngine.to_decimal(project.get("master_original_budget", "0"))
+
         master_snapshot = {
             "project_id": project_id,
             "category_id": "MASTER",

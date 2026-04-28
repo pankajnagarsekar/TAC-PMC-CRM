@@ -36,11 +36,13 @@ import { addDays, startOfDay, isBefore } from "date-fns";
 
 interface DashboardStats {
   project_id: string;
+  operational_id?: string;
   overview: {
     total_phases: number;
     active_items: number;
     overdue_milestones: number;
     master_budget: number;
+    total_budget: number;
     total_committed: number;
     // EVA Metrics (Constitution §9)
     planned_value?: number;
@@ -608,7 +610,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-3 pr-2">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none mb-1">Operational ID</p>
-            <p className="text-xs font-mono text-zinc-400">{activeProject.project_code || 'N/A'}</p>
+            <p className="text-xs font-mono text-zinc-400">{stats?.operational_id || activeProject.project_code || activeProject.project_id || 'N/A'}</p>
           </div>
           <button
             onClick={() => {
@@ -642,7 +644,7 @@ export default function AdminDashboard() {
             <div className="space-y-6">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Portfolio Value</p>
-                <p className="text-3xl font-black">{formatCurrencySafe(totalBudget)}</p>
+                <p className="text-3xl font-black">{formatCurrencySafe(stats?.overview?.total_budget ?? totalBudget)}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pb-4 border-b border-muted">

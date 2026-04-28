@@ -499,7 +499,7 @@ class AnalyticsService:
         data.planned_value = float(pv)
         data.earned_value = float(ev)
         data.actual_cost = float(ac)
-        data.cpi = float(ev / ac) if ac > 0 else 1.0
+        data.cpi = min(10.0, max(0.0, float(ev / ac))) if ac > 0 else 1.0
         data.spi = float(ev / pv) if pv > 0 else 1.0
         data.cost_variance = float(ev - ac)
         data.schedule_variance = float(ev - pv)

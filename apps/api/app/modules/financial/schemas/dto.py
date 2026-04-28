@@ -102,6 +102,8 @@ class PaymentCertificate(BaseModel):
     line_items: List[PCLineItem] = Field(default_factory=list)
     idempotency_key: Optional[str] = None
     version: int = 1
+    vendor_name: Optional[str] = None
+    category_name: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     submitted_by: Optional[str] = None
     submitted_at: Optional[datetime] = None
