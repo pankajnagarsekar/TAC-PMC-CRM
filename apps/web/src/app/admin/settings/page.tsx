@@ -117,7 +117,7 @@ export default function SettingsPage() {
     if (!validation.success) {
       toast({
         title: "Validation Error",
-        description: "Please enter valid numeric percentages (0-100).",
+        description: "Please check your inputs: percentages must be 0-100 and email must be valid.",
         variant: "destructive",
       });
       return;
