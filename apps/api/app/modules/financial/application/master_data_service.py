@@ -30,13 +30,27 @@ class MasterDataService:
         return await self.code_repo.list(query)
 
     async def list_petty_cash_categories(self, user: dict) -> List[Dict[str, Any]]:
-        """List only Petty Cash and Site Overhead categories for petty cash module."""
+        """
+        List only Petty Cash and Site Overhead categories.
+        FIX: Uses regex for name resilience (singular/plural) and case-insensitivity.
+        """
         query = {
             "organisation_id": user["organisation_id"],
-            "category_name": {"$in": ["Petty Cash", "Site Overhead"]},
+            "category_name": {
+                "$regex": r"^(Petty\s*Cash|Site\s*Overhead(s)?)$",
+                "$options": "i"
+            },
             "active_status": True,
         }
-        return await self.code_repo.list(query)
+        categories = await self.code_repo.list(query)
+
+        # Force budget_type to 'fund_transfer' for these specific categories
+        # to ensure the frontend and cash services treat them as liquid funds.
+        for cat in categories:
+            if cat.get("budget_type") != "fund_transfer":
+                cat["budget_type"] = "fund_transfer"
+
+        return categories
 
     async def create_code(self, user: dict, code_data: Any) -> Dict[str, Any]:
         """Implemented authoritative master data creation with uniqueness guard."""

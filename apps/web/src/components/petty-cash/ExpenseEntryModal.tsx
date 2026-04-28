@@ -9,8 +9,9 @@ import {
   AlertCircle,
   AlertTriangle,
 } from "lucide-react";
-import api from "@/lib/api";
 import Image from "next/image";
+import useSWR from "swr";
+import api, { fetcher } from "@/lib/api";
 
 interface ExpenseEntryModalProps {
   isOpen: boolean;
@@ -38,8 +39,6 @@ export default function ExpenseEntryModal({
   projectId,
 }: ExpenseEntryModalProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [formData, setFormData] = useState({
     category_id: "",
     amount: "",
@@ -57,49 +56,20 @@ export default function ExpenseEntryModal({
   // 3.3.9: Warning state from API response
   const [saveWarnings, setSaveWarnings] = useState<string[]>([]);
 
-  const fetchCategories = useCallback(async () => {
-    setIsLoadingCategories(true);
-    try {
-      // Using the fund-allocations endpoint which already filters to fund_transfer categories
-      const response = await api.get(
-        `/api/v1/cash/allocations?project_id=${projectId}`,
-      );
-      const allocations = Array.isArray(response.data) ? response.data : (response.data.items || []);
+  // Fetch Petty Cash Categories from settings
+  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<Category[] | { data: Category[] }>(
+    `/api/settings/petty-cash-categories`,
+    fetcher
+  );
 
-      // Extract unique categories and filter by user requirement (Petty Cash/OVH only)
-      const uniqueCategories: Category[] = [];
-      const seen = new Set();
-      for (const alloc of allocations) {
-        const name = alloc.category_name || "";
-        const isMatch = name.toLowerCase().includes("petty cash") ||
-          name.toLowerCase().includes("ovh") ||
-          name.toLowerCase().includes("overhead");
-
-        if (isMatch && !seen.has(alloc.category_id)) {
-          seen.add(alloc.category_id);
-          uniqueCategories.push({
-            _id: alloc.category_id,
-            category_name: alloc.category_name,
-          });
-        }
-      }
-      setCategories(uniqueCategories);
-    } catch (error) {
-      console.error("Failed to fetch categories:", error);
-    } finally {
-      setIsLoadingCategories(false);
-    }
-  }, [projectId]);
+  const categories = Array.isArray(categoriesData) ? categoriesData : (categoriesData as any)?.data || [];
 
   useEffect(() => {
     if (isOpen && projectId) {
       // Generate UUID for idempotency key
       setIdempotencyKey(crypto.randomUUID());
-
-      // Fetch fund transfer categories
-      fetchCategories();
     }
-  }, [isOpen, projectId, fetchCategories]);
+  }, [isOpen, projectId]);
 
   // Auto-select first category if available
   useEffect(() => {
@@ -273,7 +243,7 @@ export default function ExpenseEntryModal({
             <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Category
             </label>
-            {isLoadingCategories ? (
+            {categoriesLoading ? (
               <div className="flex items-center gap-2 text-zinc-500 dark:text-slate-400 font-mono text-[10px] uppercase tracking-widest">
                 <Loader2 size={16} className="animate-spin" />
                 Loading categories...
@@ -288,7 +258,7 @@ export default function ExpenseEntryModal({
                 className="w-full bg-zinc-50 dark:bg-slate-950 border border-zinc-200 dark:border-slate-800 rounded-lg px-4 py-2.5 text-zinc-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors"
               >
                 <option value="">Select category</option>
-                {categories.map((cat) => (
+                {categories.map((cat: Category) => (
                   <option key={cat._id} value={cat._id}>
                     {cat.category_name}
                   </option>
@@ -481,7 +451,7 @@ export default function ExpenseEntryModal({
             </button>
             <button
               type="submit"
-              disabled={isLoading || isLoadingCategories}
+              disabled={isLoading || categoriesLoading}
               className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
             >
               {isLoading ? (
