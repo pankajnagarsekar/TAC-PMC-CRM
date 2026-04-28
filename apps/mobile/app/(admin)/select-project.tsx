@@ -25,6 +25,7 @@ export default function AdminProjectSelectionScreen() {
   const { user, logout } = useAuth();
   const { setSelectedProject } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -94,8 +95,25 @@ export default function AdminProjectSelectionScreen() {
           <Text style={styles.title}>Select a Project</Text>
           <Text style={styles.subtitle}>Choose the project to manage</Text>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={24} color={Colors.white} />
+        <TouchableOpacity
+          onPress={async () => {
+            setIsLoggingOut(true);
+            try {
+              await logout();
+            } catch (error) {
+              console.error('Logout error:', error);
+            } finally {
+              setIsLoggingOut(false);
+            }
+          }}
+          style={styles.logoutButton}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color={Colors.white} />
+          ) : (
+            <Ionicons name="log-out-outline" size={24} color={Colors.white} />
+          )}
         </TouchableOpacity>
       </View>
 

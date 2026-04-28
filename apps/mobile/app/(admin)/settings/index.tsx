@@ -1,8 +1,8 @@
 // ADMIN SETTINGS SCREEN
 // Admin-only settings and configuration
 
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -13,13 +13,21 @@ import { useTheme, ThemeContextType } from '../../../contexts/ThemeContext';
 export default function AdminSettings() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
   const styles = useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
   const handleLogout = () => {
     const onConfirm = async () => {
-      await logout();
-      router.replace('/login');
+      setIsLoggingOut(true);
+      try {
+        await logout();
+        router.replace('/login');
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
+        setIsLoggingOut(false);
+      }
     };
 
     if (Platform.OS === 'web') {
@@ -87,9 +95,19 @@ export default function AdminSettings() {
         */}
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={Colors.error} />
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity
+          style={[styles.logoutButton, isLoggingOut && { opacity: 0.7 }]}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color={Colors.error} />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+              <Text style={styles.logoutText}>Logout</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Version Info */}

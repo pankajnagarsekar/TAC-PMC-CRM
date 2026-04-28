@@ -46,6 +46,7 @@ export default function SupervisorDashboard() {
   const { selectedProject, isProjectSelected } = useProject();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [logoutBlockedModal, setLogoutBlockedModal] = useState(false);
 
@@ -73,7 +74,14 @@ export default function SupervisorDashboard() {
   const handleLogout = async () => {
     const result = await checkCanLogout();
     if (result.can_logout) {
-      await logout();
+      setIsLoggingOut(true);
+      try {
+        await logout();
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
+        setIsLoggingOut(false);
+      }
     } else {
       setLogoutBlockedModal(true);
     }
@@ -213,9 +221,19 @@ export default function SupervisorDashboard() {
             <Text style={styles.greeting}>Hello, {user?.name || 'Supervisor'}!</Text>
             <Text style={styles.dateText}>{currentDate}</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.checkoutButton}>
-            <Ionicons name="exit-outline" size={20} color={Colors.white} />
-            <Text style={styles.checkoutButtonText}>Checkout</Text>
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={[styles.checkoutButton, isLoggingOut && { opacity: 0.7 }]}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={Colors.white} />
+            ) : (
+              <>
+                <Ionicons name="exit-outline" size={20} color={Colors.white} />
+                <Text style={styles.checkoutButtonText}>Checkout</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,6 +21,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronsUpDown,
+  Loader2,
 } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
 import { useAuthStore } from "@/store/authStore";
@@ -57,15 +59,20 @@ export default function Sidebar({
     fetcher
   );
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   async function handleLogout() {
+    setIsLoggingOut(true);
     try {
       await api.post("/api/v1/auth/logout");
     } catch {
       // Ignore logout API errors
+    } finally {
+      clearAuth();
+      document.cookie = "crm_token=; path=/; max-age=0";
+      router.replace("/login");
+      setIsLoggingOut(false);
     }
-    clearAuth();
-    document.cookie = "crm_token=; path=/; max-age=0";
-    router.replace("/login");
   }
 
   const items: NavItem[] = [
@@ -312,10 +319,15 @@ export default function Sidebar({
             )}
             <button
               onClick={handleLogout}
-              className={`w-full py-1.5 rounded-md hover:bg-red-500/10 text-sidebar-foreground/60 hover:text-red-400 text-[11px] font-medium transition-all flex items-center justify-center gap-2 ${isCollapsed ? 'w-8 h-8 p-0 rounded-full' : ''}`}
+              disabled={isLoggingOut}
+              className={`w-full py-1.5 rounded-md hover:bg-red-500/10 text-sidebar-foreground/60 hover:text-red-400 text-[11px] font-medium transition-all flex items-center justify-center gap-2 ${isCollapsed ? 'w-8 h-8 p-0 rounded-full' : ''} ${isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <LogOut size={13} />
-              {!isCollapsed && <span>Sign Out</span>}
+              {isLoggingOut ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <LogOut size={13} />
+              )}
+              {!isCollapsed && <span>{isLoggingOut ? 'Signing Out...' : 'Sign Out'}</span>}
             </button>
           </div>
         </div>
