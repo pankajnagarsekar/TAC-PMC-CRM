@@ -38,8 +38,8 @@ export default function KanbanBoard() {
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const selectedTasks = useScheduleStore((state) => state.selectedTasks);
   const queueCalculation = useScheduleStore((state) => state.queueCalculation);
-  const openTask = useScheduleStore((state) => state.openTask);
-  const selectTask = useScheduleStore((state) => state.selectTask);
+  const setSelectedTask = useScheduleStore((state) => state.setSelectedTask);
+  const openTaskModal = useScheduleStore((state) => state.openTaskModal);
   const systemState = useScheduleStore((state) => state.systemState);
 
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
@@ -114,8 +114,10 @@ export default function KanbanBoard() {
               <VirtualizedKanbanColumn
                 tasks={columnTasks}
                 onTaskClick={(taskId) => {
-                  selectTask(taskId);
-                  openTask(taskId);
+                  setSelectedTask(taskId);
+                }}
+                onOpenModal={(taskId) => {
+                  openTaskModal(taskId);
                 }}
                 onDragStart={onDragStart}
                 selectedTasks={selectedTasks}

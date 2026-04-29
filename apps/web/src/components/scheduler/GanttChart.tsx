@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { GripVertical, MoveHorizontal, Pencil } from "lucide-react";
+import { GripVertical, MoveHorizontal, Pencil, Eye } from "lucide-react";
 import { addDays, format, startOfDay, differenceInCalendarDays } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
@@ -37,6 +37,7 @@ const Bar = memo(function Bar({
   emphasizeCritical,
   isDragging,
   onSelect,
+  onOpenModal,
   onStartDrag,
 }: {
   task: ScheduleTask;
@@ -45,6 +46,7 @@ const Bar = memo(function Bar({
   emphasizeCritical: boolean;
   isDragging: boolean;
   onSelect: (taskId: string) => void;
+  onOpenModal: (taskId: string) => void;
   onStartDrag: (task: ScheduleTask, mode: DragMode, startX: number) => void;
 }) {
   const isMilestone = Boolean(task.is_milestone || task.scheduled_duration === 0);
@@ -100,6 +102,18 @@ const Bar = memo(function Bar({
           <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
+              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10 text-sky-500"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenModal(task.task_id);
+              }}
+              title="View details"
+            >
+              <Eye size={12} />
+            </button>
+            <button
+              type="button"
               className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
               onPointerDown={beginDrag("move")}
               title="Move task"
@@ -139,8 +153,8 @@ export default function GanttChart() {
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const selectedTasks = useScheduleStore((state) => state.selectedTasks);
   const queueCalculation = useScheduleStore((state) => state.queueCalculation);
-  const selectTask = useScheduleStore((state) => state.selectTask);
-  const openTask = useScheduleStore((state) => state.openTask);
+  const setSelectedTask = useScheduleStore((state) => state.setSelectedTask);
+  const openTaskModal = useScheduleStore((state) => state.openTaskModal);
   const systemState = useScheduleStore((state) => state.systemState);
 
   // Baseline Comparison Store
@@ -405,8 +419,11 @@ export default function GanttChart() {
   };
 
   const handleSelect = (taskId: string) => {
-    selectTask(taskId);
-    openTask(taskId);
+    setSelectedTask(taskId);
+  };
+
+  const handleOpenModal = (taskId: string) => {
+    openTaskModal(taskId);
   };
 
 
@@ -610,6 +627,7 @@ export default function GanttChart() {
                         emphasizeCritical={highlightCritical}
                         isDragging={activeDragTaskId === task.task_id}
                         onSelect={handleSelect}
+                        onOpenModal={handleOpenModal}
                         onStartDrag={startDrag}
                       />
                     </div>

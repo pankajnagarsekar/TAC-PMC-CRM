@@ -214,12 +214,13 @@ export interface ScheduleStoreState {
   queueCalculation: (payload: ScheduleChangeRequest) => void;
   createDraftTask: (projectId: string) => ScheduleTask;
   removeTask: (taskId: string) => Promise<void>;
-  openTask: (taskId: string | null) => void;
+  openTaskModal: (taskId: string | null) => void;
   setTaskModalOpen: (open: boolean) => void;
   rollbackToUndo: () => void;
   undo: () => void;
   selectTask: (taskId: string) => void;
   deselectTask: (taskId: string) => void;
+  setSelectedTask: (taskId: string) => void;
   toggleParentCollapse: (taskId: string) => void;
 
   // Comparison Actions

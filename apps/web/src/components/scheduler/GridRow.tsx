@@ -68,6 +68,7 @@ type GridRowProps = {
   isCollapsed: boolean;
   onToggleCollapse: (taskId: string) => void;
   onSelect: (taskId: string) => void;
+  onOpenModal: (taskId: string) => void;
   onEdit: (taskId: string, changes: Partial<ScheduleTask>) => void;
   onStatusChange: (task: ScheduleTask, nextStatus: ScheduleTaskStatus) => void;
   onRemove: (taskId: string) => void;
@@ -83,6 +84,7 @@ const GridRow = memo(function GridRow({
   isCollapsed,
   onToggleCollapse,
   onSelect,
+  onOpenModal,
   onEdit,
   onStatusChange,
   onRemove,
@@ -231,7 +233,7 @@ const GridRow = memo(function GridRow({
               className="h-9 w-9 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               onClick={(event) => {
                 event.stopPropagation();
-                onSelect(task.task_id);
+                onOpenModal(task.task_id);
               }}
               title="Edit task"
             >

@@ -612,14 +612,18 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       });
     },
 
+    setSelectedTask: (taskId) => {
+      set({ selectedTasks: new Set([taskId]) });
+    },
+
     setTaskModalOpen: (open) => set({ isTaskModalOpen: open }),
 
-    openTask: (taskId) => {
+    openTaskModal: (taskId) => {
       set(() => {
         const selected = taskId ? new Set([taskId]) : new Set<string>();
         return {
           selectedTasks: selected,
-          isTaskModalOpen: taskId ? true : false
+          isTaskModalOpen: !!taskId
         };
       });
     },

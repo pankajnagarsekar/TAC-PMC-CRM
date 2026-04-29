@@ -3,10 +3,13 @@
 import React, { useMemo } from "react";
 import type { ScheduleTask } from "@/types/schedule.types";
 import { useVirtualizedGrid } from "./useVirtualizedGrid";
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface VirtualizedKanbanColumnProps {
     tasks: ScheduleTask[];
     onTaskClick: (taskId: string) => void;
+    onOpenModal: (taskId: string) => void;
     onDragStart: (event: React.DragEvent<HTMLElement>, taskId: string) => void;
     selectedTasks: Set<string>;
     readOnly: boolean;
@@ -16,6 +19,7 @@ interface VirtualizedKanbanColumnProps {
 export function VirtualizedKanbanColumn({
     tasks,
     onTaskClick,
+    onOpenModal,
     onDragStart,
     selectedTasks,
     readOnly,
@@ -62,9 +66,24 @@ export function VirtualizedKanbanColumn({
                                     {task.wbs_code || task.task_id}
                                 </p>
                             </div>
-                            <span className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-2 py-1 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">
-                                {task.percent_complete ?? 0}%
-                            </span>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-sky-500 hover:bg-sky-500/10"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onOpenModal(task.task_id);
+                                    }}
+                                    title="View details"
+                                >
+                                    <Eye size={12} />
+                                </Button>
+                                <span className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-2 py-1 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">
+                                    {task.percent_complete ?? 0}%
+                                </span>
+                            </div>
                         </div>
                         <div className="mt-3 flex flex-col gap-2">
                             <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
