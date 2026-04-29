@@ -194,9 +194,7 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date, timesca
   if (!start || !finish) return { left: 0, width: 0 };
 
   const unitWidth = getTimescaleWidth(timescale);
-  const left = differenceInCalendarDays(start, rangeStart) * (unitWidth / (timescale === "day" ? 1 : 7)); // This logic needs to be more robust
-  // Actually, for simplicity in Phase 1, let's just use days as the base and multiply by (unitWidth / baseline)
-  
+
   const dayWidth = timescale === "day" ? unitWidth : 
                    timescale === "week" ? unitWidth / 7 :
                    timescale === "month" ? unitWidth / 30 :
@@ -206,12 +204,9 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date, timesca
   const isMilestone = task.is_milestone || task.scheduled_duration === 0;
   
   const durationDays = differenceInCalendarDays(finish, start) + 1;
-  const width = Math.max(
-    isMilestone ? unitWidth : (timescale === "day" ? 120 : unitWidth),
-    durationDays * dayWidth
-  );
+  const width = isMilestone ? 0 : durationDays * dayWidth;
 
-  return { left: leftPos, width };
+  return { left: leftPos, width: Math.max(width, timescale === "day" ? 80 : 20) };
 }
 
 export function getComparisonBarPosition(

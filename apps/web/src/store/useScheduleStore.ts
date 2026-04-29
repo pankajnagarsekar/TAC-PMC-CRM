@@ -630,6 +630,14 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       });
     },
 
+    toggleParentCollapse: (taskId: string) => {
+      set((state) => {
+        const next = new Set(state.collapsedParents);
+        if (next.has(taskId)) {
+          next.delete(taskId);
+        } else {
+          next.add(taskId);
+        }
         return { collapsedParents: next };
       });
     },

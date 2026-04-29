@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, addMonths, subMonths, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Settings, AlertCircle, Calendar as CalendarIcon } from "lucide-react";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -88,7 +88,6 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
             const dayTasks = tasksByDay.get(dateKey) || [];
             const isSelectedMonth = isSameMonth(day, monthStart);
             const isTodayDate = isToday(day);
-            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
             
             const exception = projectCalendar?.exceptions.find(ex => dateKey >= ex.start_date && dateKey <= ex.end_date);
             const isNonWorking = projectCalendar && !projectCalendar.working_days.includes(day.getDay());
