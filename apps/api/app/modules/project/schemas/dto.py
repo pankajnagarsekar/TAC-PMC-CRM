@@ -1,11 +1,30 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, computed_field, model_validator
-from typing import Optional, Any
+from typing import Optional, Any, List
 import re
 import html
 
 from app.modules.shared.domain.types import PyObjectId
+
+
+
+# CALENDAR DTOs
+class CalendarExceptionDTO(BaseModel):
+    start_date: datetime
+    end_date: datetime
+    exception_type: str = "holiday"
+    reason: Optional[str] = ""
+
+
+class ProjectCalendarDTO(BaseModel):
+    project_id: str
+    working_days: List[int] = [0, 1, 2, 3, 4, 5]  # Mon-Sat by default for Goa
+    shift_start: str = "08:00"
+    shift_end: str = "17:00"
+    lunch_start: str = "13:00"
+    lunch_end: str = "14:00"
+    exceptions: List[CalendarExceptionDTO] = []
 
 
 # PROJECT DTOs

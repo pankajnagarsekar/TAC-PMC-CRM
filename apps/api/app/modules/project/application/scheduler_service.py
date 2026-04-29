@@ -75,7 +75,25 @@ class SchedulerService:
         if not project_id:
             raise ValidationError("CRITICAL: Calculation aborted - project_id is None or empty")
 
-        input_payload = {"tasks": tasks, "project_start": project_start}
+        # Load project calendar
+        calendar = await self.db.project_calendars.find_one({"project_id": project_id})
+        if not calendar:
+            # Default Goa-style calendar (Mon-Sat)
+            calendar = {
+                "project_id": project_id,
+                "working_days": [0, 1, 2, 3, 4, 5],
+                "shift_start": "08:00",
+                "shift_end": "17:00",
+                "lunch_start": "13:00",
+                "lunch_end": "14:00",
+                "exceptions": []
+            }
+
+        input_payload = {
+            "tasks": tasks,
+            "project_start": project_start,
+            "calendar": calendar
+        }
 
         # DEBUG: Save payload to file to inspect what's being sent
         # Removed debug write to "last_scheduler_payload.json" for production stability
@@ -524,3 +542,25 @@ class SchedulerService:
                     "TASK",
                     f"Baseline (v{t.get('baseline_version', '1')})"
                 )
+
+    async def recalculate_for_calendar_change(self, project_id: str, organisation_id: str) -> Dict[str, Any]:
+        """Authoritative trigger for re-calculating critical path after calendar updates."""
+        schedule = await self.load_schedule(project_id, organisation_id)
+        if not schedule or not schedule.get("tasks"):
+            return {"message": "No tasks to recalculate"}
+
+        tasks = schedule["tasks"]
+        project_start = schedule.get("project_start") or datetime.now().strftime("%Y-%m-%d")
+
+        # 1. Recalculate with new calendar (which calculate_schedule will fetch)
+        results = await self.calculate_schedule(project_id, tasks, project_start)
+
+        # 2. Persist results
+        await self.save_schedule(
+            project_id,
+            organisation_id,
+            "SYSTEM_CALENDAR_UPDATE",
+            results
+        )
+
+        return results

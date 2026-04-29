@@ -633,3 +633,23 @@ export interface TaskUpdate {
   priority?: "Low" | "Medium" | "High" | string;
   notes?: string;
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// CALENDAR
+// ──────────────────────────────────────────────────────────────────────────
+export interface CalendarException {
+  start_date: string;
+  end_date: string;
+  exception_type: string;
+  reason?: string;
+}
+
+export interface ProjectCalendar {
+  project_id: string;
+  working_days: number[];
+  shift_start: string;
+  shift_end: string;
+  lunch_start: string;
+  lunch_end: string;
+  exceptions: CalendarException[];
+}

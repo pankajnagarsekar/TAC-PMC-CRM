@@ -32,6 +32,7 @@ from ..schemas.dto import (
     ProjectBudgetCreate,
     ProjectCreate,
     ProjectUpdate,
+    ProjectCalendarDTO,
 )
 from ..schemas.scheduler import (
     ScheduleCalculateRequest,
@@ -129,6 +130,40 @@ async def delete_project(
     """Soft-delete a project (authoritative Point 87)."""
     result = await project_service.delete_project(user, project_id)
     return GenericResponse(data=result, message="Project deleted successfully")
+
+
+# --- CALENDAR ENDPOINTS ---
+
+
+@router.get(
+    "/projects/{project_id}/calendar",
+    response_model=GenericResponse[ProjectCalendarDTO],
+    tags=["Calendar"],
+)
+async def get_project_calendar(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
+    """Retrieve project-specific calendar settings."""
+    calendar = await project_service.get_project_calendar(user, project_id)
+    return GenericResponse(data=calendar)
+
+
+@router.put(
+    "/projects/{project_id}/calendar",
+    response_model=GenericResponse[ProjectCalendarDTO],
+    tags=["Calendar"],
+)
+async def update_project_calendar(
+    project_id: str,
+    calendar_data: ProjectCalendarDTO,
+    user: dict = Depends(get_authenticated_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
+    """Update project-specific calendar settings (triggers recalculation)."""
+    calendar = await project_service.update_project_calendar(user, project_id, calendar_data)
+    return GenericResponse(data=calendar, message="Project calendar updated and schedule recalculated")
 
 
 # --- CLIENT ENDPOINTS ---

@@ -13,7 +13,7 @@ from app.modules.shared.domain.financial_engine import FinancialEngine
 from ..domain.models import Project as ProjectModel
 from ..infrastructure.read_models import ProjectStatsRepository
 from ..infrastructure.repository import BudgetRepository, ProjectRepository
-from ..schemas.dto import ProjectCreate, ProjectUpdate
+from ..schemas.dto import ProjectCreate, ProjectUpdate, ProjectCalendarDTO
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,12 @@ class ProjectService:
     Enforces transitions via StateMachine and manages financial budget allocation.
     """
 
-    def __init__(self, db, audit_service, permission_checker, financial_service):
+    def __init__(self, db, audit_service, permission_checker, financial_service, scheduler_service):
         self.db = db
         self.audit_service = audit_service
         self.permission_checker = permission_checker
         self.financial_service = financial_service
+        self.scheduler_service = scheduler_service
         self.project_repo = ProjectRepository(db)
         self.budget_repo = BudgetRepository(db)
         self.stats_repo = ProjectStatsRepository(db)
@@ -262,3 +263,47 @@ class ProjectService:
             f"INITIALIZE_BUDGETS: Project {pid} initialized with {created_count} categories."
         )
         return True
+
+    async def get_project_calendar(self, user: dict, project_id: str) -> Dict[str, Any]:
+        """Fetch project-specific calendar settings."""
+        await self.permission_checker.check_project_access(user, project_id)
+        calendar = await self.db.project_calendars.find_one({"project_id": project_id})
+
+        if not calendar:
+            return {
+                "project_id": project_id,
+                "working_days": [0, 1, 2, 3, 4, 5],
+                "shift_start": "08:00",
+                "shift_end": "17:00",
+                "lunch_start": "13:00",
+                "lunch_end": "14:00",
+                "exceptions": []
+            }
+
+        if "_id" in calendar:
+            calendar["_id"] = str(calendar["_id"])
+        return calendar
+
+    async def update_project_calendar(
+        self, user: dict, project_id: str, calendar_data: ProjectCalendarDTO
+    ) -> Dict[str, Any]:
+        """Update project-specific calendar settings and trigger schedule recalculation."""
+        await self.permission_checker.check_project_access(user, project_id, require_write=True)
+
+        doc = calendar_data.model_dump()
+        doc["updated_at"] = now()
+
+        await self.db.project_calendars.update_one(
+            {"project_id": project_id},
+            {"$set": doc},
+            upsert=True
+        )
+
+        # Trigger authoritative recalculation
+        from app.modules.scheduler.resource_calendar import ResourceCalendar
+        await self.scheduler_service.recalculate_for_calendar_change(
+            project_id, 
+            ResourceCalendar.from_dict(calendar_data.model_dump())
+        )
+
+        return doc

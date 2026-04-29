@@ -23,6 +23,8 @@ import SCurveChart from "@/components/scheduler/SCurveChart";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import CalendarSettingsModal from "@/components/projects/CalendarSettingsModal";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 export default function ProjectSchedulerPage() {
   return (
@@ -61,6 +63,7 @@ function ProjectSchedulerContent() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: financials } = useSWR(
@@ -241,14 +244,24 @@ function ProjectSchedulerContent() {
               { value: "kanban", label: "Kanban", icon: ListTodo },
               { value: "analytics", label: "Analytics", icon: TrendingUp },
               { value: "budget", label: "Budget", icon: Landmark },
+              { value: "calendar", label: "Calendar", icon: CalendarIcon },
               { value: "export", label: "Export", icon: Upload },
             ].map((tab) => {
               const TabIcon = tab.icon;
               const isActive = activeTab === tab.value;
+              
+              const handleClick = () => {
+                if (tab.value === "calendar") {
+                  setIsCalendarModalOpen(true);
+                } else {
+                  handleTabChange(tab.value);
+                }
+              };
+
               return (
                 <button
                   key={tab.value}
-                  onClick={() => handleTabChange(tab.value)}
+                  onClick={handleClick}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${isActive
                     ? "bg-orange-600 dark:bg-orange-500 text-white shadow-lg shadow-orange-500/20"
                     : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
@@ -477,7 +490,13 @@ function ProjectSchedulerContent() {
         confirmText="Migrate Data"
         variant="warning"
       />
+      {/* Modals */}
       <TaskDetailsModal />
+      <CalendarSettingsModal 
+        isOpen={isCalendarModalOpen}
+        onClose={() => setIsCalendarModalOpen(false)}
+        projectId={activeProject.project_id}
+      />
     </div>
   );
 }

@@ -191,8 +191,9 @@ async def get_project_service(
     audit: AuditService = Depends(get_audit_service),
     perm: PermissionChecker = Depends(get_permission_checker),
     fin: FinancialService = Depends(get_financial_service),
+    scheduler: SchedulerService = Depends(get_scheduler_service),
 ) -> ProjectService:
-    return ProjectService(db, audit, perm, fin)
+    return ProjectService(db, audit, perm, fin, scheduler)
 
 
 async def get_client_service(

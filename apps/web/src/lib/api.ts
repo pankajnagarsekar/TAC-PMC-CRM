@@ -265,6 +265,12 @@ export const schedulerApi = {
 
   migrateLegacyData: (projectId: string, dryRun: boolean = true) =>
     api.post(`/api/v1/scheduler/${projectId}/migrate`, null, { params: { dry_run: dryRun } }).then(res => res.data),
+
+  getCalendar: (projectId: string) =>
+    api.get(`/api/v1/projects/${projectId}/calendar`).then(res => res.data),
+
+  updateCalendar: (projectId: string, calendar: any) =>
+    api.put(`/api/v1/projects/${projectId}/calendar`, calendar).then(res => res.data),
 };
 
 export const portfolioApi = {
