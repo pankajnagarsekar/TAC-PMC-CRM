@@ -278,6 +278,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     comparisonData: null,
     selectedBaselineA: null,
     selectedBaselineB: null,
+    timescale: "day",
+    projectCalendar: null,
 
     loadSchedule: (response) => {
       clearPendingCalculation();
@@ -628,17 +630,11 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       });
     },
 
-    toggleParentCollapse: (taskId) => {
-      set((_state) => {
-        const next = new Set(get().collapsedParents);
-        if (next.has(taskId)) {
-          next.delete(taskId);
-        } else {
-          next.add(taskId);
-        }
         return { collapsedParents: next };
       });
     },
+    setTimescale: (scale) => set({ timescale: scale }),
+    setProjectCalendar: (calendar) => set({ projectCalendar: calendar }),
 
     fetchBaselineComparison: async (projectId: string, baselineA: number, baselineB?: number) => {
       set({ pendingCalculation: true });

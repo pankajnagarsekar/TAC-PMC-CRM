@@ -174,6 +174,26 @@ export type ActiveFilters = {
   value?: string | number;
 };
 
+export type GanttTimescale = "day" | "week" | "month" | "quarter";
+
+export type ProjectCalendar = {
+  organisation_id: string;
+  project_id: string;
+  working_days: number[]; // 0-6
+  shift_start: string;
+  shift_end: string;
+  lunch_start: string;
+  lunch_end: string;
+  exceptions: CalendarException[];
+};
+
+export type CalendarException = {
+  start_date: string;
+  end_date: string;
+  exception_type: "holiday" | "non_working";
+  reason: string;
+};
+
 export type BaselineComparisonResult = {
   task_id: string;
   wbs_code: string;
@@ -204,6 +224,10 @@ export interface ScheduleStoreState {
   collapsedParents: Set<string>;
   isTaskModalOpen: boolean;
 
+  // Timeline & Calendar
+  timescale: GanttTimescale;
+  projectCalendar: ProjectCalendar | null;
+
   // Baseline Comparison
   comparisonData: BaselineComparisonResult[] | null;
   selectedBaselineA: number | null;
@@ -222,6 +246,8 @@ export interface ScheduleStoreState {
   deselectTask: (taskId: string) => void;
   setSelectedTask: (taskId: string) => void;
   toggleParentCollapse: (taskId: string) => void;
+  setTimescale: (scale: GanttTimescale) => void;
+  setProjectCalendar: (calendar: ProjectCalendar) => void;
 
   // Comparison Actions
   fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;

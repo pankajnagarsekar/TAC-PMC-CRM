@@ -24,6 +24,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import CalendarSettingsModal from "@/components/projects/CalendarSettingsModal";
+import SchedulerCalendarView from "@/components/scheduler/SchedulerCalendarView";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 export default function ProjectSchedulerPage() {
@@ -94,6 +95,11 @@ function ProjectSchedulerContent() {
             useScheduleStore.setState({ loading: false });
           });
       }
+
+      // Fetch Calendar
+      schedulerApi.getCalendar(activeProject.project_id).then(cal => {
+        useScheduleStore.getState().setProjectCalendar(cal);
+      }).catch(err => console.error("Failed to fetch calendar", err));
     }
   }, [activeProject, loadSchedule, isHydrated]);
 
@@ -251,11 +257,7 @@ function ProjectSchedulerContent() {
               const isActive = activeTab === tab.value;
               
               const handleClick = () => {
-                if (tab.value === "calendar") {
-                  setIsCalendarModalOpen(true);
-                } else {
-                  handleTabChange(tab.value);
-                }
+                handleTabChange(tab.value);
               };
 
               return (
@@ -406,6 +408,10 @@ function ProjectSchedulerContent() {
                     />
                   </div>
                 )}
+              </Tabs.Content>
+
+              <Tabs.Content value="calendar" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
+                <SchedulerCalendarView onOpenSettings={() => setIsCalendarModalOpen(true)} />
               </Tabs.Content>
 
               <Tabs.Content value="export" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">

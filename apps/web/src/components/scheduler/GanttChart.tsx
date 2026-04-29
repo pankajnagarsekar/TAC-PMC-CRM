@@ -15,7 +15,7 @@ import {
   normalizeTaskOrder,
   parseTaskDate,
   ROW_HEIGHT,
-  TIMELINE_DAY_WIDTH,
+  getTimescaleWidth,
 } from "./scheduler-utils";
 import { GanttDependencyOverlay, type GanttDependencyEdge, type GanttDependencyNode } from "./GanttDependencyOverlay";
 
@@ -50,10 +50,12 @@ const Bar = memo(function Bar({
   onStartDrag: (task: ScheduleTask, mode: DragMode, startX: number) => void;
 }) {
   const isMilestone = Boolean(task.is_milestone || task.scheduled_duration === 0);
+  const isSummary = Boolean(task.is_summary);
   const barLeft = Math.max(0, left);
   const isCriticalHighlighted = Boolean(emphasizeCritical && task.is_critical);
+  const percent = task.percent_complete ?? 0;
 
-  const beginDrag = (mode: DragMode) => (event: React.PointerEvent<HTMLButtonElement>) => {
+  const beginDrag = (mode: DragMode) => (event: React.PointerEvent<HTMLButtonElement | HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
     onStartDrag(task, mode, event.clientX);
@@ -67,10 +69,38 @@ const Bar = memo(function Bar({
         onClick={() => onSelect(task.task_id)}
       >
         <div
-          className={`h-full w-full rotate-45 border-2 shadow-xl transition-all ${isCriticalHighlighted ? 'bg-rose-500 border-rose-300' : 'bg-sky-500 border-sky-300'} group-hover:scale-125`}
+          className={`h-full w-full rotate-45 border-2 shadow-xl transition-all ${isCriticalHighlighted ? 'bg-rose-600 border-rose-400' : 'bg-slate-900 dark:bg-white border-slate-700 dark:border-slate-300'} group-hover:scale-125`}
         />
-        <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 bg-slate-900 dark:bg-slate-950 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded transition-opacity">
+        <div className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 bg-slate-900 dark:bg-slate-950 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg border border-white/10 shadow-2xl transition-opacity z-50">
           {task.task_name} (M)
+        </div>
+      </div>
+    );
+  }
+
+  if (isSummary) {
+    return (
+      <div
+        className="absolute top-1/2 z-20 -translate-y-1/2 group cursor-pointer"
+        style={{ left: barLeft, width }}
+        onClick={() => onSelect(task.task_id)}
+      >
+        {/* MS Project Style Summary Bar (Bracket) */}
+        <div className="relative h-6 w-full">
+          <div className="absolute top-0 h-2 w-full bg-slate-900 dark:bg-slate-200 rounded-sm shadow-sm" />
+          <div className="absolute left-0 top-0 h-4 w-1.5 bg-slate-900 dark:bg-slate-200 rounded-bl-sm" />
+          <div className="absolute right-0 top-0 h-4 w-1.5 bg-slate-900 dark:bg-slate-200 rounded-br-sm" />
+          
+          {/* Progress Overlay for Summary */}
+          {percent > 0 && (
+            <div 
+              className="absolute top-0 h-1 bg-sky-500 rounded-sm transition-all duration-500" 
+              style={{ width: `${percent}%` }}
+            />
+          )}
+        </div>
+        <div className="absolute left-0 top-full mt-1 whitespace-nowrap opacity-0 group-hover:opacity-100 text-[8px] font-bold text-slate-500 uppercase tracking-widest transition-opacity">
+          Summary: {task.task_name} ({percent}%)
         </div>
       </div>
     );
@@ -83,23 +113,35 @@ const Bar = memo(function Bar({
       onClick={() => onSelect(task.task_id)}
     >
       <div
-        className={`group relative h-8 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 cursor-grab active:cursor-grabbing ${isDragging
+        className={`group relative h-9 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 cursor-grab active:cursor-grabbing overflow-hidden ${isDragging
           ? "scale-[1.03] ring-2 ring-orange-400/60 shadow-orange-400/20 shadow-xl opacity-90"
           : isCriticalHighlighted
-            ? "border-rose-400/40 bg-rose-500/25"
-            : "border-sky-400/30 bg-sky-500/20"
+            ? "border-rose-400/40 bg-rose-500/10"
+            : "border-slate-300/50 dark:border-white/10 bg-white dark:bg-slate-900"
           }`}
       >
-        <div className="flex h-full items-center justify-between gap-2">
+        {/* Progress Fill */}
+        <div 
+          className={`absolute inset-0 z-0 h-full transition-all duration-700 ${isCriticalHighlighted ? 'bg-rose-500/20' : 'bg-sky-500/15'}`}
+          style={{ width: `${percent}%` }}
+        />
+
+        <div className="relative z-10 flex h-full items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-slate-900 dark:text-white">
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-900 dark:text-white leading-none">
               {task.task_name}
             </p>
-            <p className="text-[9px] text-slate-600 dark:text-slate-400">
-              {formatTaskDurationLabel(task)}
-            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`text-[8px] font-black px-1 rounded-sm ${percent === 100 ? 'bg-emerald-500/20 text-emerald-600' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}>
+                {percent}%
+              </span>
+              <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
+                {formatTaskDurationLabel(task)}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+          
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
               className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10 text-sky-500"
@@ -108,36 +150,27 @@ const Bar = memo(function Bar({
                 e.stopPropagation();
                 onOpenModal(task.task_id);
               }}
-              title="View details"
             >
               <Eye size={12} />
             </button>
-            <button
-              type="button"
-              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
+            <div
+              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10 cursor-move"
               onPointerDown={beginDrag("move")}
-              title="Move task"
             >
               <MoveHorizontal size={12} />
-            </button>
-            <button
-              type="button"
-              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
-              onPointerDown={beginDrag("start")}
-              title="Adjust start"
-            >
-              <GripVertical size={12} />
-            </button>
-            <button
-              type="button"
-              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10"
-              onPointerDown={beginDrag("finish")}
-              title="Adjust finish"
-            >
-              <Pencil size={12} />
-            </button>
+            </div>
           </div>
         </div>
+        
+        {/* Drag Handles */}
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-orange-500/30 transition-colors"
+          onPointerDown={beginDrag("start")}
+        />
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-orange-500/30 transition-colors"
+          onPointerDown={beginDrag("finish")}
+        />
       </div>
     </div>
   );
@@ -156,6 +189,11 @@ export default function GanttChart() {
   const setSelectedTask = useScheduleStore((state) => state.setSelectedTask);
   const openTaskModal = useScheduleStore((state) => state.openTaskModal);
   const systemState = useScheduleStore((state) => state.systemState);
+  const timescale = useScheduleStore((state) => state.timescale);
+  const setTimescale = useScheduleStore((state) => state.setTimescale);
+  const projectCalendar = useScheduleStore((state) => state.projectCalendar);
+
+  const unitWidth = getTimescaleWidth(timescale);
 
   // Baseline Comparison Store
   const comparisonData = useScheduleStore((state) => state.comparisonData);
@@ -225,13 +263,13 @@ export default function GanttChart() {
   useEffect(() => {
     if (scrollContainerRef.current && days.length > 0) {
       const today = startOfDay(new Date());
-      const left = differenceInCalendarDays(today, rangeStart) * TIMELINE_DAY_WIDTH;
+      const left = differenceInCalendarDays(today, rangeStart) * (unitWidth / (timescale === "day" ? 1 : 7));
       // Check if today is within range
-      if (left >= 0 && left <= days.length * TIMELINE_DAY_WIDTH) {
+      if (left >= 0 && left <= days.length * unitWidth) {
         scrollContainerRef.current.scrollLeft = Math.max(0, left - 400);
       }
     }
-  }, [rangeStart, days.length]);
+  }, [rangeStart, days.length, timescale, unitWidth]);
 
   const [scrollTop, setScrollTop] = useState(0);
   const [showBaseline, setShowBaseline] = useState(false);
@@ -281,7 +319,13 @@ export default function GanttChart() {
   const visibleTasks = tasks.slice(startIndex, endIndex);
   const topSpacer = startIndex * ROW_HEIGHT;
   const bottomSpacer = Math.max(0, (tasks.length - endIndex) * ROW_HEIGHT);
-  const timelineWidth = days.length * TIMELINE_DAY_WIDTH;
+  
+  const dayWidth = timescale === "day" ? unitWidth : 
+                   timescale === "week" ? unitWidth / 7 :
+                   timescale === "month" ? unitWidth / 30 :
+                   unitWidth / 90;
+
+  const timelineWidth = days.length * dayWidth;
   const visibleHeight = visibleTasks.length * ROW_HEIGHT;
 
   const getPreviewTask = useCallback((task: ScheduleTask): ScheduleTask => {
@@ -319,7 +363,7 @@ export default function GanttChart() {
     const nodes = new Map<string, GanttDependencyNode>();
     visibleTasks.forEach((task, index) => {
       const previewTask = getPreviewTask(task);
-      const { left, width } = getTaskBarPosition(previewTask, rangeStart);
+      const { left, width } = getTaskBarPosition(previewTask, rangeStart, timescale);
       nodes.set(task.task_id, {
         taskId: task.task_id,
         rowIndex: index,
@@ -328,7 +372,7 @@ export default function GanttChart() {
       });
     });
     return nodes;
-  }, [rangeStart, visibleTasks, getPreviewTask]);
+  }, [rangeStart, visibleTasks, getPreviewTask, timescale]);
 
   const dependencyEdges = useMemo(() => {
     const edges: GanttDependencyEdge[] = [];
@@ -352,24 +396,32 @@ export default function GanttChart() {
   }, [dependencyNodes, highlightCritical, taskMap, visibleTasks]);
 
   const monthHeaders = useMemo(() => {
-    const months: { label: string; width: number }[] = [];
+    const headers: { label: string; width: number }[] = [];
     if (days.length === 0) return [];
 
-    let currentMonth = "";
-    let lastMonthObj: { label: string, width: number } | null = null;
+    let currentLabel = "";
+    let lastObj: { label: string, width: number } | null = null;
 
     days.forEach((day) => {
-      const label = format(day, "MMMM yyyy");
-      if (label !== currentMonth) {
-        currentMonth = label;
-        lastMonthObj = { label, width: TIMELINE_DAY_WIDTH };
-        months.push(lastMonthObj);
-      } else if (lastMonthObj) {
-        lastMonthObj.width += TIMELINE_DAY_WIDTH;
+      let label = "";
+      if (timescale === "day" || timescale === "week") {
+        label = format(day, "MMMM yyyy");
+      } else if (timescale === "month") {
+        label = format(day, "yyyy");
+      } else {
+        label = `FY ${format(day, "yy")}`;
+      }
+
+      if (label !== currentLabel) {
+        currentLabel = label;
+        lastObj = { label, width: dayWidth };
+        headers.push(lastObj);
+      } else if (lastObj) {
+        lastObj.width += dayWidth;
       }
     });
-    return months;
-  }, [days]);
+    return headers;
+  }, [days, timescale, dayWidth]);
 
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
@@ -432,10 +484,10 @@ export default function GanttChart() {
       <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div>
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-200">
-            Store-Driven Gantt Canvas
+            Project Planning Surface
           </h3>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-600">
-            Drag bars to update the schedule, then the store debounces the API write
+            Interactive Gantt with Critical Path & Progress Rollups
           </p>
         </div>
 
@@ -448,6 +500,23 @@ export default function GanttChart() {
               {selectedTasks.size} selected
             </span>
           )}
+          <div className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] p-0.5">
+            {[
+              { id: 'day', label: 'D' },
+              { id: 'week', label: 'W' },
+              { id: 'month', label: 'M' },
+              { id: 'quarter', label: 'Q' }
+            ].map(scale => (
+              <button
+                key={scale.id}
+                onClick={() => setTimescale(scale.id as any)}
+                className={`w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-black transition-all ${timescale === scale.id ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                {scale.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] p-0.5">
             <button
               type="button"
@@ -524,9 +593,9 @@ export default function GanttChart() {
                       <div
                         key={index}
                         className={`flex h-10 items-center justify-center border-r border-slate-200 dark:border-white/5 px-2 text-[10px] font-black tracking-tight ${isWeekend ? 'text-rose-500/60 dark:text-rose-400/40 bg-slate-50 dark:bg-white/[0.01]' : 'text-slate-700 dark:text-slate-300'}`}
-                        style={{ width: TIMELINE_DAY_WIDTH }}
+                        style={{ width: dayWidth }}
                       >
-                        {format(day, "dd")}
+                        {timescale === "day" ? format(day, "dd") : format(day, "d")}
                       </div>
                     );
                   })}
@@ -543,9 +612,34 @@ export default function GanttChart() {
             <div className="relative" style={{ height: visibleHeight }}>
               {/* Background Grid Lines */}
               <div className="pointer-events-none absolute left-[280px] top-0 z-0 h-full flex">
-                {days.map((_, i) => (
-                  <div key={i} className={`h-full border-r ${days[i].getDay() === 0 || days[i].getDay() === 6 ? 'bg-slate-50/50 dark:bg-white/[0.01]' : ''} border-slate-200/40 dark:border-white/[0.03]`} style={{ width: TIMELINE_DAY_WIDTH }} />
-                ))}
+                {days.map((day, i) => {
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                  const isHoliday = projectCalendar?.exceptions.some(ex => {
+                    const d = format(day, 'yyyy-MM-dd');
+                    return d >= ex.start_date && d <= ex.end_date;
+                  });
+                  const isNonWorking = !projectCalendar?.working_days.includes(day.getDay());
+
+                  return (
+                    <div 
+                      key={i} 
+                      className={`h-full border-r border-slate-200/40 dark:border-white/[0.03] ${isHoliday || isNonWorking || isWeekend ? 'bg-slate-100/30 dark:bg-white/[0.02]' : ''}`} 
+                      style={{ width: dayWidth }} 
+                    >
+                      {isHoliday && i % 2 === 0 && (
+                        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] bg-[repeating-linear-gradient(45deg,transparent,transparent_5px,#000_5px,#000_10px)]" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Today Marker */}
+              <div 
+                className="absolute top-0 z-40 h-full w-px bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)] pointer-events-none"
+                style={{ left: 280 + (differenceInCalendarDays(new Date(), rangeStart) * dayWidth) }}
+              >
+                <div className="absolute -left-1.5 top-0 h-3 w-3 rounded-full bg-orange-500 shadow-lg" />
               </div>
 
               <div className="pointer-events-none absolute left-[280px] right-0 top-0 z-10 h-full overflow-hidden">
@@ -562,11 +656,11 @@ export default function GanttChart() {
 
               {visibleTasks.map((task) => {
                 const previewTask = getPreviewTask(task);
-                const { left, width } = getTaskBarPosition(previewTask, rangeStart);
+                const { left, width } = getTaskBarPosition(previewTask, rangeStart, timescale);
 
                 // Multi-Baseline Logic
                 const comparison = comparisonMap.get(task.task_id);
-                const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, true) : null;
+                const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, timescale, true) : null;
 
                 const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
                 const variance = comparison?.schedule_variance_days ?? 0;
@@ -601,11 +695,12 @@ export default function GanttChart() {
                       <div className="absolute inset-0 flex" style={{ width: timelineWidth }}>
                         {days.map((day) => {
                           const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                          const isNonWorking = projectCalendar && !projectCalendar.working_days.includes(day.getDay());
                           return (
                             <div
                               key={`${task.task_id}-${day.toISOString()}`}
-                              className={`border-r border-slate-200 dark:border-white/[0.05] ${isWeekend ? 'bg-slate-100/50 dark:bg-white/[0.01]' : ''}`}
-                              style={{ width: TIMELINE_DAY_WIDTH }}
+                              className={`border-r border-slate-200 dark:border-white/[0.05] ${isWeekend || isNonWorking ? 'bg-slate-100/50 dark:bg-white/[0.01]' : ''}`}
+                              style={{ width: dayWidth }}
                             />
                           );
                         })}

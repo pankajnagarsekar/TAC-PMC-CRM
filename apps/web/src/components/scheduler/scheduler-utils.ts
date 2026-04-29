@@ -7,8 +7,18 @@ import type {
 } from "@/types/schedule.types";
 
 export const ROW_HEIGHT = 54;
-export const TIMELINE_DAY_WIDTH = 40;
 export const GRID_HEADER_HEIGHT = 44;
+
+export const TIMESCALE_WIDTHS: Record<string, number> = {
+  day: 40,
+  week: 120,
+  month: 200,
+  quarter: 350,
+};
+
+export function getTimescaleWidth(scale: string = "day"): number {
+  return TIMESCALE_WIDTHS[scale] || 40;
+}
 
 export const KANBAN_STATUSES: ScheduleTaskStatus[] = [
   "draft",
@@ -169,7 +179,7 @@ export function buildCalendarColumns(start: Date, end: Date) {
   return days;
 }
 
-export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date) {
+export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date, timescale: string = "day") {
   let start = parseTaskDate(task.scheduled_start);
   let finish = parseTaskDate(task.scheduled_finish);
 
@@ -183,14 +193,25 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date) {
 
   if (!start || !finish) return { left: 0, width: 0 };
 
-  const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
+  const unitWidth = getTimescaleWidth(timescale);
+  const left = differenceInCalendarDays(start, rangeStart) * (unitWidth / (timescale === "day" ? 1 : 7)); // This logic needs to be more robust
+  // Actually, for simplicity in Phase 1, let's just use days as the base and multiply by (unitWidth / baseline)
+  
+  const dayWidth = timescale === "day" ? unitWidth : 
+                   timescale === "week" ? unitWidth / 7 :
+                   timescale === "month" ? unitWidth / 30 :
+                   unitWidth / 90;
+
+  const leftPos = differenceInCalendarDays(start, rangeStart) * dayWidth;
   const isMilestone = task.is_milestone || task.scheduled_duration === 0;
+  
+  const durationDays = differenceInCalendarDays(finish, start) + 1;
   const width = Math.max(
-    isMilestone ? TIMELINE_DAY_WIDTH : 120,
-    (differenceInCalendarDays(finish, start) + 1) * TIMELINE_DAY_WIDTH,
+    isMilestone ? unitWidth : (timescale === "day" ? 120 : unitWidth),
+    durationDays * dayWidth
   );
 
-  return { left, width };
+  return { left: leftPos, width };
 }
 
 export function getComparisonBarPosition(
@@ -213,17 +234,22 @@ export function getComparisonBarPosition(
   return { left, width };
 }
 
-export function getBaselineBarPosition(task: ScheduleTask, rangeStart: Date) {
+export function getBaselineBarPosition(task: ScheduleTask, rangeStart: Date, timescale: string = "day") {
   const start = parseTaskDate(task.baseline_start);
   const finish = parseTaskDate(task.baseline_finish);
   if (!start || !finish) {
     return null;
   }
 
-  const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
+  const dayWidth = timescale === "day" ? getTimescaleWidth(timescale) : 
+                   timescale === "week" ? getTimescaleWidth(timescale) / 7 :
+                   timescale === "month" ? getTimescaleWidth(timescale) / 30 :
+                   getTimescaleWidth(timescale) / 90;
+
+  const left = differenceInCalendarDays(start, rangeStart) * dayWidth;
   const width = Math.max(
-    TIMELINE_DAY_WIDTH,
-    (differenceInCalendarDays(finish, start) + 1) * TIMELINE_DAY_WIDTH,
+    dayWidth,
+    (differenceInCalendarDays(finish, start) + 1) * dayWidth,
   );
 
   return { left, width };
