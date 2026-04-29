@@ -212,7 +212,8 @@ export function getTaskBarPosition(task: ScheduleTask, rangeStart: Date, timesca
 export function getComparisonBarPosition(
   comparison: BaselineComparisonResult,
   rangeStart: Date,
-  isA: boolean = true
+  isA: boolean = true,
+  timescale: string = "day"
 ) {
   const start = parseTaskDate(isA ? comparison.baseline_a_start : comparison.baseline_b_start);
   const finish = parseTaskDate(isA ? comparison.baseline_a_finish : comparison.baseline_b_finish);
@@ -220,10 +221,16 @@ export function getComparisonBarPosition(
     return null;
   }
 
-  const left = differenceInCalendarDays(start, rangeStart) * TIMELINE_DAY_WIDTH;
+  const unitWidth = getTimescaleWidth(timescale);
+  const dayWidth = timescale === "day" ? unitWidth : 
+                   timescale === "week" ? unitWidth / 7 :
+                   timescale === "month" ? unitWidth / 30 :
+                   unitWidth / 90;
+
+  const left = differenceInCalendarDays(start, rangeStart) * dayWidth;
   const width = Math.max(
-    TIMELINE_DAY_WIDTH,
-    (differenceInCalendarDays(finish, start) + 1) * TIMELINE_DAY_WIDTH,
+    dayWidth,
+    (differenceInCalendarDays(finish, start) + 1) * dayWidth,
   );
 
   return { left, width };

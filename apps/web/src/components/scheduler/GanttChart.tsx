@@ -427,7 +427,7 @@ export default function GanttChart() {
     const handlePointerMove = (event: PointerEvent) => {
       const current = dragStateRef.current;
       if (!current) return;
-      const delta = Math.round((event.clientX - current.startX) / TIMELINE_DAY_WIDTH);
+      const delta = Math.round((event.clientX - current.startX) / dayWidth);
       current.deltaDays = delta;
       setPreviewDeltaDays(delta);
     };
@@ -660,7 +660,7 @@ export default function GanttChart() {
 
                 // Multi-Baseline Logic
                 const comparison = comparisonMap.get(task.task_id);
-                const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, timescale, true) : null;
+                const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, true, timescale) : null;
 
                 const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
                 const variance = comparison?.schedule_variance_days ?? 0;

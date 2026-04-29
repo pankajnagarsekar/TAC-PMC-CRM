@@ -107,7 +107,7 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
                   </span>
                   
                   {exception && (
-                    <div className="rounded-full bg-rose-500/10 p-1 text-rose-500" title={exception.name}>
+                    <div className="rounded-full bg-rose-500/10 p-1 text-rose-500" title={exception.reason}>
                       <AlertCircle size={10} />
                     </div>
                   )}
@@ -146,19 +146,19 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
         <GlassCard className="p-4 flex items-center gap-4 border-emerald-500/20 bg-emerald-500/5">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />
           <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-            {Object.values(taskMap).filter(t => t.percent_complete === 100).length} Completed Tasks
+            {Object.values(taskMap).filter(t => (t.percent_complete || 0) === 100).length} Completed Tasks
           </div>
         </GlassCard>
         <GlassCard className="p-4 flex items-center gap-4 border-rose-500/20 bg-rose-500/5">
           <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
           <div className="text-[10px] font-black uppercase tracking-widest text-rose-500">
-            {Object.values(taskMap).filter(t => t.is_critical && t.percent_complete < 100).length} Critical Path Tasks
+            {Object.values(taskMap).filter(t => t.is_critical && (t.percent_complete || 0) < 100).length} Critical Path Tasks
           </div>
         </GlassCard>
         <GlassCard className="p-4 flex items-center gap-4 border-slate-500/20 bg-slate-500/5">
           <div className="w-2 h-2 rounded-full bg-slate-900 dark:bg-white" />
           <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-            {Object.values(taskMap).filter(t => t.is_milestone).length} Project Milestones
+            {Object.values(taskMap).filter(t => !!t.is_milestone).length} Project Milestones
           </div>
         </GlassCard>
       </div>
