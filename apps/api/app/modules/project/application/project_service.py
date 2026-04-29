@@ -209,6 +209,7 @@ class ProjectService:
             )
 
         return True
+
     async def initialize_project_budgets(self, user: dict, project_id: str) -> bool:
         """Seed project budgets for all organization cost codes."""
         await self.permission_checker.check_admin_role(user)
@@ -300,10 +301,9 @@ class ProjectService:
         )
 
         # Trigger authoritative recalculation
-        from app.modules.scheduler.resource_calendar import ResourceCalendar
         await self.scheduler_service.recalculate_for_calendar_change(
-            project_id, 
-            ResourceCalendar.from_dict(calendar_data.model_dump())
+            project_id,
+            user["organisation_id"]
         )
 
         return doc
