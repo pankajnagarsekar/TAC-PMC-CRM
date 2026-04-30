@@ -1,11 +1,11 @@
 "use client";
 
 import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { GripVertical, MoveHorizontal, Pencil, Eye } from "lucide-react";
+import { MoveHorizontal, Eye } from "lucide-react";
 import { addDays, format, startOfDay, differenceInCalendarDays } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
-import type { ScheduleTask, BaselineComparisonResult } from "@/types/schedule.types";
+import type { ScheduleTask, BaselineComparisonResult, GanttTimescale } from "@/types/schedule.types";
 import {
   buildCalendarColumns,
   calculateTimelineRange,
@@ -194,6 +194,12 @@ export default function GanttChart() {
   const projectCalendar = useScheduleStore((state) => state.projectCalendar);
 
   const unitWidth = getTimescaleWidth(timescale);
+  const dayWidth = useMemo(() => {
+    return timescale === "day" ? unitWidth : 
+           timescale === "week" ? unitWidth / 7 :
+           timescale === "month" ? unitWidth / 30 :
+           unitWidth / 90;
+  }, [timescale, unitWidth]);
 
   // Baseline Comparison Store
   const comparisonData = useScheduleStore((state) => state.comparisonData);
@@ -259,21 +265,23 @@ export default function GanttChart() {
   const { start: rangeStart, end: rangeEnd } = useMemo(() => calculateTimelineRange(tasks), [tasks]);
   const days = useMemo(() => buildCalendarColumns(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
 
-  // S-BUG #38: Auto-scroll to today on mount
-  useEffect(() => {
-    if (scrollContainerRef.current && days.length > 0) {
-      const today = startOfDay(new Date());
-      const left = differenceInCalendarDays(today, rangeStart) * (unitWidth / (timescale === "day" ? 1 : 7));
-      // Check if today is within range
-      if (left >= 0 && left <= days.length * unitWidth) {
-        scrollContainerRef.current.scrollLeft = Math.max(0, left - 400);
-      }
-    }
-  }, [rangeStart, days.length, timescale, unitWidth]);
+
 
   const [scrollTop, setScrollTop] = useState(0);
   const [showBaseline, setShowBaseline] = useState(false);
   const [activeBaselineNum, setActiveBaselineNum] = useState<number>(1);
+
+  // S-BUG #38: Auto-scroll to today on mount
+  useEffect(() => {
+    if (scrollContainerRef.current && days.length > 0) {
+      const today = startOfDay(new Date());
+      const left = differenceInCalendarDays(today, rangeStart) * dayWidth;
+      // Check if today is within range
+      if (left >= 0 && left <= days.length * dayWidth) {
+        scrollContainerRef.current.scrollLeft = Math.max(0, left - 400);
+      }
+    }
+  }, [rangeStart, days.length, dayWidth]);
 
   const handleBaselineToggle = () => {
     if (showBaseline) {
@@ -312,19 +320,14 @@ export default function GanttChart() {
   useEffect(() => {
     taskMapRef.current = taskMap;
   }, [taskMap]);
-  const viewportHeight = 420;
-  const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 6;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 3);
+  const viewportHeight = 1600; // Increased to ensure large monitors don't see blank virtualization areas
+  const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 20;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
   const endIndex = Math.min(tasks.length, startIndex + visibleCount);
   const visibleTasks = tasks.slice(startIndex, endIndex);
   const topSpacer = startIndex * ROW_HEIGHT;
   const bottomSpacer = Math.max(0, (tasks.length - endIndex) * ROW_HEIGHT);
   
-  const dayWidth = timescale === "day" ? unitWidth : 
-                   timescale === "week" ? unitWidth / 7 :
-                   timescale === "month" ? unitWidth / 30 :
-                   unitWidth / 90;
-
   const timelineWidth = days.length * dayWidth;
   const visibleHeight = visibleTasks.length * ROW_HEIGHT;
 
@@ -456,7 +459,7 @@ export default function GanttChart() {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [readOnly, commitDrag]);
+  }, [readOnly, commitDrag, dayWidth]);
 
   const startDrag = (task: ScheduleTask, mode: DragMode, startX: number) => {
     if (readOnly || !mode) return;
@@ -509,7 +512,7 @@ export default function GanttChart() {
             ].map(scale => (
               <button
                 key={scale.id}
-                onClick={() => setTimescale(scale.id as any)}
+                onClick={() => setTimescale(scale.id as GanttTimescale)}
                 className={`w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-black transition-all ${timescale === scale.id ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 {scale.label}

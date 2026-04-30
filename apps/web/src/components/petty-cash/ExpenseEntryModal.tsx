@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   X,
   Upload,
@@ -62,7 +62,9 @@ export default function ExpenseEntryModal({
     fetcher
   );
 
-  const categories = Array.isArray(categoriesData) ? categoriesData : (categoriesData as any)?.data || [];
+  const categories = useMemo(() => {
+    return Array.isArray(categoriesData) ? categoriesData : (categoriesData as { data?: Category[] })?.data || [];
+  }, [categoriesData]);
 
   useEffect(() => {
     if (isOpen && projectId) {

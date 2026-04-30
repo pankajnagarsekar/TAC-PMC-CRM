@@ -132,10 +132,11 @@ export default function SettingsPage() {
         title: "Success",
         description: "Global settings synchronized successfully across all modules.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const errData = err.response?.data;
-      const detail = errData?.detail || errData?.message || "Encountered a server error while attempting to sync settings.";
+      const error = err as { response?: { data?: { detail?: string | { message?: string } } } };
+      const errData = error.response?.data;
+      const detail = (errData as { detail?: string; message?: string })?.detail || (errData as { detail?: string; message?: string })?.message || "Encountered a server error while attempting to sync settings.";
       toast({
         title: "Update Failed",
         description: Array.isArray(detail) ? JSON.stringify(detail) : detail,

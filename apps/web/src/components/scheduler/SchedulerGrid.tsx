@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Activity } from "lucide-react";
 import { toast } from "sonner";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
@@ -28,6 +29,8 @@ export default function SchedulerGrid() {
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
   const collapsedParents = useScheduleStore((state) => state.collapsedParents);
   const toggleParentCollapse = useScheduleStore((state) => state.toggleParentCollapse);
+
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
 
@@ -94,9 +97,15 @@ export default function SchedulerGrid() {
     });
   };
 
+  const confirmRemove = () => {
+    if (taskToDelete) {
+      removeTask(taskToDelete);
+      setTaskToDelete(null);
+    }
+  };
+
   const handleRemove = (taskId: string) => {
-    removeTask(taskId);
-    toast.info("Task removed locally from the grid.");
+    setTaskToDelete(taskId);
   };
 
   return (
@@ -186,6 +195,16 @@ export default function SchedulerGrid() {
           </div>
         </div>
       </div>
+      
+      <ConfirmDialog
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        title="Delete Task"
+        description={`Are you sure you want to permanently delete task "${taskToDelete ? taskMap[taskToDelete]?.task_name : ''}"? This action cannot be undone and will trigger a critical path recalculation.`}
+        onConfirm={confirmRemove}
+        confirmText="Delete Task"
+        variant="danger"
+      />
     </div>
   );
 }

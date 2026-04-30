@@ -178,7 +178,7 @@ export type ActiveFilters = {
 export type GanttTimescale = "day" | "week" | "month" | "quarter";
 
 export type ProjectCalendar = {
-  organisation_id: string;
+  organisation_id?: string;
   project_id: string;
   working_days: number[]; // 0-6
   shift_start: string;
@@ -192,7 +192,7 @@ export type CalendarException = {
   start_date: string;
   end_date: string;
   exception_type: "holiday" | "non_working";
-  reason: string;
+  reason?: string;
 };
 
 export type BaselineComparisonResult = {

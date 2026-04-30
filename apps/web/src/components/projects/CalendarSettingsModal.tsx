@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Calendar, Clock, Plus, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -20,13 +20,7 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
   const [saving, setSaving] = useState(false);
   const [calendar, setCalendar] = useState<ProjectCalendar | null>(null);
 
-  useEffect(() => {
-    if (isOpen && projectId) {
-      loadCalendar();
-    }
-  }, [isOpen, projectId]);
-
-  const loadCalendar = async () => {
+  const loadCalendar = useCallback(async () => {
     setLoading(true);
     try {
       const data = await schedulerApi.getCalendar(projectId);
@@ -37,7 +31,13 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    if (isOpen && projectId) {
+      loadCalendar();
+    }
+  }, [isOpen, projectId, loadCalendar]);
 
   const handleSave = async () => {
     if (!calendar) return;

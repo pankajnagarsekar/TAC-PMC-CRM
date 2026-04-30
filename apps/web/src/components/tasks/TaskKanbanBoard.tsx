@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Task } from "@/types/api";
 import TaskCard from "./TaskCard";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -10,6 +11,11 @@ interface TaskKanbanBoardProps {
 }
 
 export default function TaskKanbanBoard({ tasks, onTaskUpdate }: TaskKanbanBoardProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const statuses = ["Open", "In Progress", "Review", "Completed", "Closed"];
 
   const onDragEnd = async (result: DropResult) => {
@@ -56,6 +62,16 @@ export default function TaskKanbanBoard({ tasks, onTaskUpdate }: TaskKanbanBoard
       toast.error(typeof errorMsg === "string" ? errorMsg : "Failed to update status");
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar h-[calc(100vh-280px)] min-h-[500px] snap-x animate-pulse">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex-1 min-w-[280px] max-w-[320px] bg-slate-900 border border-slate-800 rounded-xl p-3" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>

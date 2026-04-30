@@ -4,6 +4,7 @@ import type {
   ScheduleCalculationResponse,
   ScheduleChangeRequest,
   ScheduleTask,
+  ProjectCalendar,
 } from "@/types/schedule.types";
 import { toast } from "sonner";
 
@@ -269,7 +270,7 @@ export const schedulerApi = {
   getCalendar: (projectId: string) =>
     api.get(`/api/v1/projects/${projectId}/calendar`).then(res => res.data),
 
-  updateCalendar: (projectId: string, calendar: any) =>
+  updateCalendar: (projectId: string, calendar: ProjectCalendar) =>
     api.put(`/api/v1/projects/${projectId}/calendar`, calendar).then(res => res.data),
 };
 

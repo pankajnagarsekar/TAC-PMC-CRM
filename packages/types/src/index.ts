@@ -640,11 +640,12 @@ export interface TaskUpdate {
 export interface CalendarException {
   start_date: string;
   end_date: string;
-  exception_type: string;
+  exception_type: "holiday" | "non_working";
   reason?: string;
 }
 
 export interface ProjectCalendar {
+  organisation_id?: string;
   project_id: string;
   working_days: number[];
   shift_start: string;

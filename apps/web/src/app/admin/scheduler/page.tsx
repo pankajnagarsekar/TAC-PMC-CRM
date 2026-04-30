@@ -26,6 +26,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import CalendarSettingsModal from "@/components/projects/CalendarSettingsModal";
 import SchedulerCalendarView from "@/components/scheduler/SchedulerCalendarView";
+import { TaskCreateModal } from "@/components/scheduler/TaskCreateModal";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 export default function ProjectSchedulerPage() {
@@ -45,7 +46,6 @@ function ProjectSchedulerContent() {
   const loadSchedule = useScheduleStore((state) => state.loadSchedule);
   const isHydrated = useScheduleStore((state) => state.isHydrated);
   const loading = useScheduleStore((state) => state.loading);
-  const createDraftTask = useScheduleStore((state) => state.createDraftTask);
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
   const calculationError = useScheduleStore((state) => state.calculationError);
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -66,6 +66,7 @@ function ProjectSchedulerContent() {
   const [exporting, setExporting] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+  const [isTaskCreateModalOpen, setIsTaskCreateModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: financials } = useSWR(
@@ -114,9 +115,7 @@ function ProjectSchedulerContent() {
 
   const handleAddTask = () => {
     if (!activeProject) return;
-    const newTask = useScheduleStore.getState().createDraftTask(activeProject.project_id);
-    useScheduleStore.getState().openTaskModal(newTask.task_id);
-    toast.success(`Task created.`);
+    setIsTaskCreateModalOpen(true);
   };
 
   const handleImportSchedule = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,19 +244,23 @@ function ProjectSchedulerContent() {
             ].map((tab) => {
               const TabIcon = tab.icon;
               const isActive = activeTab === tab.value;
+              const isDisabled = taskCount === 0 && tab.value !== "export" && tab.value !== "grid";
               
               const handleClick = () => {
-                handleTabChange(tab.value);
+                if (!isDisabled) {
+                  handleTabChange(tab.value);
+                }
               };
 
               return (
                 <button
                   key={tab.value}
                   onClick={handleClick}
+                  disabled={isDisabled}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${isActive
                     ? "bg-orange-600 dark:bg-orange-500 text-white shadow-lg shadow-orange-500/20"
                     : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-                    }`}
+                    } ${isDisabled ? "opacity-30 cursor-not-allowed hover:bg-transparent dark:hover:bg-transparent hover:text-slate-500 dark:hover:text-slate-400" : ""}`}
                 >
                   <TabIcon size={12} />
                   <span className="hidden sm:inline">{tab.label}</span>
@@ -500,6 +503,13 @@ function ProjectSchedulerContent() {
       />
       {/* Modals */}
       <TaskDetailsModal />
+      {activeProject && (
+        <TaskCreateModal 
+          isOpen={isTaskCreateModalOpen} 
+          onClose={() => setIsTaskCreateModalOpen(false)} 
+          projectId={activeProject.project_id} 
+        />
+      )}
       <CalendarSettingsModal 
         isOpen={isCalendarModalOpen}
         onClose={() => setIsCalendarModalOpen(false)}
