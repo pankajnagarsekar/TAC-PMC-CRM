@@ -57,6 +57,12 @@ export default function SchedulerGrid() {
         if (!nameMatch && !wbsMatch && !idMatch) return false;
       }
 
+      // 3. Status filter
+      if (activeFilters.statusFilter && activeFilters.statusFilter.length > 0) {
+        const status = task.task_status || "draft";
+        if (!activeFilters.statusFilter.includes(status)) return false;
+      }
+      
       return true;
     });
   }, [tasks, taskMap, collapsedParents, searchTerm]);

@@ -28,6 +28,7 @@ import CalendarSettingsModal from "@/components/projects/CalendarSettingsModal";
 import SchedulerCalendarView from "@/components/scheduler/SchedulerCalendarView";
 import { TaskCreateModal } from "@/components/scheduler/TaskCreateModal";
 import { Calendar as CalendarIcon } from "lucide-react";
+import StatusFilter from "@/components/scheduler/StatusFilter";
 
 export default function ProjectSchedulerPage() {
   return (
@@ -247,6 +248,8 @@ function ProjectSchedulerContent() {
               className="pl-9 pr-4 py-2.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-orange-500/50 transition-all w-full lg:w-48 xl:w-64"
             />
           </div>
+
+          <StatusFilter />
 
           <div className="flex rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-950/40 p-1 shadow-inner backdrop-blur-md sticky top-0 z-30">
             {[

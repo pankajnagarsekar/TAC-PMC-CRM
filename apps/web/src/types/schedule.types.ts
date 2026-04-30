@@ -176,6 +176,7 @@ export type UndoStackEntry = {
 
 export type ActiveFilters = {
   searchTerm?: string;
+  statusFilter?: ScheduleTaskStatus[];
   column?: string;
   value?: string | number;
 };
@@ -257,6 +258,7 @@ export interface ScheduleStoreState {
   setTimescale: (scale: GanttTimescale) => void;
   setSearchTerm: (term: string) => void;
   setProjectCalendar: (calendar: ProjectCalendar) => void;
+  setStatusFilter: (statuses: ScheduleTaskStatus[]) => void;
 
   // Comparison Actions
   fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;

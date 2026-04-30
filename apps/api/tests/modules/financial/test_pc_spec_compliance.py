@@ -72,7 +72,6 @@ async def test_pc_mode_b_creation_and_close(client, test_db, test_user, test_pro
 
     # 5. Verify Fund Allocation Updates (Expect 200 + 18% GST = 236)
     alloc = await test_db.fund_allocations.find_one({"project_id": test_project_id, "category_id": c_id})
-    all_allocs = await test_db.fund_allocations.find({}).to_list(10)
     # The following line had an E501 violation and was redundant
 
     val_received = FinancialEngine.to_decimal(alloc["allocation_received"]) if alloc else None

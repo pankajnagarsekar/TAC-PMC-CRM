@@ -3,6 +3,7 @@ import pytest
 from app.core.time import now as ts_now
 from decimal import Decimal
 
+
 @pytest.mark.asyncio
 async def test_worker_log_partial_update(client, supervisor_token, test_project):
     """B4: Verify worker_log partial updates calculation."""
@@ -35,7 +36,7 @@ async def test_worker_log_partial_update(client, supervisor_token, test_project)
             {"vendor_name": "V1", "workers_count": 8, "skill_type": "Mason", "rate_per_worker": 500}
         ]
     }
-    resp = await client.put( # Using PUT as per routes.py
+    resp = await client.put(  # Using PUT as per routes.py
         f"/api/v1/worker-logs/{log_id}",
         json=update_payload,
         headers={"Authorization": f"Bearer {supervisor_token}"}
@@ -43,7 +44,8 @@ async def test_worker_log_partial_update(client, supervisor_token, test_project)
     assert resp.status_code == 200
     # Total workers should be recalculated
     assert resp.json()["data"]["total_workers"] == 8
-    assert resp.json()["data"]["remarks"] == "Initial" # Should persist
+    assert resp.json()["data"]["remarks"] == "Initial"  # Should persist
+
 
 @pytest.mark.asyncio
 async def test_attendance_checkout_calculation(client, supervisor_token, test_project):
@@ -68,6 +70,7 @@ async def test_attendance_checkout_calculation(client, supervisor_token, test_pr
     assert "total_hours" in data
     assert isinstance(data["total_hours"], (float, int))
 
+
 @pytest.mark.asyncio
 async def test_site_overhead_occ(client, admin_token, test_project):
     """B4: Verify Site Overhead optimistic locking."""
@@ -85,7 +88,7 @@ async def test_site_overhead_occ(client, admin_token, test_project):
 
     # 2. Update with wrong version (OCC is validation error 422 in my implementation)
     update_payload = {"amount": 2000, "version": version + 10}
-    resp = await client.put( # Using PUT as per routes.py
+    resp = await client.put(  # Using PUT as per routes.py
         f"/api/v1/site-overheads/{overhead_id}",
         json=update_payload,
         headers={"Authorization": f"Bearer {admin_token}"}
@@ -101,6 +104,7 @@ async def test_site_overhead_occ(client, admin_token, test_project):
     )
     assert resp.status_code == 200
     assert Decimal(str(resp.json()["data"]["amount"])) == Decimal("2000")
+
 
 @pytest.mark.asyncio
 async def test_dpr_image_deletion(client, supervisor_token, test_project):

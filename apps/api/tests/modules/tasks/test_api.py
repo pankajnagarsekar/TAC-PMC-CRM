@@ -27,8 +27,11 @@ async def test_create_task(client: AsyncClient, admin_token: str, test_project_i
     assert data["status"] == "Open"
     assert data["sr_no"] == 1
 
+
 @pytest.mark.asyncio
-async def test_get_task_details_with_audit(client: AsyncClient, admin_token: str, test_project_id: str, test_org_id: str):
+async def test_get_task_details_with_audit(
+    client: AsyncClient, admin_token: str, test_project_id: str, test_org_id: str
+):
     # Create task
     create_res = await client.post(
         "/api/v1/tasks/",
@@ -65,6 +68,7 @@ async def test_get_task_details_with_audit(client: AsyncClient, admin_token: str
     assert len(data["audit_log"]) >= 1
     assert data["audit_log"][0]["action"] in ["CREATE", "STATUS_CHANGE"]
 
+
 @pytest.mark.asyncio
 async def test_invalid_transition(client: AsyncClient, admin_token: str, test_project_id: str, test_org_id: str):
     # Create task
@@ -92,6 +96,7 @@ async def test_invalid_transition(client: AsyncClient, admin_token: str, test_pr
     assert response.status_code == 400
     assert "INVALID_TRANSITION" in response.json()["detail"]
 
+
 @pytest.mark.asyncio
 async def test_data_freeze_in_closed(client: AsyncClient, admin_token: str, test_project_id: str, test_org_id: str):
     # Create task
@@ -111,13 +116,25 @@ async def test_data_freeze_in_closed(client: AsyncClient, admin_token: str, test
     task_id = data.get("id") or data.get("_id")
 
     # Move to In Progress
-    res = await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "In Progress"})
+    res = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "In Progress"}
+    )
     assert res.status_code == 200, f"Failed to move to In Progress: {res.text}"
     # Move to Completed
-    res = await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "Completed"})
+    res = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "Completed"}
+    )
     assert res.status_code == 200, f"Failed to move to Completed: {res.text}"
     # Move to Closed
-    res = await client.patch(f"/api/v1/tasks/{task_id}/status", headers={"Authorization": f"Bearer {admin_token}"}, json={"status": "Closed"})
+    res = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "Closed"}
+    )
     assert res.status_code == 200, f"Failed to move to Closed: {res.text}"
 
     # Attempt update

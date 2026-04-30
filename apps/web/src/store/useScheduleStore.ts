@@ -29,6 +29,36 @@ const buildTaskOrder = (tasks: ScheduleTask[]) =>
     .filter(t => t && t.task_id != null)
     .map((task) => String(task.task_id));
 
+const recalculateWBS = (taskMap: ScheduleTaskMap, taskOrder: string[]): ScheduleTaskMap => {
+  const nextMap = { ...taskMap };
+  const parentCounters: Record<string, number> = {};
+  const parentIds = new Set(
+    Object.values(nextMap)
+      .map(t => t.parent_id)
+      .filter((id): id is string => !!id)
+  );
+
+  taskOrder.forEach((taskId) => {
+    const task = nextMap[taskId];
+    if (!task) return;
+    
+    const parentId = task.parent_id || "root";
+    parentCounters[parentId] = (parentCounters[parentId] || 0) + 1;
+    const index = parentCounters[parentId];
+    
+    const parentWBS = parentId !== "root" && nextMap[parentId] ? nextMap[parentId].wbs_code : "";
+    const wbs = parentWBS ? `${parentWBS}.${index}` : `${index}`;
+    
+    nextMap[taskId] = { 
+      ...task, 
+      wbs_code: wbs,
+      is_summary: parentIds.has(taskId)
+    };
+  });
+  
+  return nextMap;
+};
+
 const buildDependencyGraph = (tasks: ScheduleTask[]) => {
   const graph: Record<string, { predecessors: string[]; successors: string[] }> = {};
   tasks.forEach((task) => {
@@ -293,9 +323,13 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         project_scheduled_start: response.project_start || t.project_scheduled_start,
       }));
 
+      const taskMap = buildTaskMap(decoratedTasks);
+      const taskOrder = buildTaskOrder(decoratedTasks);
+      const hierarchicalTaskMap = recalculateWBS(taskMap, taskOrder);
+
       set({
-        taskMap: buildTaskMap(decoratedTasks),
-        taskOrder: buildTaskOrder(decoratedTasks),
+        taskMap: hierarchicalTaskMap,
+        taskOrder: taskOrder,
         dependencyGraph: buildDependencyGraph(decoratedTasks),
         systemState: response.system_state,
         lastConfirmedVersion: response.calculation_version,
@@ -316,10 +350,14 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         project_id: t.project_id || response.project_id
       }));
 
+      const taskMap = buildTaskMap(decoratedTasks);
+      const taskOrder = buildTaskOrder(decoratedTasks);
+      const hierarchicalTaskMap = recalculateWBS(taskMap, taskOrder);
+      
       console.log(`SCHEDULER_STORE: Reconciling engine response. Task count: ${decoratedTasks.length}`);
       
-      const nextTaskMap = buildTaskMap(decoratedTasks);
-      const nextTaskOrder = buildTaskOrder(decoratedTasks);
+      const nextTaskMap = hierarchicalTaskMap;
+      const nextTaskOrder = taskOrder;
       const nextGraph = buildDependencyGraph(decoratedTasks);
 
       // PP-014: Check if any tasks from current map were lost in reconciliation
@@ -682,6 +720,9 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     setTimescale: (scale) => set({ timescale: scale }),
     setSearchTerm: (term: string) => set((state) => ({ 
       activeFilters: { ...state.activeFilters, searchTerm: term } 
+    })),
+    setStatusFilter: (statuses: ScheduleTaskStatus[]) => set((state) => ({
+      activeFilters: { ...state.activeFilters, statusFilter: statuses }
     })),
     setProjectCalendar: (calendar) => set({ projectCalendar: calendar }),
 

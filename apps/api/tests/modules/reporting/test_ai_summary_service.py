@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock
 from app.modules.reporting.application.ai_summary_service import (
     AISummaryService,
     MockSummaryProvider,
-    EmergentSummaryProvider,
 )
 
 

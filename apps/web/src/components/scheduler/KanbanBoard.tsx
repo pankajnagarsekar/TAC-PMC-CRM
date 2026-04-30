@@ -42,8 +42,32 @@ export default function KanbanBoard() {
   const openTaskModal = useScheduleStore((state) => state.openTaskModal);
   const systemState = useScheduleStore((state) => state.systemState);
 
-  const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
+  const activeFilters = useScheduleStore((state) => state.activeFilters);
+  const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
+  const statusFilter = activeFilters.statusFilter || [];
+
+  const tasks = useMemo(() => {
+    let list = normalizeTaskOrder(taskMap, taskOrder);
+    
+    // Apply search filter
+    if (searchTerm) {
+      list = list.filter(t => 
+        t.task_name.toLowerCase().includes(searchTerm) || 
+        t.wbs_code?.toLowerCase().includes(searchTerm) ||
+        t.task_id.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    return list;
+  }, [taskMap, taskOrder, searchTerm]);
+
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
+  
+  const visibleStatuses = useMemo(() => {
+    if (statusFilter.length === 0) return KANBAN_STATUSES;
+    return KANBAN_STATUSES.filter(s => statusFilter.includes(s));
+  }, [statusFilter]);
+
   const readOnly = systemState === "locked";
 
   const handleDrop = (taskId: string, targetStatus: ScheduleTaskStatus) => {
@@ -84,8 +108,14 @@ export default function KanbanBoard() {
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
-        {KANBAN_STATUSES.map((status) => {
+      <div className={`grid gap-4 ${
+        visibleStatuses.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
+        visibleStatuses.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+        visibleStatuses.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
+        visibleStatuses.length === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+      }`}>
+        {visibleStatuses.map((status) => {
           const columnTasks = grouped[status];
           const meta = KANBAN_META[status];
 

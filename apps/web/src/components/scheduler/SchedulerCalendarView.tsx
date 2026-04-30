@@ -33,9 +33,27 @@ export default function SchedulerCalendarView({
 
   const calendarDays = useMemo(() => eachDayOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
 
+  const activeFilters = useScheduleStore((state) => state.activeFilters);
+  const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
+  const statusFilter = activeFilters.statusFilter || [];
+
   const tasksByDay = useMemo(() => {
     const map = new Map<string, ScheduleTask[]>();
     Object.values(taskMap).forEach(task => {
+      // Apply filters
+      if (searchTerm) {
+        const matches = 
+          task.task_name.toLowerCase().includes(searchTerm) || 
+          task.wbs_code?.toLowerCase().includes(searchTerm) ||
+          task.task_id.toLowerCase().includes(searchTerm);
+        if (!matches) return;
+      }
+      
+      if (statusFilter.length > 0) {
+        const status = task.task_status || "draft";
+        if (!statusFilter.includes(status)) return;
+      }
+
       if (!task.scheduled_start) return;
       const dateKey = typeof task.scheduled_start === 'string' 
         ? task.scheduled_start.split('T')[0] 
@@ -44,7 +62,7 @@ export default function SchedulerCalendarView({
       map.get(dateKey)?.push(task);
     });
     return map;
-  }, [taskMap]);
+  }, [taskMap, searchTerm, statusFilter]);
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));

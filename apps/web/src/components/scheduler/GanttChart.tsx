@@ -259,10 +259,29 @@ export default function GanttChart() {
     });
   }, [readOnly, queueCalculation]);
 
-  const tasks = useMemo(
-    () => normalizeTaskOrder(taskMap, taskOrder),
-    [taskMap, taskOrder],
-  );
+  const activeFilters = useScheduleStore((state) => state.activeFilters);
+  const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
+  const statusFilter = activeFilters.statusFilter || [];
+
+  const tasks = useMemo(() => {
+    let list = normalizeTaskOrder(taskMap, taskOrder);
+    
+    // Apply search filter
+    if (searchTerm) {
+      list = list.filter(t => 
+        t.task_name.toLowerCase().includes(searchTerm) || 
+        t.wbs_code?.toLowerCase().includes(searchTerm) ||
+        t.task_id.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter.length > 0) {
+      list = list.filter(t => statusFilter.includes(t.task_status || "draft"));
+    }
+    
+    return list;
+  }, [taskMap, taskOrder, searchTerm, statusFilter]);
 
   const comparisonMap = useMemo(() => {
     if (!comparisonData) return new Map<string, BaselineComparisonResult>();

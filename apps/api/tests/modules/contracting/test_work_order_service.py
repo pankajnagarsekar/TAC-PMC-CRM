@@ -63,7 +63,12 @@ async def test_work_order_approval_lifecycle(work_order_service, test_db, test_u
     # Setup WO in Draft
     vendor_id = str(ObjectId())
     await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000,
+        "committed_amount": 0
+    })
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
@@ -81,7 +86,12 @@ async def test_work_order_approval_lifecycle(work_order_service, test_db, test_u
 async def test_cancel_work_order(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
     await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000,
+        "committed_amount": 0
+    })
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
@@ -90,11 +100,21 @@ async def test_cancel_work_order(work_order_service, test_db, test_user, test_pr
     cancelled = await work_order_service.cancel_work_order(test_user, str(wo["id"]), expected_version=1)
     assert cancelled["status"] == "Cancelled"
 
+
 @pytest.mark.asyncio
 async def test_update_work_order_occ(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000,
+        "committed_amount": 0
+    })
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
@@ -109,15 +129,25 @@ async def test_update_work_order_occ(work_order_service, test_db, test_user, tes
     with pytest.raises(ValidationError, match="CONFLICT"):
         await work_order_service.update_work_order(test_user, str(wo["id"]), update_data)
 
+
 @pytest.mark.asyncio
 async def test_work_order_invariant_violation(work_order_service, test_db, test_user, test_project_id):
     # Cannot reduce WO below certified payments
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000, "committed_amount":0})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000,
+        "committed_amount": 0
+    })
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
-        line_items=[WOLineItem(sr_no=1, qty=10, rate=100)] # 1000
+        line_items=[WOLineItem(sr_no=1, qty=10, rate=100)]  # 1000
     ))
 
     # Add a mock PC for 500
@@ -133,11 +163,16 @@ async def test_work_order_invariant_violation(work_order_service, test_db, test_
     with pytest.raises(DomainError, match="Cannot reduce Work Order below linked Payment Certificate total"):
         await work_order_service.update_work_order(test_user, str(wo["id"]), update_data)
 
+
 @pytest.mark.asyncio
 async def test_list_work_orders(work_order_service, test_user, test_project_id, test_db):
     vendor_id = str(ObjectId())
     await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000})
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000
+    })
     await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
@@ -146,9 +181,14 @@ async def test_list_work_orders(work_order_service, test_user, test_project_id, 
     result = await work_order_service.list_work_orders(test_user, test_project_id, limit=10, cursor=None)
     assert len(result["items"]) == 1
 
+
 @pytest.mark.asyncio
 async def test_create_work_order_invalid_vendor(work_order_service, test_user, test_project_id, test_db):
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000})
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000
+    })
 
     with pytest.raises(ValidationError, match="Vendor not found"):
         await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
@@ -156,10 +196,15 @@ async def test_create_work_order_invalid_vendor(work_order_service, test_user, t
             line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
         ))
 
+
 @pytest.mark.asyncio
 async def test_create_work_order_invalid_budget(work_order_service, test_user, test_db):
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
 
     with pytest.raises(ValidationError, match="Category budget not initialized"):
         await work_order_service.create_work_order(test_user, "P_MISSING", WorkOrderCreate(
@@ -167,11 +212,20 @@ async def test_create_work_order_invalid_budget(work_order_service, test_user, t
             line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
         ))
 
+
 @pytest.mark.asyncio
 async def test_approve_non_pending_wo(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
-    await test_db.project_category_budgets.insert_one({"project_id":test_project_id, "category_id":"C1", "remaining_budget":5000})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
+    await test_db.project_category_budgets.insert_one({
+        "project_id": test_project_id,
+        "category_id": "C1",
+        "remaining_budget": 5000
+    })
     wo = await work_order_service.create_work_order(test_user, test_project_id, WorkOrderCreate(
         project_id=test_project_id, category_id="C1", vendor_id=vendor_id,
         line_items=[WOLineItem(sr_no=1, qty=1, rate=100)]
