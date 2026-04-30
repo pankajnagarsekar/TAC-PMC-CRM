@@ -348,12 +348,31 @@ class ResourceCalendar:
     @classmethod
     def from_dict(cls, data: Dict) -> "ResourceCalendar":
         """Deserialize from dictionary."""
-        wh = WorkingHours.from_dict(data.get("standard_hours", {}))
+        # Handle flat project calendar structure or nested resource structure
+        if "shift_start" in data:
+            # Flat structure (ProjectCalendarDTO)
+            def _parse_hour(t_str):
+                try:
+                    if not t_str: return 8
+                    return int(str(t_str).split(":")[0])
+                except:
+                    return 8
+            
+            wh = WorkingHours(
+                start_hour=_parse_hour(data.get("shift_start", "08:00")),
+                end_hour=_parse_hour(data.get("shift_end", "17:00")),
+                lunch_start=_parse_hour(data.get("lunch_start", "13:00")),
+                lunch_end=_parse_hour(data.get("lunch_end", "14:00"))
+            )
+        else:
+            # Nested structure (ResourceCalendar)
+            wh = WorkingHours.from_dict(data.get("standard_hours", {}))
+            
         exceptions = [CalendarException.from_dict(e) for e in data.get("exceptions", [])]
 
         return cls(
-            resource_id=data["resource_id"],
-            working_days=data.get("working_days", [0, 1, 2, 3, 4]),
+            resource_id=data.get("resource_id") or data.get("project_id") or "default",
+            working_days=data.get("working_days", [0, 1, 2, 3, 4, 5]),
             standard_hours=wh,
             exceptions=exceptions
         )

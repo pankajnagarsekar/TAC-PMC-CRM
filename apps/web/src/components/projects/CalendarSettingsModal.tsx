@@ -95,17 +95,17 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
 
   if (!isOpen) return null;
 
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 p-4 outline-none animate-in zoom-in-95 fade-in duration-300">
-          <GlassCard className="flex max-h-[90vh] flex-col overflow-hidden border-white/10 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/5 p-6 bg-slate-900/50">
+          <GlassCard className="flex max-h-[92vh] flex-col overflow-hidden border-white/10 shadow-2xl p-0">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 p-6 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-20">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/20 text-orange-500">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/20 text-orange-500 shadow-lg shadow-orange-500/10">
                   <Calendar size={24} />
                 </div>
                 <div>
@@ -114,7 +114,7 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
                 </div>
               </div>
               <Dialog.Close asChild>
-                <button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
+                <button className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300 hover:rotate-90">
                   <X size={20} />
                 </button>
               </Dialog.Close>
@@ -254,7 +254,7 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/5 p-6 bg-slate-900/50">
+            <div className="flex shrink-0 items-center justify-between border-t border-white/5 p-6 bg-slate-900/50">
               <div className="flex items-center gap-3 text-orange-400">
                 <AlertCircle size={14} />
                 <span className="text-[10px] font-bold uppercase tracking-wider">Recalculation will be triggered upon save</span>

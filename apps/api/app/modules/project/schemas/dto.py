@@ -11,8 +11,8 @@ from app.modules.shared.domain.types import PyObjectId
 
 # CALENDAR DTOs
 class CalendarExceptionDTO(BaseModel):
-    start_date: datetime
-    end_date: datetime
+    start_date: str
+    end_date: str
     exception_type: str = "holiday"
     reason: Optional[str] = ""
 
