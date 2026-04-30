@@ -2,12 +2,22 @@
 
 import React, { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, addMonths, subMonths, isToday } from "date-fns";
-import { ChevronLeft, ChevronRight, Settings, AlertCircle, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Settings, AlertCircle, Calendar as CalendarIcon, Plus } from "lucide-react";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 
-export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettings: () => void }) {
+export default function SchedulerCalendarView({ 
+  onOpenSettings, 
+  onDateClick,
+  hideSettings = false,
+  compact = false
+}: { 
+  onOpenSettings?: () => void;
+  onDateClick?: (date: Date) => void;
+  hideSettings?: boolean;
+  compact?: boolean;
+}) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const projectCalendar = useScheduleStore((state) => state.projectCalendar);
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -34,19 +44,23 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={compact ? "h-full flex flex-col" : "space-y-6"}>
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500 border border-orange-500/20">
-            <CalendarIcon size={24} />
-          </div>
+          {!compact && (
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500 border border-orange-500/20">
+              <CalendarIcon size={24} />
+            </div>
+          )}
           <div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+            <h2 className={`${compact ? 'text-sm' : 'text-xl'} font-black uppercase tracking-tight text-slate-900 dark:text-white`}>
               {format(currentDate, "MMMM yyyy")}
             </h2>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-              Project Working Calendar & Milestones
-            </p>
+            {!compact && (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Project Working Calendar & Milestones
+              </p>
+            )}
           </div>
         </div>
 
@@ -63,26 +77,28 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
             </Button>
           </div>
           
-          <Button 
-            onClick={onOpenSettings}
-            className="h-10 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 font-bold uppercase tracking-widest text-[10px]"
-          >
-            <Settings size={14} className="mr-2" />
-            Calendar Settings
-          </Button>
+          {!hideSettings && onOpenSettings && (
+            <Button 
+              onClick={onOpenSettings}
+              className="h-10 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 font-bold uppercase tracking-widest text-[10px]"
+            >
+              <Settings size={14} className="mr-2" />
+              Calendar Settings
+            </Button>
+          )}
         </div>
       </div>
 
-      <GlassCard className="overflow-hidden border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl">
+      <GlassCard className={`overflow-hidden border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl ${compact ? 'flex-1' : ''}`}>
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02]">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
             <div key={day} className="py-3 text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-              {day}
+              {day[0]}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 auto-rows-[120px]">
+        <div className={`grid grid-cols-7 ${compact ? 'flex-1 auto-rows-fr' : 'auto-rows-[120px]'}`}>
           {calendarDays.map((day, i) => {
             const dateKey = format(day, "yyyy-MM-dd");
             const dayTasks = tasksByDay.get(dateKey) || [];
@@ -95,7 +111,10 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
             return (
               <div 
                 key={i} 
-                className={`relative border-b border-r border-slate-200 dark:border-white/5 p-2 transition-colors ${
+                onClick={() => onDateClick?.(day)}
+                className={`relative border-b border-r border-slate-200 dark:border-white/5 p-2 transition-colors group/day ${
+                  onDateClick ? 'cursor-pointer active:scale-[0.98]' : ''
+                } ${
                   !isSelectedMonth ? 'bg-slate-50/50 dark:bg-black/20 opacity-40' : 
                   exception || isNonWorking ? 'bg-rose-500/[0.02] dark:bg-rose-500/[0.04]' : 
                   'hover:bg-slate-100/50 dark:hover:bg-white/[0.02]'
@@ -106,18 +125,27 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
                     {format(day, "d")}
                   </span>
                   
-                  {exception && (
+                  {exception ? (
                     <div className="rounded-full bg-rose-500/10 p-1 text-rose-500" title={exception.reason}>
                       <AlertCircle size={10} />
+                    </div>
+                  ) : onDateClick && isSelectedMonth && (
+                    <div className="opacity-0 group-hover/day:opacity-100 transition-opacity">
+                      <div className="h-4 w-4 rounded-md bg-orange-500/10 flex items-center justify-center text-orange-500">
+                        <Plus size={10} />
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-2 space-y-1 overflow-hidden">
-                  {dayTasks.slice(0, 3).map(task => (
+                <div className={`mt-2 space-y-1 overflow-hidden ${compact ? 'hidden sm:block' : ''}`}>
+                  {dayTasks.slice(0, compact ? 1 : 3).map(task => (
                     <div 
                       key={task.task_id} 
-                      onClick={() => useScheduleStore.getState().openTaskModal(task.task_id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        useScheduleStore.getState().openTaskModal(task.task_id);
+                      }}
                       className={`truncate rounded-sm px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 active:scale-95 transition-all ${
                         task.is_critical ? 'bg-rose-500/20 text-rose-600 border-l-2 border-rose-500' : 
                         task.is_milestone ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' :
@@ -127,9 +155,9 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
                       {task.task_name}
                     </div>
                   ))}
-                  {dayTasks.length > 3 && (
+                  {dayTasks.length > (compact ? 1 : 3) && (
                     <div className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1">
-                      + {dayTasks.length - 3} more
+                      + {dayTasks.length - (compact ? 1 : 3)} more
                     </div>
                   )}
                 </div>
@@ -143,26 +171,28 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
         </div>
       </GlassCard>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <GlassCard className="p-4 flex items-center gap-4 border-emerald-500/20 bg-emerald-500/5">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-            {Object.values(taskMap).filter(t => (t.percent_complete || 0) === 100).length} Completed Tasks
-          </div>
-        </GlassCard>
-        <GlassCard className="p-4 flex items-center gap-4 border-rose-500/20 bg-rose-500/5">
-          <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-          <div className="text-[10px] font-black uppercase tracking-widest text-rose-500">
-            {Object.values(taskMap).filter(t => t.is_critical && (t.percent_complete || 0) < 100).length} Critical Path Tasks
-          </div>
-        </GlassCard>
-        <GlassCard className="p-4 flex items-center gap-4 border-slate-500/20 bg-slate-500/5">
-          <div className="w-2 h-2 rounded-full bg-slate-900 dark:bg-white" />
-          <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-            {Object.values(taskMap).filter(t => !!t.is_milestone).length} Project Milestones
-          </div>
-        </GlassCard>
-      </div>
+      {!compact && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <GlassCard className="p-4 flex items-center gap-4 border-emerald-500/20 bg-emerald-500/5">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+              {Object.values(taskMap).filter(t => (t.percent_complete || 0) === 100).length} Completed Tasks
+            </div>
+          </GlassCard>
+          <GlassCard className="p-4 flex items-center gap-4 border-rose-500/20 bg-rose-500/5">
+            <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+            <div className="text-[10px] font-black uppercase tracking-widest text-rose-500">
+              {Object.values(taskMap).filter(t => t.is_critical && (t.percent_complete || 0) < 100).length} Critical Path Tasks
+            </div>
+          </GlassCard>
+          <GlassCard className="p-4 flex items-center gap-4 border-slate-500/20 bg-slate-500/5">
+            <div className="w-2 h-2 rounded-full bg-slate-900 dark:bg-white" />
+            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              {Object.values(taskMap).filter(t => !!t.is_milestone).length} Project Milestones
+            </div>
+          </GlassCard>
+        </div>
+      )}
     </div>
   );
 }

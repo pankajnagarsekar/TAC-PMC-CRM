@@ -18,6 +18,8 @@ import {
   Camera,
 } from "lucide-react";
 import Link from "next/link";
+import { format } from "date-fns";
+import { toast } from "sonner";
 import { fetcher, schedulerApi } from "@/lib/api";
 import { Info, ChevronUp, ChevronDown } from "lucide-react";
 import { Project, DerivedFinancialState } from "@/types/api";
@@ -28,6 +30,7 @@ import KPICards from "@/components/dashboard/KPICards";
 import ProjectMiniGantt from "@/components/dashboard/ProjectMiniGantt";
 import SCurveChart from "@/components/scheduler/SCurveChart";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
+import SchedulerCalendarView from "@/components/scheduler/SchedulerCalendarView";
 
 import { formatCurrencySafe, normalizeFinancial } from "@/lib/formatters";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -186,7 +189,7 @@ export default function AdminDashboard() {
   }, [financials, activeProject, stats]);
 
   // --- REARRANGE DRIVEN LAYOUT ---
-  const DEFAULT_LAYOUT = ['timeline', 'task_ai', 'tasks', 'analytics', 'log', 'scheduler', 'budget'];
+  const DEFAULT_LAYOUT = ['timeline', 'task_ai', 'tasks', 'calendar', 'analytics', 'log', 'scheduler', 'budget'];
   const [layout, setLayout] = React.useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_LAYOUT;
     const saved = localStorage.getItem('dashboard_global_layout');
@@ -487,6 +490,58 @@ export default function AdminDashboard() {
         <Link href={`/admin/projects/${activeProject?.project_id}`} className="block w-full mt-4 py-2 shrink-0 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
           Full Financials
         </Link>
+      </GlassCard>
+    ),
+    calendar: (
+      <GlassCard key="calendar" className="shadow-lg col-span-1 md:col-span-2 min-h-[600px] flex flex-col">
+        <div className="flex items-center justify-between mb-6 shrink-0 p-8 pb-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/5 flex items-center justify-center text-orange-400 border border-orange-500/10">
+              <Calendar size={16} />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold tracking-tight uppercase text-slate-900 dark:text-white">Project Calendar</h2>
+              <p className="text-[8px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Tactical Schedule</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
+              <button onClick={() => moveWidget('calendar', 'up')} className="p-1 hover:text-primary transition-colors"><ChevronUp size={12} /></button>
+              <button onClick={() => moveWidget('calendar', 'down')} className="p-1 hover:text-primary transition-colors"><ChevronDown size={12} /></button>
+            </div>
+            <Link 
+              href="/admin/scheduler?tab=calendar" 
+              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+            >
+              Full Planner <ArrowRight size={12} />
+            </Link>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 p-8 pt-4">
+          <div className="h-full border border-white/5 rounded-2xl overflow-hidden bg-slate-950/20 p-4">
+            <SchedulerCalendarView 
+              compact 
+              hideSettings 
+              onDateClick={(date) => {
+                const taskName = window.prompt(`Create task for ${format(date, 'MMM dd, yyyy')}:`);
+                if (taskName?.trim()) {
+                  const newTask = useScheduleStore.getState().createDraftTask(activeProject!.project_id);
+                  useScheduleStore.getState().queueCalculation({
+                    task_id: newTask.task_id,
+                    project_id: activeProject!.project_id,
+                    version: newTask.version ?? 1,
+                    changes: { 
+                      task_name: taskName.trim(),
+                      scheduled_start: format(date, 'yyyy-MM-dd')
+                    },
+                    trigger_source: "calendar_click",
+                  });
+                  toast.success(`Task created for ${format(date, 'MMM dd')}`);
+                }
+              }}
+            />
+          </div>
+        </div>
       </GlassCard>
     )
   };

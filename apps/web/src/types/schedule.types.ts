@@ -30,7 +30,8 @@ export type ChangeSource =
   | "api"
   | "ai_suggestion"
   | "task_delete"
-  | "add_task_dialog";
+  | "add_task_dialog"
+  | "calendar_click";
 
 export type CostVarianceFlag = "on_budget" | "overrun" | "underrun";
 export type ScheduleTaskStatus =

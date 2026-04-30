@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, Suspense } from "react";
 import { AlertTriangle, FileDown, Info, Plus, Upload, CalendarDays, Database, Grid3X3, GanttChart as GanttIcon, ListTodo, Landmark, TrendingUp, CheckSquare } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { format } from "date-fns";
 import * as Tabs from "@radix-ui/react-tabs";
 import { toast } from "sonner";
 
@@ -411,7 +412,27 @@ function ProjectSchedulerContent() {
               </Tabs.Content>
 
               <Tabs.Content value="calendar" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-                <SchedulerCalendarView onOpenSettings={() => setIsCalendarModalOpen(true)} />
+                <SchedulerCalendarView 
+                  onOpenSettings={() => setIsCalendarModalOpen(true)} 
+                  onDateClick={(date) => {
+                    if (isClient) return;
+                    const taskName = window.prompt(`Create task for ${format(date, 'MMM dd, yyyy')}:`);
+                    if (taskName?.trim()) {
+                      const newTask = createDraftTask(activeProject.project_id);
+                      useScheduleStore.getState().queueCalculation({
+                        task_id: newTask.task_id,
+                        project_id: activeProject.project_id,
+                        version: newTask.version ?? 1,
+                        changes: { 
+                          task_name: taskName.trim(),
+                          scheduled_start: format(date, 'yyyy-MM-dd')
+                        },
+                        trigger_source: "calendar_click",
+                      });
+                      toast.success(`Task created for ${format(date, 'MMM dd')}`);
+                    }
+                  }}
+                />
               </Tabs.Content>
 
               <Tabs.Content value="export" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
