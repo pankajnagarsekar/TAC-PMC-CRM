@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, addMonths, subMonths, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Settings, AlertCircle, Calendar as CalendarIcon, Plus } from "lucide-react";
 import { useScheduleStore } from "@/store/useScheduleStore";
+import type { ScheduleTask } from "@/types/schedule.types";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 
