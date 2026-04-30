@@ -60,6 +60,8 @@ const buildOptimisticPatch = (
   if (changes.assigned_resources !== undefined) patch.assigned_resources = changes.assigned_resources ?? undefined;
   if (changes.task_mode !== undefined && changes.task_mode !== null) patch.task_mode = changes.task_mode;
   if (changes.task_status !== undefined && changes.task_status !== null) patch.task_status = changes.task_status;
+  if (changes.assignee_ids !== undefined) patch.assignee_ids = changes.assignee_ids ?? undefined;
+  if (changes.heads !== undefined) patch.heads = changes.heads ?? undefined;
 
   return patch;
 };
@@ -636,6 +638,22 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
 
     setSelectedTask: (taskId) => {
       set({ selectedTasks: new Set([taskId]) });
+    },
+    
+    toggleTaskSelection: (taskId) => {
+      set((state) => {
+        const setCopy = new Set(state.selectedTasks);
+        if (setCopy.has(taskId)) {
+          setCopy.delete(taskId);
+        } else {
+          setCopy.add(taskId);
+        }
+        return { selectedTasks: setCopy };
+      });
+    },
+
+    selectAllTasks: (taskIds) => {
+      set({ selectedTasks: new Set(taskIds) });
     },
 
     setTaskModalOpen: (open) => set({ isTaskModalOpen: open }),

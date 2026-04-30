@@ -12,13 +12,20 @@ interface TaskCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
+  initialDate?: string;
 }
 
-export function TaskCreateModal({ isOpen, onClose, projectId }: TaskCreateModalProps) {
+export function TaskCreateModal({ isOpen, onClose, projectId, initialDate }: TaskCreateModalProps) {
   const [taskName, setTaskName] = useState("");
-  const [scheduledStart, setScheduledStart] = useState("");
+  const [scheduledStart, setScheduledStart] = useState(initialDate || "");
   const [scheduledDuration, setScheduledDuration] = useState<number>(1);
   const [taskMode, setTaskMode] = useState<"Auto" | "Manual">("Manual");
+
+  React.useEffect(() => {
+    if (isOpen && initialDate) {
+      setScheduledStart(initialDate);
+    }
+  }, [isOpen, initialDate]);
 
   const createDraftTask = useScheduleStore((state) => state.createDraftTask);
   const openTaskModal = useScheduleStore((state) => state.openTaskModal);

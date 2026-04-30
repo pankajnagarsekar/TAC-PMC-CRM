@@ -279,3 +279,7 @@ export const portfolioApi = {
   getResourceHeatmap: () => api.get("/api/v1/portfolio/resource-heatmap").then(res => res.data),
   getMilestones: () => api.get("/api/v1/portfolio/milestones").then(res => res.data),
 };
+
+export const identityApi = {
+  listUsers: () => api.get("/api/v1/users/").then(res => res.data),
+};

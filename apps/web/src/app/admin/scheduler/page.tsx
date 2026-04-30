@@ -69,6 +69,7 @@ function ProjectSchedulerContent() {
   const [migrating, setMigrating] = useState(false);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isTaskCreateModalOpen, setIsTaskCreateModalOpen] = useState(false);
+  const [initialCreateDate, setInitialCreateDate] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: financials } = useSWR(
@@ -117,6 +118,7 @@ function ProjectSchedulerContent() {
 
   const handleAddTask = () => {
     if (!activeProject) return;
+    setInitialCreateDate(undefined);
     setIsTaskCreateModalOpen(true);
   };
 
@@ -423,11 +425,8 @@ function ProjectSchedulerContent() {
                   onDateClick={(date) => {
                       if (!activeProject) return;
                       const dateStr = format(date, 'yyyy-MM-dd');
-                      const newTask = useScheduleStore.getState().createDraftTask(activeProject.project_id, {
-                        scheduled_start: dateStr,
-                        task_mode: 'Manual' // Pin it to the clicked date
-                      });
-                      useScheduleStore.getState().openTaskModal(newTask.task_id);
+                      setInitialCreateDate(dateStr);
+                      setIsTaskCreateModalOpen(true);
                       toast.success(`Initializing task for ${format(date, 'MMM dd')}`);
                     }}
                 />
@@ -522,6 +521,7 @@ function ProjectSchedulerContent() {
           isOpen={isTaskCreateModalOpen} 
           onClose={() => setIsTaskCreateModalOpen(false)} 
           projectId={activeProject.project_id} 
+          initialDate={initialCreateDate}
         />
       )}
       <CalendarSettingsModal 

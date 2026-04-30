@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo } from "react";
 import { ChevronDown, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ type GridRowProps = {
   onOpenModal: (taskId: string) => void;
   onEdit: (taskId: string, changes: Partial<ScheduleTask>) => void;
   onStatusChange: (task: ScheduleTask, nextStatus: ScheduleTaskStatus) => void;
+  onToggleSelection: (taskId: string) => void;
   onRemove: (taskId: string) => void;
 };
 
@@ -42,6 +43,7 @@ const GridRow = memo(function GridRow({
   onOpenModal,
   onEdit,
   onStatusChange,
+  onToggleSelection,
   onRemove,
 }: GridRowProps) {
   const status = getTaskStatus(task);
@@ -53,6 +55,18 @@ const GridRow = memo(function GridRow({
       style={{ gridTemplateColumns: columnTemplate, minHeight: rowHeight }}
       onClick={() => onSelect(task.task_id)}
     >
+      <div className="flex items-center justify-center px-3 border-r border-slate-200 dark:border-white/5">
+        <input 
+          type="checkbox" 
+          checked={isSelected}
+          onChange={(e) => {
+            e.stopPropagation();
+            onToggleSelection(task.task_id);
+          }}
+          className="h-3 w-3 rounded border-slate-300 text-sky-600 focus:ring-sky-500 bg-transparent cursor-pointer"
+        />
+      </div>
+
       <div className="flex items-center gap-2 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300 border-r border-slate-200 dark:border-white/5">
         <span>{task.wbs_code || task.task_id}</span>
       </div>
@@ -87,6 +101,28 @@ const GridRow = memo(function GridRow({
               onEdit(task.task_id, { task_name: clean });
             }}
           />
+        )}
+        
+        {/* Assignee Initials (REQ-010) */}
+        {task.assignee_ids && task.assignee_ids.length > 0 && (
+          <div className="flex -space-x-1 ml-auto">
+            {task.assignee_ids.slice(0, 3).map((id) => (
+              <div 
+                key={id}
+                className="w-4 h-4 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center border border-white dark:border-slate-900 shadow-sm"
+                title={`Assignee ID: ${id}`}
+              >
+                <span className="text-[8px] font-black text-slate-600 dark:text-slate-400">
+                  {id.substring(0, 1).toUpperCase()}
+                </span>
+              </div>
+            ))}
+            {task.assignee_ids.length > 3 && (
+              <div className="w-4 h-4 rounded-full bg-slate-300 dark:bg-white/20 flex items-center justify-center border border-white dark:border-slate-900">
+                <span className="text-[7px] font-black text-slate-600">+{task.assignee_ids.length - 3}</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -171,7 +207,25 @@ const GridRow = memo(function GridRow({
         {statusMeta.label}
       </div>
 
-      <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-black italic">{task.assigned_resources?.length ?? 0}</div>
+      <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-black italic">
+        {readOnly ? (
+          task.heads || 0
+        ) : (
+          <div className="w-12">
+            <EditableCell
+              type="number"
+              value={task.heads || 0}
+              onCommit={(nextValue) => {
+                const n = Number(nextValue);
+                if (Number.isFinite(n) && n >= 0) {
+                  onEdit(task.task_id, { heads: Math.round(n) });
+                }
+              }}
+              className="text-center font-black"
+            />
+          </div>
+        )}
+      </div>
 
       <div className={`flex items-center px-3 border-r border-slate-200 dark:border-white/5 font-bold text-[10px] ${task.deadline && new Date(task.deadline) < new Date(new Date().toDateString()) ? 'text-rose-600 animate-pulse' : 'text-slate-700 dark:text-slate-300'}`}>
         {formatTaskDate(task.deadline)}

@@ -121,13 +121,13 @@ const Bar = memo(function Bar({
         className={`group relative h-9 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 cursor-grab active:cursor-grabbing overflow-hidden ${isDragging
           ? "scale-[1.03] ring-2 ring-orange-400/60 shadow-orange-400/20 shadow-xl opacity-90"
           : isCriticalHighlighted
-            ? "border-rose-400/40 bg-rose-500/10"
+            ? "border-rose-500 bg-rose-500/15 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
             : "border-slate-300/50 dark:border-white/10 bg-white dark:bg-slate-900"
           }`}
       >
         {/* Progress Fill */}
         <div 
-          className={`absolute inset-0 z-0 h-full transition-all duration-700 ${isCriticalHighlighted ? 'bg-rose-500/20' : 'bg-sky-500/15'}`}
+          className={`absolute inset-0 z-0 h-full transition-all duration-700 ${isCriticalHighlighted ? 'bg-rose-600/30' : 'bg-sky-500/15'}`}
           style={{ width: `${percent}%` }}
         />
 
@@ -169,13 +169,17 @@ const Bar = memo(function Bar({
         
         {/* Drag Handles */}
         <div 
-          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-orange-500/30 transition-colors"
+          className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-orange-500/40 transition-colors z-30"
           onPointerDown={beginDrag("start")}
-        />
+        >
+          <div className="absolute left-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-orange-400/50 rounded-full opacity-0 group-hover:opacity-100" />
+        </div>
         <div 
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-orange-500/30 transition-colors"
+          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-orange-500/40 transition-colors z-30"
           onPointerDown={beginDrag("finish")}
-        />
+        >
+          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-orange-400/50 rounded-full opacity-0 group-hover:opacity-100" />
+        </div>
       </div>
     </div>
   );

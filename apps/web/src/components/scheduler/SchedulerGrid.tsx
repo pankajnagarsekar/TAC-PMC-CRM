@@ -14,7 +14,7 @@ import GridRow from "./GridRow";
 import { useVirtualizedGrid } from "./useVirtualizedGrid";
 
 const COLUMN_TEMPLATE =
-  "80px minmax(250px, 3fr) 90px 110px 110px 90px 80px 100px 100px 110px 90px";
+  "40px 80px minmax(250px, 3fr) 90px 110px 110px 90px 80px 100px 100px 110px 90px";
 
 
 export default function SchedulerGrid() {
@@ -29,8 +29,11 @@ export default function SchedulerGrid() {
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
   const collapsedParents = useScheduleStore((state) => state.collapsedParents);
   const toggleParentCollapse = useScheduleStore((state) => state.toggleParentCollapse);
+  const selectAllTasks = useScheduleStore((state) => state.selectAllTasks);
+  const toggleTaskSelection = useScheduleStore((state) => state.toggleTaskSelection);
 
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
 
@@ -110,6 +113,21 @@ export default function SchedulerGrid() {
     });
   };
 
+  const handleBulkDelete = () => {
+    if (selectedTasks.size === 0) return;
+    setIsBulkDeleting(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    const ids = Array.from(selectedTasks);
+    // Note: Store handles optimistic removal and final calculation resync
+    for (const id of ids) {
+      await removeTask(id);
+    }
+    setIsBulkDeleting(false);
+    toast.success(`Deleted ${ids.length} tasks.`);
+  };
+
   const confirmRemove = () => {
     if (taskToDelete) {
       removeTask(taskToDelete);
@@ -119,6 +137,15 @@ export default function SchedulerGrid() {
 
   const handleRemove = (taskId: string) => {
     setTaskToDelete(taskId);
+  };
+
+  const handleToggleAll = () => {
+    const allIds = filteredTasks.map(t => t.task_id);
+    if (selectedTasks.size === allIds.length) {
+      selectAllTasks([]);
+    } else {
+      selectAllTasks(allIds);
+    }
   };
 
   return (
@@ -173,6 +200,17 @@ export default function SchedulerGrid() {
           >
             {pendingCalculation ? "Waiting..." : "Commit to DB"}
           </button>
+          
+          {selectedTasks.size > 0 && (
+            <div className="flex items-center gap-2 border-l border-slate-200 dark:border-white/10 pl-2 ml-2">
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors"
+              >
+                Delete ({selectedTasks.size})
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -184,7 +222,11 @@ export default function SchedulerGrid() {
         >
           <div style={{ minWidth: 1400 }}>
 
-            <GridHeader columnTemplate={COLUMN_TEMPLATE} />
+            <GridHeader 
+              columnTemplate={COLUMN_TEMPLATE} 
+              onToggleAll={handleToggleAll}
+              isAllSelected={filteredTasks.length > 0 && selectedTasks.size === filteredTasks.length}
+            />
             <div style={{ height: topSpacer }} />
             {visibleTasks.map((task) => (
               <GridRow
@@ -201,6 +243,7 @@ export default function SchedulerGrid() {
                 onOpenModal={openTaskModal}
                 onEdit={handleEdit}
                 onStatusChange={handleStatusChange}
+                onToggleSelection={toggleTaskSelection}
                 onRemove={handleRemove}
               />
             ))}
@@ -216,6 +259,16 @@ export default function SchedulerGrid() {
         description={`Are you sure you want to permanently delete task "${taskToDelete ? taskMap[taskToDelete]?.task_name : ''}"? This action cannot be undone and will trigger a critical path recalculation.`}
         onConfirm={confirmRemove}
         confirmText="Delete Task"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={isBulkDeleting}
+        onClose={() => setIsBulkDeleting(false)}
+        title="Bulk Delete Tasks"
+        description={`Are you sure you want to permanently delete ${selectedTasks.size} selected tasks? This action cannot be undone.`}
+        onConfirm={confirmBulkDelete}
+        confirmText={`Delete ${selectedTasks.size} Tasks`}
         variant="danger"
       />
     </div>

@@ -7,7 +7,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import api from "@/lib/api";
+import api, { identityApi } from "@/lib/api";
+import useSWR from "swr";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { SchedulePredecessor, ScheduleTask, ScheduleTaskStatus, MomResult } from "@/types/schedule.types";
 import {
@@ -62,6 +63,9 @@ export default function TaskDetailsModal() {
   const [momNotes, setMomNotes] = useState("");
   const [isAnalyzingMom, setIsAnalyzingMom] = useState(false);
   const [momResult, setMomResult] = useState<MomResult | null>(null);
+
+  const { data: usersResponse } = useSWR("/api/v1/users/", () => identityApi.listUsers());
+  const users = useMemo(() => usersResponse?.data || usersResponse || [], [usersResponse]);
 
   // Local state for performance
   const [localTaskName, setLocalTaskName] = useState("");
@@ -268,6 +272,40 @@ export default function TaskDetailsModal() {
                       className={textInputClass()}
                     />
                   </FieldRow>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FieldRow label="Responsible Person (Assignees)">
+                      <div className="space-y-2">
+                        <select
+                          multiple
+                          value={selectedTask.assignee_ids || []}
+                          onChange={(e) => {
+                            const values = Array.from(e.target.selectedOptions, (option) => option.value);
+                            commit({ assignee_ids: values });
+                          }}
+                          disabled={readOnly}
+                          className={`${textInputClass()} min-h-[80px]`}
+                        >
+                          {users.map((u: any) => (
+                            <option key={u.user_id || u.id} value={u.user_id || u.id}>
+                              {u.full_name || u.email}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[9px] text-slate-500 italic">Hold Ctrl/Cmd to multi-select</p>
+                      </div>
+                    </FieldRow>
+                    <FieldRow label="Resource Density (Heads)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={selectedTask.heads || 0}
+                        onChange={(e) => commit({ heads: Number(e.target.value || 0) })}
+                        disabled={readOnly}
+                        className={textInputClass()}
+                      />
+                    </FieldRow>
+                  </div>
                 </div>
 
                 {/* Timeline Card */}

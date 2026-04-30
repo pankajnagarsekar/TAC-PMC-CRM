@@ -32,11 +32,22 @@ function anchorX(node: GanttDependencyNode, anchor: "start" | "finish") {
   return anchor === "start" ? node.left : node.left + node.width;
 }
 
-function buildElbowPath(x1: number, y1: number, x2: number, y2: number) {
-  const pad = 10;
-  const dir = x2 >= x1 ? 1 : -1;
-  const viaX = x1 + dir * pad;
-  return `M ${x1} ${y1} H ${viaX} V ${y2} H ${x2}`;
+function buildBezierPath(x1: number, y1: number, x2: number, y2: number) {
+  const curve = 30;
+  const cp1x = x1 + (x2 > x1 ? curve : -curve);
+  const cp2x = x2 - (x2 > x1 ? curve : -curve);
+  
+  return `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`;
+}
+
+function getStrokeDashArray(type: DependencyType) {
+  switch (type) {
+    case "SS": return "4 2";      // Dashed
+    case "FF": return "1 2";      // Dotted
+    case "SF": return "6 2 1 2";  // Dash-Dot
+    case "FS": 
+    default: return "none";       // Solid
+  }
 }
 
 export const GanttDependencyOverlay = memo(function GanttDependencyOverlay({
@@ -69,7 +80,8 @@ export const GanttDependencyOverlay = memo(function GanttDependencyOverlay({
       return [
         {
           key: `${edge.fromTaskId}-${edge.toTaskId}-${edge.type}-${edge.lagDays ?? 0}`,
-          d: buildElbowPath(x1, y1, x2, y2),
+          d: buildBezierPath(x1, y1, x2, y2),
+          type: edge.type,
           isCritical: edge.isCritical ?? false,
         },
       ];
@@ -105,9 +117,14 @@ export const GanttDependencyOverlay = memo(function GanttDependencyOverlay({
           d={path.d}
           fill="none"
           stroke="currentColor"
-          strokeWidth={1.25}
+          strokeWidth={path.isCritical ? 1.75 : 1.25}
+          strokeDasharray={getStrokeDashArray(path.type)}
           markerEnd="url(#gantt-dep-arrow)"
-          className={path.isCritical ? "text-rose-500/40 dark:text-rose-300/40" : "text-slate-400/40 dark:text-white/20"}
+          className={path.isCritical 
+            ? "text-rose-600 dark:text-rose-400 drop-shadow-[0_0_2px_rgba(225,29,72,0.4)]" 
+            : "text-slate-400/50 dark:text-white/20"
+          }
+          style={{ transition: 'all 0.3s ease' }}
         />
       ))}
     </svg>

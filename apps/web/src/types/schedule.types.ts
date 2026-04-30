@@ -76,6 +76,8 @@ export type ScheduleTask = {
   actual_finish?: string | null;
   percent_complete?: number;
   assigned_resources?: string[];
+  assignee_ids?: string[];
+  heads?: number;
   is_milestone?: boolean;
   predecessors?: SchedulePredecessor[];
   successors?: string[];
@@ -147,6 +149,8 @@ export type ScheduleChangeRequest = {
     actual_finish?: string | null;
     predecessors?: SchedulePredecessor[] | null;
     assigned_resources?: string[] | null;
+    assignee_ids?: string[] | null;
+    heads?: number | null;
     task_mode?: "Auto" | "Manual" | null;
     task_status?: ScheduleTaskStatus | null;
     is_summary?: boolean | null;
@@ -246,6 +250,8 @@ export interface ScheduleStoreState {
   undo: () => void;
   selectTask: (taskId: string) => void;
   deselectTask: (taskId: string) => void;
+  toggleTaskSelection: (taskId: string) => void;
+  selectAllTasks: (taskIds: string[]) => void;
   setSelectedTask: (taskId: string) => void;
   toggleParentCollapse: (taskId: string) => void;
   setTimescale: (scale: GanttTimescale) => void;
