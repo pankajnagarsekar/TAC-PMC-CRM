@@ -34,6 +34,15 @@ export default function NewTaskPage() {
     e.preventDefault();
     if (!activeProject) return;
 
+    if (!formData.assigned_to_user_id && !formData.assigned_to_name) {
+      toast({
+        title: "Missing Information",
+        description: "Please assign this task to someone.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const projectId = activeProject.project_id || activeProject._id;
@@ -119,7 +128,7 @@ export default function NewTaskPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">
-                Assignee
+                Assignee <span className="text-red-500">*</span>
               </label>
               <AssigneeComboBox
                 value={formData.assigned_to_user_id}
@@ -200,8 +209,8 @@ export default function NewTaskPage() {
           </button>
           <button
             type="submit"
-            disabled={isLoading || !formData.task_description}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold transition-colors"
+            disabled={isLoading || !formData.task_description || (!formData.assigned_to_user_id && !formData.assigned_to_name)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
           >
             {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             Create Task

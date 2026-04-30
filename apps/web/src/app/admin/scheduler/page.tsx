@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, Suspense } from "react";
-import { AlertTriangle, FileDown, Info, Plus, Upload, CalendarDays, Database, Grid3X3, GanttChart as GanttIcon, ListTodo, Landmark, TrendingUp, CheckSquare } from "lucide-react";
+import { AlertTriangle, FileDown, Info, Plus, Upload, CalendarDays, Database, Grid3X3, GanttChart as GanttIcon, ListTodo, Landmark, TrendingUp, CheckSquare, Search } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -55,6 +55,8 @@ function ProjectSchedulerContent() {
   const [showMigrateConfirm, setShowMigrateConfirm] = useState(false);
 
   const hasPendingChanges = useScheduleStore((state) => state.pendingCalculation);
+  const searchTerm = useScheduleStore((state) => state.activeFilters.searchTerm || "");
+  const setSearchTerm = useScheduleStore((state) => state.setSearchTerm);
   useUnsavedChanges(hasPendingChanges);
 
   // Sync local tab state with URL
@@ -232,7 +234,19 @@ function ProjectSchedulerContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-950/40 p-1 shadow-inner backdrop-blur-md sticky top-0 z-30 py-3">
+          {/* Search Bar */}
+          <div className="relative group min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search tasks..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-orange-500/50 transition-all w-full lg:w-48 xl:w-64"
+            />
+          </div>
+
+          <div className="flex rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-950/40 p-1 shadow-inner backdrop-blur-md sticky top-0 z-30">
             {[
               { value: "grid", label: "Grid", icon: Grid3X3 },
               { value: "gantt", label: "Gantt", icon: GanttIcon },

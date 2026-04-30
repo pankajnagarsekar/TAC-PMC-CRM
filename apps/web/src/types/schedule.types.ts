@@ -23,6 +23,7 @@ export type MomResult = {
 
 export type ChangeSource =
   | "gantt_drag"
+  | "gantt_edit"
   | "kanban_drop"
   | "grid_edit"
   | "drawer_edit"
@@ -248,6 +249,7 @@ export interface ScheduleStoreState {
   setSelectedTask: (taskId: string) => void;
   toggleParentCollapse: (taskId: string) => void;
   setTimescale: (scale: GanttTimescale) => void;
+  setSearchTerm: (term: string) => void;
   setProjectCalendar: (calendar: ProjectCalendar) => void;
 
   // Comparison Actions

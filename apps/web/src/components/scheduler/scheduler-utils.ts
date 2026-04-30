@@ -68,10 +68,15 @@ export const VALID_STATUS_TRANSITIONS: Record<ScheduleTaskStatus, ScheduleTaskSt
 };
 
 export function parseTaskDate(value?: string | null): Date | null {
-  if (!value) return null;
+  if (!value || value === "0" || value === "null" || value === "undefined" || value === "—") return null;
 
   const iso = parseISO(value);
-  if (isValid(iso)) return startOfDay(iso);
+  if (isValid(iso)) {
+    const d = startOfDay(iso);
+    // S-BUG #40: Prevent 1970 leak from invalid ISO or null-equiv strings
+    if (d.getFullYear() < 1980) return null;
+    return d;
+  }
 
   const patterns = [
     "dd-MM-yy",
@@ -137,16 +142,20 @@ export function calculateTimelineRange(tasks: ScheduleTask[]) {
   });
 
   if (parsedDates.length === 0) {
-    const base = startOfDay(new Date());
-    return { start: base, end: addDays(base, 90) };
+    // S-BUG #40: Try to find a project start date if no tasks have dates
+    const projectStartTask = (tasks || []).find(t => t.project_scheduled_start);
+    const base = projectStartTask ? parseTaskDate(projectStartTask.project_scheduled_start) : null;
+    const startBase = base || startOfDay(new Date());
+    
+    return { start: addDays(startBase, -30), end: addDays(startBase, 120) };
   }
 
   const min = parsedDates.reduce((acc, date) => (date < acc ? date : acc), parsedDates[0]);
   const max = parsedDates.reduce((acc, date) => (date > acc ? date : acc), parsedDates[0]);
 
   return {
-    start: addDays(startOfDay(min), -14),
-    end: addDays(startOfDay(max), 90),
+    start: addDays(startOfDay(min), -30), // Increased buffer for better visual context
+    end: addDays(startOfDay(max), 120),
   };
 }
 

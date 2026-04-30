@@ -23,7 +23,7 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         width: 80,
         sortable: true,
         cellRenderer: (p: ICellRendererParams<Task>) => (
-          <span className="text-slate-500 font-mono text-xs">#{p.value}</span>
+          <span className="text-slate-500 font-mono text-xs">#{p.node.rowIndex !== null ? p.node.rowIndex + 1 : "?"}</span>
         ),
       },
       {
@@ -49,7 +49,15 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         field: "deadline",
         headerName: "Deadline",
         width: 130,
-        valueFormatter: (p: ValueFormatterParams<Task>) => (p.value ? formatDate(p.value) : "N/A"),
+        cellRenderer: (p: ICellRendererParams<Task>) => {
+          const deadline = p.value;
+          const isOverdue = deadline && new Date(deadline) < new Date(new Date().toDateString()) && p.data?.status !== "Completed" && p.data?.status !== "Closed";
+          return (
+            <span className={isOverdue ? "text-rose-500 font-bold animate-pulse" : "text-slate-300"}>
+              {deadline ? formatDate(deadline) : "N/A"}
+            </span>
+          );
+        },
       },
       {
         field: "priority",

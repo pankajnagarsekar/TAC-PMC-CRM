@@ -60,11 +60,12 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
 
   const toggleDay = (day: number) => {
     if (!calendar) return;
-    const workingDays = [...calendar.working_days];
+    // Ensure we are working with numbers to avoid string/number comparison bugs
+    const workingDays = calendar.working_days.map(d => Number(d));
     if (workingDays.includes(day)) {
-      setCalendar({ ...calendar, working_days: workingDays.filter(d => d !== day) });
+      setCalendar({ ...calendar, working_days: workingDays.filter(d => d !== day).sort((a, b) => a - b) });
     } else {
-      setCalendar({ ...calendar, working_days: [...workingDays, day].sort() });
+      setCalendar({ ...calendar, working_days: [...workingDays, day].sort((a, b) => a - b) });
     }
   };
 
@@ -134,7 +135,7 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
                     </h3>
                     <div className="flex justify-between gap-2">
                       {days.map((day, idx) => {
-                        const isWorking = calendar.working_days.includes(idx);
+                        const isWorking = calendar.working_days.map(d => Number(d)).includes(idx);
                         return (
                           <button
                             key={day}

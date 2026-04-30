@@ -34,16 +34,29 @@ export default function SchedulerGrid() {
 
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
 
+  const activeFilters = useScheduleStore((state) => state.activeFilters);
+  const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
+
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      // 1. Hierarchy filter (collapsed parents)
       let current = task.parent_id;
       while (current) {
         if (collapsedParents.has(current)) return false;
         current = taskMap[current]?.parent_id;
       }
+
+      // 2. Search filter
+      if (searchTerm) {
+        const nameMatch = (task.task_name || task.task_description || "").toLowerCase().includes(searchTerm);
+        const wbsMatch = (task.wbs_code || "").toLowerCase().includes(searchTerm);
+        const idMatch = String(task.task_id).toLowerCase().includes(searchTerm);
+        if (!nameMatch && !wbsMatch && !idMatch) return false;
+      }
+
       return true;
     });
-  }, [tasks, taskMap, collapsedParents]);
+  }, [tasks, taskMap, collapsedParents, searchTerm]);
 
   const readOnly = systemState === "locked";
 

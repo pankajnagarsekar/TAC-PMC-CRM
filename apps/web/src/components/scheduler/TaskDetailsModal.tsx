@@ -149,7 +149,9 @@ export default function TaskDetailsModal() {
   return (
     <div 
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
-      onClick={() => setTaskModalOpen(false)}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setTaskModalOpen(false);
+      }}
     >
       <div 
         className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-[32px] max-w-4xl w-full shadow-2xl glass-panel-luxury overflow-hidden flex flex-col max-h-[90vh]"

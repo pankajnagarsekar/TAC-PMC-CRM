@@ -18,6 +18,11 @@ import {
   getTimescaleWidth,
 } from "./scheduler-utils";
 import { GanttDependencyOverlay, type GanttDependencyEdge, type GanttDependencyNode } from "./GanttDependencyOverlay";
+import EditableCell from "./EditableCell";
+
+function stripHtmlTags(s: string): string {
+  return s.replace(/<[^>]*>/g, "").trim();
+}
 
 type DragMode = "move" | "start" | "finish" | null;
 
@@ -271,17 +276,27 @@ export default function GanttChart() {
   const [showBaseline, setShowBaseline] = useState(false);
   const [activeBaselineNum, setActiveBaselineNum] = useState<number>(1);
 
-  // S-BUG #38: Auto-scroll to today on mount
+  // CRIT-004: Auto-scroll to project start on mount or task load
   useEffect(() => {
     if (scrollContainerRef.current && days.length > 0) {
-      const today = startOfDay(new Date());
-      const left = differenceInCalendarDays(today, rangeStart) * dayWidth;
-      // Check if today is within range
-      if (left >= 0 && left <= days.length * dayWidth) {
-        scrollContainerRef.current.scrollLeft = Math.max(0, left - 400);
+      // Find the earliest task date or project start to center the view
+      const firstTaskWithDate = tasks.find(t => t.scheduled_start);
+      const projectStartTask = tasks.find(t => t.project_scheduled_start);
+      const targetDate = firstTaskWithDate 
+        ? parseTaskDate(firstTaskWithDate.scheduled_start) 
+        : (projectStartTask ? parseTaskDate(projectStartTask.project_scheduled_start) : startOfDay(new Date()));
+      
+      if (targetDate) {
+        const left = differenceInCalendarDays(targetDate, rangeStart) * dayWidth;
+        const totalTimelineWidth = days.length * dayWidth;
+        
+        // Ensure the target is within bounds and apply a slight padding (400px)
+        if (left >= 0 && left <= totalTimelineWidth) {
+          scrollContainerRef.current.scrollLeft = Math.max(0, left - 100);
+        }
       }
     }
-  }, [rangeStart, days.length, dayWidth]);
+  }, [rangeStart, days.length, dayWidth, tasks]);
 
   const handleBaselineToggle = () => {
     if (showBaseline) {
@@ -471,6 +486,20 @@ export default function GanttChart() {
       originalFinish: task.scheduled_finish ?? null,
     };
     setActiveDragTaskId(task.task_id); // S-BUG #14: Immediate feedback
+  };
+
+
+  const handleEdit = (taskId: string, changes: Partial<ScheduleTask>) => {
+    const task = taskMap[taskId];
+    if (!task || readOnly) return;
+
+    queueCalculation({
+      task_id: taskId,
+      project_id: task.project_id,
+      version: task.version ?? 1,
+      changes,
+      trigger_source: "gantt_edit",
+    });
   };
 
   const handleSelect = (taskId: string) => {
@@ -679,8 +708,20 @@ export default function GanttChart() {
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${emphasizeCritical ? "bg-rose-500 dark:bg-rose-400" : "bg-sky-500 dark:bg-sky-400"}`}
                       />
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-slate-900 dark:text-white leading-tight">{task.task_name}</p>
+                      <div className="min-w-0 flex-1">
+                        {readOnly ? (
+                          <p className="truncate text-xs font-semibold text-slate-900 dark:text-white leading-tight">{task.task_name}</p>
+                        ) : (
+                          <EditableCell
+                            value={task.task_name}
+                            onCommit={(nextValue) => {
+                              if (typeof nextValue !== "string") return;
+                              const clean = stripHtmlTags(nextValue);
+                              if (clean) handleEdit(task.task_id, { task_name: clean });
+                            }}
+                            className="bg-transparent border-none p-0 focus:bg-slate-100 dark:focus:bg-white/5 h-auto text-xs font-semibold"
+                          />
+                        )}
                         <div className="flex items-center gap-2">
                           <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600 font-bold">
                             {task.wbs_code || task.task_id}

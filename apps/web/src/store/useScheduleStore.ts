@@ -662,6 +662,9 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       });
     },
     setTimescale: (scale) => set({ timescale: scale }),
+    setSearchTerm: (term: string) => set((state) => ({ 
+      activeFilters: { ...state.activeFilters, searchTerm: term } 
+    })),
     setProjectCalendar: (calendar) => set({ projectCalendar: calendar }),
 
     fetchBaselineComparison: async (projectId: string, baselineA: number, baselineB?: number) => {

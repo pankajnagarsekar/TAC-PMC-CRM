@@ -127,7 +127,7 @@ export default function SchedulerCalendarView({
                     }`}
                   >
                     <div className="flex items-start justify-between">
-                      <span className={`text-[11px] font-black ${isTodayDate ? 'flex h-6 w-6 items-center justify-center rounded-full bg-orange-600 text-white shadow-lg shadow-orange-500/40' : isSelectedMonth ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>
+                      <span className={`text-[11px] font-black ${isTodayDate && isSelectedMonth ? 'flex h-6 w-6 items-center justify-center rounded-full bg-orange-600 text-white shadow-lg shadow-orange-500/40' : isSelectedMonth ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>
                         {format(day, "d")}
                       </span>
                       
