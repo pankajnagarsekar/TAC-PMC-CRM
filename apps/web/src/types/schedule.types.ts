@@ -237,7 +237,7 @@ export interface ScheduleStoreState {
   loadSchedule: (payload: ScheduleCalculationResponse) => void;
   reconcileWithEngine: (response: ScheduleCalculationResponse) => void;
   queueCalculation: (payload: ScheduleChangeRequest) => void;
-  createDraftTask: (projectId: string) => ScheduleTask;
+  createDraftTask: (projectId: string, initialChanges?: Partial<ScheduleTask>) => ScheduleTask;
   removeTask: (taskId: string) => Promise<void>;
   openTaskModal: (taskId: string | null) => void;
   setTaskModalOpen: (open: boolean) => void;

@@ -314,9 +314,21 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         project_id: t.project_id || response.project_id
       }));
 
+      console.log(`SCHEDULER_STORE: Reconciling engine response. Task count: ${decoratedTasks.length}`);
+      
       const nextTaskMap = buildTaskMap(decoratedTasks);
       const nextTaskOrder = buildTaskOrder(decoratedTasks);
       const nextGraph = buildDependencyGraph(decoratedTasks);
+
+      // PP-014: Check if any tasks from current map were lost in reconciliation
+      const currentIds = Object.keys(get().taskMap);
+      const missingIds = currentIds.filter(id => !nextTaskMap[id] && id.startsWith('task-'));
+      if (missingIds.length > 0) {
+        console.warn(`SCHEDULER_STORE: Reconciliation lost optimistic tasks: ${missingIds.join(', ')}. Restoring them.`);
+        missingIds.forEach(id => {
+          nextTaskMap[id] = get().taskMap[id];
+        });
+      }
 
       // Handle ID mapping for selections (e.g. task-1 -> mongo_id)
       const nextSelectedTasks = new Set<string>();
@@ -350,7 +362,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       });
     },
 
-    createDraftTask: (projectId) => {
+    createDraftTask: (projectId, initialChanges = {}) => {
       const existingIds = Object.keys(get().taskMap);
       const nextNumericId = existingIds.reduce((max, taskId) => {
         const match = taskId.match(/(\d+)/g);
@@ -364,9 +376,9 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         task_id,
         project_id: projectId,
         external_ref_id: task_id, // Linkage ID
-        task_name: "New Task",
-        task_status: "draft",
-        task_mode: "Auto",
+        task_name: "New Task Definition",
+        task_status: "not_started",
+        task_mode: "Manual", // Default to Manual for better UX during creation
         percent_complete: 0,
         scheduled_start: null,
         scheduled_finish: null,
@@ -377,6 +389,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         is_summary: false,
         summary_type: "auto",
         version: 1,
+        ...initialChanges,
       };
 
       set((state) => ({
@@ -521,11 +534,18 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         return;
       }
 
+      // BUG FIX: Merge changes if the task_id is the same to prevent data loss 
+      // during rapid consecutive calls (e.g. createDraftTask followed by immediate edit)
+      const mergedChanges = (pendingRequest && pendingRequest.task_id === payload.task_id)
+        ? { ...pendingRequest.changes, ...payload.changes }
+        : payload.changes;
+
       pendingRequest = {
         ...payload,
         project_id: projectId,
         version: payload.version ?? currentTask.version ?? 0,
-        changes: buildChanges(payload.changes),
+        changes: buildChanges(mergedChanges),
+        trigger_source: payload.trigger_source || pendingRequest?.trigger_source || "api",
       };
 
       if (calculationTimer) {

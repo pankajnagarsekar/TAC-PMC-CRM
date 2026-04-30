@@ -101,8 +101,8 @@ export default function CalendarSettingsModal({ isOpen, onClose, projectId }: Ca
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 p-4 outline-none animate-in zoom-in-95 fade-in duration-300">
-          <GlassCard className="flex max-h-[85vh] flex-col overflow-hidden border-white/10 shadow-2xl p-0 bg-slate-900/95 backdrop-blur-2xl">
+        <Dialog.Content className="fixed inset-0 z-50 flex items-center justify-center p-4 outline-none animate-in fade-in duration-300">
+          <GlassCard className="w-full max-w-2xl flex max-h-[85vh] flex-col overflow-hidden border-white/10 shadow-2xl p-0 bg-slate-900/95 backdrop-blur-2xl animate-in zoom-in-95 duration-300">
             <div className="flex shrink-0 items-center justify-between border-b border-white/10 p-6 bg-slate-900/90 backdrop-blur-xl">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/20 text-orange-500 shadow-lg shadow-orange-500/10">

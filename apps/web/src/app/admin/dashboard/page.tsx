@@ -523,21 +523,14 @@ export default function AdminDashboard() {
               compact 
               hideSettings 
               onDateClick={(date) => {
-                const taskName = window.prompt(`Create task for ${format(date, 'MMM dd, yyyy')}:`);
-                if (taskName?.trim()) {
-                  const newTask = useScheduleStore.getState().createDraftTask(activeProject!.project_id);
-                  useScheduleStore.getState().queueCalculation({
-                    task_id: newTask.task_id,
-                    project_id: activeProject!.project_id,
-                    version: newTask.version ?? 1,
-                    changes: { 
-                      task_name: taskName.trim(),
-                      scheduled_start: format(date, 'yyyy-MM-dd')
-                    },
-                    trigger_source: "calendar_click",
-                  });
-                  toast.success(`Task created for ${format(date, 'MMM dd')}`);
-                }
+                if (!activeProject) return;
+                const dateStr = format(date, 'yyyy-MM-dd');
+                const newTask = useScheduleStore.getState().createDraftTask(activeProject.project_id, {
+                  scheduled_start: dateStr,
+                  task_mode: 'Manual'
+                });
+                useScheduleStore.getState().openTaskModal(newTask.task_id);
+                toast.success(`Task initialized for ${format(date, 'MMM dd')}`);
               }}
             />
           </div>

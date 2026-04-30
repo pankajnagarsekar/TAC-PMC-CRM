@@ -107,9 +107,7 @@ export function normalizeTaskOrder(taskMap: ScheduleTaskMap, taskOrder: string[]
     .map((taskId) => taskMap[taskId])
     .filter((task): task is ScheduleTask => {
       if (!task) return false;
-      // PP-015: Filter out blank drafts that often clutter the view from failed imports or accidental adds
-      const isBlankDraft = task.task_status === 'draft' &&
-        (!task.task_name || task.task_name === 'New Task' || task.task_name.trim() === '');
+      const isBlankDraft = !task.task_name || task.task_name.trim() === '';
       return !isBlankDraft && Boolean(task.task_id || task.wbs_code);
     });
 

@@ -114,20 +114,9 @@ function ProjectSchedulerContent() {
 
   const handleAddTask = () => {
     if (!activeProject) return;
-    const taskName = window.prompt("Enter task name (required):");
-    if (!taskName?.trim()) {
-      toast.error("Task name is required.");
-      return;
-    }
-    const newTask = createDraftTask(activeProject.project_id);
-    useScheduleStore.getState().queueCalculation({
-      task_id: newTask.task_id,
-      project_id: activeProject.project_id,
-      version: newTask.version ?? 1,
-      changes: { task_name: taskName.trim() },
-      trigger_source: "add_task_dialog",
-    });
-    toast.success(`Task "${taskName.trim()}" created.`);
+    const newTask = useScheduleStore.getState().createDraftTask(activeProject.project_id);
+    useScheduleStore.getState().openTaskModal(newTask.task_id);
+    toast.success(`Task created.`);
   };
 
   const handleImportSchedule = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -413,25 +402,17 @@ function ProjectSchedulerContent() {
 
               <Tabs.Content value="calendar" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
                 <SchedulerCalendarView 
-                  onOpenSettings={() => setIsCalendarModalOpen(true)} 
+                  onOpenSettings={() => setIsCalendarModalOpen(true)}
                   onDateClick={(date) => {
-                    if (isClient) return;
-                    const taskName = window.prompt(`Create task for ${format(date, 'MMM dd, yyyy')}:`);
-                    if (taskName?.trim()) {
-                      const newTask = createDraftTask(activeProject.project_id);
-                      useScheduleStore.getState().queueCalculation({
-                        task_id: newTask.task_id,
-                        project_id: activeProject.project_id,
-                        version: newTask.version ?? 1,
-                        changes: { 
-                          task_name: taskName.trim(),
-                          scheduled_start: format(date, 'yyyy-MM-dd')
-                        },
-                        trigger_source: "calendar_click",
+                      if (!activeProject) return;
+                      const dateStr = format(date, 'yyyy-MM-dd');
+                      const newTask = useScheduleStore.getState().createDraftTask(activeProject.project_id, {
+                        scheduled_start: dateStr,
+                        task_mode: 'Manual' // Pin it to the clicked date
                       });
-                      toast.success(`Task created for ${format(date, 'MMM dd')}`);
-                    }
-                  }}
+                      useScheduleStore.getState().openTaskModal(newTask.task_id);
+                      toast.success(`Initializing task for ${format(date, 'MMM dd')}`);
+                    }}
                 />
               </Tabs.Content>
 
