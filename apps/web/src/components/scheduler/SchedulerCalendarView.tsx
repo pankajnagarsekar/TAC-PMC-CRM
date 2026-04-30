@@ -90,7 +90,7 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
             const isTodayDate = isToday(day);
             
             const exception = projectCalendar?.exceptions.find(ex => dateKey >= ex.start_date && dateKey <= ex.end_date);
-            const isNonWorking = projectCalendar && !projectCalendar.working_days.includes(day.getDay());
+            const isNonWorking = projectCalendar && !projectCalendar.working_days.includes((day.getDay() + 6) % 7);
 
             return (
               <div 
@@ -117,7 +117,8 @@ export default function SchedulerCalendarView({ onOpenSettings }: { onOpenSettin
                   {dayTasks.slice(0, 3).map(task => (
                     <div 
                       key={task.task_id} 
-                      className={`truncate rounded-sm px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                      onClick={() => useScheduleStore.getState().openTaskModal(task.task_id)}
+                      className={`truncate rounded-sm px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 active:scale-95 transition-all ${
                         task.is_critical ? 'bg-rose-500/20 text-rose-600 border-l-2 border-rose-500' : 
                         task.is_milestone ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' :
                         'bg-sky-500/10 text-sky-600 border-l-2 border-sky-400'
