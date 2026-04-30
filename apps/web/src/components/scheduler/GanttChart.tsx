@@ -756,10 +756,13 @@ export default function GanttChart() {
 
                       {baselinePos && (
                         <div
-                          className="absolute top-1/2 z-10 -translate-y-1/2 opacity-40 shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                          className="absolute bottom-1 z-10 opacity-60 shadow-[0_4px_10px_rgba(0,0,0,0.2)]"
                           style={{ left: Math.max(0, baselinePos.left), width: baselinePos.width }}
                         >
-                          <div className="h-2.5 rounded-full border border-white/20 bg-slate-400/20" />
+                          <div className="h-1.5 rounded-full border border-slate-700/50 bg-slate-500/30" />
+                          <div className="absolute -top-3 left-0 text-[7px] font-black text-slate-500/50 uppercase tracking-tighter">
+                            Baseline
+                          </div>
                         </div>
                       )}
 

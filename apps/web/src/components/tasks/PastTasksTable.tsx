@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Task } from "@/types/api";
 import { formatDate } from "@tac-pmc/ui";
 import FinancialGrid from "@/components/ui/FinancialGrid";
-import { ColDef, ICellRendererParams, ValueFormatterParams } from "ag-grid-community";
+import { ColDef, ICellRendererParams } from "ag-grid-community";
 
 interface PastTasksTableProps {
   tasks: Task[];
@@ -23,7 +23,9 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         width: 80,
         sortable: true,
         cellRenderer: (p: ICellRendererParams<Task>) => (
-          <span className="text-slate-500 font-mono text-xs">#{p.node.rowIndex !== null ? p.node.rowIndex + 1 : "?"}</span>
+          <span className="text-slate-500 font-black text-[10px] tracking-widest uppercase">
+            #{p.data?.sr_no || p.node.rowIndex !== null ? String(p.data?.sr_no || p.node.rowIndex! + 1).padStart(3, '0') : "???"}
+          </span>
         ),
       },
       {
@@ -53,9 +55,14 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
           const deadline = p.value;
           const isOverdue = deadline && new Date(deadline) < new Date(new Date().toDateString()) && p.data?.status !== "Completed" && p.data?.status !== "Closed";
           return (
-            <span className={isOverdue ? "text-rose-500 font-bold animate-pulse" : "text-slate-300"}>
-              {deadline ? formatDate(deadline) : "N/A"}
-            </span>
+            <div className="flex items-center gap-2">
+               <span className={isOverdue ? "text-rose-500 font-black text-[10px] uppercase tracking-wider" : "text-slate-400 text-xs font-medium"}>
+                {deadline ? formatDate(deadline) : "N/A"}
+              </span>
+              {isOverdue && (
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse" />
+              )}
+            </div>
           );
         },
       },
@@ -88,16 +95,16 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         cellRenderer: (p: ICellRendererParams<Task>) => {
           const status = p.value;
           const colors: Record<string, string> = {
-            Open: "bg-slate-500/10 text-slate-400 border-slate-500/20",
-            "In Progress": "bg-blue-500/10 text-blue-400 border-blue-500/20",
-            Review: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-            Completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-            Closed: "bg-emerald-900/40 text-emerald-600 border-emerald-900/30",
+            Open: "bg-slate-500/10 text-slate-400 border-slate-500/20 shadow-[inset_0_0_10px_rgba(100,116,139,0.05)]",
+            "In Progress": "bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]",
+            Review: "bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-[inset_0_0_10px_rgba(245,158,11,0.05)]",
+            Completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]",
+            Closed: "bg-slate-800/40 text-slate-500 border-slate-700/30 grayscale",
           };
           return (
             <div className="flex items-center h-full">
               <span
-                className={`px-2.5 py-0.5 rounded font-bold text-[10px] uppercase border ${colors[status] || colors["Open"]}`}
+                className={`px-3 py-1 rounded-full font-black text-[9px] uppercase tracking-widest border ${colors[status] || colors["Open"]} backdrop-blur-md`}
               >
                 {status}
               </span>

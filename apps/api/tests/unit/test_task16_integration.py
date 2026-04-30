@@ -19,7 +19,6 @@ from app.modules.scheduler.bulk_operations import (
     Operation,
     OperationType,
     OperationStatus,
-    BulkOperationResult,
 )
 from app.modules.scheduler.resource_leveling_service import ResourceLevelingService
 from app.modules.scheduler.baseline_manager import BaselineManager

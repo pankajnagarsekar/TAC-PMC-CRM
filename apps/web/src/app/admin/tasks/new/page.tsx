@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, ArrowLeft, Loader2, Save } from "lucide-react";
+import { CheckSquare, ArrowLeft, Loader2, Save, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import { useProjectStore } from "@/store/projectStore";
 import AssigneeComboBox from "@/components/tasks/AssigneeComboBox";
@@ -17,6 +17,8 @@ export default function NewTaskPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
   const [formData, setFormData] = useState({
     task_description: "",
     assigned_to_user_id: "",
@@ -30,14 +32,35 @@ export default function NewTaskPage() {
   // Guard against unsaved changes
   useUnsavedChanges(isDirty);
 
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.task_description.trim()) {
+      newErrors.task_description = "Description is required";
+    } else if (formData.task_description.length < 5) {
+      newErrors.task_description = "Description must be at least 5 characters";
+    }
+
+    if (!formData.assigned_to_user_id && !formData.assigned_to_name) {
+      newErrors.assignee = "Please select an assignee";
+    }
+
+    if (!formData.priority) {
+      newErrors.priority = "Priority is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeProject) return;
 
-    if (!formData.assigned_to_user_id && !formData.assigned_to_name) {
+    if (!validate()) {
       toast({
-        title: "Missing Information",
-        description: "Please assign this task to someone.",
+        title: "Validation Error",
+        description: "Please fix the highlighted fields before submitting.",
         variant: "destructive",
       });
       return;
@@ -49,14 +72,14 @@ export default function NewTaskPage() {
 
       const payload: Record<string, unknown> = {
         project_id: projectId,
-        task_description: formData.task_description,
+        task_description: formData.task_description.trim(),
         assigned_to_name: formData.assigned_to_name || "Unassigned",
         assigned_to_type: formData.assigned_to_type || "external",
         priority: formData.priority,
       };
       if (formData.assigned_to_user_id) payload.assigned_to_user_id = formData.assigned_to_user_id;
       if (formData.deadline) payload.deadline = formData.deadline;
-      if (formData.notes) payload.notes = formData.notes;
+      if (formData.notes) payload.notes = formData.notes.trim();
 
       await api.post("/api/v1/tasks/", payload);
 
@@ -68,10 +91,20 @@ export default function NewTaskPage() {
       router.push("/admin/tasks");
     } catch (err: unknown) {
       console.error(err);
-      const error = err as { response?: { data?: { detail?: string } } };
+      const error = err as { response?: { data?: { detail?: string | string[] } } };
+      let errorMsg = "An error occurred while creating the task.";
+      
+      if (error?.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMsg = error.response.data.detail[0];
+        } else {
+          errorMsg = error.response.data.detail;
+        }
+      }
+
       toast({
-        title: "Failed to create task",
-        description: error?.response?.data?.detail || "An error occurred",
+        title: "Submission Failed",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -81,54 +114,67 @@ export default function NewTaskPage() {
 
   if (!activeProject) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] bg-slate-900 border border-slate-800 rounded-xl">
-        <CheckSquare className="w-12 h-12 text-slate-600 mb-4" />
+      <div className="flex flex-col items-center justify-center h-[60vh] bg-slate-900 border border-slate-800 rounded-xl animate-in fade-in zoom-in duration-500">
+        <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-6 ring-1 ring-slate-700">
+          <CheckSquare className="w-8 h-8 text-slate-500" />
+        </div>
         <h3 className="text-xl font-bold text-white mb-2">No Project Selected</h3>
-        <p className="text-slate-400">Please select a project to create tasks.</p>
+        <p className="text-slate-400 max-w-xs text-center px-4">
+          Strategic context is missing. Please select a project from the top navigation to continue.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center gap-4">
         <button
           onClick={() => router.push("/admin/tasks")}
-          className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors"
+          className="p-2.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-transparent hover:border-slate-700"
         >
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-white">Create New Task</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Project: <span className="text-blue-400 font-medium">{activeProject.project_name}</span>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Create New Task</h1>
+          <p className="text-slate-400 text-sm mt-1 flex items-center gap-2">
+            Allocation for <span className="text-blue-400 font-semibold uppercase tracking-wider text-[10px] bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">{activeProject.project_name}</span>
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6 xl:col-span-2 shadow-xl">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Description <span className="text-red-500">*</span>
+      <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-8 xl:col-span-2 shadow-[0_20px_50px_rgba(0,0,0,0.4)] relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-1 h-full bg-blue-600/50" />
+        
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="flex justify-between text-[11px] font-black uppercase tracking-widest text-slate-500">
+              <span>Task Description</span>
+              <span className="text-rose-500 font-bold">* Required</span>
             </label>
             <textarea
-              required
               rows={3}
               value={formData.task_description}
               onChange={(e) => {
                 setIsDirty(true);
                 setFormData({ ...formData, task_description: e.target.value });
+                if (errors.task_description) setErrors({ ...errors, task_description: "" });
               }}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 resize-none"
-              placeholder="What needs to be done?"
+              className={`w-full bg-slate-950 border ${errors.task_description ? "border-rose-500/50 ring-1 ring-rose-500/10" : "border-slate-800"} rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all resize-none placeholder:text-slate-700`}
+              placeholder="Define the scope of work..."
             />
+            {errors.task_description && (
+              <p className="flex items-center gap-1.5 text-rose-500 text-[10px] font-bold uppercase tracking-tight">
+                <AlertCircle size={12} /> {errors.task_description}
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">
-                Assignee <span className="text-red-500">*</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="flex justify-between text-[11px] font-black uppercase tracking-widest text-slate-500">
+                <span>Assignee</span>
+                <span className="text-rose-500 font-bold">*</span>
               </label>
               <AssigneeComboBox
                 value={formData.assigned_to_user_id}
@@ -140,12 +186,18 @@ export default function NewTaskPage() {
                     assigned_to_name: name,
                     assigned_to_type: type
                   });
+                  if (errors.assignee) setErrors({ ...errors, assignee: "" });
                 }}
               />
+              {errors.assignee && (
+                <p className="flex items-center gap-1.5 text-rose-500 text-[10px] font-bold uppercase tracking-tight">
+                  <AlertCircle size={12} /> {errors.assignee}
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">
+            <div className="space-y-2">
+              <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500">
                 Deadline
               </label>
               <StyledDateInput
@@ -154,17 +206,19 @@ export default function NewTaskPage() {
                   setIsDirty(true);
                   setFormData({ ...formData, deadline: e.target.value });
                 }}
-                className="bg-slate-800 border-slate-700"
+                className="bg-slate-950 border-slate-800 focus:border-blue-500/50"
                 hideIcon
               />
               {formData.deadline && new Date(formData.deadline) < new Date(new Date().toDateString()) && (
-                <p className="mt-1 text-xs text-amber-400">Warning: deadline is in the past</p>
+                <p className="mt-1 text-[10px] font-bold text-amber-500 uppercase tracking-tight flex items-center gap-1">
+                  <AlertCircle size={12} /> Deadline is in the past
+                </p>
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">
-                Priority <span className="text-red-500">*</span>
+            <div className="space-y-2">
+              <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500">
+                Priority <span className="text-rose-500 font-bold">*</span>
               </label>
               <select
                 required
@@ -173,18 +227,18 @@ export default function NewTaskPage() {
                   setIsDirty(true);
                   setFormData({ ...formData, priority: e.target.value });
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none"
               >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
+                <option value="Low">Low Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="High">High Priority</option>
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Notes / Context (Optional)
+          <div className="space-y-2">
+            <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500">
+              Internal Notes / Context
             </label>
             <textarea
               rows={2}
@@ -193,27 +247,31 @@ export default function NewTaskPage() {
                 setIsDirty(true);
                 setFormData({ ...formData, notes: e.target.value });
               }}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 resize-none"
-              placeholder="Any additional details..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all resize-none placeholder:text-slate-700"
+              placeholder="Any additional orchestration details..."
             />
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+        <div className="flex justify-end items-center gap-6 pt-8 border-t border-slate-800">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 text-slate-300 hover:text-white transition-colors"
+            className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-white transition-colors"
           >
-            Cancel
+            Discard Draft
           </button>
           <button
             type="submit"
-            disabled={isLoading || !formData.task_description || (!formData.assigned_to_user_id && !formData.assigned_to_name)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+            disabled={isLoading}
+            className="flex items-center gap-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-[0_10px_20px_rgba(37,99,235,0.2)] hover:shadow-[0_15px_30px_rgba(37,99,235,0.4)] active:scale-95 group/btn"
           >
-            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-            Create Task
+            {isLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Save size={16} className="group-hover/btn:translate-y-[-1px] transition-transform" />
+            )}
+            Persist Task
           </button>
         </div>
       </form>

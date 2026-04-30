@@ -18,9 +18,7 @@ from app.modules.scheduler.resource_leveler import (
     ResourceCapacity,
     ResourceLevelingContext,
     Conflict,
-    ResourceUsageDay,
     LevelingStatus,
-    LevelingResult,
 )
 
 

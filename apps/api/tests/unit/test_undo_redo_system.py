@@ -6,7 +6,6 @@ import pytest
 from typing import List, Dict, Any
 from app.modules.project.application.undo_redo_service import (
     UndoRedoService,
-    ScheduleHistoryRepository,
 )
 from app.modules.shared.domain.exceptions import ValidationError
 

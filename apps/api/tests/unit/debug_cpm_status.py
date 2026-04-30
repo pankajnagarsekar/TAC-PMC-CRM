@@ -3,9 +3,10 @@ import os
 
 
 # Add the app directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.append(os.getcwd())
 
-from app.modules.scheduler.calculate_critical_path import run_calculation
+from app.modules.scheduler.calculate_critical_path import run_calculation  # noqa: E402
+
 
 def debug_cpm_status():
     project_start = "2026-04-01"
@@ -22,6 +23,7 @@ def debug_cpm_status():
     for t in result["tasks"]:
         if t["task_id"] == "D1":
             print(f"Task {t['task_id']}: Status={t.get('task_status')}")
+
 
 if __name__ == "__main__":
     debug_cpm_status()

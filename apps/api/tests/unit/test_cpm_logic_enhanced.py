@@ -3,9 +3,10 @@ import os
 
 
 # Add the app directory to sys.path to import the module
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.append(os.getcwd())
 
-from app.modules.scheduler.calculate_critical_path import run_calculation
+from app.modules.scheduler.calculate_critical_path import run_calculation  # noqa: E402
+
 
 def test_cpm_all_features():
     project_start = "2026-04-01"
@@ -147,6 +148,7 @@ def test_cpm_all_features():
     print("PASS: Metadata generated.")
 
     print("\nALL ENHANCED CPM TESTS PASSED!")
+
 
 if __name__ == "__main__":
     test_cpm_all_features()

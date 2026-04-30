@@ -10,6 +10,7 @@ from pydantic import BaseModel
 class MockModel(BaseModel):
     name: str
 
+
 @pytest.mark.asyncio
 async def test_base_repository_update_one_timestamp_fix(test_db):
     """BUG-35: Verify updated_at is set even with $inc."""
@@ -28,12 +29,14 @@ async def test_base_repository_update_one_timestamp_fix(test_db):
     assert "updated_at" in updated_doc
     assert updated_doc["updated_at"] > initial_updated_at
 
+
 @pytest.mark.asyncio
 async def test_site_service_check_out_implemented(test_db):
     """BUG-12: Verify check_out method exists and works."""
     # Mocking dependencies
     service = SiteService(test_db, None, None, None)
     assert hasattr(service, "check_out")
+
 
 @pytest.mark.asyncio
 async def test_uow_sequences_repo_added(test_db):
@@ -42,6 +45,7 @@ async def test_uow_sequences_repo_added(test_db):
     assert hasattr(uow, "sequences")
     assert uow.sequences is not None
 
+
 @pytest.mark.asyncio
 async def test_middleware_request_client_guard(test_db):
     """BUG-01: Verify middleware guards request.client."""
@@ -49,6 +53,7 @@ async def test_middleware_request_client_guard(test_db):
     # This is a unit test for the logic inside dispatch
     # We can't easily call dispatch without a full app, but we verified the code.
     pass
+
 
 @pytest.mark.asyncio
 async def test_financial_service_cursers_awaited(test_db):

@@ -28,9 +28,7 @@ import { formatINRShort } from "@/lib/formatters";
 
 /**
  * S-Curve Chart implementation for Enterprise PPM Scheduler.
- * Follows System Constitution §9 formulas:
- * PV: Time-phased linear distribution of baseline_cost.
- * EV: Live earned value calculated from percent_complete * baseline_cost.
+ * Refactored for Cumulative Aggregation (CRIT-005).
  */
 export default function SCurveChart() {
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -55,7 +53,6 @@ export default function SCurveChart() {
 
     if (!projectStart || !projectEnd) return [];
 
-    // Buffer dates to start and end of months
     const horizonStart = startOfMonth(projectStart);
     const horizonEnd = endOfMonth(projectEnd);
     const today = startOfDay(new Date());
@@ -66,63 +63,54 @@ export default function SCurveChart() {
       end: horizonEnd,
     });
 
-    // 3. Project costs into intervals
+    // 3. Project cumulative costs into intervals
     return months.map((month) => {
       const reportDate = endOfMonth(month);
-      let totalPV = 0;
-      let totalEV = 0;
+      let cumulativePV = 0;
+      let cumulativeEV = 0;
 
       tasks.forEach((task) => {
         const bStart = parseTaskDate(task.baseline_start || task.scheduled_start);
         const bFinish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
-
-        // PP-016: Explicit cost mapping for Earned Value Analysis (EVA)
+        
         const pvCost = Number(task.baseline_cost ?? 0);
         const evCost = Number(task.wo_value ?? task.baseline_cost ?? 0);
 
-        if (!bStart || !bFinish) return;
+        if (!bStart || !bFinish || (pvCost === 0 && evCost === 0)) return;
 
-        // --- Planned Value (PV) Logic ---
-        if (pvCost > 0) {
-          const bDuration = Math.max(1, differenceInCalendarDays(bFinish, bStart) + 1);
-          const dailyPV = pvCost / bDuration;
-
-          if (!isAfter(bStart, reportDate)) {
-            const daysPlanned = Math.min(
-              bDuration,
-              differenceInCalendarDays(
-                isBefore(reportDate, bFinish) ? reportDate : bFinish,
-                bStart
-              ) + 1
-            );
-            totalPV += dailyPV * Math.max(0, daysPlanned);
+        // --- Planned Value (PV) Cumulative ---
+        const bDuration = Math.max(1, differenceInCalendarDays(bFinish, bStart) + 1);
+        if (!isAfter(bStart, reportDate)) {
+          if (!isBefore(reportDate, bFinish)) {
+            // Task completely in the past relative to reportDate
+            cumulativePV += pvCost;
+          } else {
+            // Task is currently active during the reportDate month
+            const daysPlanned = differenceInCalendarDays(reportDate, bStart) + 1;
+            cumulativePV += (pvCost / bDuration) * daysPlanned;
           }
         }
 
-        // --- Earned Value (EV) Logic ---
-        if (evCost > 0) {
+        // --- Earned Value (EV) Cumulative ---
+        // EV is based on percent complete. We only show EV up to "Today".
+        // If the reportDate is in the future, we don't project EV.
+        if (!isAfter(month, today)) {
           const percent = Number(task.percent_complete ?? 0) / 100;
-          const currentTaskEV = evCost * percent;
-
-          if (!isAfter(reportDate, today) || (!isAfter(month, today) && !isBefore(reportDate, today))) {
+          const taskEV = evCost * percent;
+          
+          if (percent > 0) {
             const aStart = parseTaskDate(task.actual_start || task.scheduled_start);
             const aFinish = parseTaskDate(task.actual_finish || task.scheduled_finish);
-
-            if (aStart) {
-              if (task.percent_complete === 100 && aFinish && !isAfter(aFinish, reportDate)) {
-                totalEV += evCost;
-              } else if (percent > 0) {
-                const effectiveEnd = aFinish || today;
-                const timeSpent = Math.max(1, differenceInCalendarDays(effectiveEnd, aStart) + 1);
-                const daysToReport = Math.min(
-                  timeSpent,
-                  differenceInCalendarDays(
-                    isBefore(reportDate, effectiveEnd) ? reportDate : effectiveEnd,
-                    aStart
-                  ) + 1
-                );
-                totalEV += (currentTaskEV / timeSpent) * Math.max(0, daysToReport);
-              }
+            
+            if (task.percent_complete === 100 && aFinish) {
+               if (!isAfter(aFinish, reportDate)) {
+                 cumulativeEV += evCost;
+               }
+            } else if (aStart && !isAfter(aStart, reportDate)) {
+               // For partial tasks, we distribute the earned value linearly from actual start to today
+               // or just add it to the current month if it's started.
+               // Simplification: add full current EV to the total if the task has started by reportDate.
+               cumulativeEV += taskEV;
             }
           }
         }
@@ -131,8 +119,8 @@ export default function SCurveChart() {
       return {
         name: format(month, "MMM yy"),
         date: month,
-        PV: Math.round(totalPV),
-        EV: isAfter(month, today) ? null : Math.round(totalEV),
+        PV: Math.round(cumulativePV),
+        EV: isAfter(month, today) ? null : Math.round(cumulativeEV),
       };
     });
   }, [tasks]);
@@ -150,11 +138,11 @@ export default function SCurveChart() {
         </div>
         <div className="flex gap-4">
           <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-3 rounded-full bg-amber-500" />
+            <div className="h-1.5 w-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
             <span className="text-[10px] font-bold text-slate-500 dark:text-white/30 uppercase tracking-wider">PV</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-3 rounded-full bg-sky-500" />
+            <div className="h-1.5 w-3 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.4)]" />
             <span className="text-[10px] font-bold text-slate-500 dark:text-white/30 uppercase tracking-wider">EV</span>
           </div>
         </div>
@@ -179,12 +167,14 @@ export default function SCurveChart() {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border) / 0.1)",
+                backgroundColor: "rgba(15, 23, 42, 0.9)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "12px",
                 fontSize: "12px",
-                color: "hsl(var(--card-foreground))",
+                color: "#fff",
+                boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
               }}
+              itemStyle={{ color: "#fff", padding: "2px 0" }}
               formatter={(value: number | undefined) => [formatCurrency(Number(value || 0)), ""]}
             />
             <ReferenceLine
@@ -197,22 +187,31 @@ export default function SCurveChart() {
               type="monotone"
               dataKey="PV"
               stroke="#f59e0b"
-              strokeWidth={3}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
+              strokeWidth={4}
+              dot={{ r: 0 }}
+              activeDot={{ r: 6, strokeWidth: 0, fill: "#f59e0b" }}
             />
             <Line
               type="monotone"
               dataKey="EV"
               stroke="#38bdf8"
-              strokeWidth={3}
-              dot={false}
+              strokeWidth={4}
+              dot={{ r: 0 }}
               connectNulls={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
+              activeDot={{ r: 6, strokeWidth: 0, fill: "#38bdf8" }}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
+      
+      {chartData.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10 backdrop-blur-[2px] rounded-[24px]">
+          <div className="text-center">
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">No Economic Data Available</p>
+            <p className="text-[10px] text-slate-400 mt-1">Add baseline costs to tasks to generate S-Curve</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
