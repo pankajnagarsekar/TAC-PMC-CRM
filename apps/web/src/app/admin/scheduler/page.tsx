@@ -39,7 +39,7 @@ export default function ProjectSchedulerPage() {
 }
 
 function ProjectSchedulerContent() {
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore((state) => state.activeProject);
   const searchParams = useSearchParams();
   const router = useRouter();
   const currentTab = searchParams.get("tab") || "grid";
@@ -51,7 +51,7 @@ function ProjectSchedulerContent() {
   const calculationError = useScheduleStore((state) => state.calculationError);
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskCount = useScheduleStore((state) => Object.keys(state.taskMap).length);
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const [activeTab, setActiveTab] = useState(currentTab);
   const [showMigrateConfirm, setShowMigrateConfirm] = useState(false);
 
@@ -87,25 +87,24 @@ function ProjectSchedulerContent() {
       const currentTasks = useScheduleStore.getState().taskMap;
       const firstTask = Object.values(currentTasks)[0];
       const projectMatches = firstTask?.project_id === activeProject.project_id;
+      const isLoading = useScheduleStore.getState().loading;
 
-      if (!isHydrated || !projectMatches) {
+      if ((!isHydrated || !projectMatches) && !isLoading) {
         useScheduleStore.setState({ loading: true, isHydrated: false });
-        schedulerApi
-          .load(activeProject.project_id)
-          .then((data) => {
-            loadSchedule(data);
-          })
-          .catch((err) => {
-            console.error("Scheduler load error:", err);
-            toast.error("Failed to load project schedule repository.");
-            useScheduleStore.setState({ loading: false });
-          });
+        
+        // Parallel fetch for schedule and calendar
+        Promise.all([
+          schedulerApi.load(activeProject.project_id),
+          schedulerApi.getCalendar(activeProject.project_id)
+        ]).then(([scheduleData, calendarData]) => {
+          loadSchedule(scheduleData);
+          useScheduleStore.getState().setProjectCalendar(calendarData);
+        }).catch((err) => {
+          console.error("Scheduler initialization error:", err);
+          toast.error("Failed to load project schedule repository.");
+          useScheduleStore.setState({ loading: false });
+        });
       }
-
-      // Fetch Calendar
-      schedulerApi.getCalendar(activeProject.project_id).then(cal => {
-        useScheduleStore.getState().setProjectCalendar(cal);
-      }).catch(err => console.error("Failed to fetch calendar", err));
     }
   }, [activeProject, loadSchedule, isHydrated]);
 
@@ -184,6 +183,42 @@ function ProjectSchedulerContent() {
       setMigrating(false);
     }
   };
+
+  const budgetChartData = React.useMemo(() => {
+    // PP-018: Derive category distribution from taskMap for better granularity
+    interface CategorySummary {
+      name: string;
+      budget: number;
+      committed: number;
+    }
+    const categoriesMap = Object.values(taskMap).reduce((acc: Record<string, CategorySummary>, task: ScheduleTask) => {
+      // Map WBS first segment to readable names
+      const code = task.wbs_code?.split('.')[0] || 'Misc';
+      const name = code === 'C' ? 'Construction' :
+        code === 'P' ? 'Procurement' :
+          code === 'D' ? 'Design/Engineering' :
+            code === 'S' ? 'Site Ops' :
+              code === 'I' ? 'Interiors' : code;
+
+      if (!acc[name]) acc[name] = { name, budget: 0, committed: 0 };
+      acc[name].budget += Number(task.baseline_cost ?? 0);
+      acc[name].committed += Number(task.wo_value ?? 0);
+      return acc;
+    }, {});
+
+    const derived = Object.values(categoriesMap);
+
+    // Fallback to API financials if derived is empty or less descriptive
+    if (derived.length <= 1 && financials && financials.length > 0) {
+      return financials.map((f: DerivedFinancialState) => ({
+        name: f.category_name || f.category_code || 'N/A',
+        budget: f.original_budget,
+        committed: f.committed_value
+      }));
+    }
+
+    return derived;
+  }, [taskMap, financials]);
 
   if (!activeProject) {
     return (
@@ -377,41 +412,7 @@ function ProjectSchedulerContent() {
                     <h3 className="text-zinc-500 uppercase tracking-widest text-[10px] font-bold px-4">Financial Status — Planned vs Actuals per Category</h3>
                     <FinancialChart
                       title=""
-                      data={(() => {
-                        // PP-018: Derive category distribution from taskMap for better granularity
-                        interface CategorySummary {
-                          name: string;
-                          budget: number;
-                          committed: number;
-                        }
-                        const categoriesMap = Object.values(taskMap).reduce((acc: Record<string, CategorySummary>, task: ScheduleTask) => {
-                          // Map WBS first segment to readable names
-                          const code = task.wbs_code?.split('.')[0] || 'Misc';
-                          const name = code === 'C' ? 'Construction' :
-                            code === 'P' ? 'Procurement' :
-                              code === 'D' ? 'Design/Engineering' :
-                                code === 'S' ? 'Site Ops' :
-                                  code === 'I' ? 'Interiors' : code;
-
-                          if (!acc[name]) acc[name] = { name, budget: 0, committed: 0 };
-                          acc[name].budget += Number(task.baseline_cost ?? 0);
-                          acc[name].committed += Number(task.wo_value ?? 0);
-                          return acc;
-                        }, {});
-
-                        const derived = Object.values(categoriesMap);
-
-                        // Fallback to API financials if derived is empty or less descriptive
-                        if (derived.length <= 1 && financials && financials.length > 0) {
-                          return financials.map((f: DerivedFinancialState) => ({
-                            name: f.category_name || f.category_code || 'N/A',
-                            budget: f.original_budget,
-                            committed: f.committed_value
-                          }));
-                        }
-
-                        return derived;
-                      })()}
+                      data={budgetChartData}
                       dataKeys={[
                         { key: 'budget', color: '#775a19', label: 'Planned' },
                         { key: 'committed', color: '#505f7a', label: 'Actual' }
