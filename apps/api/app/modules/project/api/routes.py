@@ -314,17 +314,25 @@ async def calculate_granular_schedule(
     apply_time = time.time() - (start_time + load_time)
 
     # 3. Recalculate
-    result = await service.calculate_schedule(
-        project_id, tasks, project_start
-    )
-    total_time = time.time() - start_time
+    try:
+        result = await service.calculate_schedule(
+            project_id, tasks, project_start
+        )
+        total_time = time.time() - start_time
 
-    logger.info(
-        f"PERF: scheduler_calculate | total={total_time:.3f}s | "
-        f"load={load_time:.3f}s | apply={apply_time:.3f}s"
-    )
+        logger.info(
+            f"PERF: scheduler_calculate | total={total_time:.3f}s | "
+            f"load={load_time:.3f}s | apply={apply_time:.3f}s"
+        )
 
-    return GenericResponse(data=result)
+        return GenericResponse(data=result)
+    except Exception as e:
+        logger.error(f"GRANULAR_CALC_FAILED: {str(e)}", exc_info=True)
+        from fastapi import HTTPException
+        from app.modules.shared.domain.exceptions import DomainError
+        if isinstance(e, DomainError):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Granular calculation error: {str(e)}")
 
 
 @router.delete(
@@ -357,13 +365,21 @@ async def save_schedule(
     service: SchedulerService = Depends(get_scheduler_service),
 ):
     """Persist calculated schedule to the database."""
-    result = await service.save_schedule(
-        project_id,
-        user["organisation_id"],
-        user["user_id"],
-        request.dict(),
-    )
-    return GenericResponse(data=result, message="Schedule saved successfully")
+    try:
+        result = await service.save_schedule(
+            project_id,
+            user["organisation_id"],
+            user["user_id"],
+            request.dict(),
+        )
+        return GenericResponse(data=result, message="Schedule saved successfully")
+    except Exception as e:
+        logger.error(f"SAVE_SCHEDULE_FAILED: {str(e)}", exc_info=True)
+        from fastapi import HTTPException
+        from app.modules.shared.domain.exceptions import DomainError
+        if isinstance(e, DomainError):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Schedule save error: {str(e)}")
 
 
 @router.get(
