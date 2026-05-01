@@ -10,12 +10,14 @@ from bson import ObjectId
 def mock_audit_service():
     return AsyncMock()
 
+
 @pytest.fixture
 def mock_permission_checker():
     checker = AsyncMock()
     checker.check_project_access.return_value = None
     checker.check_write_access_with_role.return_value = None
     return checker
+
 
 @pytest.fixture
 def mock_financial_service():
@@ -24,15 +26,21 @@ def mock_financial_service():
     service.recalculate_master_budget.return_value = None
     return service
 
+
 @pytest.fixture
 def work_order_service(test_db, mock_audit_service, mock_financial_service, mock_permission_checker):
     return WorkOrderService(test_db, mock_audit_service, mock_financial_service, mock_permission_checker)
+
 
 @pytest.mark.asyncio
 async def test_create_work_order_flow(work_order_service, test_db, test_user, test_project_id):
     # Setup dependencies
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
 
     await test_db.project_category_budgets.insert_one({
         "project_id": test_project_id,
@@ -58,11 +66,16 @@ async def test_create_work_order_flow(work_order_service, test_db, test_user, te
     assert ledger["entry_type"] == "COMMITTED"
     assert float(str(ledger["amount"])) > 0
 
+
 @pytest.mark.asyncio
 async def test_work_order_approval_lifecycle(work_order_service, test_db, test_user, test_project_id):
     # Setup WO in Draft
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
     await test_db.project_category_budgets.insert_one({
         "project_id": test_project_id,
         "category_id": "C1",
@@ -82,10 +95,15 @@ async def test_work_order_approval_lifecycle(work_order_service, test_db, test_u
     approved = await work_order_service.approve_work_order(test_user, str(wo["id"]), expected_version=2)
     assert approved["status"] == "Approved"
 
+
 @pytest.mark.asyncio
 async def test_cancel_work_order(work_order_service, test_db, test_user, test_project_id):
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
     await test_db.project_category_budgets.insert_one({
         "project_id": test_project_id,
         "category_id": "C1",
@@ -167,7 +185,11 @@ async def test_work_order_invariant_violation(work_order_service, test_db, test_
 @pytest.mark.asyncio
 async def test_list_work_orders(work_order_service, test_user, test_project_id, test_db):
     vendor_id = str(ObjectId())
-    await test_db.vendors.insert_one({"_id": ObjectId(vendor_id), "organisation_id": test_user["organisation_id"], "name": "V1"})
+    await test_db.vendors.insert_one({
+        "_id": ObjectId(vendor_id),
+        "organisation_id": test_user["organisation_id"],
+        "name": "V1"
+    })
     await test_db.project_category_budgets.insert_one({
         "project_id": test_project_id,
         "category_id": "C1",

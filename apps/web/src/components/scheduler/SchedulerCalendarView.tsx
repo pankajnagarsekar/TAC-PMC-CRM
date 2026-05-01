@@ -35,10 +35,12 @@ export default function SchedulerCalendarView({
 
   const activeFilters = useScheduleStore((state) => state.activeFilters);
   const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
-  const statusFilter = activeFilters.statusFilter || [];
+  const statusFilter = activeFilters.statusFilter;
 
   const tasksByDay = useMemo(() => {
     const map = new Map<string, ScheduleTask[]>();
+    const activeStatuses = statusFilter || [];
+    
     Object.values(taskMap).forEach(task => {
       // Apply filters
       if (searchTerm) {
@@ -49,9 +51,9 @@ export default function SchedulerCalendarView({
         if (!matches) return;
       }
       
-      if (statusFilter.length > 0) {
+      if (activeStatuses.length > 0) {
         const status = task.task_status || "draft";
-        if (!statusFilter.includes(status)) return;
+        if (!activeStatuses.includes(status)) return;
       }
 
       if (!task.scheduled_start) return;

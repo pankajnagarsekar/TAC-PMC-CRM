@@ -9,24 +9,24 @@ class ScheduleTaskDTO(BaseModel):
     project_id: str
     parent_id: Optional[str] = None
     wbs_code: Optional[str] = None
-    
+
     # Scheduling fields
     scheduled_start: Optional[str] = None
     scheduled_finish: Optional[str] = None
     scheduled_duration: Optional[int] = 0
-    
+
     # Resources (REQ-010, REQ-011)
     assignee_ids: List[str] = Field(default_factory=list)
     heads: int = 0
-    
+
     # Status & Progress
     task_status: Optional[str] = "Planned"
     percent_complete: float = 0.0
-    
+
     # CPM Results
     is_critical: bool = False
     total_slack: int = 0
-    
+
     model_config = {"extra": "allow"}
 
 

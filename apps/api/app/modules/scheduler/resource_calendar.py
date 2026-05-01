@@ -353,11 +353,12 @@ class ResourceCalendar:
             # Flat structure (ProjectCalendarDTO)
             def _parse_hour(t_str):
                 try:
-                    if not t_str: return 8
+                    if not t_str:
+                        return 8
                     return int(str(t_str).split(":")[0])
-                except:
+                except (ValueError, IndexError, AttributeError):
                     return 8
-            
+
             wh = WorkingHours(
                 start_hour=_parse_hour(data.get("shift_start", "08:00")),
                 end_hour=_parse_hour(data.get("shift_end", "17:00")),
@@ -367,7 +368,7 @@ class ResourceCalendar:
         else:
             # Nested structure (ResourceCalendar)
             wh = WorkingHours.from_dict(data.get("standard_hours", {}))
-            
+
         exceptions = [CalendarException.from_dict(e) for e in data.get("exceptions", [])]
 
         return cls(

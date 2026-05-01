@@ -236,7 +236,17 @@ async def seed_production():
             else:
                 code_map[code["code"]] = str(existing_master["_id"])
                 # update fields if exists
-                await db.code_master.update_one({"_id": existing_master["_id"]}, {"$set": {"code_description": code["description"], "description": code["description"], "category_name": code["category"], "active_status": True}})
+                await db.code_master.update_one(
+                    {"_id": existing_master["_id"]},
+                    {
+                        "$set": {
+                            "code_description": code["description"],
+                            "description": code["description"],
+                            "category_name": code["category"],
+                            "active_status": True,
+                        }
+                    },
+                )
         print(f"  Created/verified {len(codes)} financial codes in code_master")
 
         # 4. PROJECT: MAJORDA VILLA
@@ -244,8 +254,8 @@ async def seed_production():
         project = await db.projects.find_one({"project_name": "Majorda Villa - Civil Works"})
 
         # Consistent realistic budget values from MIS
-        original_budget = 70000000 # 70M Cr
-        remaining_budget = 68465000 # Adjusted
+        original_budget = 70000000  # 70M Cr
+        remaining_budget = 68465000  # Adjusted
 
         if project:
             project_id = str(project["_id"])
@@ -1030,7 +1040,6 @@ async def seed_production():
             },
         ]
 
-
         existing_scheduler = await db.project_schedules.find_one({"project_id": project_id})
         if existing_scheduler:
             await db.project_schedules.delete_one({"project_id": project_id})
@@ -1079,7 +1088,8 @@ async def seed_production():
         total_certified = 0
         for fc in financial_categories:
             code_id = code_map.get(fc["category_id"])
-            if not code_id: continue
+            if not code_id:
+                continue
             await db.financial_state.update_one(
                 {"project_id": project_id, "category_id": code_id},
                 {"$set": {
@@ -1143,7 +1153,13 @@ async def seed_production():
                 "total_payable": 11381840.25,
                 "actual_payable": 11381840.25,
                 "line_items": [
-                    {"sr_no": 1, "description": "Civil works — Foundation & Structure", "qty": 1, "rate": 10072425, "total": 10072425}
+                    {
+                        "sr_no": 1,
+                        "description": "Civil works — Foundation & Structure",
+                        "qty": 1,
+                        "rate": 10072425,
+                        "total": 10072425,
+                    }
                 ],
                 "status": "Approved",
                 "version": 1,
@@ -1230,7 +1246,14 @@ async def seed_production():
                 "retention_amount": 0,
                 "total_payable": 1180000,
                 "line_items": [
-                    {"sr_no": 1, "scope_of_work": "RCC Foundation & Column work — Phase 1", "unit": "Lump", "qty": 1, "rate": 1000000, "total": 1000000}
+                    {
+                        "sr_no": 1,
+                        "scope_of_work": "RCC Foundation & Column work — Phase 1",
+                        "unit": "Lump",
+                        "qty": 1,
+                        "rate": 1000000,
+                        "total": 1000000,
+                    }
                 ],
                 "status": "Approved",
                 "version": 1,
@@ -1258,7 +1281,14 @@ async def seed_production():
                 "retention_amount": 0,
                 "total_payable": 631300,
                 "line_items": [
-                    {"sr_no": 1, "scope_of_work": "Masonry & Plastering — Phase 1", "unit": "Lump", "qty": 1, "rate": 535000, "total": 535000}
+                    {
+                        "sr_no": 1,
+                        "scope_of_work": "Masonry & Plastering — Phase 1",
+                        "unit": "Lump",
+                        "qty": 1,
+                        "rate": 535000,
+                        "total": 535000,
+                    }
                 ],
                 "status": "Approved",
                 "version": 1,
@@ -1279,11 +1309,47 @@ async def seed_production():
         from bson import ObjectId as BsonObjectId
         from datetime import timedelta
         seed_tasks = [
-            {"task_description": "Confirm foundation inspection with civil engineer", "priority": "High", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external", "deadline": datetime.now(timezone.utc) + timedelta(days=2)},
-            {"task_description": "Submit revised BOQ for Phase 2 electrical works", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user", "assigned_to_user_id": admin_id, "deadline": datetime.now(timezone.utc) + timedelta(days=5)},
-            {"task_description": "Collect invoices from Rajesh Construction for March", "priority": "Medium", "status": "In Progress", "assigned_to_name": admin_name, "assigned_to_type": "user", "deadline": datetime.now(timezone.utc) + timedelta(days=3)},
-            {"task_description": "Schedule weekly progress photo documentation", "priority": "Low", "status": "Open", "assigned_to_name": "Site Supervisor", "assigned_to_type": "external", "deadline": datetime.now(timezone.utc) + timedelta(days=7)},
-            {"task_description": "Update client on waterproofing completion timeline", "priority": "High", "status": "Open", "assigned_to_name": admin_name, "assigned_to_type": "user", "deadline": datetime.now(timezone.utc) + timedelta(days=1)},
+            {
+                "task_description": "Confirm foundation inspection with civil engineer",
+                "priority": "High",
+                "status": "Open",
+                "assigned_to_name": "Site Supervisor",
+                "assigned_to_type": "external",
+                "deadline": datetime.now(timezone.utc) + timedelta(days=2),
+            },
+            {
+                "task_description": "Submit revised BOQ for Phase 2 electrical works",
+                "priority": "High",
+                "status": "Open",
+                "assigned_to_name": admin_name,
+                "assigned_to_type": "user",
+                "assigned_to_user_id": admin_id,
+                "deadline": datetime.now(timezone.utc) + timedelta(days=5),
+            },
+            {
+                "task_description": "Collect invoices from Rajesh Construction for March",
+                "priority": "Medium",
+                "status": "In Progress",
+                "assigned_to_name": admin_name,
+                "assigned_to_type": "user",
+                "deadline": datetime.now(timezone.utc) + timedelta(days=3),
+            },
+            {
+                "task_description": "Schedule weekly progress photo documentation",
+                "priority": "Low",
+                "status": "Open",
+                "assigned_to_name": "Site Supervisor",
+                "assigned_to_type": "external",
+                "deadline": datetime.now(timezone.utc) + timedelta(days=7),
+            },
+            {
+                "task_description": "Update client on waterproofing completion timeline",
+                "priority": "High",
+                "status": "Open",
+                "assigned_to_name": admin_name,
+                "assigned_to_type": "user",
+                "deadline": datetime.now(timezone.utc) + timedelta(days=1),
+            },
         ]
         task_docs = []
         for idx, t in enumerate(seed_tasks):

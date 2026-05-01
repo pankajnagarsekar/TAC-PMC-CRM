@@ -41,6 +41,14 @@ function textInputClass() {
   return "w-full rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-orange-400/40 transition-all";
 }
 
+interface SelectableUser {
+  id?: string;
+  user_id?: string;
+  full_name?: string;
+  name?: string;
+  email: string;
+}
+
 export default function TaskDetailsModal() {
   const taskMap = useScheduleStore((state) => state.taskMap);
   const selectedTasks = useScheduleStore((state) => state.selectedTasks);
@@ -286,7 +294,7 @@ export default function TaskDetailsModal() {
                           disabled={readOnly}
                           className={`${textInputClass()} min-h-[80px]`}
                         >
-                          {users.map((u: any) => (
+                          {users.map((u: SelectableUser) => (
                             <option key={u.user_id || u.id} value={u.user_id || u.id}>
                               {u.full_name || u.email}
                             </option>

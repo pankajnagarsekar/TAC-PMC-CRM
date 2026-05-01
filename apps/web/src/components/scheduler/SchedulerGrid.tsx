@@ -65,7 +65,7 @@ export default function SchedulerGrid() {
       
       return true;
     });
-  }, [tasks, taskMap, collapsedParents, searchTerm]);
+  }, [tasks, taskMap, collapsedParents, searchTerm, activeFilters.statusFilter]);
 
   const readOnly = systemState === "locked";
 

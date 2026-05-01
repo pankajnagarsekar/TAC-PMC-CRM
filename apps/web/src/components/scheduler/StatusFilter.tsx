@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Filter, Check, X } from "lucide-react";
+import { Filter, Check } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { KANBAN_META, KANBAN_STATUSES } from "./scheduler-utils";

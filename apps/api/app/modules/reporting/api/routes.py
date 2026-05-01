@@ -269,6 +269,7 @@ async def export_report_excel(
 
     if not sync:
         job_id = JobTracker.create_job(f"excel_{report_type}")
+
         async def run_task():
             try:
                 report_data = await reporting_service.get_report(
@@ -317,6 +318,7 @@ async def export_report_pdf(
 
     if not sync:
         job_id = JobTracker.create_job(f"pdf_{report_type}")
+
         async def run_task():
             try:
                 report_data = await reporting_service.get_report(

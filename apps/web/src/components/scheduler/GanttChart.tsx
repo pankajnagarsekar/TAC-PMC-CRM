@@ -261,10 +261,11 @@ export default function GanttChart() {
 
   const activeFilters = useScheduleStore((state) => state.activeFilters);
   const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
-  const statusFilter = activeFilters.statusFilter || [];
+  const statusFilter = activeFilters.statusFilter;
 
   const tasks = useMemo(() => {
     let list = normalizeTaskOrder(taskMap, taskOrder);
+    const activeStatuses = statusFilter || [];
     
     // Apply search filter
     if (searchTerm) {
@@ -276,8 +277,8 @@ export default function GanttChart() {
     }
     
     // Apply status filter
-    if (statusFilter.length > 0) {
-      list = list.filter(t => statusFilter.includes(t.task_status || "draft"));
+    if (activeStatuses.length > 0) {
+      list = list.filter(t => activeStatuses.includes(t.task_status || "draft"));
     }
     
     return list;

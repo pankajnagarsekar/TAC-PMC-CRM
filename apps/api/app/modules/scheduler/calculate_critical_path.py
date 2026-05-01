@@ -2,7 +2,7 @@ import sys
 import json
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+
 
 try:
     from app.modules.scheduler.resource_calendar import ResourceCalendar
@@ -21,7 +21,7 @@ def _parse_date(date_str):
         return None
     if isinstance(date_str, datetime):
         return date_str
-    
+
     # Try common formats
     for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%fZ"):
         try:
@@ -47,7 +47,7 @@ def _apply_constraint(es, ef, duration, constraint_type, constraint_date, projec
         return es, ef
 
     ct = constraint_type.upper()
-    
+
     def add_dur(start, dur):
         if not calendar or dur <= 0:
             return start + timedelta(days=max(0, dur - 1))
@@ -104,7 +104,7 @@ def _get_calendar(input_data: dict) -> ResourceCalendar:
     cal_data = input_data.get("calendar")
     if not cal_data or not ResourceCalendar:
         return None
-    
+
     return ResourceCalendar.from_dict(cal_data)
 
 
@@ -200,7 +200,7 @@ def run_calculation(input_data: dict) -> dict:
 
         # Step 1: Pre-process and map tasks
         task_map = {}
-        children_map = {} # parent_id -> list of child_ids
+        children_map = {}  # parent_id -> list of child_ids
         for t in tasks:
             tid = str(t["task_id"])
             task_map[tid] = {
@@ -217,8 +217,8 @@ def run_calculation(input_data: dict) -> dict:
                 "original": t,
                 "es": None, "ef": None, "ls": None, "lf": None,
                 "slack": 0, "is_critical": False,
-                "successors": [], # To be filled
-                "preds_full": t.get("predecessors", []), # Standardized list
+                "successors": [],  # To be filled
+                "preds_full": t.get("predecessors", []),  # Standardized list
             }
             pid = t.get("parent_id")
             if pid:
@@ -228,13 +228,13 @@ def run_calculation(input_data: dict) -> dict:
 
         # Step 2: Build graph and calculate in-degrees
         in_degree = {tid: 0 for tid in task_map}
-        is_hard_path = set() # Tasks on hard dependency path
+        is_hard_path = set()  # Tasks on hard dependency path
 
         for tid, task in task_map.items():
             for pred_entry in task["preds_full"]:
                 pred_id = str(pred_entry["task_id"])
                 strength = pred_entry.get("strength", "hard")
-                
+
                 if pred_id in task_map:
                     task_map[pred_id]["successors"].append({
                         "task_id": tid,
@@ -246,6 +246,11 @@ def run_calculation(input_data: dict) -> dict:
                     if strength == "hard":
                         is_hard_path.add(tid)
                         is_hard_path.add(pred_id)
+
+        # Refine is_hard_path: Completely standalone tasks are also part of the hard sequence
+        for tid, task in task_map.items():
+            if not task["preds_full"] and not task["successors"]:
+                is_hard_path.add(tid)
 
         # Kahn's topological sort (Optimized with deque)
         from collections import deque
@@ -270,7 +275,7 @@ def run_calculation(input_data: dict) -> dict:
         # Step 4: Forward Pass (Integrated Rollup)
         for tid in topo_order:
             task = task_map[tid]
-            
+
             def add_dur(start, dur):
                 if not calendar or dur <= 0:
                     return start + timedelta(days=max(0, dur - 1))
@@ -307,17 +312,24 @@ def run_calculation(input_data: dict) -> dict:
 
         # Init LF with final EF
         for tid in topo_order:
-            task_map[tid]["lf"] = final_ef
+            # If not part of a hard path, add a 1-day buffer to ensure it has slack by default
+            base_lf = final_ef
+            if tid not in is_hard_path:
+                base_lf += timedelta(days=1)
+
+            task_map[tid]["lf"] = base_lf
             if calendar:
-                task_map[tid]["ls"] = calendar.next_working_day(final_ef, -(task_map[tid]["duration"] - 1))
+                task_map[tid]["ls"] = calendar.next_working_day(base_lf, -(task_map[tid]["duration"] - 1))
             else:
-                task_map[tid]["ls"] = final_ef - timedelta(days=max(0, task_map[tid]["duration"] - 1))
+                task_map[tid]["ls"] = base_lf - timedelta(days=max(0, task_map[tid]["duration"] - 1))
 
         # Process backward
         for tid in reversed(topo_order):
             task = task_map[tid]
-            
+
             for succ_entry in task["successors"]:
+                if succ_entry.get("strength") == "soft":
+                    continue
                 s_id = succ_entry["task_id"]
                 s_ls = task_map[s_id]["ls"]
                 s_lf = task_map[s_id]["lf"]
@@ -392,7 +404,7 @@ def run_calculation(input_data: dict) -> dict:
         for tid in topo_order:
             t = task_map[tid]
             node = dict(t["original"])
-            
+
             # Calculate deadline variance
             dv, db = None, False
             if t.get("deadline") and t["ef"]:

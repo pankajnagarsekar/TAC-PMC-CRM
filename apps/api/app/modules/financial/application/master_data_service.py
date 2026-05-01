@@ -71,7 +71,6 @@ class MasterDataService:
                 raise ValidationError("CODE_EXISTS: A master code with this ID already exists.")
             raise ValidationError("NAME_EXISTS: A category with this name already exists.")
 
-
         doc = code_data.dict()
         doc["organisation_id"] = user["organisation_id"]
         doc["active_status"] = True

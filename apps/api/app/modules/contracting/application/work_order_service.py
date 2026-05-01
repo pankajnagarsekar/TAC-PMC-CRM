@@ -245,14 +245,22 @@ class WorkOrderService:
                     )
 
                     # Populate names for immediate UI feedback
+                    # Populate names for immediate UI feedback
                     if "vendor_id" in new_wo:
-                        vendor = await self.db.vendors.find_one({"_id": ObjectId(new_wo["vendor_id"]) if ObjectId.is_valid(new_wo["vendor_id"]) else new_wo["vendor_id"]})
+                        v_id = new_wo["vendor_id"]
+                        res_id = ObjectId(v_id) if ObjectId.is_valid(v_id) else v_id
+                        vendor = await self.db.vendors.find_one({"_id": res_id})
                         if vendor:
-                            new_wo["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
+                            v_name = vendor.get("name") or vendor.get("vendor_name", "Unknown")
+                            new_wo["vendor_name"] = v_name
                     if "category_id" in new_wo:
-                        cat = await self.db.code_master.find_one({"$or": [{"_id": ObjectId(new_wo["category_id"]) if ObjectId.is_valid(new_wo["category_id"]) else None}, {"code": new_wo["category_id"]}]})
+                        v_cid = new_wo["category_id"]
+                        res_id = ObjectId(v_cid) if ObjectId.is_valid(v_cid) else None
+                        cat_query = {"$or": [{"_id": res_id}, {"code": v_cid}]}
+                        cat = await self.db.code_master.find_one(cat_query)
                         if cat:
-                            new_wo["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
+                            c_name = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
+                            new_wo["category_name"] = c_name
 
                     return new_wo
         except Exception as e:
@@ -405,13 +413,20 @@ class WorkOrderService:
 
             # Populate names for return
             if "vendor_id" in result:
-                vendor = await self.db.vendors.find_one({"_id": ObjectId(result["vendor_id"]) if ObjectId.is_valid(result["vendor_id"]) else result["vendor_id"]})
+                v_id = result["vendor_id"]
+                res_id = ObjectId(v_id) if ObjectId.is_valid(v_id) else v_id
+                vendor = await self.db.vendors.find_one({"_id": res_id})
                 if vendor:
                     result["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
             if "category_id" in result:
-                cat = await self.db.code_master.find_one({"$or": [{"_id": ObjectId(result["category_id"]) if ObjectId.is_valid(result["category_id"]) else None}, {"code": result["category_id"]}]})
+                v_cid = result["category_id"]
+                res_id = ObjectId(v_cid) if ObjectId.is_valid(v_cid) else None
+                cat = await self.db.code_master.find_one(
+                    {"$or": [{"_id": res_id}, {"code": v_cid}]}
+                )
                 if cat:
-                    result["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
+                    c_name = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
+                    result["category_name"] = c_name
 
             return result
 
@@ -489,12 +504,12 @@ class WorkOrderService:
         # BUG-09: Populate human-readable names for IDs to prevent UI leaks
         vendor_ids = {d["vendor_id"] for d in docs if "vendor_id" in d and ObjectId.is_valid(d["vendor_id"])}
         category_ids = {d["category_id"] for d in docs if "category_id" in d and ObjectId.is_valid(d["category_id"])}
-        
+
         vendors = {}
         if vendor_ids:
             v_recs = await self.db.vendors.find({"_id": {"$in": [ObjectId(vid) for vid in vendor_ids]}}).to_list(None)
             vendors = {str(v["_id"]): v.get("name") or v.get("vendor_name", "Unknown") for v in v_recs}
-            
+
         categories = {}
         if category_ids:
             # BUG-09: Category data is in 'code_master' collection, not 'categories'
@@ -515,7 +530,7 @@ class WorkOrderService:
         for doc in docs:
             if "total_payable" not in doc or FinancialEngine.to_decimal(doc.get("total_payable", 0)) == Decimal("0"):
                 doc["total_payable"] = doc.get("grand_total")
-            
+
             # Map IDs to names for UI safety
             if "vendor_id" in doc:
                 doc["vendor_name"] = vendors.get(str(doc["vendor_id"]), "Unknown Vendor")
@@ -537,15 +552,19 @@ class WorkOrderService:
 
         # BUG-09: Populate names for UI transparency
         if "vendor_id" in wo:
-            vendor = await self.db.vendors.find_one({"_id": ObjectId(wo["vendor_id"]) if ObjectId.is_valid(wo["vendor_id"]) else wo["vendor_id"]})
+            v_id = wo["vendor_id"]
+            res_id = ObjectId(v_id) if ObjectId.is_valid(v_id) else v_id
+            vendor = await self.db.vendors.find_one({"_id": res_id})
             if vendor:
                 wo["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
 
         if "category_id" in wo:
+            v_cid = wo["category_id"]
+            res_id = ObjectId(v_cid) if ObjectId.is_valid(v_cid) else None
             cat = await self.db.code_master.find_one({
                 "$or": [
-                    {"_id": ObjectId(wo["category_id"]) if ObjectId.is_valid(wo["category_id"]) else None},
-                    {"code": wo["category_id"]}
+                    {"_id": res_id},
+                    {"code": v_cid}
                 ]
             })
             if cat:

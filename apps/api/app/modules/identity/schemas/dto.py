@@ -165,7 +165,6 @@ class GlobalSettings(BaseModel):
         return v
 
 
-
 class GlobalSettingsUpdate(BaseModel):
     name: Optional[str] = None
     address: Optional[str] = None
@@ -194,7 +193,6 @@ class GlobalSettingsUpdate(BaseModel):
             if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", v):
                 raise ValueError("Invalid email format")
         return v
-
 
 
 class ChangePasswordRequest(BaseModel):

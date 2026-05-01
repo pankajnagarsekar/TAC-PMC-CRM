@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import uuid
@@ -133,9 +134,6 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
                 "meta": {"process_time": process_time},
             },
         )
-
-
-import asyncio
 
 
 class BackpressureMiddleware(BaseHTTPMiddleware):

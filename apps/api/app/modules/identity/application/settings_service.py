@@ -95,14 +95,14 @@ class SettingsService:
         existing = await self.settings_repo.find_one(
             {"organisation_id": user["organisation_id"]}
         )
-        
+
         expected_version = payload.pop("expected_version", None)
         if existing:
             # Atomic update with version check
             payload["version"] = (existing.get("version", 1)) + 1
             updated = await self.settings_repo.update(
-                existing["id"], 
-                payload, 
+                existing["id"],
+                payload,
                 expected_version=expected_version
             )
             if not updated:

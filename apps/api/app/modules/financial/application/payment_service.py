@@ -58,15 +58,19 @@ class PaymentService:
 
         vendors = {}
         if vendor_ids:
-            v_docs = await self.db.vendors.find({"_id": {"$in": [ObjectId(v) for v in vendor_ids if ObjectId.is_valid(v)]}}).to_list(None)
+            v_ids = [ObjectId(v) for v in vendor_ids if ObjectId.is_valid(v)]
+            v_docs = await self.db.vendors.find({"_id": {"$in": v_ids}}).to_list(None)
             vendors = {str(v["_id"]): v.get("name") or v.get("vendor_name", "Unknown") for v in v_docs}
 
         categories = {}
         if cat_ids:
-            c_docs = await self.db.code_master.find({"$or": [{"_id": {"$in": [ObjectId(c) for c in cat_ids if ObjectId.is_valid(c)]}}, {"code": {"$in": list(cat_ids)}}]}).to_list(None)
+            c_ids = [ObjectId(c) for c in cat_ids if ObjectId.is_valid(c)]
+            c_query = {"$or": [{"_id": {"$in": c_ids}}, {"code": {"$in": list(cat_ids)}}]}
+            c_docs = await self.db.code_master.find(c_query).to_list(None)
             categories = {str(c["_id"]): c.get("category_name") or c.get("name") or c.get("code") for c in c_docs}
             for c in c_docs:
-                if "code" in c: categories[c["code"]] = c.get("category_name") or c.get("name") or c["code"]
+                if "code" in c:
+                    categories[c["code"]] = c.get("category_name") or c.get("name") or c["code"]
 
         for doc in docs:
             if "vendor_id" in doc:
@@ -382,12 +386,18 @@ class PaymentService:
 
         # BUG-09: Populate names for UI transparency
         if "vendor_id" in pc:
-            vendor = await self.db.vendors.find_one({"_id": ObjectId(pc["vendor_id"]) if ObjectId.is_valid(pc["vendor_id"]) else pc["vendor_id"]})
+            v_id = pc["vendor_id"]
+            res_id = ObjectId(v_id) if ObjectId.is_valid(v_id) else v_id
+            vendor = await self.db.vendors.find_one({"_id": res_id})
             if vendor:
                 pc["vendor_name"] = vendor.get("name") or vendor.get("vendor_name", "Unknown")
 
         if "category_id" in pc:
-            cat = await self.db.code_master.find_one({"$or": [{"_id": ObjectId(pc["category_id"]) if ObjectId.is_valid(pc["category_id"]) else None}, {"code": pc["category_id"]}]})
+            v_cid = pc["category_id"]
+            res_id = ObjectId(v_cid) if ObjectId.is_valid(v_cid) else None
+            cat = await self.db.code_master.find_one(
+                {"$or": [{"_id": res_id}, {"code": v_cid}]}
+            )
             if cat:
                 pc["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
 

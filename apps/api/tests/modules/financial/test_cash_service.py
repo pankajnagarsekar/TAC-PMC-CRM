@@ -151,6 +151,7 @@ class TestCashServiceUnit:
         assert result["net_flow"] == 1500.0
         assert len(result["daily_data"]) == 2
 
+
 class TestCashServiceIntegration:
     """Integration tests for CashService (real DB)."""
 

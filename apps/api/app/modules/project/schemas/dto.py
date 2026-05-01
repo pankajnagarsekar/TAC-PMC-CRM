@@ -8,7 +8,6 @@ import html
 from app.modules.shared.domain.types import PyObjectId
 
 
-
 # CALENDAR DTOs
 class CalendarExceptionDTO(BaseModel):
     start_date: str

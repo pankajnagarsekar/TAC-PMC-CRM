@@ -120,7 +120,8 @@ class EmergentSummaryProvider(SummaryProvider):
                 f"- On Track Tasks: {report_data.get('on_track_tasks', 0)}\n"
                 f"- At Risk Tasks: {report_data.get('at_risk_tasks', 0)}\n"
                 f"- Critical Path: {report_data.get('critical_path_days', 0)} days\n"
-                f"Explain if the project is on track or at risk, highlight critical path issues, and give a professional recommendation."
+                "Explain if the project is on track or at risk, highlight critical path issues, "
+                "and give a professional recommendation."
             )
         elif "total_budget" in report_data:  # Financial
             return (
@@ -129,7 +130,8 @@ class EmergentSummaryProvider(SummaryProvider):
                 f"- Total Spent: ${report_data.get('total_spent', 0):.2f}\n"
                 f"- Remaining: ${report_data.get('remaining_budget', 0):.2f}\n"
                 f"- Burn Rate: {report_data.get('burn_rate_pct', 0)}%\n"
-                f"Assess if the budget is healthy, at risk, or overrun. Mentions any significant variance and next steps."
+                "Assess if the budget is healthy, at risk, or overrun. "
+                "Mentions any significant variance and next steps."
             )
         elif "average_utilization_pct" in report_data:  # Resources
             return (

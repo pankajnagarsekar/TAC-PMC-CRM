@@ -3,11 +3,14 @@ import { toast } from "sonner";
 
 import { schedulerApi } from "@/lib/api";
 import {
+  GanttTimescale,
+  ProjectCalendar,
   ScheduleCalculationResponse,
   ScheduleChangeRequest,
   ScheduleStoreState,
   ScheduleTask,
   ScheduleTaskMap,
+  ScheduleTaskStatus,
 } from "@/types/schedule.types";
 
 const CALCULATION_DEBOUNCE_MS = 300;
@@ -717,14 +720,14 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         return { collapsedParents: next };
       });
     },
-    setTimescale: (scale) => set({ timescale: scale }),
+    setTimescale: (scale: GanttTimescale) => set({ timescale: scale }),
     setSearchTerm: (term: string) => set((state) => ({ 
       activeFilters: { ...state.activeFilters, searchTerm: term } 
     })),
     setStatusFilter: (statuses: ScheduleTaskStatus[]) => set((state) => ({
       activeFilters: { ...state.activeFilters, statusFilter: statuses }
     })),
-    setProjectCalendar: (calendar) => set({ projectCalendar: calendar }),
+    setProjectCalendar: (calendar: ProjectCalendar) => set({ projectCalendar: calendar }),
 
     fetchBaselineComparison: async (projectId: string, baselineA: number, baselineB?: number) => {
       set({ pendingCalculation: true });

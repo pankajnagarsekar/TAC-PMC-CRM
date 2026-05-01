@@ -231,7 +231,7 @@ class DashboardService:
                 "active_items": active_tasks_count + active_wos_count,
                 "overdue_milestones": overdue_milestones_count,
                 "total_budget": pv,
-                "master_budget": pv, # Standardized key for KPICards
+                "master_budget": pv,  # Standardized key for KPICards
                 "net_committed": ac,
                 "net_certified": float(
                     FinancialEngine.to_decimal(master_state.get("certified_value", 0))

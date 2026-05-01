@@ -44,7 +44,7 @@ export default function KanbanBoard() {
 
   const activeFilters = useScheduleStore((state) => state.activeFilters);
   const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
-  const statusFilter = activeFilters.statusFilter || [];
+  const statusFilter = activeFilters.statusFilter;
 
   const tasks = useMemo(() => {
     let list = normalizeTaskOrder(taskMap, taskOrder);
@@ -64,8 +64,9 @@ export default function KanbanBoard() {
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
   
   const visibleStatuses = useMemo(() => {
-    if (statusFilter.length === 0) return KANBAN_STATUSES;
-    return KANBAN_STATUSES.filter(s => statusFilter.includes(s));
+    const activeStatuses = statusFilter || [];
+    if (activeStatuses.length === 0) return KANBAN_STATUSES;
+    return KANBAN_STATUSES.filter(s => activeStatuses.includes(s));
   }, [statusFilter]);
 
   const readOnly = systemState === "locked";
