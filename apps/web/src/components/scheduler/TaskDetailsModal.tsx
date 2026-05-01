@@ -174,7 +174,7 @@ export default function TaskDetailsModal() {
           <div>
             <div className="flex items-center gap-3">
                <div className={`h-3 w-3 rounded-full ${selectedTask.is_critical ? "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]" : "bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.4)]"}`} />
-               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white/80">Task Intel & Control</h3>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-900 dark:text-white/80 whitespace-nowrap">Task Intel & Control</h3>
             </div>
             <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 flex items-center gap-2">
               <span className="text-orange-500">{selectedTask.wbs_code || selectedTask.task_id}</span>
@@ -457,6 +457,8 @@ export default function TaskDetailsModal() {
                       <FieldRow label="Lag Delay (d)">
                         <input
                           type="number"
+                          step="1"
+                          placeholder="e.g. -2 for lead"
                           value={dependencyLag}
                           onChange={(event) => setDependencyLag(Number(event.target.value || 0))}
                           disabled={readOnly}

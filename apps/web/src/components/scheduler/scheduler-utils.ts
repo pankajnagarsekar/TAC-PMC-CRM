@@ -160,13 +160,18 @@ export function calculateTimelineRange(tasks: ScheduleTask[]) {
 }
 
 export function getTaskDurationDays(task: ScheduleTask): number {
+  const start = parseTaskDate(task.scheduled_start);
+  const finish = parseTaskDate(task.scheduled_finish);
+  
+  if (start && finish) {
+    return Math.max(0, differenceInCalendarDays(finish, start) + 1);
+  }
+
   if (typeof task.scheduled_duration === "number" && task.scheduled_duration >= 0) {
     return task.scheduled_duration;
   }
-  const start = parseTaskDate(task.scheduled_start);
-  const finish = parseTaskDate(task.scheduled_finish);
-  if (!start || !finish) return 0;
-  return Math.max(0, differenceInCalendarDays(finish, start) + 1);
+  
+  return 0;
 }
 
 export function getTaskStatus(task: ScheduleTask): ScheduleTaskStatus {

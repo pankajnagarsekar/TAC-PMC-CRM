@@ -42,11 +42,11 @@ function buildBezierPath(x1: number, y1: number, x2: number, y2: number) {
 
 function getStrokeDashArray(type: DependencyType) {
   switch (type) {
-    case "SS": return "4 2";      // Dashed
-    case "FF": return "1 2";      // Dotted
-    case "SF": return "6 2 1 2";  // Dash-Dot
+    case "SS": return "8 4";       // Large Dashed
+    case "FF": return "2 4";       // Distinct Dotted
+    case "SF": return "12 4 2 4";  // Long Dash-Dot
     case "FS": 
-    default: return "none";       // Solid
+    default: return "none";        // Solid
   }
 }
 
@@ -117,7 +117,7 @@ export const GanttDependencyOverlay = memo(function GanttDependencyOverlay({
           d={path.d}
           fill="none"
           stroke="currentColor"
-          strokeWidth={path.isCritical ? 1.75 : 1.25}
+          strokeWidth={path.isCritical ? 2 : 1.5}
           strokeDasharray={getStrokeDashArray(path.type)}
           markerEnd="url(#gantt-dep-arrow)"
           className={path.isCritical 

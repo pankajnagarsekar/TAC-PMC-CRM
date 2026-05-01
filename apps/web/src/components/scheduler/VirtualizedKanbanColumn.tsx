@@ -61,7 +61,7 @@ export function VirtualizedKanbanColumn({
                     >
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-slate-900 dark:text-white">{task.task_name}</p>
+                                <p className="truncate text-xs font-semibold text-slate-900 dark:text-white" title={task.task_name}>{task.task_name}</p>
                                 <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-500 dark:text-white/45">
                                     {task.wbs_code || task.task_id}
                                 </p>

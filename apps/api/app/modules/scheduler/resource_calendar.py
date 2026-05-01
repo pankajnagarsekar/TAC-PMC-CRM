@@ -318,13 +318,16 @@ class ResourceCalendar:
 
         Args:
             start_date: Starting date
-            num_days: Number of working days to add
+            num_days: Number of working days to add (can be negative)
 
         Returns:
             End date after adding working days
         """
-        if num_days <= 0:
+        if num_days == 0:
             return start_date
+
+        if num_days < 0:
+            return self.next_working_day(start_date, num_days)
 
         current = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         working_days_added = 0

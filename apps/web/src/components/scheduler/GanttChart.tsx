@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { MoveHorizontal, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { addDays, format, startOfDay, differenceInCalendarDays } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
@@ -124,6 +124,8 @@ const Bar = memo(function Bar({
             ? "border-rose-500 bg-rose-500/15 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
             : "border-slate-300/50 dark:border-white/10 bg-white dark:bg-slate-900"
           }`}
+        onPointerDown={beginDrag("move")}
+        title={`${task.task_name} (${task.scheduled_start || 'TBD'} to ${task.scheduled_finish || 'TBD'})`}
       >
         {/* Progress Fill */}
         <div 
@@ -131,9 +133,12 @@ const Bar = memo(function Bar({
           style={{ width: `${percent}%` }}
         />
 
-        <div className="relative z-10 flex h-full items-center justify-between gap-2">
+        <div className="relative z-10 flex h-full items-center justify-between gap-2 pointer-events-none">
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-900 dark:text-white leading-none">
+            <p 
+              className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-900 dark:text-white leading-none"
+              title={task.task_name}
+            >
               {task.task_name}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -146,7 +151,7 @@ const Bar = memo(function Bar({
             </div>
           </div>
           
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
             <button
               type="button"
               className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10 text-sky-500"
@@ -158,27 +163,21 @@ const Bar = memo(function Bar({
             >
               <Eye size={12} />
             </button>
-            <div
-              className="rounded-md p-1 hover:bg-slate-200 dark:hover:bg-white/10 cursor-move"
-              onPointerDown={beginDrag("move")}
-            >
-              <MoveHorizontal size={12} />
-            </div>
           </div>
         </div>
         
-        {/* Drag Handles */}
+        {/* Drag Handles (Start/Finish) */}
         <div 
-          className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-orange-500/40 transition-colors z-30"
+          className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-orange-500/40 transition-colors z-30"
           onPointerDown={beginDrag("start")}
         >
-          <div className="absolute left-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-orange-400/50 rounded-full opacity-0 group-hover:opacity-100" />
+          <div className="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-orange-400/60 rounded-full opacity-0 group-hover:opacity-100 shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
         </div>
         <div 
-          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-orange-500/40 transition-colors z-30"
+          className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-orange-500/40 transition-colors z-30"
           onPointerDown={beginDrag("finish")}
         >
-          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-orange-400/50 rounded-full opacity-0 group-hover:opacity-100" />
+          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-orange-400/60 rounded-full opacity-0 group-hover:opacity-100 shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
         </div>
       </div>
     </div>
@@ -187,6 +186,7 @@ const Bar = memo(function Bar({
 
 function formatTaskDurationLabel(task: ScheduleTask) {
   const duration = getTaskDurationDays(task);
+  if (!task.scheduled_start || !task.scheduled_finish) return "TBD";
   return `${duration} working day${duration === 1 ? "" : "s"}`;
 }
 
@@ -734,7 +734,7 @@ export default function GanttChart() {
                       />
                       <div className="min-w-0 flex-1">
                         {readOnly ? (
-                          <p className="truncate text-xs font-semibold text-slate-900 dark:text-white leading-tight">{task.task_name}</p>
+                          <p className="truncate text-xs font-semibold text-slate-900 dark:text-white" title={task.task_name}>{task.task_name}</p>
                         ) : (
                           <EditableCell
                             value={task.task_name}
