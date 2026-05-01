@@ -8,14 +8,15 @@ import { KANBAN_META, KANBAN_STATUSES } from "./scheduler-utils";
 import type { ScheduleTaskStatus } from "@/types/schedule.types";
 
 export default function StatusFilter() {
-  const statusFilter = useScheduleStore((state) => state.activeFilters.statusFilter || []);
+  const statusFilter = useScheduleStore((state) => state.activeFilters.statusFilter);
+  const effectiveFilter = statusFilter || [];
   const setStatusFilter = useScheduleStore((state) => state.setStatusFilter);
 
   const toggleStatus = (status: ScheduleTaskStatus) => {
-    if (statusFilter.includes(status)) {
-      setStatusFilter(statusFilter.filter((s) => s !== status));
+    if (effectiveFilter.includes(status)) {
+      setStatusFilter(effectiveFilter.filter((s) => s !== status));
     } else {
-      setStatusFilter([...statusFilter, status]);
+      setStatusFilter([...effectiveFilter, status]);
     }
   };
 
@@ -25,12 +26,12 @@ export default function StatusFilter() {
     <Popover.Root>
       <Popover.Trigger asChild>
         <button className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest ${
-          statusFilter.length > 0 
+          effectiveFilter.length > 0 
             ? "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400" 
             : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-500 hover:text-slate-900 dark:hover:text-white"
         }`}>
           <Filter size={14} />
-          <span>Status {statusFilter.length > 0 ? `(${statusFilter.length})` : ""}</span>
+          <span>Status {effectiveFilter.length > 0 ? `(${effectiveFilter.length})` : ""}</span>
         </button>
       </Popover.Trigger>
       
@@ -42,7 +43,7 @@ export default function StatusFilter() {
         >
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Filter by Status</h4>
-            {statusFilter.length > 0 && (
+            {effectiveFilter.length > 0 && (
               <button 
                 onClick={clearFilter}
                 className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-600 transition-colors"
@@ -54,7 +55,7 @@ export default function StatusFilter() {
           
           <div className="space-y-1">
             {KANBAN_STATUSES.map((status) => {
-              const isActive = statusFilter.includes(status);
+              const isActive = effectiveFilter.includes(status);
               const meta = KANBAN_META[status];
               
               return (

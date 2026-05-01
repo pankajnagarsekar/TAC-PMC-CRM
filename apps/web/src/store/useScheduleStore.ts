@@ -310,6 +310,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     calculationError: null,
     collapsedParents: new Set(),
     isTaskModalOpen: false,
+    loadedProjectId: null,
     comparisonData: null,
     selectedBaselineA: null,
     selectedBaselineB: null,
@@ -342,6 +343,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         calculationError: null,
         undoStack: [],
         selectedTasks: new Set(),
+        loadedProjectId: response.project_id,
       });
     },
 

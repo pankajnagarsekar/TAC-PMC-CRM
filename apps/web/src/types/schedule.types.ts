@@ -230,6 +230,7 @@ export interface ScheduleStoreState {
   calculationError: string | null;
   collapsedParents: Set<string>;
   isTaskModalOpen: boolean;
+  loadedProjectId: string | null;
 
   // Timeline & Calendar
   timescale: GanttTimescale;

@@ -80,33 +80,34 @@ function ProjectSchedulerContent() {
 
   const isClient = user?.role === "Client";
 
+  const loadedProjectId = useScheduleStore((state) => state.loadedProjectId);
+  const activeProjectId = activeProject?.project_id;
+
   useEffect(() => {
-    if (activeProject) {
+    if (activeProjectId) {
       // Force reload only if project changed or not yet hydrated
-      // Use internal store taskId to verify if project matches current task map
-      const currentTasks = useScheduleStore.getState().taskMap;
-      const firstTask = Object.values(currentTasks)[0];
-      const projectMatches = firstTask?.project_id === activeProject.project_id;
+      const isCorrectProject = loadedProjectId === activeProjectId;
       const isLoading = useScheduleStore.getState().loading;
 
-      if ((!isHydrated || !projectMatches) && !isLoading) {
+      if ((!isHydrated || !isCorrectProject) && !isLoading) {
+        console.log(`[Scheduler] Initializing for project: ${activeProjectId}`);
         useScheduleStore.setState({ loading: true, isHydrated: false });
         
         // Parallel fetch for schedule and calendar
         Promise.all([
-          schedulerApi.load(activeProject.project_id),
-          schedulerApi.getCalendar(activeProject.project_id)
+          schedulerApi.load(activeProjectId),
+          schedulerApi.getCalendar(activeProjectId)
         ]).then(([scheduleData, calendarData]) => {
           loadSchedule(scheduleData);
           useScheduleStore.getState().setProjectCalendar(calendarData);
         }).catch((err) => {
-          console.error("Scheduler initialization error:", err);
+          console.error("[Scheduler] Initialization error:", err);
           toast.error("Failed to load project schedule repository.");
           useScheduleStore.setState({ loading: false });
         });
       }
     }
-  }, [activeProject, loadSchedule, isHydrated]);
+  }, [activeProjectId, loadSchedule, isHydrated, loadedProjectId]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value); // Optimistic immediate update
