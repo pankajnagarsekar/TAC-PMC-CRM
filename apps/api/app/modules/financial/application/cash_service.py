@@ -269,13 +269,44 @@ class CashService:
                 if recorded:
                     return recorded
 
-            # Use underlying collection for atomic fund adjustment
+            # 1. Fetch current allocation/balance
             allocation = await uow.db.fund_allocations.find_one(
                 {"project_id": project_id, "category_id": category_id},
                 session=uow.session,
             )
+
             if not allocation:
-                raise NotFoundError("Category Allocation", category_id)
+                logger.info(f"CASH_SERVICE: Auto-creating allocation for project {project_id}, category {category_id}")
+                # Auto-create empty allocation if it doesn't exist to allow immediate transactions
+                category = await uow.db.code_master.find_one({"_id": ObjectId(category_id)})
+                if not category:
+                    raise NotFoundError("Category", category_id)
+                
+                new_alloc_doc = {
+                    "organisation_id": user["organisation_id"],
+                    "project_id": project_id,
+                    "category_id": category_id,
+                    "category_name": category.get("category_name") or "Unnamed Category",
+                    "allocation_original": FinancialEngine.to_d128(0),
+                    "allocation_received": FinancialEngine.to_d128(0),
+                    "cash_in_hand": FinancialEngine.to_d128(0),
+                    "total_expenses": FinancialEngine.to_d128(0),
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc),
+                    "version": 1
+                }
+                await uow.db.fund_allocations.insert_one(new_alloc_doc, session=uow.session)
+                allocation = new_alloc_doc
+
+            # 2. Extract current cash balance correctly (Fixed: Decimal128 -> Decimal conversion)
+            current_cash = FinancialEngine.to_decimal(allocation.get("cash_in_hand", 0))
+            logger.info(f"CASH_SERVICE: Current balance for {category_id}: {current_cash}")
+
+            # 3. Ensure balance is sufficient for DEBIT
+            if txn_type == "DEBIT" and amount > current_cash:
+                raise ValidationError(
+                    f"Insufficient funds in {category_id}. Available: {current_cash}"
+                )
 
             inc_ops = {
                 "cash_in_hand": (

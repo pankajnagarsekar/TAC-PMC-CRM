@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 from bson import ObjectId
 
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.financial.application.cash_service import CashService
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
@@ -428,3 +429,113 @@ class TestCashServiceIntegration:
         assert result["closing_balance"] == 700.0
         assert result["net_flow"] == 700.0
         assert len(result["daily_data"]) >= 1
+
+    @pytest.mark.asyncio
+    async def test_create_cash_transaction_auto_allocate(self, test_db, test_user):
+        """Verify auto-allocation creation and Decimal128 comparison fix."""
+        db = test_db
+        user = test_user
+        project_id = "proj_test_auto_" + str(ObjectId())
+        category_id = str(ObjectId())
+
+        # 1. Setup: Insert category but NO allocation
+        await db.code_master.insert_one({
+            "_id": ObjectId(category_id),
+            "organisation_id": user["organisation_id"],
+            "category_name": "Test Petty Cash",
+            "budget_type": "fund_transfer",
+            "active_status": True
+        })
+
+        permission_mock = AsyncMock()
+        permission_mock.check_write_access_with_role = AsyncMock()
+        audit_mock = AsyncMock()
+        service = CashService(db, permission_mock, audit_mock)
+
+        # 2. Test CREDIT (should auto-create allocation and succeed)
+        txn_data = {
+            "project_id": project_id,
+            "category_id": category_id,
+            "amount": Decimal("1000.00"),
+            "type": "CREDIT",
+            "description": "Initial funding"
+        }
+
+        result = await service.create_cash_transaction(user, project_id, txn_data, None)
+        
+        assert result["project_id"] == project_id
+        assert float(result["amount"]) == 1000.0
+        assert result["new_cash_in_hand"] == 1000.0
+
+        # Verify allocation was created
+        alloc = await db.fund_allocations.find_one({"project_id": project_id, "category_id": category_id})
+        assert alloc is not None
+        assert alloc["category_name"] == "Test Petty Cash"
+        assert float(FinancialEngine.to_decimal(alloc["cash_in_hand"])) == 1000.0
+
+        # 3. Test DEBIT (should use Decimal128 balance correctly)
+        debit_data = {
+            "project_id": project_id,
+            "category_id": category_id,
+            "amount": Decimal("400.00"),
+            "type": "DEBIT",
+            "description": "Test expense"
+        }
+        
+        result_debit = await service.create_cash_transaction(user, project_id, debit_data, None)
+        assert result_debit["new_cash_in_hand"] == 600.0
+
+        # 4. Test Insufficient Funds (should raise ValidationError)
+        fail_data = {
+            "project_id": project_id,
+            "category_id": category_id,
+            "amount": Decimal("700.00"),
+            "type": "DEBIT",
+            "description": "Too expensive"
+        }
+        
+        with pytest.raises(ValidationError) as exc:
+            await service.create_cash_transaction(user, project_id, fail_data, None)
+        assert "Insufficient funds" in str(exc.value)
+
+    @pytest.mark.asyncio
+    async def test_create_cash_transaction_idempotency(self, test_db, test_user):
+        """Verify idempotency logic."""
+        db = test_db
+        user = test_user
+        project_id = "proj_test_idem_" + str(ObjectId())
+        category_id = str(ObjectId())
+        idempotency_key = "key_" + str(ObjectId())
+
+        await db.code_master.insert_one({
+            "_id": ObjectId(category_id),
+            "organisation_id": user["organisation_id"],
+            "category_name": "Petty Cash",
+            "budget_type": "fund_transfer",
+            "active_status": True
+        })
+
+        permission_mock = AsyncMock()
+        permission_mock.check_write_access_with_role = AsyncMock()
+        audit_mock = AsyncMock()
+        service = CashService(db, permission_mock, audit_mock)
+
+        txn_data = {
+            "project_id": project_id,
+            "category_id": category_id,
+            "amount": Decimal("500.00"),
+            "type": "CREDIT",
+            "description": "Idempotent deposit"
+        }
+
+        # First call
+        result1 = await service.create_cash_transaction(user, project_id, txn_data, idempotency_key)
+        
+        # Second call (same key)
+        result2 = await service.create_cash_transaction(user, project_id, txn_data, idempotency_key)
+        
+        assert result1["id"] == result2["id"]
+        
+        # Verify only ONE transaction exists in DB
+        count = await db.cash_transactions.count_documents({"project_id": project_id})
+        assert count == 1

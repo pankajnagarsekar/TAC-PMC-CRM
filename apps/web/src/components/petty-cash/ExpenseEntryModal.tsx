@@ -58,7 +58,7 @@ export default function ExpenseEntryModal({
 
   // Fetch Petty Cash Categories from settings
   const { data: categoriesData, isLoading: categoriesLoading } = useSWR<Category[] | { data: Category[] }>(
-    `/api/settings/petty-cash-categories`,
+    `/api/v1/settings/petty-cash-categories`,
     fetcher
   );
 
