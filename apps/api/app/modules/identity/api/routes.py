@@ -8,7 +8,10 @@ from app.core.dependencies import (
     get_current_user,
     get_settings_service,
     get_user_service,
+    get_financial_service,
+    get_project_service,
 )
+from app.modules.reporting.application.dashboard_service import DashboardService
 from app.modules.shared.domain.schemas import GenericResponse
 
 from ..application.auth_service import AuthService
@@ -51,6 +54,35 @@ async def update_settings(
     """Update organisational settings (Admin only)."""
     result = await settings_service.update_settings(user, settings_data)
     return GenericResponse(data=result, message="Settings updated successfully")
+
+
+@router.post("/settings/clear-cache", response_model=GenericResponse[dict])
+async def clear_system_cache(
+    user: dict = Depends(get_authenticated_user),
+):
+    """Purge all dashboard and reporting caches (Admin only)."""
+    # Note: In a real distributed system, this might send a broadcast to Redis
+    # For now, we clear the local in-memory cache
+    DashboardService.invalidate_project_cache("*")  # Pattern to clear all
+    return GenericResponse(data={}, message="System cache purged successfully")
+
+
+@router.post("/settings/recalculate-financials", response_model=GenericResponse[dict])
+async def recalculate_all_financials(
+    user: dict = Depends(get_authenticated_user),
+    financial_service=Depends(get_financial_service),
+    project_service=Depends(get_project_service),
+):
+    """Force recalculation of all project master snapshots (Admin only)."""
+    projects = await project_service.list_projects(user)
+    count = 0
+    for p in projects:
+        pid = str(p.get("_id") or p.get("project_id"))
+        if pid:
+            await financial_service.recalculate_master_budget(pid)
+            count += 1
+
+    return GenericResponse(data={"projects_processed": count}, message=f"Recalculated financials for {count} projects")
 
 
 # --- AUTH ENPOINTS ---

@@ -13,6 +13,10 @@ import {
   Save,
   MapPin,
   Building2,
+  Layout,
+  FileText,
+  CheckSquare,
+  Wallet,
 } from "lucide-react";
 import api, { fetcher } from "@/lib/api";
 import { Project, DerivedFinancialState } from "@/types/api";
@@ -265,12 +269,12 @@ export default function ProjectDetailPage() {
                     // also refresh project to get new master budgets
                     mutateProject();
                   } catch {
-                    alert("Failed to initialize budgets.");
+                    alert("Failed to synchronize budget baseline.");
                   }
                 }}
-                className="bg-orange-600 dark:bg-orange-500 hover:bg-orange-700 dark:hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-orange-500/20"
+                className="admin-only bg-orange-600 dark:bg-orange-500 hover:bg-orange-700 dark:hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-orange-500/20"
               >
-                <Save size={16} /> Initialize Budgets
+                <Save size={16} /> Synchronize Budgetary Baseline
               </button>
             )}
           </div>
@@ -283,21 +287,29 @@ export default function ProjectDetailPage() {
           label="Total Budget"
           value={formatCurrency(totalBudget)}
           status="neutral"
+          icon={<Layout size={20} />}
+          tooltip="The aggregate approved project budget across all cost categories."
         />
         <KPICard
-          label="Total Committed"
+          label="Committed"
           value={formatCurrency(totalCommitted)}
           status="warning"
+          icon={<FileText size={20} />}
+          tooltip="Total value of all approved Work Orders issued to vendors."
         />
         <KPICard
-          label="Total Certified"
+          label="Certified"
           value={formatCurrency(totalCertified)}
           status="positive"
+          icon={<CheckSquare size={20} />}
+          tooltip="Total value of work verified and approved via Payment Certificates."
         />
         <KPICard
-          label="Budget Balance"
+          label="Balance"
           value={formatCurrency(totalRemaining)}
           status={totalRemaining < 0 ? "negative" : "neutral"}
+          icon={<Wallet size={20} />}
+          tooltip="The remaining budget available for allocation (Total Budget - Certified)."
           subtitle={totalRemaining < 0 ? "Potential Overrun" : "Safe Margin"}
         />
       </div>
@@ -309,7 +321,7 @@ export default function ProjectDetailPage() {
             Category-wise Financials
           </h2>
           <div className="text-[9px] text-zinc-500 dark:text-slate-500 uppercase font-black tracking-[0.2em] bg-zinc-50 dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-slate-800 shadow-sm transition-colors">
-            Double-click budget to edit
+            Inline Modification Enabled
           </div>
         </div>
 

@@ -558,14 +558,15 @@ export default function GanttChart() {
           )}
           <div className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] p-0.5">
             {[
-              { id: 'day', label: 'D' },
-              { id: 'week', label: 'W' },
-              { id: 'month', label: 'M' },
-              { id: 'quarter', label: 'Q' }
+              { id: 'day', label: 'D', title: 'Daily View' },
+              { id: 'week', label: 'W', title: 'Weekly View' },
+              { id: 'month', label: 'M', title: 'Monthly View' },
+              { id: 'quarter', label: 'Q', title: 'Quarterly View' }
             ].map(scale => (
               <button
                 key={scale.id}
                 onClick={() => setTimescale(scale.id as GanttTimescale)}
+                title={scale.title}
                 className={`w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-black transition-all ${timescale === scale.id ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 {scale.label}
@@ -579,19 +580,20 @@ export default function GanttChart() {
               className={`rounded-full px-2 py-0.5 transition-colors ${showBaseline ? "bg-slate-200 dark:bg-white/[0.08] text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
               aria-pressed={showBaseline}
               onClick={handleBaselineToggle}
-              title="Toggle baseline overlay"
+              title="Toggle baseline overlay to compare planned vs actual dates"
             >
               Baseline
             </button>
             {showBaseline && (
               <select
-                className="bg-transparent text-xs font-bold text-sky-400 focus:outline-none"
+                className="bg-transparent text-[10px] font-black text-sky-400 focus:outline-none uppercase tracking-widest cursor-pointer"
                 value={activeBaselineNum}
                 onChange={(e) => handleBaselineChange(Number(e.target.value))}
+                title="Select baseline version for comparison"
               >
                 {[...Array(11)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    B{i + 1}
+                  <option key={i + 1} value={i + 1} className="bg-slate-900 text-white">
+                    Baseline {i + 1}
                   </option>
                 ))}
               </select>

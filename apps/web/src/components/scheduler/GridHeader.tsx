@@ -21,15 +21,15 @@ export default function GridHeader({ columnTemplate, onToggleAll, isAllSelected 
           className="h-3 w-3 rounded border-slate-300 text-sky-600 focus:ring-sky-500 bg-transparent cursor-pointer"
         />
       </div>
-      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">WBS Code</div>
+      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800" title="Work Breakdown Structure (WBS) code defining hierarchy">WBS</div>
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">Task Description</div>
-      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">Mode</div>
+      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800" title="Scheduling Mode: Manual vs Auto-Scheduled">Mode</div>
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">Start Date</div>
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">Finish Date</div>
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800 text-center">Duration</div>
-      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800 text-center">% Comp</div>
+      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800 text-center" title="Current progress percentage complete">% Progress</div>
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800 text-center">Status</div>
-      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800 text-center">Heads</div>
+      <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800 text-center" title="Estimated number of personnel required">Resources</div>
       <div className="px-3 py-3 border-r border-slate-200 dark:border-slate-800">Constraint</div>
       <div className="px-3 py-3 text-right">Menu</div>
     </div>

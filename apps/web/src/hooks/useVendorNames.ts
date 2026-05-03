@@ -13,8 +13,8 @@ export function useVendorNames() {
     const vendorMap = useMemo(() => {
         const map: Record<string, string> = {};
         if (vendors && Array.isArray(vendors)) {
-            vendors.forEach((v) => {
-                const vid = v._id;
+            vendors.forEach((v: Vendor) => {
+                const vid = v.id || v._id;
                 if (vid) {
                     map[vid] = v.name;
                 }

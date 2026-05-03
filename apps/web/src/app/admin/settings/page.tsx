@@ -18,6 +18,8 @@ import {
   X,
   Globe,
   LayoutGrid,
+  RefreshCcw,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import NextImage from "next/image";
@@ -77,6 +79,27 @@ export default function SettingsPage() {
 
   // Guard against unsaved changes
   useUnsavedChanges(isDirty);
+
+  const handleClearCache = async () => {
+    try {
+      await api.post("/api/v1/settings/clear-cache");
+      toast({ title: "System cache purged successfully" });
+    } catch {
+      toast({ title: "Failed to purge cache", variant: "destructive" });
+    }
+  };
+
+  const handleResetDashboard = () => {
+    if (confirm("This will reset all dashboard layouts to default. Proceed?")) {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('dashboard_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      toast({ title: "Dashboard configuration reset" });
+      window.location.reload();
+    }
+  };
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -228,22 +251,62 @@ export default function SettingsPage() {
               className="text-xs font-bold text-orange-500 hover:text-orange-400 flex items-center gap-1.5 transition-colors uppercase tracking-wider"
             >
               <LayoutGrid size={14} />
-              Manage Operational Projects
+              Access Project Registry
             </Link>
           </div>
         </div>
-        <button
-          onClick={handleSaveSettings}
-          disabled={savingSettings}
-          className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-orange-900/20 disabled:opacity-50"
-        >
-          {savingSettings ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          Apply Global Changes
-        </button>
+
+        <div className="flex items-center gap-3">
+          <div className="admin-only flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl mr-4">
+            <span className="text-[10px] font-black text-zinc-400 dark:text-slate-500 uppercase tracking-widest mr-2">Maintenance</span>
+            <button
+              onClick={handleClearCache}
+              className="p-2 text-zinc-500 hover:text-orange-500 transition-all"
+              title="Purge Application Cache"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <button
+              onClick={async () => {
+                if (confirm("This will recalculate master budgets for all projects. This might take a moment. Proceed?")) {
+                  try {
+                    await api.post("/api/v1/settings/recalculate-financials");
+                    toast({ title: "Financial reconciliation complete" });
+                  } catch {
+                    toast({ title: "Recalculation failed", variant: "destructive" });
+                  }
+                }
+              }}
+              className="p-2 text-zinc-500 hover:text-indigo-500 transition-all border-l border-zinc-200 dark:border-slate-800 ml-1 pl-3"
+              title="Force Financial Recalculation"
+            >
+              <div className="flex items-center gap-2">
+                <Settings size={16} />
+                <span className="text-[9px] font-bold uppercase tracking-tight">Financials</span>
+              </div>
+            </button>
+            <button
+              onClick={handleResetDashboard}
+              className="p-2 text-zinc-500 hover:text-orange-500 transition-all"
+              title="Reset Dashboard Configuration"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+
+          <button
+            onClick={handleSaveSettings}
+            disabled={savingSettings}
+            className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-orange-900/20 disabled:opacity-50"
+          >
+            {savingSettings ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Commit System Configuration
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

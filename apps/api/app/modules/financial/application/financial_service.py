@@ -53,10 +53,7 @@ class FinancialService:
         budget = await self.budget_repo.get_by_project_and_category(
             project_id, category_id, session=session
         )
-        if not budget:
-            return None
-
-        approved_budget = FinancialEngine.to_decimal(budget.get("original_budget", "0"))
+        approved_budget = FinancialEngine.to_decimal(budget.get("original_budget", "0")) if budget else Decimal("0.00")
 
         from bson import ObjectId
         p_id_obj = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
@@ -120,7 +117,7 @@ class FinancialService:
             "over_commit_flag": state.is_over_committed,
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
             "last_recalculated": now(),
-            "version": budget.get("version", 1),
+            "version": budget.get("version", 1) if budget else 1,
         }
 
         await self.financial_state_repo.update_one(
@@ -134,7 +131,28 @@ class FinancialService:
 
     async def recalculate_master_budget(self, project_id: str, session=None):
         """Aggregates all project categories into a single Master Snapshot."""
+        # 1. Identify all unique categories involved in this project (Budget, WorkOrders, PCs)
+        category_ids = set()
+
+        # From Budgets
         budgets = await self.budget_repo.list({"project_id": project_id}, limit=1000, session=session)
+        for b in budgets:
+            if b.get("category_id"):
+                category_ids.add(b["category_id"])
+
+        # From Work Orders (to catch untracked commitments)
+        from bson import ObjectId
+        p_id_obj = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+        wo_cats = await self.wo_repo.distinct("category_id", {"project_id": {"$in": [project_id, p_id_obj]}})
+        for cid in wo_cats:
+            if cid:
+                category_ids.add(cid)
+
+        # From PCs
+        pc_cats = await self.pc_repo.distinct("category_id", {"project_id": {"$in": [project_id, p_id_obj]}})
+        for cid in pc_cats:
+            if cid:
+                category_ids.add(cid)
 
         totals = {
             "total_budget": FinancialEngine.round(0),
@@ -143,11 +161,7 @@ class FinancialService:
             "categories_recalculated": 0,
         }
 
-        for b in budgets:
-            cat_id = b.get("category_id")
-            if not cat_id:
-                continue
-
+        for cat_id in category_ids:
             res = await self.recalculate_project_code_financials(
                 project_id, cat_id, session=session
             )

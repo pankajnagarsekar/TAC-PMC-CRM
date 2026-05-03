@@ -30,7 +30,11 @@ import { formatINRShort } from "@/lib/formatters";
  * S-Curve Chart implementation for Enterprise PPM Scheduler.
  * Refactored for Cumulative Aggregation (CRIT-005).
  */
-export default function SCurveChart() {
+interface SCurveChartProps {
+  totalBudget?: number;
+}
+
+export default function SCurveChart({ totalBudget }: SCurveChartProps) {
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
@@ -164,6 +168,7 @@ export default function SCurveChart() {
               axisLine={false}
               tickLine={false}
               tickFormatter={formatCurrency}
+              domain={[0, (dataMax: number) => Math.round(Math.max(dataMax, totalBudget || 0) * 1.1)]}
             />
             <Tooltip
               contentStyle={{

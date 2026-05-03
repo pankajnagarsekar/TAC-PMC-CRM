@@ -43,6 +43,12 @@ class DashboardCache:
         if key in self.cache:
             del self.cache[key]
 
+    def invalidate_pattern(self, pattern: str) -> None:
+        """Invalidate all keys containing the pattern."""
+        to_delete = [k for k in self.cache.keys() if pattern in k]
+        for k in to_delete:
+            del self.cache[k]
+
 
 class DashboardService:
     """
@@ -61,7 +67,8 @@ class DashboardService:
     @classmethod
     def invalidate_project_cache(cls, project_id: str):
         """Authoritative cache invalidation for a project (BUG-009)."""
-        cls._cache.invalidate(project_id)
+        # Invalidate both stats and dashboard keys
+        cls._cache.invalidate_pattern(f":{project_id}")
         logger.info(f"DASHBOARD_CACHE_INVALIDATED: {project_id}")
 
     async def get_project_dashboard(
@@ -188,6 +195,7 @@ class DashboardService:
         # 5. Construct high-level stats with EVM Engine (BUG-023)
         pv = float(FinancialEngine.to_decimal(master_state.get("original_budget", 0)) if master_state else 0)
         ac = float(FinancialEngine.to_decimal(master_state.get("committed_value", 0)) if master_state else 0)
+        certified = float(FinancialEngine.to_decimal(master_state.get("certified_value", 0)) if master_state else 0)
 
         # Earned Value (EV) calculation: Sum(Category PV * Category Completion %)
         ev = 0.0
@@ -201,26 +209,43 @@ class DashboardService:
 
             # Aggregate completion by category
             cat_tasks = {}  # category_id -> [completion_percentages]
+            all_completions = []
             for t in tasks:
+                comp = float(t.get("percent_complete", 0))
+                all_completions.append(comp)
                 rid = t.get("external_ref_id")
                 if rid:
                     if rid not in cat_tasks:
                         cat_tasks[rid] = []
-                    cat_tasks[rid].append(float(t.get("percent_complete", 0)))
+                    cat_tasks[rid].append(comp)
 
-            for cat_id, pvs in cat_pv_map.items():
-                if cat_id in cat_tasks:
+            # Calculate EV by category weight
+            weighted_ev = 0.0
+            found_mapped_tasks = False
+            for cat_id, cat_budget in cat_pv_map.items():
+                if cat_id in cat_tasks and cat_tasks[cat_id]:
+                    found_mapped_tasks = True
                     avg_comp = sum(cat_tasks[cat_id]) / len(cat_tasks[cat_id])
-                    ev += pvs * (avg_comp / 100.0)
+                    weighted_ev += cat_budget * (avg_comp / 100.0)
+
+            # Fallback if no tasks were mapped to categories: use project-wide average completion
+            if not found_mapped_tasks and all_completions and pv > 0:
+                avg_project_comp = sum(all_completions) / len(all_completions)
+                ev = pv * (avg_project_comp / 100.0)
+            else:
+                ev = weighted_ev
 
         # Final fallback for Total Budget if master snapshots are missing
         if pv == 0 and project:
             pv = float(FinancialEngine.to_decimal(project.get("master_original_budget", 0)))
-            # If still 0, we might need to check if there are any budget records at all
-            # but usually master_original_budget is the source of truth for "Baseline"
+            if ev == 0 and project.get("completion_percentage"):
+                ev = pv * (float(project["completion_percentage"]) / 100.0)
 
-        # KPI Metrics
-        cpi = ev / ac if ac > 0 else 1.0
+        # KPI Metrics (Point 103: Standardized SPI/CPI thresholds)
+        # AC for EVM is traditionally Actual Cost (Certified), but we use Committed
+        # if Certified is 0 for better visibility in early stages.
+        actual_cost_for_eva = certified if certified > 0 else ac
+        cpi = ev / actual_cost_for_eva if actual_cost_for_eva > 0 else 1.0
         spi = ev / pv if pv > 0 else 1.0  # Simple SPI relative to total budget
 
         stats = {
@@ -239,10 +264,10 @@ class DashboardService:
                 ),
                 "planned_value": pv,
                 "earned_value": ev,
-                "actual_cost": ac,
+                "actual_cost": actual_cost_for_eva,
                 "cpi": round(min(10.0, max(0.0, cpi)), 2),
                 "spi": round(spi, 2),
-                "cost_variance": ev - ac,
+                "cost_variance": ev - actual_cost_for_eva,
                 "schedule_variance": ev - pv
             },
             "tasks_count": tasks_count,

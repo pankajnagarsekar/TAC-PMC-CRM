@@ -80,9 +80,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .filter(Boolean)
         .slice(1) // Skip 'admin'
         .map((segment, idx, arr) => {
-            let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+            const segmentMap: Record<string, string> = {
+                'users': 'Team Management',
+                'scheduler': 'Project Planner',
+                'financials': 'Project Financials',
+                'work-orders': 'Work Orders',
+                'payment-certificates': 'Payment Certificates',
+                'ocr': 'AI OCR Scanner',
+                'site-operations': 'Site Operations',
+                'audit-log': 'Audit Log',
+                'settings': 'Settings',
+                'dashboard': 'Dashboard'
+            };
 
-            if (segment === 'ocr') label = 'AI OCR Scanner';
+            let label = segmentMap[segment] || (segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' '));
 
             const { breadcrumbTitle } = useProjectStore.getState();
 

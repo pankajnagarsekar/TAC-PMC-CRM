@@ -29,7 +29,7 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
             flex: 1,
             cellRenderer: (p: ICellRendererParams) => (
                 <Link
-                    href={`/admin/work-orders/${p.data._id}`}
+                    href={`/admin/work-orders/${p.data.id || p.data._id}`}
                     className="font-mono text-indigo-500 font-bold hover:underline"
                 >
                     {p.value}

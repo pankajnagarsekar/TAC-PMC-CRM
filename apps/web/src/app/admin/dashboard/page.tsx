@@ -330,7 +330,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex-1 min-h-0">
-          <SCurveChart />
+          <SCurveChart totalBudget={totalBudget} />
         </div>
         <Link href="/admin/scheduler?tab=analytics" className="block w-full mt-4 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-center text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
           View Full Analysis

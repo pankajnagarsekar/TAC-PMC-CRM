@@ -19,6 +19,8 @@ export interface KPICardProps {
   icon?: React.ReactNode;
   /** Additional CSS class */
   className?: string;
+  /** Informative tooltip description */
+  tooltip?: string;
 }
 
 const STATUS_CONFIG: Record<KPIStatus, { accent: string; bg: string; text: string; shadow: string }> = {
@@ -37,6 +39,7 @@ export default function KPICard({
   trendUp,
   icon,
   className = '',
+  tooltip,
 }: KPICardProps) {
   const config = STATUS_CONFIG[status];
 
@@ -52,7 +55,10 @@ export default function KPICard({
 
       <div className="flex items-start justify-between relative z-10">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold text-foreground/50 uppercase tracking-[0.15em] mb-2">
+          <p 
+            className="text-[10px] font-bold text-foreground/50 uppercase tracking-[0.15em] mb-2 cursor-help underline decoration-dotted decoration-foreground/20 underline-offset-4"
+            title={tooltip}
+          >
             {label}
           </p>
           <p className="text-3xl font-black text-foreground tracking-tight leading-none group-hover:text-accent transition-colors">

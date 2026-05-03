@@ -201,7 +201,7 @@ export default function ProjectsSettingsPage() {
                     className="admin-only bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-[1.2rem] font-black text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-900/20 active:scale-95 border border-white/10"
                 >
                     <Plus size={18} strokeWidth={3} />
-                    Create New Project
+                    Provision New Project
                 </button>
             </div>
 

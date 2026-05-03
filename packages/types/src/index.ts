@@ -261,6 +261,7 @@ export interface PaymentCertificate {
 // VENDORS
 // ──────────────────────────────────────────────────────────────────────────
 export interface Vendor {
+  id?: string;
   _id?: string;
   organisation_id: string;
   name: string;
