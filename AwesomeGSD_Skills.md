@@ -1,8 +1,8 @@
 # Project Operating Manual — Skill-First Workflow
 
-**Last Updated:** 2026-04-06
+**Last Updated:** 2026-05-03
 **Project:** TAC-PMC-CRM
-**Tech Stack:** React.js (Frontend) | Node.js (Backend) | Python (API Server) | MongoDB (Database)
+**Tech Stack:** React 19 (Frontend) | FastAPI/Fastify (Backend) | Next.js 16 | MongoDB | Tailwind 4
 **Design Language:** Luxury Industrial
 
 ---
@@ -30,15 +30,15 @@ Stack skills based on task type. Always include the base skill(s) plus context-s
 
 ### Error Detection & Debugging
 ```
-Primary: @error-detective + @debugging-toolkit + @software-architecture
-Secondary: @systematic-debugging + @error-diagnostics-smart-debug + @bug-hunter
-Example: When fixing a database query failure, also check data integrity patterns
+Primary: @error-detective + @debugging-toolkit + @software-architecture + @systematic-debugging
+Secondary: @error-diagnostics-smart-debug + @bug-hunter + @vibe-code-auditor + @error-debugging-multi-agent-review
+Example: When fixing a database query failure, use @systematic-debugging to isolate the root cause.
 ```
 
 ### New Feature Implementation
 ```
-Primary: @software-architecture + @concise-planning + @[language]-pro
-Secondary: @writing-plans + @executing-plans + @pydantic-ai + @ai-engineer
+Primary: @software-architecture + @concise-planning + @[language]-pro + @ai-ml
+Secondary: @writing-plans + @executing-plans + @pydantic-ai + @langgraph + @ai-engineer
 Example: Adding a new CRM field requires @react-best-practices (frontend) + @python-pro (backend) + @database-design (schema)
 ```
 
@@ -51,8 +51,8 @@ Usage: EVERY major task must be initialized with a clear PLAN.md using @writing-
 
 ### UI/UX Adjustments & Components
 ```
-Primary: @antigravity-design-expert + @tailwind-design-system + @react-best-practices
-Secondary: @accessibility-compliance + @performance-optimizer + @magic-ui-generator + @threejs-skills + @scroll-experience + @design-spells
+Primary: @antigravity-design-expert + @tailwind-design-system + @react-best-practices + @shadcn
+Secondary: @accessibility-compliance + @performance-optimizer + @magic-ui-generator + @threejs-skills + @scroll-experience + @design-spells + @spline-3d-integration
 Example: Any design change must maintain the Luxury Industrial aesthetic using @antigravity-design-expert principles
 ```
 
@@ -65,8 +65,22 @@ Example: Schema modifications must preserve financial integrity and include migr
 
 ### API Development & Integration
 ```
-Primary: @api-design-principles + @[language]-pro + @security-best-practices
-Secondary: @trpc-fullstack + @hono + @error-handling-patterns + @api-endpoint-builder
+Primary: @api-design-principles + @[language]-pro + @security-best-practices + @api-patterns
+Secondary: @trpc-fullstack + @hono + @error-handling-patterns + @api-endpoint-builder + @zod-validation-expert
+```
+
+### Research, Intelligence & Automation
+```
+Primary: @exa-search + @tavily-web + @agentfolio + @deep-research + @skyvern-browser-automation
+Secondary: @agentmail + @hubspot-automation + @slack-automation + @shopify-development + @whatsapp-automation + @not-human-search-mcp
+Example: Use @skyvern-browser-automation for complex web-based workflows or @exa-search for deep competitor analysis.
+```
+
+### Media, Video & AI Generation
+```
+Primary: @fal-generate + @videodb-skills + @remotion + @audio-transcriber + @seek-and-analyze-video
+Secondary: @magic-animator + @youtube-summarizer + @imagen + @stable-ai
+Example: Analyze complex video data with @seek-and-analyze-video or generate premium walkthroughs using @remotion.
 ```
 
 ---
@@ -252,6 +266,30 @@ For the most up-to-date agent capabilities, always refer to the system-wide skil
 
 These skills should be used in conjunction with project-specific skills in `.agents/skills` to ensure the highest quality of implementation.
 
+---
+
+## 12. Emerging Multi-Agent & Research Patterns 🧠
+
+Leverage these advanced patterns for high-complexity tasks:
+
+- **Parallel Research**: Use `@infinite-gratitude` for large-scale data gathering across 10+ agents.
+- **Task Dispatching**: Use `@dispatching-parallel-agents` when handling 2+ independent sub-tasks.
+- **Persistent Knowledge**: Use `@agent-memory-mcp` to maintain architectural context across sessions.
+- **Workflow Loops**: Use `@stitch-loop` for autonomous iterative UI building.
+
+---
+
+## 13. Premium Media & Design Spells ✨
+
+To achieve the **"Luxury Industrial" WOW factor**, integrate these "spells":
+
+- **Micro-interactions**: `@design-spells` for that final 1% of polish.
+- **3D Experiences**: `@spline-3d-integration` and `@threejs-skills` for immersive dashboards.
+- **Dynamic Content**: `@fal-generate` and `@videodb-skills` for high-fidelity assets.
+- **Rapid Prototyping**: `@magic-ui-generator` to compare production-ready components instantly.
+
+---
+
 **Document Owners:** TAC-PMC-CRM Development Team
-**Review Frequency:** Quarterly or as needed
-**Last Review:** 2026-04-01
+**Review Frequency:** Monthly
+**Last Review:** 2026-05-03
