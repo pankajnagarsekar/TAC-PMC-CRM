@@ -63,7 +63,7 @@ export default function SettingsPage() {
     invoice_prefix: "INV",
     currency: "INR",
     currency_symbol: "₹",
-    terms_and_conditions: "Standard terms and conditions apply...",
+    terms_and_conditions: "1. All work must be performed in accordance with the project specifications and standard safety protocols.\n2. Payment terms: Net 30 days from the date of approved certification.\n3. Variations must be pre-approved via official Change Order.\n4. Retention of 5% will be held until final completion and handover.",
     logo_base64: null,
     client_permissions: {
       can_view_dpr: true,

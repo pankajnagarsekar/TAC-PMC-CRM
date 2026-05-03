@@ -34,31 +34,34 @@ const buildTaskOrder = (tasks: ScheduleTask[]) =>
 
 const recalculateWBS = (taskMap: ScheduleTaskMap, taskOrder: string[]): ScheduleTaskMap => {
   const nextMap = { ...taskMap };
-  const parentCounters: Record<string, number> = {};
-  const parentIds = new Set(
-    Object.values(nextMap)
-      .map(t => t.parent_id)
-      .filter((id): id is string => !!id)
-  );
-
-  taskOrder.forEach((taskId) => {
-    const task = nextMap[taskId];
-    if (!task) return;
-    
-    const parentId = task.parent_id || "root";
-    parentCounters[parentId] = (parentCounters[parentId] || 0) + 1;
-    const index = parentCounters[parentId];
-    
-    const parentWBS = parentId !== "root" && nextMap[parentId] ? nextMap[parentId].wbs_code : "";
-    const wbs = parentWBS ? `${parentWBS}.${index}` : `${index}`;
-    
-    nextMap[taskId] = { 
-      ...task, 
-      wbs_code: wbs,
-      is_summary: parentIds.has(taskId)
-    };
-  });
   
+  // 1. Build hierarchy map from current taskMap and order
+  const childrenOf: Record<string, string[]> = {};
+  taskOrder.forEach(tid => {
+    const parentId = nextMap[tid]?.parent_id || "root";
+    if (!childrenOf[parentId]) childrenOf[parentId] = [];
+    childrenOf[parentId].push(tid);
+  });
+
+  const parentIds = new Set(Object.values(nextMap).map(t => t.parent_id).filter(Boolean));
+
+  // 2. Recursive assignment function ensuring parent-first processing
+  const assign = (parentId: string, prefix: string) => {
+    const children = childrenOf[parentId] || [];
+    children.forEach((tid, idx) => {
+      const code = prefix ? `${prefix}.${idx + 1}` : `${idx + 1}`;
+      if (nextMap[tid]) {
+        nextMap[tid] = {
+          ...nextMap[tid],
+          wbs_code: code,
+          is_summary: parentIds.has(tid)
+        };
+      }
+      assign(tid, code);
+    });
+  };
+
+  assign("root", "");
   return nextMap;
 };
 

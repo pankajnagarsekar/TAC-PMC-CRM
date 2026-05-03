@@ -196,7 +196,7 @@ function ProjectSchedulerContent() {
       // Map WBS first segment to readable names
       const code = task.wbs_code?.split('.')[0] || 'Misc';
       const name = code === 'C' ? 'Construction' :
-        code === 'P' ? 'Procurement' :
+        code === 'P' ? 'Contracting' :
           code === 'D' ? 'Design/Engineering' :
             code === 'S' ? 'Site Ops' :
               code === 'I' ? 'Interiors' : code;

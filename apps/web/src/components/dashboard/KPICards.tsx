@@ -113,6 +113,7 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
         subtitle={stats.totalBaselineCost > 0 ? "Original project value" : "Action required: Initialize budget"}
         status="neutral"
         icon={<Coins size={18} />}
+        tooltip="The total original estimated cost (BAC) for all tasks in the current project scope."
       />
       <KPICard
         label="Planned Value"
@@ -141,6 +142,7 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
         subtitle="Schedule Perf. (EV/PV)"
         status={stats.spi !== null ? getSpiStatus(stats.spi) : "neutral"}
         icon={<Gauge size={18} />}
+        tooltip="Schedule Performance Index: Measures efficiency of time utilization (Earned Value / Planned Value). > 1.0 means project is ahead of schedule."
         trend={stats.spi !== null ? (() => {
           const val = (stats.spi - 1) * 100;
           if (Math.abs(val) > 1000) return ">1000%";
@@ -154,6 +156,7 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
         subtitle="Cost Perf. (EV/AC)"
         status={stats.cpi !== null ? getCpiStatus(stats.cpi) : "neutral"}
         icon={<BarChart3 size={18} />}
+        tooltip="Cost Performance Index: Measures cost efficiency of work performed (Earned Value / Actual Cost). > 1.0 means project is under budget."
         trend={stats.cpi !== null ? (() => {
           const val = (stats.cpi - 1) * 100;
           if (Math.abs(val) > 1000) return ">1000%";

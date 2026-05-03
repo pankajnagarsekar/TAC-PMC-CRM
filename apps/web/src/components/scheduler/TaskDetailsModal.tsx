@@ -504,7 +504,7 @@ export default function TaskDetailsModal() {
                </div>
                <div className="rounded-2xl bg-orange-500/5 border border-orange-500/10 p-5">
                   <p className="text-[10px] text-orange-600/80 dark:text-orange-400/80 italic leading-relaxed text-center">
-                    * Financial metrics are derived from the Procurement Ledger and reconciled against site progress.
+                    * Financial metrics are derived from the Contracting Ledger and reconciled against site progress.
                   </p>
                </div>
             </Tabs.Content>

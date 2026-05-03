@@ -34,10 +34,10 @@ test.describe('Scheduler Stability & UI Parity (Phase 15)', () => {
 
     test('ISSUE 4 & 5: TaskDrawer UI Parity and Logs cleanup', async ({ page }) => {
         await page.getByText(/task-1/i).first().click();
-        await expect(page.getByText(/Task Drawer/i)).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText(/Task Intel & Control/i)).toBeVisible({ timeout: 10000 });
         await page.getByRole('tab', { name: /Log Registry/i }).click();
-        await expect(page.getByText(/No inline logs for this task/i)).toBeVisible();
-        expect(await page.getByRole('link', { name: /View/i }).getAttribute('href')).toContain('site-operations');
+        await expect(page.getByText(/Registry Synchronization/i)).toBeVisible();
+        expect(await page.getByRole('link', { name: /Launch Site Operations/i }).getAttribute('href')).toContain('site-operations');
     });
 
     test('ISSUE 2 & 3: Gantt Drag Visuals', async ({ page }) => {
