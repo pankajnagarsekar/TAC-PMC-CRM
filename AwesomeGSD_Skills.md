@@ -272,6 +272,7 @@ These skills should be used in conjunction with project-specific skills in `.age
 
 Leverage these advanced patterns for high-complexity tasks:
 
+- **Autonomous Engineering**: Use `/autoplan` and `/ship` from the **GStack** framework for end-to-end task orchestration. Refer to [GStack.md](file:///d:/_repos/TAC-PMC-CRM/GStack.md) for full protocol details.
 - **Parallel Research**: Use `@infinite-gratitude` for large-scale data gathering across 10+ agents.
 - **Task Dispatching**: Use `@dispatching-parallel-agents` when handling 2+ independent sub-tasks.
 - **Persistent Knowledge**: Use `@agent-memory-mcp` to maintain architectural context across sessions.
