@@ -4,7 +4,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 from bson import ObjectId
 
-from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
+from app.modules.shared.domain.exceptions import ValidationError
 from app.modules.financial.application.cash_service import CashService
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
@@ -462,7 +462,7 @@ class TestCashServiceIntegration:
         }
 
         result = await service.create_cash_transaction(user, project_id, txn_data, None)
-        
+
         assert result["project_id"] == project_id
         assert float(result["amount"]) == 1000.0
         assert result["new_cash_in_hand"] == 1000.0
@@ -479,9 +479,8 @@ class TestCashServiceIntegration:
             "category_id": category_id,
             "amount": Decimal("400.00"),
             "type": "DEBIT",
-            "description": "Test expense"
         }
-        
+
         result_debit = await service.create_cash_transaction(user, project_id, debit_data, None)
         assert result_debit["new_cash_in_hand"] == 600.0
 
@@ -493,7 +492,7 @@ class TestCashServiceIntegration:
             "type": "DEBIT",
             "description": "Too expensive"
         }
-        
+
         with pytest.raises(ValidationError) as exc:
             await service.create_cash_transaction(user, project_id, fail_data, None)
         assert "Insufficient funds" in str(exc.value)
@@ -530,12 +529,12 @@ class TestCashServiceIntegration:
 
         # First call
         result1 = await service.create_cash_transaction(user, project_id, txn_data, idempotency_key)
-        
+
         # Second call (same key)
         result2 = await service.create_cash_transaction(user, project_id, txn_data, idempotency_key)
-        
+
         assert result1["id"] == result2["id"]
-        
+
         # Verify only ONE transaction exists in DB
         count = await db.cash_transactions.count_documents({"project_id": project_id})
         assert count == 1

@@ -281,7 +281,7 @@ class CashService:
                 category = await uow.db.code_master.find_one({"_id": ObjectId(category_id)})
                 if not category:
                     raise NotFoundError("Category", category_id)
-                
+
                 new_alloc_doc = {
                     "organisation_id": user["organisation_id"],
                     "project_id": project_id,

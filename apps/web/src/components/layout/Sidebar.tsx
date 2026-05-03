@@ -93,9 +93,9 @@ export default function Sidebar({
         { href: "/admin/scheduler?tab=grid", label: "Grid", key: "planner_grid" },
         { href: "/admin/scheduler?tab=gantt", label: "Gantt", key: "planner_gantt" },
         { href: "/admin/scheduler?tab=kanban", label: "Kanban", key: "planner_kanban" },
-        { href: "/admin/scheduler?tab=calendar", label: "Calendar", key: "planner_calendar" },
         { href: "/admin/scheduler?tab=analytics", label: "Analytics", key: "planner_analytics" },
         { href: "/admin/scheduler?tab=budget", label: "Budget", key: "planner_budget" },
+        { href: "/admin/scheduler?tab=calendar", label: "Calendar", key: "planner_calendar" },
         { href: "/admin/scheduler?tab=export", label: "Export", key: "planner_export" },
       ]
     },
