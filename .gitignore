@@ -85,3 +85,6 @@ desktop.ini
 
 # Graphify
 graphify-out/
+
+# Playwright Workflow
+.github/workflows/playwright.yml
