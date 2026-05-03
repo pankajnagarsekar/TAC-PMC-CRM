@@ -30,10 +30,11 @@ class UserService:
         """Business logic for admin-initiated user creation"""
         await self.permission_checker.check_admin_role(user)
 
-        # Check if email exists
-        existing = await self.user_repo.get_by_email(user_data.email.lower().strip())
+        # Check if email exists (Normalize email CRIT-06)
+        normalized_email = user_data.email.lower().strip()
+        existing = await self.user_repo.get_by_email(normalized_email)
         if existing:
-            raise ValidationError("Email already registered")
+            raise ValidationError(f"Email {normalized_email} already registered")
 
         # Circular import protection
         from .auth_service import AuthService
@@ -89,6 +90,14 @@ class UserService:
         if user.get("role") != "Admin":
             IdentityAuthorizationManager.verify_self(user, target_user_id)
             update_dict = {k: v for k, v in update_dict.items() if k == "name"}
+
+        # If email is being updated, check for conflicts (CRIT-06)
+        if "email" in update_dict:
+            new_email = update_dict["email"].lower().strip()
+            update_dict["email"] = new_email
+            existing_with_email = await self.user_repo.get_by_email(new_email)
+            if existing_with_email and str(existing_with_email["id"]) != str(target_user_id):
+                raise ValidationError(f"Email {new_email} is already taken by another user")
 
         if not update_dict:
             return existing

@@ -49,7 +49,7 @@ export function StyledDateInput({
         const match = val.match(dateRegex);
 
         if (match) {
-            const [_, d, m, y] = match;
+            const [, d, m, y] = match;
             const isoValue = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
             setIsInvalid(false);
 

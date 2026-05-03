@@ -23,13 +23,23 @@ def _parse_date(date_str):
         return date_str
 
     # Try common formats
-    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%fZ"):
+    for fmt in (
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%Y/%m/%d",
+        "%d/%m/%Y",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S.%fZ"
+    ):
         try:
-            return datetime.strptime(str(date_str), fmt)
+            return datetime.strptime(str(date_str).strip(), fmt)
         except Exception:
             continue
     try:
-        return datetime.fromisoformat(str(date_str).replace("Z", "+00:00"))
+        # Try fromisoformat with Z handling
+        s = str(date_str).strip().replace("Z", "+00:00")
+        return datetime.fromisoformat(s)
     except Exception:
         return None
 
@@ -283,8 +293,20 @@ def run_calculation(input_data: dict) -> dict:
 
             if task["is_manual"]:
                 orig = task["original"]
-                task["es"] = _parse_date(orig.get("scheduled_start")) or project_start
-                task["ef"] = _parse_date(orig.get("scheduled_finish")) or add_dur(task["es"], task["duration"])
+                # Try multiple sources for manual dates to prevent "flattening" (HIGH-07)
+                manual_es = (
+                    _parse_date(orig.get("scheduled_start")) or
+                    _parse_date(orig.get("early_start")) or
+                    _parse_date(orig.get("baseline_start"))
+                )
+                task["es"] = manual_es or project_start
+
+                manual_ef = (
+                    _parse_date(orig.get("scheduled_finish")) or
+                    _parse_date(orig.get("early_finish")) or
+                    _parse_date(orig.get("baseline_finish"))
+                )
+                task["ef"] = manual_ef or add_dur(task["es"], task["duration"])
                 task["calc_reason"] = "Manual date override"
             else:
                 # Normal CPM

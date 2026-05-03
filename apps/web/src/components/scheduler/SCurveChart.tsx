@@ -38,6 +38,7 @@ export default function SCurveChart({ totalBudget }: SCurveChartProps) {
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
+  const today = useMemo(() => startOfDay(new Date()), []);
 
   const chartData = useMemo(() => {
     if (tasks.length === 0) return [];
@@ -59,7 +60,6 @@ export default function SCurveChart({ totalBudget }: SCurveChartProps) {
 
     const horizonStart = startOfMonth(projectStart);
     const horizonEnd = endOfMonth(projectEnd);
-    const today = startOfDay(new Date());
 
     // 2. Generate monthly intervals
     const months = eachMonthOfInterval({
@@ -96,8 +96,6 @@ export default function SCurveChart({ totalBudget }: SCurveChartProps) {
         }
 
         // --- Earned Value (EV) Cumulative ---
-        // EV is based on percent complete. We only show EV up to "Today".
-        // If the reportDate is in the future, we don't project EV.
         if (!isAfter(month, today)) {
           const percent = Number(task.percent_complete ?? 0) / 100;
           const taskEV = evCost * percent;
@@ -111,9 +109,6 @@ export default function SCurveChart({ totalBudget }: SCurveChartProps) {
                  cumulativeEV += evCost;
                }
             } else if (aStart && !isAfter(aStart, reportDate)) {
-               // For partial tasks, we distribute the earned value linearly from actual start to today
-               // or just add it to the current month if it's started.
-               // Simplification: add full current EV to the total if the task has started by reportDate.
                cumulativeEV += taskEV;
             }
           }
@@ -127,7 +122,7 @@ export default function SCurveChart({ totalBudget }: SCurveChartProps) {
         EV: isAfter(month, today) ? null : Math.round(cumulativeEV),
       };
     });
-  }, [tasks]);
+  }, [tasks, today]);
 
   const formatCurrency = (value: number) => formatINRShort(value);
 

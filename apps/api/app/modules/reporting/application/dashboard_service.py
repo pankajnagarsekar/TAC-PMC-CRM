@@ -57,7 +57,7 @@ class DashboardService:
     """
 
     # Shared cache instance
-    _cache = DashboardCache(ttl_seconds=5)
+    _cache = DashboardCache(ttl_seconds=30)
 
     def __init__(self, db, analytics_service: AnalyticsService):
         self.db = db
@@ -110,19 +110,34 @@ class DashboardService:
 
         project_name = project.get("project_name") or project.get("name") or "Untitled"
 
-        # Aggregate all 4 metrics in parallel
-        schedule = await self.analytics_service.calculate_schedule_health(
-            project_id, organisation_id
-        )
-        resources = await self.analytics_service.calculate_resource_utilization(
-            project_id, organisation_id
-        )
-        financial = await self.analytics_service.calculate_financial_summary(
-            project_id, organisation_id
-        )
-        timeline = await self.analytics_service.calculate_timeline_analytics(
-            project_id, organisation_id
-        )
+        import asyncio
+
+        # Aggregate all 4 metrics in parallel for performance and to avoid sequential deadlocks (CRIT-08)
+        try:
+            # Note: Using return_exceptions=True to ensure one failure doesn't block the whole dashboard
+            results = await asyncio.gather(
+                self.analytics_service.calculate_schedule_health(project_id, organisation_id),
+                self.analytics_service.calculate_resource_utilization(project_id, organisation_id),
+                self.analytics_service.calculate_financial_summary(project_id, organisation_id),
+                self.analytics_service.calculate_timeline_analytics(project_id, organisation_id),
+                return_exceptions=True
+            )
+
+            # Map results or fallbacks if exceptions occurred
+            schedule = results[0] if not isinstance(results[0], Exception) else {}
+            resources = results[1] if not isinstance(results[1], Exception) else {}
+            financial = results[2] if not isinstance(results[2], Exception) else {}
+            timeline = results[3] if not isinstance(results[3], Exception) else {}
+
+            if any(isinstance(r, Exception) for r in results):
+                logger.error(f"DASHBOARD_PARTIAL_FAILURE: Some analytics sub-services failed for {project_id}")
+        except Exception as e:
+            logger.error(f"DASHBOARD_AGGREGATION_CRITICAL_FAIL: {e}")
+            # Sequential fallback if gather itself fails
+            schedule = await self.analytics_service.calculate_schedule_health(project_id, organisation_id)
+            resources = await self.analytics_service.calculate_resource_utilization(project_id, organisation_id)
+            financial = await self.analytics_service.calculate_financial_summary(project_id, organisation_id)
+            timeline = await self.analytics_service.calculate_timeline_analytics(project_id, organisation_id)
 
         # Convert analytics objects to dicts for Pydantic model validation
 

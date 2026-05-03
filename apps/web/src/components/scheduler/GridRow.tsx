@@ -119,7 +119,7 @@ const GridRow = memo(function GridRow({
         {/* Assignee Details (REQ-010) */}
         {task.assignee_details && task.assignee_details.length > 0 ? (
           <div className="flex -space-x-1 ml-auto">
-            {task.assignee_details.slice(0, 3).map((u: any, idx: number) => (
+            {task.assignee_details.slice(0, 3).map((u: { name: string; initial: string }, idx: number) => (
               <div 
                 key={idx}
                 className="w-4 h-4 rounded-full bg-sky-100 dark:bg-sky-500/20 flex items-center justify-center border border-white dark:border-slate-900 shadow-sm"

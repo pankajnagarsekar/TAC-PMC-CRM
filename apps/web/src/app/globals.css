@@ -520,6 +520,14 @@ div[data-radix-focus-guard]+div {
   --ag-cell-horizontal-padding: 24px !important;
 }
 
+@media (max-width: 768px) {
+  .ag-theme-quartz-dark,
+  .ag-theme-quartz {
+    --ag-cell-horizontal-padding: 12px !important;
+    --ag-grid-size: 6px !important;
+  }
+}
+
 .ag-theme-quartz {
   --ag-header-background-color: rgba(248, 250, 252, 0.8) !important;
   --ag-header-foreground-color: #1e293b !important;

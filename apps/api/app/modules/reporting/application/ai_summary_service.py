@@ -380,6 +380,22 @@ class AISummaryService:
             for b in budgets
         )
 
+        # Fallback to MASTER financial state if categorical budget is missing (CRIT-09)
+        if total_budget == 0:
+            master_state = fin_map.get("MASTER")
+            if not master_state:
+                master_state = await self.fin_state_repo.find_one({
+                    "project_id": resilient_id,
+                    "category_id": "MASTER",
+                    "organisation_id": organisation_id
+                })
+
+            # Aggregate report level totals
+            if master_state:
+                total_budget = to_f(master_state.get("original_budget"))
+                total_committed = to_f(master_state.get("committed_value"))
+                logger.info(f"AI_SUMMARY_BUDGET_RECONCILED: Using MASTER state for {project_id}")
+
         from app.modules.contracting.infrastructure.repository import WorkOrderRepository
         from app.modules.financial.infrastructure.repository import PCRepository
 
