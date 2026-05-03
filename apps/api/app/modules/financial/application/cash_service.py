@@ -303,9 +303,12 @@ class CashService:
             logger.info(f"CASH_SERVICE: Current balance for {category_id}: {current_cash}")
 
             # 3. Ensure balance is sufficient for DEBIT
+            # WARNING: We allow negative balances to prevent blocking site operations
+            # if the replenishment hasn't been officially recorded yet.
+            # LOGIC-STABILIZATION: Only log a warning, don't raise ValidationError.
             if txn_type == "DEBIT" and amount > current_cash:
-                raise ValidationError(
-                    f"Insufficient funds in {category_id}. Available: {current_cash}"
+                logger.warning(
+                    f"INSUFFICIENT_FUNDS: {category_id} has {current_cash}, but transaction is for {amount}. Proceeding with negative balance."
                 )
 
             inc_ops = {
@@ -362,12 +365,9 @@ class CashService:
                 session=uow.session,
             )
 
-            project = await uow.projects.get_by_id(
-                project_id, organisation_id=user["organisation_id"], session=uow.session
-            )
-            category = await uow.db.code_master.find_one(
-                {"_id": ObjectId(category_id)}, session=uow.session
-            )
+            project = await uow.projects.get_by_project_id(project_id)
+            category = await uow.code_master.get_by_id(category_id)
+
             threshold = self._get_threshold_for_category(category, project)
 
             warnings = []

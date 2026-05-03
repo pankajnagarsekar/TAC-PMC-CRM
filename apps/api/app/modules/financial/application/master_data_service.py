@@ -37,7 +37,7 @@ class MasterDataService:
         query = {
             "organisation_id": user["organisation_id"],
             "category_name": {
-                "$regex": r"^(Petty\s*Cash|Site\s*Overhead(s)?)$",
+                "$regex": r"(Petty|Overhead|Site\s*Ovh)",
                 "$options": "i"
             },
             "active_status": True,

@@ -315,6 +315,10 @@ class SchedulerService:
 
             # 3. Normalize and enrich tasks
             for task in tasks:
+                # Ensure project_id is present (BUG-CALENDAR-PID)
+                if not task.get("project_id"):
+                    task["project_id"] = project_id
+
                 # Normalize task_id to string (seed data uses integers; frontend expects strings)
                 if "task_id" in task and not isinstance(task["task_id"], str):
                     task["task_id"] = str(task["task_id"])

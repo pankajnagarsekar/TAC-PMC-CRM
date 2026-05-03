@@ -154,7 +154,7 @@ export default function ExpenseEntryModal({
         {
           project_id: projectId,
           category_id: formData.category_id,
-          amount: parseFloat(formData.amount),
+          amount: parseFloat(String(formData.amount).replace(/,/g, "")),
           type: "DEBIT",
           description: `[${formData.bill_reference}] ${formData.purpose}`,
           // Fix Bug #29: Don't send blob URLs to backend

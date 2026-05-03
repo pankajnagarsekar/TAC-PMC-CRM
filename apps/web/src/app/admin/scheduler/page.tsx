@@ -429,10 +429,12 @@ function ProjectSchedulerContent() {
                   onOpenSettings={() => setIsCalendarModalOpen(true)}
                   onDateClick={(date) => {
                       if (!activeProject) return;
-                      const dateStr = format(date, 'yyyy-MM-dd');
+                      // Ensure date is a Date object (FullCalendar might pass a string or Date)
+                      const dateObj = typeof date === 'string' ? new Date(date) : date;
+                      const dateStr = format(dateObj, 'yyyy-MM-dd');
                       setInitialCreateDate(dateStr);
                       setIsTaskCreateModalOpen(true);
-                      toast.success(`Initializing task for ${format(date, 'MMM dd')}`);
+                      toast.success(`Initializing task for ${format(dateObj, 'MMM dd')}`);
                     }}
                 />
               </Tabs.Content>

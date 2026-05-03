@@ -309,6 +309,8 @@ async def calculate_granular_schedule(
         new_task = request.changes
         if "task_id" not in new_task:
             new_task["task_id"] = request.task_id
+        if "project_id" not in new_task:
+            new_task["project_id"] = project_id
         tasks.append(new_task)
 
     apply_time = time.time() - (start_time + load_time)

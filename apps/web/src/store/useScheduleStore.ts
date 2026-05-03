@@ -267,6 +267,7 @@ const buildChanges = (changes: ScheduleChangeRequest["changes"]) => {
     "constraint_date",
     "deadline",
     "notes",
+    "project_id",
   ];
 
   return allowedFields.reduce((acc, field) => {
