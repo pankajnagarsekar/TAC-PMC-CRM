@@ -227,6 +227,9 @@ export const schedulerApi = {
   deleteTask: (projectId: string, taskId: string) =>
     api.delete(`/api/v1/projects/${projectId}/tasks/${taskId}`).then(res => res.data),
 
+  deleteTasksBulk: (projectId: string, taskIds: string[]) =>
+    api.post(`/api/v1/projects/${projectId}/tasks/bulk-delete`, taskIds).then(res => res.data),
+
   load: (projectId: string) =>
     api.get(`/api/v1/projects/${projectId}/load-schedule`).then(res => res.data),
 

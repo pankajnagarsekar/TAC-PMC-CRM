@@ -84,7 +84,7 @@ export default function AdminDashboard() {
 
   const tasks = React.useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
 
-  const { data: projects, isLoading: projectsLoading } = useSWR<Project[]>(
+  const { data: projects, isLoading: projectsLoading, error: projectsError } = useSWR<Project[]>(
     "/api/v1/projects/",
     fetcher
   );
@@ -149,7 +149,7 @@ export default function AdminDashboard() {
     );
   }, [projectSearch, projects]);
 
-  const { data: financials, isLoading } = useSWR<DerivedFinancialState[]>(
+  const { data: financials, isLoading, error: financialError } = useSWR<DerivedFinancialState[]>(
     activeProject
       ? `/api/v1/projects/${activeProject.project_id}/financials`
       : null,
@@ -618,7 +618,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (isLoading && !financials) {
+  if ((isLoading || projectsLoading) && !financials && !financialError && !projectsError) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-pulse p-2">
         <div className="col-span-full text-center mb-4">

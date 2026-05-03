@@ -212,11 +212,18 @@ class SchedulerService:
         self, project_id: str, organisation_id: str, task_id: str, user_id: str = None
     ) -> Dict[str, Any]:
         """Permanently remove a task and update project schedule."""
+        return await self.delete_tasks_bulk(project_id, organisation_id, [task_id], user_id)
+
+    async def delete_tasks_bulk(
+        self, project_id: str, organisation_id: str, task_ids: List[str], user_id: str = None
+    ) -> Dict[str, Any]:
+        """Permanently remove multiple tasks and update project schedule."""
         schedule = await self.load_schedule(project_id, organisation_id)
         if not schedule or "tasks" not in schedule:
             raise ValidationError("Schedule not found")
 
         original_count = len(schedule["tasks"])
+        ids_to_delete = set(task_ids)
 
         # Capture before-state snapshot for undo
         if self.undo_redo_service and user_id:
@@ -224,15 +231,17 @@ class SchedulerService:
                 project_id=project_id,
                 org_id=organisation_id,
                 user_id=user_id,
-                change_type="DELETE_TASK",
-                summary=f"Task {task_id} deleted",
+                change_type="DELETE_TASKS_BULK",
+                summary=f"Deleted {len(ids_to_delete)} tasks",
                 tasks=schedule.get("tasks", []),
             )
 
-        schedule["tasks"] = [t for t in schedule["tasks"] if t.get("task_id") != task_id]
+        # Filter out tasks to delete
+        schedule["tasks"] = [t for t in schedule["tasks"] if str(t.get("task_id")) not in ids_to_delete]
 
-        if len(schedule["tasks"]) == original_count:
-            return {"message": "Task not found in schedule", "count": original_count}
+        deleted_count = original_count - len(schedule["tasks"])
+        if deleted_count == 0:
+            return {"message": "No tasks found to delete", "count": 0}
 
         await self.collection.update_one(
             {"project_id": project_id, "organisation_id": organisation_id},
@@ -243,7 +252,7 @@ class SchedulerService:
                 }
             }
         )
-        return {"message": "Task deleted successfully", "count": len(schedule["tasks"])}
+        return {"message": "Tasks deleted successfully", "count": deleted_count}
 
     async def load_schedule(
         self, project_id: str, organisation_id: str
@@ -277,10 +286,46 @@ class SchedulerService:
                 }
 
             serialized = serialize_doc(schedule)
-            # Normalize task_id to string (seed data uses integers; frontend expects strings)
-            for task in serialized.get("tasks", []):
+            tasks = serialized.get("tasks", [])
+
+            # 1. Collect all unique assignee_ids
+            all_assignee_ids = set()
+            for task in tasks:
+                if task.get("assignee_ids"):
+                    all_assignee_ids.update([str(aid) for aid in task["assignee_ids"]])
+
+            # 2. Fetch user details (name/initials)
+            user_map = {}
+            if all_assignee_ids:
+                from bson import ObjectId
+                # Handle both string and ObjectId
+                id_query = []
+                for aid in all_assignee_ids:
+                    id_query.append(aid)
+                    if ObjectId.is_valid(aid):
+                        id_query.append(ObjectId(aid))
+
+                users_cursor = self.db.users.find({"_id": {"$in": id_query}}, {"full_name": 1, "email": 1})
+                async for u in users_cursor:
+                    uid = str(u["_id"])
+                    user_map[uid] = {
+                        "name": u.get("full_name") or u.get("email", "Unknown"),
+                        "initial": (u.get("full_name") or "U")[0].upper() if u.get("full_name") else "?"
+                    }
+
+            # 3. Normalize and enrich tasks
+            for task in tasks:
+                # Normalize task_id to string (seed data uses integers; frontend expects strings)
                 if "task_id" in task and not isinstance(task["task_id"], str):
                     task["task_id"] = str(task["task_id"])
+
+                # Enrich assignees
+                if task.get("assignee_ids"):
+                    task["assignee_details"] = [
+                        user_map.get(str(aid), {"name": str(aid), "initial": "?"})
+                        for aid in task["assignee_ids"]
+                    ]
+
                 # Normalize predecessor task_ids too
                 for pred in task.get("predecessors", []) or []:
                     if isinstance(pred, dict) and "task_id" in pred and not isinstance(pred["task_id"], str):

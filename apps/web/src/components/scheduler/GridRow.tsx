@@ -87,41 +87,60 @@ const GridRow = memo(function GridRow({
           <span className="w-4" />
         )}
         {readOnly ? (
-          <span className="truncate font-semibold text-slate-900 dark:text-white">{task.task_name}</span>
+          <span className={`truncate font-semibold ${task.is_critical ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"}`}>
+            {task.task_name}
+          </span>
         ) : (
-          <EditableCell
-            value={task.task_name}
-            onCommit={(nextValue) => {
-              if (typeof nextValue !== "string") return;
-              const clean = stripHtmlTags(nextValue);
-              if (!clean) {
-                toast.error("Task description cannot be empty.");
-                return;
-              }
-              onEdit(task.task_id, { task_name: clean });
-            }}
-          />
+          <div className="flex-1 flex items-center gap-2">
+            <EditableCell
+              value={task.task_name}
+              onCommit={(nextValue) => {
+                if (typeof nextValue !== "string") return;
+                const clean = stripHtmlTags(nextValue);
+                if (!clean) {
+                  toast.error("Task description cannot be empty.");
+                  return;
+                }
+                onEdit(task.task_id, { task_name: clean });
+              }}
+              className={task.is_critical ? "text-rose-600 dark:text-rose-400" : ""}
+            />
+            {task.is_critical && (
+              <span 
+                className="flex items-center justify-center w-4 h-4 rounded-full bg-rose-500/10 text-rose-500"
+                title="Critical Path: Delaying this task will delay the project finish."
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17.66 11.2c-.23-.3-.51-.56-.77-.82-.67-.6-1.43-1.03-2.07-1.66C13.33 7.26 13 4.85 13.95 3c-.95.23-1.78.75-2.49 1.32-2.59 2.08-3.61 5.75-2.39 8.9.04.1.08.2.08.33 0 .22-.15.42-.35.5-.23.1-.47.04-.64-.12-.06-.05-.1-.1-.15-.17-1.1-1.43-1.39-3.41-1.12-5.18-2.14 1.44-3.14 4.14-2.56 6.63.14.6.37 1.18.66 1.72.71 1.33 1.84 2.41 3.24 2.99 1.5.6 3.14.6 4.7.2 2.3-.6 4.11-2.4 4.71-4.72.08-.36.15-.72.15-1.08 0-1-.31-1.91-.85-2.71zm-4.46 6.8c-.8.15-1.6.03-2.3-.33-.77-.39-1.29-1.06-1.52-1.86-.06-.2-.06-.41 0-.6.1-.25.32-.42.56-.47.24-.04.48.06.63.26.24.3.56.53.93.65.13.04.27.06.4.06.51 0 .97-.24 1.25-.65.26-.39.31-.88.13-1.33-.02-.05-.05-.1-.08-.14-.42-.51-1.03-.84-1.16-1.53-.13-.7.2-1.33.64-1.84.14.33.43.59.78.69.25.07.5.04.71-.08.22-.13.36-.35.39-.59.03-.24-.07-.47-.25-.62-.1-.08-.18-.16-.25-.26.22.1.42.22.61.37.7.53 1.14 1.4 1.07 2.3-.04.47-.2.9-.45 1.27-.45.68-.43 1.5.02 2.16.4.58.5 1.31.2 2 .16-.13.3-.28.43-.43.14.57.06 1.18-.24 1.68-.42.7-1.18 1.13-2 1.22z"/></svg>
+              </span>
+            )}
+          </div>
         )}
         
-        {/* Assignee Initials (REQ-010) */}
-        {task.assignee_ids && task.assignee_ids.length > 0 && (
+        {/* Assignee Details (REQ-010) */}
+        {task.assignee_details && task.assignee_details.length > 0 ? (
           <div className="flex -space-x-1 ml-auto">
-            {task.assignee_ids.slice(0, 3).map((id) => (
+            {task.assignee_details.slice(0, 3).map((u: any, idx: number) => (
               <div 
-                key={id}
-                className="w-4 h-4 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center border border-white dark:border-slate-900 shadow-sm"
-                title={`Assignee ID: ${id}`}
+                key={idx}
+                className="w-4 h-4 rounded-full bg-sky-100 dark:bg-sky-500/20 flex items-center justify-center border border-white dark:border-slate-900 shadow-sm"
+                title={u.name}
               >
-                <span className="text-[8px] font-black text-slate-600 dark:text-slate-400">
-                  {id.substring(0, 1).toUpperCase()}
+                <span className="text-[8px] font-black text-sky-700 dark:text-sky-300">
+                  {u.initial}
                 </span>
               </div>
             ))}
-            {task.assignee_ids.length > 3 && (
+            {task.assignee_details.length > 3 && (
               <div className="w-4 h-4 rounded-full bg-slate-300 dark:bg-white/20 flex items-center justify-center border border-white dark:border-slate-900">
-                <span className="text-[7px] font-black text-slate-600">+{task.assignee_ids.length - 3}</span>
+                <span className="text-[7px] font-black text-slate-600">+{task.assignee_details.length - 3}</span>
               </div>
             )}
+          </div>
+        ) : task.assignee_ids && task.assignee_ids.length > 0 && (
+          <div className="flex -space-x-1 ml-auto opacity-50">
+             <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center border border-white dark:border-slate-900">
+               <span className="text-[8px] font-black text-slate-500">?</span>
+             </div>
           </div>
         )}
       </div>

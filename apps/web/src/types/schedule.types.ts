@@ -51,6 +51,12 @@ export type SchedulePredecessor = {
   strength?: "hard" | "soft";
 };
 
+export type AssigneeDetail = {
+  id: string;
+  name: string;
+  initial: string;
+};
+
 export type ScheduleTask = {
   task_id: string;
   project_id: string;
@@ -77,6 +83,7 @@ export type ScheduleTask = {
   percent_complete?: number;
   assigned_resources?: string[];
   assignee_ids?: string[];
+  assignee_details?: AssigneeDetail[];
   heads?: number;
   is_milestone?: boolean;
   predecessors?: SchedulePredecessor[];
@@ -246,6 +253,7 @@ export interface ScheduleStoreState {
   queueCalculation: (payload: ScheduleChangeRequest) => void;
   createDraftTask: (projectId: string, initialChanges?: Partial<ScheduleTask>) => ScheduleTask;
   removeTask: (taskId: string) => Promise<void>;
+  removeTasksBulk: (taskIds: string[]) => Promise<void>;
   openTaskModal: (taskId: string | null) => void;
   setTaskModalOpen: (open: boolean) => void;
   rollbackToUndo: () => void;

@@ -354,6 +354,24 @@ async def delete_task(
 
 
 @router.post(
+    "/projects/{project_id}/tasks/bulk-delete",
+    response_model=GenericResponse[dict],
+    tags=["Scheduler"],
+)
+async def delete_tasks_bulk(
+    project_id: str,
+    task_ids: List[str],
+    user: dict = Depends(get_authenticated_user),
+    service: SchedulerService = Depends(get_scheduler_service),
+):
+    """Permanently remove multiple tasks from the project schedule."""
+    result = await service.delete_tasks_bulk(
+        project_id, user["organisation_id"], task_ids, user["user_id"]
+    )
+    return GenericResponse(data=result, message=f"Successfully deleted {result['count']} tasks")
+
+
+@router.post(
     "/projects/{project_id}/save-schedule",
     response_model=GenericResponse[dict],
     tags=["Scheduler"],

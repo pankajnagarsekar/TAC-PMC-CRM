@@ -461,45 +461,52 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     removeTask: async (taskId) => {
       const task = get().taskMap[taskId];
       if (!task) return;
+      await get().removeTasksBulk([taskId]);
+    },
+
+    removeTasksBulk: async (taskIds: string[]) => {
+      if (!taskIds || taskIds.length === 0) return;
+      
+      const firstId = taskIds[0];
+      const task = get().taskMap[firstId];
+      if (!task) return;
 
       const projectId = task.project_id;
+      const idsToDelete = new Set(taskIds);
 
       // Optimistic removal
       set((state) => {
         const nextTaskMap = { ...state.taskMap };
-        delete nextTaskMap[taskId];
+        taskIds.forEach((id: string) => delete nextTaskMap[id]);
+        
         const nextGraph: typeof state.dependencyGraph = {};
         Object.entries(state.dependencyGraph).forEach(([id, node]) => {
-          if (id === taskId) return;
+          if (idsToDelete.has(id)) return;
           nextGraph[id] = {
-            predecessors: node.predecessors.filter((pred) => pred !== taskId),
-            successors: node.successors.filter((succ) => succ !== taskId),
+            predecessors: node.predecessors.filter((pred) => !idsToDelete.has(pred)),
+            successors: node.successors.filter((succ) => !idsToDelete.has(succ)),
           };
         });
 
+        const nextSelectedTasks = new Set(state.selectedTasks);
+        taskIds.forEach((id: string) => nextSelectedTasks.delete(id));
+
         return {
           taskMap: nextTaskMap,
-          taskOrder: state.taskOrder.filter((id) => id !== taskId),
+          taskOrder: state.taskOrder.filter((id) => !idsToDelete.has(id)),
           dependencyGraph: nextGraph,
-          selectedTasks: new Set([...state.selectedTasks].filter((id) => id !== taskId)),
+          selectedTasks: nextSelectedTasks,
         };
       });
 
       try {
-        await schedulerApi.deleteTask(projectId, taskId);
-        toast.success("Task deleted permanently.");
+        await schedulerApi.deleteTasksBulk(projectId, taskIds);
+        toast.success(`Deleted ${taskIds.length} tasks.`);
 
-        // Trigger a recalculation of the remaining schedule to fix dependencies
+        // Trigger a recalculation of the remaining schedule
         const { taskMap } = get();
         const tasks = Object.values(taskMap);
-        if (tasks.length === 0) return;
-        try {
-          await schedulerApi.save(tasks[0].project_id, tasks, tasks[0].project_scheduled_start || "", 0);
-          toast.success("Schedule committed to database.");
-        } catch (e) {
-          console.error("Failed to commit schedule after delete", e);
-        }
-
+        
         get().queueCalculation({
           project_id: projectId,
           task_id: tasks[0]?.task_id || "resync",
@@ -508,10 +515,10 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
           trigger_source: "task_delete"
         });
       } catch (err) {
-        console.error("Failed to delete task:", err);
-        toast.error("Failed to delete task from server. Reverting local change.");
-        // We should ideally reload the schedule here
-        const currentProject = get().taskMap[Object.keys(get().taskMap)[0]]?.project_id;
+        console.error("Failed to delete tasks:", err);
+        toast.error("Failed to delete tasks from server. Reverting local change.");
+        // Reload the schedule
+        const currentProject = get().loadedProjectId;
         if (currentProject) {
           const data = await schedulerApi.load(currentProject);
           get().loadSchedule(data);

@@ -149,14 +149,32 @@ class VendorUpdate(BaseModel):
     active_status: Optional[bool] = None
     expected_version: int
 
-    @field_validator("name", mode="before")
+    @field_validator("name", "contact_person", "address", mode="before")
     @classmethod
-    def sanitize_name(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_fields(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
-        v = re.sub(r"<[^>]+>", "", str(v)).strip()
-        if not v:
-            raise ValueError("Vendor name cannot be empty")
+        v = str(v).strip()
+        # Strip potential tags and escape
+        v = re.sub(r"<[^>]+>", "", v)
+        return html.escape(v) if v else v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().lower()
+            if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", v):
+                raise ValueError("Invalid email format")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = re.sub(r"[^\d+]", "", v)
+            if len(v) < 5:
+                raise ValueError("Phone number too short")
         return v
 
     @field_validator("gstin")

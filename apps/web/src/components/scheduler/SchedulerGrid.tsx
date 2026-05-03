@@ -25,6 +25,7 @@ export default function SchedulerGrid() {
   const setSelectedTask = useScheduleStore((state) => state.setSelectedTask);
   const openTaskModal = useScheduleStore((state) => state.openTaskModal);
   const removeTask = useScheduleStore((state) => state.removeTask);
+  const removeTasksBulk = useScheduleStore((state) => state.removeTasksBulk);
   const systemState = useScheduleStore((state) => state.systemState);
   const pendingCalculation = useScheduleStore((state) => state.pendingCalculation);
   const collapsedParents = useScheduleStore((state) => state.collapsedParents);
@@ -126,12 +127,8 @@ export default function SchedulerGrid() {
 
   const confirmBulkDelete = async () => {
     const ids = Array.from(selectedTasks);
-    // Note: Store handles optimistic removal and final calculation resync
-    for (const id of ids) {
-      await removeTask(id);
-    }
+    await removeTasksBulk(ids);
     setIsBulkDeleting(false);
-    toast.success(`Deleted ${ids.length} tasks.`);
   };
 
   const confirmRemove = () => {
@@ -234,25 +231,39 @@ export default function SchedulerGrid() {
               isAllSelected={filteredTasks.length > 0 && selectedTasks.size === filteredTasks.length}
             />
             <div style={{ height: topSpacer }} />
-            {visibleTasks.map((task) => (
-              <GridRow
-                key={task.task_id}
-                task={task}
-                depth={getTaskDepth(task)}
-                isSelected={selectedTasks.has(task.task_id)}
-                isCollapsed={collapsedParents.has(task.task_id)}
-                onToggleCollapse={toggleParentCollapse}
-                readOnly={readOnly}
-                rowHeight={ROW_HEIGHT}
-                columnTemplate={COLUMN_TEMPLATE}
-                onSelect={setSelectedTask}
-                onOpenModal={openTaskModal}
-                onEdit={handleEdit}
-                onStatusChange={handleStatusChange}
-                onToggleSelection={toggleTaskSelection}
-                onRemove={handleRemove}
-              />
-            ))}
+            {visibleTasks.length > 0 ? (
+              visibleTasks.map((task) => (
+                <GridRow
+                  key={task.task_id}
+                  task={task}
+                  depth={getTaskDepth(task)}
+                  isSelected={selectedTasks.has(task.task_id)}
+                  isCollapsed={collapsedParents.has(task.task_id)}
+                  onToggleCollapse={toggleParentCollapse}
+                  readOnly={readOnly}
+                  rowHeight={ROW_HEIGHT}
+                  columnTemplate={COLUMN_TEMPLATE}
+                  onSelect={setSelectedTask}
+                  onOpenModal={openTaskModal}
+                  onEdit={handleEdit}
+                  onStatusChange={handleStatusChange}
+                  onToggleSelection={toggleTaskSelection}
+                  onRemove={handleRemove}
+                />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                  <Activity size={24} className="text-slate-400" />
+                </div>
+                <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white mb-1">
+                  No Tasks Found
+                </h4>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 max-w-[240px]">
+                  Adjust your search or filters to see project schedule items
+                </p>
+              </div>
+            )}
             <div style={{ height: bottomSpacer }} />
           </div>
         </div>
