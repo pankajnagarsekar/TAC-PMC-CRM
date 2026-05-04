@@ -40,11 +40,11 @@ export function TaskDetailModal({
         // Create updated task object with new values
         const updatedTask = {
           ...task,
-          name: taskEditor.editState.name ?? task.name,
+          task_name: taskEditor.editState.task_name ?? task.task_name,
           status: taskEditor.editState.status ?? task.status,
-          duration_days: taskEditor.editState.duration_days ?? task.duration_days,
+          duration: taskEditor.editState.duration ?? task.duration,
         };
-        onSaveSuccess(updatedTask);
+        onSaveSuccess(updatedTask as ScheduleTask);
       }
     }
   };
@@ -74,7 +74,7 @@ export function TaskDetailModal({
             style={[styles.title, { color: colors.text }]}
             numberOfLines={1}
           >
-            {task.name}
+            {task.task_name}
           </Text>
           {task.is_critical && (
             <View style={[styles.criticalBadge, { backgroundColor: CRITICAL_COLOR }]}>
@@ -161,17 +161,17 @@ function TaskDetailView({ task, colors }: { task: ScheduleTask; colors: ThemeCon
     <View>
       <DetailRow label="Task ID" value={task.task_id} colors={colors} />
       <DetailRow label="Status" value={statusLabel} colors={colors} />
-      <DetailRow label="Duration" value={`${task.duration_days} days`} colors={colors} />
-      <DetailRow label="Start Date" value={formatDate(task.start_date)} colors={colors} />
-      <DetailRow label="End Date" value={formatDate(task.end_date)} colors={colors} />
+      <DetailRow label="Duration" value={`${task.duration} days`} colors={colors} />
+      <DetailRow label="Start Date" value={formatDate(task.scheduled_start)} colors={colors} />
+      <DetailRow label="End Date" value={formatDate(task.scheduled_finish)} colors={colors} />
       {task.progress_pct !== undefined && (
         <DetailRow label="Progress" value={`${task.progress_pct}%`} colors={colors} />
       )}
       {!!task.baseline_start && (
         <DetailRow label="Baseline Start" value={formatDate(task.baseline_start)} colors={colors} />
       )}
-      {!!task.baseline_end && (
-        <DetailRow label="Baseline End" value={formatDate(task.baseline_end)} colors={colors} />
+      {!!task.baseline_finish && (
+        <DetailRow label="Baseline End" value={formatDate(task.baseline_finish)} colors={colors} />
       )}
     </View>
   );

@@ -3,11 +3,11 @@
 
 import type { ScheduleTaskStatus } from '../../types/api';
 
-export const ROW_HEIGHT = 40;
-export const DAY_WIDTH_INITIAL = 24;
-export const DAY_WIDTH_MIN = 8;
-export const DAY_WIDTH_MAX = 80;
-export const HEADER_HEIGHT = 44;
+export const ROW_HEIGHT = 48;
+export const DAY_WIDTH_INITIAL = 32;
+export const DAY_WIDTH_MIN = 12;
+export const DAY_WIDTH_MAX = 120;
+export const HEADER_HEIGHT = 50;
 
 // Raw hex fills — react-native-svg needs raw values, not Tailwind classes
 export const STATUS_COLORS: Record<ScheduleTaskStatus, string> = {
@@ -28,3 +28,5 @@ export const STATUS_LABELS: Record<ScheduleTaskStatus, string> = {
 
 export const CRITICAL_COLOR = '#ef4444';
 export const BAR_COLOR_DEFAULT = '#0ea5e9';
+export const GRID_LINE_COLOR = 'rgba(255, 255, 255, 0.05)';
+export const LABEL_COLOR = 'rgba(255, 255, 255, 0.7)';

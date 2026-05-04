@@ -6,15 +6,18 @@ import { useSchedulerData } from '../../hooks/useSchedulerData';
 import type { ScheduleTask } from '../../types/api';
 
 // Mock @shopify/flash-list
-jest.mock('@shopify/flash-list', () => ({
-  FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
-    <View>
-      {data.map((item, index) => (
-        <View key={index}>{renderItem({ item })}</View>
-      ))}
-    </View>
-  ),
-}));
+jest.mock('@shopify/flash-list', () => {
+  const { View } = require('react-native');
+  return {
+    FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
+      <View>
+        {data.map((item, index) => (
+          <View key={index}>{renderItem({ item })}</View>
+        ))}
+      </View>
+    ),
+  };
+});
 
 // Mock expo-router
 jest.mock('expo-router', () => ({
@@ -51,24 +54,30 @@ jest.mock('react-native-reanimated', () => ({
 }));
 
 // Mock scheduler components to avoid internal dependency issues
-jest.mock('../../components/scheduler/SchedulerGantt', () => ({
-  SchedulerGantt: ({ tasks }: { tasks: ScheduleTask[] }) => (
-    <View testID="scheduler-gantt">
-      <Text>Gantt View ({tasks.length} tasks)</Text>
-    </View>
-  ),
-}));
+jest.mock('../../components/scheduler/SchedulerGantt', () => {
+  const { View, Text } = require('react-native');
+  return {
+    SchedulerGantt: ({ tasks }: { tasks: ScheduleTask[] }) => (
+      <View testID="scheduler-gantt">
+        <Text>Gantt View ({tasks.length} tasks)</Text>
+      </View>
+    ),
+  };
+});
 
-jest.mock('../../components/scheduler/SchedulerList', () => ({
-  SchedulerList: ({ tasks }: { tasks: ScheduleTask[] }) => (
-    <View testID="scheduler-list">
-      {tasks.map((t: ScheduleTask) => (
-        <Text key={t.task_id}>{t.name}</Text>
-      ))}
-      {tasks.length === 0 && <Text>No scheduled tasks yet</Text>}
-    </View>
-  ),
-}));
+jest.mock('../../components/scheduler/SchedulerList', () => {
+  const { View, Text } = require('react-native');
+  return {
+    SchedulerList: ({ tasks }: { tasks: ScheduleTask[] }) => (
+      <View testID="scheduler-list">
+        {tasks.map((t: ScheduleTask) => (
+          <Text key={t.task_id}>{t.task_name}</Text>
+        ))}
+        {tasks.length === 0 && <Text>No scheduled tasks yet</Text>}
+      </View>
+    ),
+  };
+});
 
 // Mock contexts
 const mockProject = { project_id: 'p1', project_name: 'Test Project' };
@@ -90,7 +99,14 @@ jest.mock('../../contexts/ProjectContext', () => ({
 
 jest.mock('../../contexts/ThemeContext', () => ({
   useTheme: jest.fn(() => ({
-    colors: mockColors,
+    colors: {
+      ...mockColors,
+      textInverse: '#ffffff',
+    },
+    typography: {
+      heading2: { fontSize: 24, fontWeight: 'bold' },
+      overline: { fontSize: 10, letterSpacing: 1 },
+    },
     isDark: true,
   })),
 }));
@@ -99,19 +115,19 @@ jest.mock('../../contexts/ThemeContext', () => ({
 const mockTasks: ScheduleTask[] = [
   {
     task_id: 't1',
-    name: 'Foundation Work',
-    start_date: '2025-01-01',
-    end_date: '2025-01-15',
-    duration_days: 15,
+    task_name: 'Foundation Work',
+    scheduled_start: '2025-01-01',
+    scheduled_finish: '2025-01-15',
+    duration: 15,
     status: 'in_progress',
     is_critical: true,
   },
   {
     task_id: 't2',
-    name: 'Structural Steel',
-    start_date: '2025-01-16',
-    end_date: '2025-02-10',
-    duration_days: 26,
+    task_name: 'Structural Steel',
+    scheduled_start: '2025-01-16',
+    scheduled_finish: '2025-02-10',
+    duration: 26,
     status: 'not_started',
     is_critical: false,
   },
@@ -157,12 +173,12 @@ describe('SchedulerScreen', () => {
     expect(screen.queryByTestId('scheduler-gantt')).toBeFalsy();
 
     // Press Gantt button
-    fireEvent.press(screen.getByText('Gantt'));
+    fireEvent.press(screen.getByTestId('view-mode-gantt'));
     expect(screen.getByTestId('scheduler-gantt')).toBeTruthy();
     expect(screen.queryByTestId('scheduler-list')).toBeFalsy();
 
     // Press List button
-    fireEvent.press(screen.getByText('List'));
+    fireEvent.press(screen.getByTestId('view-mode-list'));
     expect(screen.getByTestId('scheduler-list')).toBeTruthy();
     expect(screen.queryByTestId('scheduler-gantt')).toBeFalsy();
   });
@@ -194,7 +210,7 @@ describe('SchedulerScreen', () => {
     render(<SchedulerScreen />);
     expect(screen.getByText('Failed to load tasks')).toBeTruthy();
 
-    const retryButton = screen.getByText('Retry');
+    const retryButton = screen.getByTestId('retry-button');
     expect(retryButton).toBeTruthy();
     fireEvent.press(retryButton);
     expect(mockRefetch).toHaveBeenCalledTimes(1);
@@ -209,7 +225,7 @@ describe('SchedulerScreen', () => {
     expect(screen.getByText('Structural Steel')).toBeTruthy();
 
     // Switch to Gantt mode
-    fireEvent.press(screen.getByText('Gantt'));
+    fireEvent.press(screen.getByTestId('view-mode-gantt'));
     expect(screen.getByTestId('scheduler-gantt')).toBeTruthy();
     expect(screen.queryByTestId('scheduler-list')).toBeFalsy();
   });

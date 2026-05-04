@@ -34,6 +34,7 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: scrollX.value }],
+    width: timeline.dayCount * dayWidth.value,
   }));
 
   // Render tick marks every 7 days for clarity at all zoom levels
@@ -56,7 +57,7 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
       ]}
     >
       <Animated.View style={[{ height: HEADER_HEIGHT }, animatedWidthStyle]}>
-        <Svg height={HEADER_HEIGHT}>
+        <Svg height={HEADER_HEIGHT} width="100%">
           {ticks.map(({ dayIndex, label }) => (
             <Tick 
                 key={dayIndex} 

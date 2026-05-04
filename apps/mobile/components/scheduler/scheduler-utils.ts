@@ -52,8 +52,8 @@ export function buildTimelineRange(tasks: ScheduleTask[]): {
 } {
   const dates: Date[] = [];
   for (const task of tasks) {
-    const s = parseTaskDate(task.start_date);
-    const e = parseTaskDate(task.end_date);
+    const s = parseTaskDate(task.scheduled_start);
+    const e = parseTaskDate(task.scheduled_finish);
     if (s) dates.push(s);
     if (e) dates.push(e);
   }
@@ -82,7 +82,7 @@ export function getBarLeft(
   dayWidth: number,
   timelineStart: Date
 ): number {
-  const start = parseTaskDate(task.start_date);
+  const start = parseTaskDate(task.scheduled_start);
   if (!start) return 0;
   return differenceInCalendarDays(start, timelineStart) * dayWidth;
 }
@@ -92,6 +92,6 @@ export function getBarLeft(
  * Minimum 2px so zero-duration tasks remain visible.
  */
 export function getBarWidth(task: ScheduleTask, dayWidth: number): number {
-  const duration = task.duration_days > 0 ? task.duration_days : 1;
-  return Math.max(2, duration * dayWidth);
+  const dur = task.duration > 0 ? task.duration : 1;
+  return Math.max(2, dur * dayWidth);
 }

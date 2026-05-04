@@ -6,9 +6,9 @@ import { schedulerApi } from '../services/apiClient';
 import type { ScheduleTask, ScheduleTaskStatus } from '../types/api';
 
 export interface TaskEditState {
-  name?: string;
+  task_name?: string;
   status?: ScheduleTaskStatus;
-  duration_days?: number;
+  duration?: number;
 }
 
 export interface UseTaskEditResult {
@@ -24,9 +24,9 @@ export interface UseTaskEditResult {
 
 export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
   const [editState, setEditStateInternal] = useState<TaskEditState>({
-    name: task.name,
+    task_name: task.task_name,
     status: task.status,
-    duration_days: task.duration_days,
+    duration: task.duration,
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -36,16 +36,16 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
   const validate = useCallback((): boolean => {
     const errors: Record<string, string> = {};
 
-    if (!editState.name?.trim()) {
-      errors.name = 'Task name is required';
+    if (!editState.task_name?.trim()) {
+      errors.task_name = 'Task name is required';
     }
 
     if (!editState.status) {
       errors.status = 'Status is required';
     }
 
-    if (!editState.duration_days || editState.duration_days <= 0) {
-      errors.duration_days = 'Duration must be greater than 0';
+    if (editState.duration === undefined || editState.duration <= 0) {
+      errors.duration = 'Duration must be greater than 0';
     }
 
     setValidationErrors(errors);
@@ -70,10 +70,10 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
       try {
         const payload: Record<string, unknown> = {};
 
-        // Only include changed fields
-        if (editState.name !== task.name) payload.name = editState.name;
+        // Only include changed fields - match backend expected keys (task_name, status, duration)
+        if (editState.task_name !== task.task_name) payload.task_name = editState.task_name;
         if (editState.status !== task.status) payload.status = editState.status;
-        if (editState.duration_days !== task.duration_days) payload.duration_days = editState.duration_days;
+        if (editState.duration !== task.duration) payload.duration = editState.duration;
 
         if (Object.keys(payload).length === 0) {
           // No changes
@@ -87,9 +87,9 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
         setSaveError(errorMessage);
         // Rollback to original state
         setEditStateInternal({
-          name: task.name,
+          task_name: task.task_name,
           status: task.status,
-          duration_days: task.duration_days,
+          duration: task.duration,
         });
         return false;
       } finally {
@@ -101,9 +101,9 @@ export function useTaskEdit(task: ScheduleTask): UseTaskEditResult {
 
   const reset = useCallback(() => {
     setEditStateInternal({
-      name: task.name,
+      task_name: task.task_name,
       status: task.status,
-      duration_days: task.duration_days,
+      duration: task.duration,
     });
     setValidationErrors({});
     setSaveError(null);

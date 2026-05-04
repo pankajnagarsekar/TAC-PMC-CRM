@@ -18,6 +18,7 @@ import {
   RefreshControl,
   SafeAreaView,
   StatusBar,
+  Platform,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,12 +39,19 @@ import type { CashCategory, CashTransaction } from "../../services/apiClient";
 
 type FundType = "PETTY_CASH" | "OVH";
 
-const formatCurrency = (val: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(val);
+const formatCurrency = (val: number) => {
+  try {
+    const num = typeof val === 'number' ? val : parseFloat(val as any);
+    if (isNaN(num)) return "₹0";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(num);
+  } catch (e) {
+    return "₹0";
+  }
+};
 
 // --------------------------------------------------------
 // SUB-COMPONENTS
@@ -89,9 +97,17 @@ const TransactionRow = React.memo(({ item }: { item: CashTransaction }) => {
   const styles = useMemo(() => getStyles(Colors, Spacing, BorderRadius), [Colors, Spacing, BorderRadius]);
   const isDebit = item.type === "DEBIT";
   const txDate = item.recorded_at || item.transaction_date || item.created_at;
-  const dateStr = txDate
-    ? format(new Date(txDate), "dd MMM, HH:mm")
-    : "—";
+  let dateStr = "—";
+  if (txDate) {
+    try {
+      const d = new Date(txDate);
+      if (!isNaN(d.getTime())) {
+        dateStr = format(d, "dd MMM, HH:mm");
+      }
+    } catch (e) {
+      dateStr = "—";
+    }
+  }
   
   return (
     <View style={[styles.txRow, { borderBottomColor: Colors.border }]}>
@@ -390,7 +406,7 @@ export default function SiteFundsScreen() {
               <View style={[styles.emptyIconCircle, { backgroundColor: Colors.surface, opacity: 0.5 }]}>
                 <Ionicons name="receipt-outline" size={32} color={Colors.textMuted} />
               </View>
-              <Text style={[styles.emptyText, { color: Colors.text, ...Typography.subtitle }]}>
+              <Text style={[styles.emptyTitle, { color: Colors.text, ...Typography.subtitle }]}>
                 No transactions yet
               </Text>
               <Text style={[styles.emptySubtext, { color: Colors.textMuted, ...Typography.body, marginTop: 4 }]}>

@@ -18,7 +18,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { FlashList } from '@shopify/flash-list';
 import type { ScheduleTask } from '../../types/api';
 import { buildTimelineRange } from './scheduler-utils';
-import { DAY_WIDTH_INITIAL, DAY_WIDTH_MIN, DAY_WIDTH_MAX } from './scheduler-constants';
+import { DAY_WIDTH_INITIAL, DAY_WIDTH_MIN, DAY_WIDTH_MAX, ROW_HEIGHT } from './scheduler-constants';
 import { GanttBar } from './GanttBar';
 import { GanttTimelineHeader } from './GanttTimelineHeader';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -57,6 +57,7 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
 
   const bodyAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: scrollX.value }],
+    width: timeline.dayCount * dayWidth.value,
   }));
 
   return (
@@ -79,8 +80,11 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
                 task={item}
                 dayWidth={dayWidth}
                 timelineStart={timeline.start}
+                dayCount={timeline.dayCount}
               />
             )}
+            // @ts-expect-error - estimatedItemSize is required by FlashList but types may be out of sync
+            estimatedItemSize={ROW_HEIGHT}
           />
         </Animated.View>
       </GestureDetector>

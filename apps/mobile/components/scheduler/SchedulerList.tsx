@@ -53,16 +53,16 @@ function TaskRow({
     >
       <View style={styles.rowContent}>
         <Text style={[dynamicStyles.taskName, { color: colors.text }]} numberOfLines={1}>
-          {item.name}
+          {item.task_name}
         </Text>
         <View style={styles.metaRow}>
           <View style={[styles.statusChip, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
           </View>
           <Text style={dynamicStyles.dateRange}>
-            {formatDate(item.start_date)} → {formatDate(item.end_date)}
+            {formatDate(item.scheduled_start)} → {formatDate(item.scheduled_finish)}
           </Text>
-          <Text style={dynamicStyles.duration}>{item.duration_days}d</Text>
+          <Text style={dynamicStyles.duration}>{item.duration}d</Text>
         </View>
       </View>
     </Pressable>
@@ -86,6 +86,8 @@ export function SchedulerList({ tasks }: SchedulerListProps) {
       data={tasks}
       keyExtractor={(item) => item.task_id}
       renderItem={({ item }) => <TaskRow item={item} colors={colors} dynamicStyles={dynamicStyles} />}
+      // @ts-expect-error - estimatedItemSize is required by FlashList but types may be out of sync
+      estimatedItemSize={72}
     />
   );
 }

@@ -9,9 +9,9 @@ import { useTheme, ThemeContextType } from '../../contexts/ThemeContext';
 import { STATUS_LABELS } from './scheduler-constants';
 
 interface TaskEditState {
-  name?: string;
+  task_name?: string;
   status?: ScheduleTaskStatus;
-  duration_days?: number;
+  duration?: number;
 }
 
 interface TaskFormProps {
@@ -41,13 +41,13 @@ export function TaskForm({
   return (
     <View style={styles.form}>
       {/* Task Name */}
-      <FormField label="Task Name" error={validationErrors.name} colors={colors}>
+      <FormField label="Task Name" error={validationErrors.task_name} colors={colors}>
         <TextInput
-          style={[styles.input, dynamicStyles.input, validationErrors.name && styles.inputError]}
+          style={[styles.input, dynamicStyles.input, validationErrors.task_name && styles.inputError]}
           placeholder="Enter task name"
           placeholderTextColor={colors.textMuted}
-          value={editState.name ?? task.name}
-          onChangeText={(value) => onEditStateChange({ name: value })}
+          value={editState.task_name ?? task.task_name}
+          onChangeText={(value) => onEditStateChange({ task_name: value })}
           editable
         />
       </FormField>
@@ -74,15 +74,15 @@ export function TaskForm({
       {/* Duration */}
       <FormField
         label="Duration (days)"
-        error={validationErrors.duration_days}
+        error={validationErrors.duration}
         colors={colors}
       >
         <TextInput
-          style={[styles.input, dynamicStyles.input, validationErrors.duration_days && styles.inputError]}
+          style={[styles.input, dynamicStyles.input, validationErrors.duration && styles.inputError]}
           placeholder="Enter duration in days"
           placeholderTextColor={colors.textMuted}
-          value={String(editState.duration_days ?? task.duration_days)}
-          onChangeText={(value) => onEditStateChange({ duration_days: parseInt(value, 10) || 0 })}
+          value={String(editState.duration ?? task.duration)}
+          onChangeText={(value) => onEditStateChange({ duration: parseInt(value, 10) || 0 })}
           keyboardType="number-pad"
           editable
         />

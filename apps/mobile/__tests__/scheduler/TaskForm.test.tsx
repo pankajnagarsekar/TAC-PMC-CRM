@@ -17,10 +17,10 @@ jest.mock('../../contexts/ThemeContext', () => ({
 
 const mockTask: ScheduleTask = {
   task_id: 't1',
-  name: 'Foundation Work',
-  start_date: '2025-01-01',
-  end_date: '2025-01-15',
-  duration_days: 15,
+  task_name: 'Foundation Work',
+  scheduled_start: '2025-01-01',
+  scheduled_finish: '2025-01-15',
+  duration: 15,
   status: 'in_progress',
   is_critical: true,
 };
@@ -32,9 +32,9 @@ describe('TaskForm', () => {
       <TaskForm
         task={mockTask}
         editState={{
-          name: mockTask.name,
+          task_name: mockTask.task_name,
           status: mockTask.status,
-          duration_days: mockTask.duration_days,
+          duration: mockTask.duration,
         }}
         validationErrors={{}}
         onEditStateChange={mockOnChange}
@@ -50,7 +50,7 @@ describe('TaskForm', () => {
     render(
       <TaskForm
         task={mockTask}
-        editState={{ name: mockTask.name, status: mockTask.status, duration_days: mockTask.duration_days }}
+        editState={{ task_name: mockTask.task_name, status: mockTask.status, duration: mockTask.duration }}
         validationErrors={{}}
         onEditStateChange={mockOnChange}
       />
@@ -59,17 +59,17 @@ describe('TaskForm', () => {
     const nameInput = screen.getByDisplayValue('Foundation Work');
     fireEvent.changeText(nameInput, 'Updated Name');
 
-    expect(mockOnChange).toHaveBeenCalledWith({ name: 'Updated Name' });
+    expect(mockOnChange).toHaveBeenCalledWith({ task_name: 'Updated Name' });
   });
 
   it('displays validation errors', () => {
     render(
       <TaskForm
         task={mockTask}
-        editState={{ name: '', status: mockTask.status, duration_days: 0 }}
+        editState={{ task_name: '', status: mockTask.status, duration: 0 }}
         validationErrors={{
-          name: 'Task name is required',
-          duration_days: 'Duration must be greater than 0',
+          task_name: 'Task name is required',
+          duration: 'Duration must be greater than 0',
         }}
         onEditStateChange={jest.fn()}
       />
@@ -84,7 +84,7 @@ describe('TaskForm', () => {
     render(
       <TaskForm
         task={mockTask}
-        editState={{ name: mockTask.name, status: mockTask.status, duration_days: mockTask.duration_days }}
+        editState={{ task_name: mockTask.task_name, status: mockTask.status, duration: mockTask.duration }}
         validationErrors={{}}
         onEditStateChange={mockOnChange}
       />
@@ -93,6 +93,6 @@ describe('TaskForm', () => {
     const durationInput = screen.getByDisplayValue('15');
     fireEvent.changeText(durationInput, '20');
 
-    expect(mockOnChange).toHaveBeenCalledWith({ duration_days: 20 });
+    expect(mockOnChange).toHaveBeenCalledWith({ duration: 20 });
   });
 });

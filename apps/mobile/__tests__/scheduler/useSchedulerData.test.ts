@@ -14,10 +14,10 @@ const mockLoadSchedule = schedulerApi.loadSchedule as jest.Mock;
 const mockTasks: ScheduleTask[] = [
   {
     task_id: 't1',
-    name: 'Foundation',
-    start_date: '2025-01-01',
-    end_date: '2025-01-15',
-    duration_days: 15,
+    task_name: 'Foundation',
+    scheduled_start: '2025-01-01',
+    scheduled_finish: '2025-01-15',
+    duration: 15,
     status: 'not_started',
     is_critical: true,
   },
@@ -45,7 +45,7 @@ describe('useSchedulerData', () => {
     });
 
     expect(result.current.tasks).toHaveLength(1);
-    expect(result.current.tasks[0].name).toBe('Foundation');
+    expect(result.current.tasks[0].task_name).toBe('Foundation');
     expect(result.current.error).toBeNull();
     expect(result.current.projectStart).toBe('2025-01-01');
   });

@@ -38,7 +38,7 @@ class ErrorBoundary extends Component<{ children: ReactNode; colors: any }, { ha
         </View>
       );
     }
-    return this.children;
+    return this.props.children;
   }
 }
 
@@ -74,6 +74,7 @@ function SchedulerScreen() {
           {/* Premium View Switcher */}
           <View style={[styles.segmentControl, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
             <Pressable
+              testID="view-mode-list"
               style={[
                 styles.segment,
                 viewMode === 'list' && { backgroundColor: Colors.primary },
@@ -87,6 +88,7 @@ function SchedulerScreen() {
               />
             </Pressable>
             <Pressable
+              testID="view-mode-gantt"
               style={[
                 styles.segment,
                 viewMode === 'gantt' && { backgroundColor: Colors.primary },
@@ -116,6 +118,7 @@ function SchedulerScreen() {
                 {error}
                 </Text>
                 <Pressable
+                testID="retry-button"
                 style={[styles.retryButton, { borderColor: Colors.primary }]}
                 onPress={refetch}
                 >

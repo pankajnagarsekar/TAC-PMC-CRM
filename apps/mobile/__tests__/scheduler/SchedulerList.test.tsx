@@ -6,41 +6,44 @@ import { ThemeProvider } from '../../contexts/ThemeContext';
 import type { ScheduleTask } from '../../types/api';
 
 // Mock @shopify/flash-list to render children as a plain View to avoid native measurement
-jest.mock('@shopify/flash-list', () => ({
-  FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
-    <View>
-      {data.map((item, index) => (
-        <View key={index}>{renderItem({ item })}</View>
-      ))}
-    </View>
-  ),
-}));
+jest.mock('@shopify/flash-list', () => {
+  const { View } = require('react-native');
+  return {
+    FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
+      <View>
+        {data.map((item, index) => (
+          <View key={index}>{renderItem({ item })}</View>
+        ))}
+      </View>
+    ),
+  };
+});
 
 const fixture3: ScheduleTask[] = [
   {
     task_id: 't1',
-    name: 'Foundation Work',
-    start_date: '2025-01-01',
-    end_date: '2025-01-15',
-    duration_days: 15,
+    task_name: 'Foundation Work',
+    scheduled_start: '2025-01-01',
+    scheduled_finish: '2025-01-15',
+    duration: 15,
     status: 'in_progress',
     is_critical: true,
   },
   {
     task_id: 't2',
-    name: 'Structural Steel',
-    start_date: '2025-01-16',
-    end_date: '2025-02-10',
-    duration_days: 26,
+    task_name: 'Structural Steel',
+    scheduled_start: '2025-01-16',
+    scheduled_finish: '2025-02-10',
+    duration: 26,
     status: 'not_started',
     is_critical: false,
   },
   {
     task_id: 't3',
-    name: 'Roof Tiling',
-    start_date: '2025-02-11',
-    end_date: '2025-02-28',
-    duration_days: 18,
+    task_name: 'Roof Tiling',
+    scheduled_start: '2025-02-11',
+    scheduled_finish: '2025-02-28',
+    duration: 18,
     status: 'not_started',
     is_critical: false,
   },

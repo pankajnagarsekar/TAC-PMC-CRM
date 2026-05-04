@@ -3,10 +3,10 @@ import type { ScheduleTask } from '../../types/api';
 
 const makeTask = (overrides: Partial<ScheduleTask>): ScheduleTask => ({
   task_id: 't1',
-  name: 'Task 1',
-  start_date: '2025-01-01',
-  end_date: '2025-01-10',
-  duration_days: 10,
+  task_name: 'Task 1',
+  scheduled_start: '2025-01-01',
+  scheduled_finish: '2025-01-10',
+  duration: 10,
   status: 'not_started',
   is_critical: false,
   ...overrides,
@@ -43,9 +43,9 @@ describe('parseTaskDate', () => {
 describe('buildTimelineRange', () => {
   it('returns correct dayCount for 3-task fixture', () => {
     const tasks: ScheduleTask[] = [
-      makeTask({ start_date: '2025-01-01', end_date: '2025-01-10', duration_days: 10 }),
-      makeTask({ task_id: 't2', start_date: '2025-01-05', end_date: '2025-01-20', duration_days: 16 }),
-      makeTask({ task_id: 't3', start_date: '2025-01-15', end_date: '2025-02-01', duration_days: 18 }),
+      makeTask({ scheduled_start: '2025-01-01', scheduled_finish: '2025-01-10', duration: 10 }),
+      makeTask({ task_id: 't2', scheduled_start: '2025-01-05', scheduled_finish: '2025-01-20', duration: 16 }),
+      makeTask({ task_id: 't3', scheduled_start: '2025-01-15', scheduled_finish: '2025-02-01', duration: 18 }),
     ];
     const { start, end, dayCount } = buildTimelineRange(tasks);
     // start = 2025-01-01 - 7 days = 2024-12-25
@@ -65,27 +65,27 @@ describe('buildTimelineRange', () => {
 describe('getBarLeft', () => {
   it('returns 0 when task starts at timelineStart', () => {
     const timelineStart = new Date('2025-01-01');
-    const task = makeTask({ start_date: '2025-01-01' });
+    const task = makeTask({ scheduled_start: '2025-01-01' });
     expect(getBarLeft(task, 24, timelineStart)).toBe(0);
   });
 
   it('returns dayWidth * offset for later start', () => {
     const timelineStart = new Date('2025-01-01');
-    const task = makeTask({ start_date: '2025-01-11' });
+    const task = makeTask({ scheduled_start: '2025-01-11' });
     // 10 days offset * 24px = 240
     expect(getBarLeft(task, 24, timelineStart)).toBe(240);
   });
 });
 
 describe('getBarWidth', () => {
-  it('returns duration_days * dayWidth', () => {
-    const task = makeTask({ duration_days: 5 });
+  it('returns duration * dayWidth', () => {
+    const task = makeTask({ duration: 5 });
     expect(getBarWidth(task, 24)).toBe(120);
   });
 
   it('returns minimum 2px for zero-duration tasks', () => {
-    const task = makeTask({ duration_days: 0 });
-    // duration_days 0 → uses 1 (minimum), 1 * 1 = 1, but Math.max(2, 1) = 2
+    const task = makeTask({ duration: 0 });
+    // duration 0 → uses 1 (minimum), 1 * 1 = 1, but Math.max(2, 1) = 2
     expect(getBarWidth(task, 1)).toBe(2);
   });
 });
