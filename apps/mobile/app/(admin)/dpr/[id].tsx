@@ -414,8 +414,18 @@ export default function DPRDetailScreen() {
 
         {/* Project Info */}
         <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Project</Text>
           <Text style={styles.projectName}>{dpr.project_name || 'Unknown Project'}</Text>
+          
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Text style={styles.cardTitle}>Created By</Text>
+              <Text style={styles.infoValue}>{dpr.created_by_name || 'Unknown'}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.cardTitle}>Weather</Text>
+              <Text style={styles.infoValue}>{dpr.weather_conditions || 'Normal'}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Progress Notes Section */}
@@ -491,7 +501,7 @@ export default function DPRDetailScreen() {
               return (
                 <View key={logId} style={styles.workerLogCard}>
                   <View style={styles.workerLogHeader}>
-                    <View>
+                    <View style={styles.workerLogHeaderInfo}>
                       <Text style={styles.workerLogSupervisor}>
                         <Ionicons name="person" size={14} color={Colors.accent} /> {log.supervisor_name || 'Supervisor'}
                       </Text>
@@ -757,8 +767,11 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
   statusText: { fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' },
   infoCard: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md, borderLeftWidth: 4, borderLeftColor: Colors.primary },
-  cardTitle: { fontSize: FontSizes.sm, color: Colors.textMuted, marginBottom: 4 },
-  projectName: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text },
+  cardTitle: { fontSize: FontSizes.xs, color: Colors.textMuted, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  projectName: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, marginBottom: Spacing.sm },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: Colors.border + '50', paddingTop: Spacing.sm },
+  infoItem: { flex: 1 },
+  infoValue: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.textSecondary },
   section: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   sectionTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text },
@@ -777,6 +790,7 @@ const styles = StyleSheet.create({
   emptyWorkerLog: { alignItems: 'center', paddingVertical: Spacing.lg, gap: Spacing.sm },
   workerLogCard: { backgroundColor: Colors.background, borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   workerLogHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: Spacing.sm, marginBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  workerLogHeaderInfo: { flex: 1 },
   workerLogSupervisor: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text },
   workerLogMeta: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 2 },
   gridHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: Spacing.xs, borderBottomWidth: 1, borderBottomColor: Colors.border },

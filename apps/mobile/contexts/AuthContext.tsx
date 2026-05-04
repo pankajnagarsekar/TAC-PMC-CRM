@@ -2,7 +2,7 @@
 // Provides authentication state and methods throughout the app
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { authApi } from '../services/apiClient';
+import { authApi, baseApiClient } from '../services/apiClient';
 import { User, LoginRequest } from '../types/api';
 
 interface AuthState {
@@ -85,6 +85,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Check for existing session on mount
   useEffect(() => {
     checkAuthStatus();
+
+    // Listen for session invalidation from API client (BUG-20)
+    baseApiClient.onSessionInvalidated = () => {
+      if (__DEV__) console.log('[Auth] Session invalidated by API client — resetting state');
+      setState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+      });
+    };
+
+    return () => {
+      baseApiClient.onSessionInvalidated = null;
+    };
   }, [checkAuthStatus]);
 
   const login = useCallback(async (credentials: LoginRequest): Promise<User> => {

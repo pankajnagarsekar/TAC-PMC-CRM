@@ -52,11 +52,20 @@ export default function WorkerLogScreen() {
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState('');
 
+  // Redirect if no project selected
+  useEffect(() => {
+    if (!selectedProject) {
+      router.replace({
+        pathname: '/(supervisor)/select-project',
+        params: { redirect: '/(supervisor)/worker-log' }
+      });
+    }
+  }, [selectedProject, router]);
+
   // Load vendors
   useEffect(() => {
-    loadVendors();
-
-  }, []);
+    if (selectedProject) loadVendors();
+  }, [selectedProject]);
 
   const loadVendors = async () => {
     try {

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { projectsApi } from '../../services/apiClient';
@@ -57,9 +57,15 @@ export default function ProjectSelectionScreen() {
     }
   };
 
+  const { redirect } = useLocalSearchParams<{ redirect: string }>();
+
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
-    router.replace('/(supervisor)/dashboard');
+    if (redirect) {
+      router.replace(redirect as any);
+    } else {
+      router.replace('/(supervisor)/dashboard');
+    }
   };
 
   const renderProject = ({ item }: { item: Project }) => (

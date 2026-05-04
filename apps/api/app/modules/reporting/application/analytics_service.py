@@ -5,7 +5,7 @@ Provides schedule health, resource utilization, financial summary, and timeline 
 
 import logging
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -234,9 +234,14 @@ class AnalyticsService:
                     continue
 
             # Count tasks at risk (slack < 5 days)
-            slack = task.get("slack") or task.get("free_slack") or 0
-            if slack and Decimal(str(slack)) < Decimal("5"):
-                tasks_at_risk += 1
+            try:
+                slack_val = task.get("slack") or task.get("free_slack") or 0
+                if slack_val is not None and Decimal(str(slack_val)) < Decimal("5"):
+                    tasks_at_risk += 1
+            except (ValueError, TypeError, InvalidOperation):
+                # If slack is missing or invalid, consider at risk if it's on critical path
+                if task.get("is_critical"):
+                    tasks_at_risk += 1
 
             # Track critical path
             if task.get("is_critical") or task.get("isCritical"):
@@ -399,6 +404,15 @@ class AnalyticsService:
             if agg:
                 data.budget_total = FinancialEngine.to_decimal(agg[0].get("budget"))
                 data.budget_spent = FinancialEngine.to_decimal(agg[0].get("spent"))
+            else:
+                # Secondary Fallback: Check project_category_budgets directly
+                budget_cursor = self.db.project_category_budgets.aggregate([
+                    {"$match": {"project_id": project_id}},
+                    {"$group": {"_id": None, "total": {"$sum": "$original_budget"}}}
+                ])
+                budget_agg = await budget_cursor.to_list(1)
+                if budget_agg:
+                    data.budget_total = FinancialEngine.to_decimal(budget_agg[0].get("total"))
         else:
             data.budget_total = FinancialEngine.to_decimal(
                 master_state.get("original_budget")
@@ -499,8 +513,11 @@ class AnalyticsService:
         data.planned_value = float(pv)
         data.earned_value = float(ev)
         data.actual_cost = float(ac)
+
+        # Clamp metrics to ensure valid dashboard rendering (BUG-01)
         data.cpi = min(10.0, max(0.0, float(ev / ac))) if ac > 0 else 1.0
-        data.spi = float(ev / pv) if pv > 0 else 1.0
+        data.spi = min(10.0, max(0.0, float(ev / pv))) if pv > 0 else 1.0
+
         data.cost_variance = float(ev - ac)
         data.schedule_variance = float(ev - pv)
 

@@ -308,7 +308,8 @@ class CashService:
             # LOGIC-STABILIZATION: Only log a warning, don't raise ValidationError.
             if txn_type == "DEBIT" and amount > current_cash:
                 logger.warning(
-                    f"INSUFFICIENT_FUNDS: {category_id} has {current_cash}, but transaction is for {amount}. Proceeding with negative balance."
+                    f"INSUFFICIENT_FUNDS: {category_id} has {current_cash}, "
+                    f"but transaction is for {amount}. Proceeding with negative balance."
                 )
 
             inc_ops = {

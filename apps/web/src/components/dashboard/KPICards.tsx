@@ -42,13 +42,16 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
   const stats = useMemo(() => {
     // If we have authoritative backend EVA stats, use them
     if (backendStats && (backendStats.planned_value !== undefined || backendStats.total_budget !== undefined)) {
+      const rawSpi = backendStats.spi;
+      const rawCpi = backendStats.cpi;
+      
       return {
-        totalBaselineCost: backendStats.master_budget || backendStats.total_budget || 0,
-        plannedValue: backendStats.planned_value || 0,
-        earnedValue: backendStats.earned_value || 0,
-        actualCost: backendStats.actual_cost || 0,
-        spi: backendStats.spi ?? null,
-        cpi: backendStats.cpi ?? null,
+        totalBaselineCost: Number(backendStats.master_budget || backendStats.total_budget || 0),
+        plannedValue: Number(backendStats.planned_value || 0),
+        earnedValue: Number(backendStats.earned_value || 0),
+        actualCost: Number(backendStats.actual_cost || 0),
+        spi: (rawSpi !== undefined && rawSpi !== null && isFinite(rawSpi)) ? rawSpi : null,
+        cpi: (rawCpi !== undefined && rawCpi !== null && isFinite(rawCpi)) ? rawCpi : null,
       };
     }
 

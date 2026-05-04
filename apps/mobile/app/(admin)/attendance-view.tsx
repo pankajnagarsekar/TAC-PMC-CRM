@@ -205,7 +205,13 @@ export default function AttendanceViewScreen() {
         <View style={styles.centerContent}>
           <Ionicons name="business-outline" size={48} color={Colors.textMuted} />
           <Text style={styles.emptyTitle}>No Project Selected</Text>
-          <Pressable style={styles.selectBtn} onPress={() => router.push('/(admin)/select-project')}>
+          <Pressable 
+            style={styles.selectBtn} 
+            onPress={() => router.push({
+              pathname: '/(admin)/select-project',
+              params: { redirect: '/(admin)/attendance-view' }
+            })}
+          >
             <Text style={styles.selectBtnText}>Select Project</Text>
           </Pressable>
         </View>

@@ -123,11 +123,51 @@ class DashboardService:
                 return_exceptions=True
             )
 
-            # Map results or fallbacks if exceptions occurred
-            schedule = results[0] if not isinstance(results[0], Exception) else {}
-            resources = results[1] if not isinstance(results[1], Exception) else {}
-            financial = results[2] if not isinstance(results[2], Exception) else {}
-            timeline = results[3] if not isinstance(results[3], Exception) else {}
+            # Map results or fallbacks if exceptions occurred (BUG-001 Resilience)
+            # Ensure we provide dictionaries that satisfy Pydantic required fields
+            # Check for None explicitly to avoid 'NoneType' object has no attribute 'to_dict' (BUG-01)
+            schedule_res = results[0]
+            schedule_dict = (
+                schedule_res.to_dict()
+                if schedule_res and not isinstance(schedule_res, Exception) and hasattr(schedule_res, "to_dict")
+                else {
+                    "days_remaining": 0,
+                    "days_planned": 0,
+                    "tasks_at_risk": 0,
+                    "critical_path_days": 0,
+                    "status": "green"
+                }
+            )
+
+            resources_res = results[1]
+            resources_dict = (
+                resources_res.to_dict()
+                if resources_res and not isinstance(resources_res, Exception) and hasattr(resources_res, "to_dict")
+                else {
+                    "by_resource": {}, "by_role": {}, "over_allocated": []
+                }
+            )
+
+            financial_res = results[2]
+            financial_dict = (
+                financial_res.to_dict()
+                if financial_res and not isinstance(financial_res, Exception) and hasattr(financial_res, "to_dict")
+                else {
+                    "budget_total": 0.0, "budget_spent": 0.0, "budget_remaining": 0.0, "budget_utilization_pct": 0.0,
+                    "burn_rate_daily": 0.0, "projected_overrun": 0.0, "is_over_budget": False,
+                    "planned_value": 0.0, "earned_value": 0.0, "actual_cost": 0.0,
+                    "cpi": 1.0, "spi": 1.0, "cost_variance": 0.0, "schedule_variance": 0.0
+                }
+            )
+
+            timeline_res = results[3]
+            timeline_dict = (
+                timeline_res.to_dict()
+                if timeline_res and not isinstance(timeline_res, Exception) and hasattr(timeline_res, "to_dict")
+                else {
+                    "daily_completion": [], "utilization_trend": [], "budget_spent_trend": []
+                }
+            )
 
             if any(isinstance(r, Exception) for r in results):
                 logger.error(f"DASHBOARD_PARTIAL_FAILURE: Some analytics sub-services failed for {project_id}")
@@ -139,12 +179,10 @@ class DashboardService:
             financial = await self.analytics_service.calculate_financial_summary(project_id, organisation_id)
             timeline = await self.analytics_service.calculate_timeline_analytics(project_id, organisation_id)
 
-        # Convert analytics objects to dicts for Pydantic model validation
-
-        schedule_dict = schedule.to_dict() if hasattr(schedule, "to_dict") else schedule
-        resources_dict = resources.to_dict() if hasattr(resources, "to_dict") else resources
-        financial_dict = financial.to_dict() if hasattr(financial, "to_dict") else financial
-        timeline_dict = timeline.to_dict() if hasattr(timeline, "to_dict") else timeline
+            schedule_dict = schedule.to_dict() if hasattr(schedule, "to_dict") else schedule
+            resources_dict = resources.to_dict() if hasattr(resources, "to_dict") else resources
+            financial_dict = financial.to_dict() if hasattr(financial, "to_dict") else financial
+            timeline_dict = timeline.to_dict() if hasattr(timeline, "to_dict") else timeline
 
         # Construct dashboard
         dashboard = ProjectDashboardData(
@@ -166,13 +204,44 @@ class DashboardService:
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
         """Returns aggregated statistics for the project dashboard."""
-        # 1. Fetch Master Financial State
+        # 1. Fetch Master Financial State with resilient ID matching
+        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+
         master_state = await self.db.financial_state.find_one(
-            {"project_id": project_id, "category_id": "MASTER"}
+            {
+                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id},
+                "category_id": "MASTER"
+            }
         )
 
         # 2. Fetch Project Metadata
-        project = await self.project_repo.get_by_id(project_id)
+        try:
+            project = await self.project_repo.get_by_id(project_id)
+            if not project:
+                logger.error(f"DASHBOARD_STATS_ERROR: Project {project_id} not found")
+                return {
+                    "project_name": "Unknown Project",
+                    "budget_total": 0,
+                    "budget_spent": 0,
+                    "days_remaining": 0,
+                    "tasks_count": 0,
+                    "cpi": 1.0,
+                    "spi": 1.0,
+                    "planned_value": 0.0,
+                    "earned_value": 0.0,
+                    "actual_cost": 0.0
+                }
+        except Exception as e:
+            logger.error(f"DASHBOARD_STATS_ERROR: Error fetching project {project_id}: {e}")
+            return {
+                "project_name": "Error Loading",
+                "budget_total": 0,
+                "budget_spent": 0,
+                "days_remaining": 0,
+                "tasks_count": 0,
+                "cpi": 1.0,
+                "spi": 1.0
+            }
 
         # 3. Fetch counts for active items (Tasks + Work Orders)
         active_tasks_count = await self.db.tasks.count_documents(
@@ -190,8 +259,24 @@ class DashboardService:
             }
         )
 
-        schedule = await self.db.project_schedules.find_one({"project_id": project_id})
-        tasks_count = len(schedule.get("tasks", [])) if schedule else 0
+        # 3. Aggregate schedule health (Point 103/115)
+        metadata = project.get("metadata") or {}
+        schedule_health = {
+            "status": metadata.get("schedule_status", "On Track"),
+            "variance": metadata.get("schedule_variance", 0),
+            "critical_tasks_count": 0,
+        }
+
+        # 4. Get active schedule snapshot from CORRECT collection (project_schedules)
+        schedule = await self.db.project_schedules.find_one(
+            {"project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id}}
+        )
+        tasks = schedule.get("tasks", []) if schedule else []
+        tasks_count = len(tasks)
+
+        schedule_health["critical_tasks_count"] = sum(
+            1 for t in tasks if isinstance(t, dict) and t.get("is_critical")
+        )
 
         # 4. Filter overdue milestones from schedule
         overdue_milestones_count = 0
@@ -218,9 +303,15 @@ class DashboardService:
             tasks = schedule.get("tasks", [])
             # Map category_id to its PV
             cat_pv_map = {}
-            cursor = self.db.financial_state.find({"project_id": project_id, "category_id": {"$ne": "MASTER"}})
+            cursor = self.db.financial_state.find({
+                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id},
+                "category_id": {"$ne": "MASTER"}
+            })
             async for s in cursor:
-                cat_pv_map[s["category_id"]] = float(FinancialEngine.to_decimal(s.get("original_budget", 0)))
+                # Safe navigation for category_id (BUG-01)
+                cid = s.get("category_id") or s.get("code_id")
+                if cid:
+                    cat_pv_map[str(cid)] = float(FinancialEngine.to_decimal(s.get("original_budget", 0)))
 
             # Aggregate completion by category
             cat_tasks = {}  # category_id -> [completion_percentages]
@@ -245,7 +336,10 @@ class DashboardService:
 
             # Fallback if no tasks were mapped to categories: use project-wide average completion
             if not found_mapped_tasks and all_completions and pv > 0:
-                avg_project_comp = sum(all_completions) / len(all_completions)
+                if all_completions:
+                    avg_project_comp = sum(all_completions) / len(all_completions)
+                else:
+                    avg_project_comp = 0.0
                 ev = pv * (avg_project_comp / 100.0)
             else:
                 ev = weighted_ev
@@ -260,31 +354,33 @@ class DashboardService:
         # AC for EVM is traditionally Actual Cost (Certified), but we use Committed
         # if Certified is 0 for better visibility in early stages.
         actual_cost_for_eva = certified if certified > 0 else ac
+
+        # Hardened calculation to prevent NaN
         cpi = ev / actual_cost_for_eva if actual_cost_for_eva > 0 else 1.0
         spi = ev / pv if pv > 0 else 1.0  # Simple SPI relative to total budget
+
+        # Clamping for UI stability (0.0 to 10.0)
+        cpi = round(max(0.0, min(10.0, cpi)), 2)
+        spi = round(max(0.0, min(10.0, spi)), 2)
 
         stats = {
             "project_id": project_id,
             "operational_id": project.get("project_code") or project_id,
-            "overview": {
-                "total_phases": tasks_count,
-                "active_items": active_tasks_count + active_wos_count,
-                "overdue_milestones": overdue_milestones_count,
-                "total_budget": pv,
-                "master_budget": pv,  # Standardized key for KPICards
-                "net_committed": ac,
-                "net_certified": float(
-                    FinancialEngine.to_decimal(master_state.get("certified_value", 0))
-                    if master_state else 0
-                ),
-                "planned_value": pv,
-                "earned_value": ev,
-                "actual_cost": actual_cost_for_eva,
-                "cpi": round(min(10.0, max(0.0, cpi)), 2),
-                "spi": round(spi, 2),
-                "cost_variance": ev - actual_cost_for_eva,
-                "schedule_variance": ev - pv
-            },
+            "project_name": project.get("project_name") or "Unnamed Project",
+            "total_phases": tasks_count,
+            "active_items": active_tasks_count + active_wos_count,
+            "overdue_milestones": overdue_milestones_count,
+            "total_budget": pv,
+            "master_budget": pv,
+            "net_committed": ac,
+            "net_certified": certified,
+            "planned_value": pv,
+            "earned_value": ev,
+            "actual_cost": actual_cost_for_eva,
+            "cpi": cpi,
+            "spi": spi,
+            "cost_variance": ev - actual_cost_for_eva,
+            "schedule_variance": ev - pv,
             "tasks_count": tasks_count,
             "completion_percentage": float(project.get("completion_percentage", 0) if project else 0),
             "status": project.get("status", "active") if project else "active",
@@ -296,10 +392,14 @@ class DashboardService:
         return stats
 
     async def get_financials(self, project_id: str) -> List[Any]:
-        """Fetch category-wise financial status for a project."""
+        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+
         # Fetch all financial states for this project (excluding MASTER)
         states_cursor = self.db.financial_state.find(
-            {"project_id": project_id, "category_id": {"$ne": "MASTER"}}
+            {
+                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id},
+                "category_id": {"$ne": "MASTER"}
+            }
         )
         states = await states_cursor.to_list(length=100)
 
@@ -342,10 +442,15 @@ class DashboardService:
         return results
 
     async def get_vendor_payables(self, project_id: str) -> List[Any]:
-        """Fetch outstanding amounts per vendor for a project."""
+        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+
         # Aggregate from vendor_ledger
         pipeline = [
-            {"$match": {"project_id": project_id}},
+            {
+                "$match": {
+                    "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id}
+                }
+            },
             {
                 "$group": {
                     "_id": "$vendor_id",

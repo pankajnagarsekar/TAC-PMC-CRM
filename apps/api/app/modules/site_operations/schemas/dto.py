@@ -163,7 +163,7 @@ class DPRImageDetail(BaseModel):
 
 
 class DPRImage(BaseModel):
-    image_data: str = Field(..., max_length=13107200)  # 10 MB in base64
+    image_data: str = Field(..., max_length=26214400)  # 20 MB in base64 (BUG-01)
     caption: Optional[str] = Field(None, max_length=500)
     activity_code: Optional[str] = None
 
@@ -204,6 +204,7 @@ class DPR(BaseModel):
     voice_summary: Optional[str] = None
     weather_conditions: str = "Normal"
     images: List[DPRImageDetail] = Field(default_factory=list)
+    photos: List[str] = Field(default_factory=list)
     image_count: int = 0
     status: str = "Draft"
     locked_flag: bool = False

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -15,8 +15,8 @@ import { useProject } from '../../contexts/ProjectContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/apiClient';
-import { Button, Card, BlueprintGrid } from '../../components/ui';
-import { DerivedFinancialState } from '../../types/api';
+import { Button, Card, BlueprintGrid, LoadingScreen } from '../../components/ui';
+import { DerivedFinancialState, AdminDashboardData, Image as ProjectImage } from '../../types/api';
 
 // Removed width Dimensions get
 
@@ -34,34 +34,50 @@ export default function ProjectDashboard() {
     const { user } = useAuth();
 
     const [financials, setFinancials] = useState<DerivedFinancialState[]>([]);
+    const [stats, setStats] = useState<AdminDashboardData | null>(null);
+    const [latestImage, setLatestImage] = useState<ProjectImage | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    const fetchFinancials = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         if (!selectedProject?.project_id) {
             setRefreshing(false);
+            setLoading(false);
             return;
         }
 
         try {
-            const data = await api.financial.getProjectFinancials(selectedProject.project_id);
-            setFinancials(data || []);
+            const [finData, statsData, imageData] = await Promise.all([
+                api.financial.getProjectFinancials(selectedProject.project_id),
+                api.dashboard.getProjectDashboard(selectedProject.project_id),
+                api.images.getAll(selectedProject.project_id)
+            ]);
+            
+            setFinancials(finData || []);
+            setStats(statsData || null);
+            if (imageData && imageData.length > 0) {
+                setLatestImage(imageData[0]);
+            }
         } catch (err: unknown) {
-            console.error('Error fetching financials:', err);
+            console.error('Error fetching dashboard data:', err);
         } finally {
             setRefreshing(false);
+            setLoading(false);
         }
     }, [selectedProject?.project_id]);
 
     useEffect(() => {
-        fetchFinancials();
-    }, [fetchFinancials]);
+        fetchData();
+    }, [fetchData]);
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchFinancials();
+        fetchData();
     };
 
-    const totalBudget = useMemo(() => financials.reduce((sum: number, f: DerivedFinancialState) => sum + (f.original_budget || 0), 0), [financials]);
+    if (loading && !refreshing) {
+        return <LoadingScreen message="Initializing Intelligence..." />;
+    }
 
     if (!selectedProject) {
         return (
@@ -127,17 +143,29 @@ export default function ProjectDashboard() {
                     <View style={styles.summaryRow}>
                         <Card variant="elevated" style={styles.summaryCard} padding="md">
                             <Text style={[styles.cardLabel, { color: Colors.textSecondary }]}>PORTFOLIO VALUE</Text>
-                            <Text style={[styles.cardValue, { color: Colors.text, fontFamily: 'Inter_900Black' }]}>{formatCurrency(totalBudget)}</Text>
+                            <Text style={[styles.cardValue, { color: Colors.text, fontFamily: 'Inter_900Black' }]}>
+                                {formatCurrency(stats?.financials?.total_budget || 0)}
+                            </Text>
                             <View style={styles.cardTrend}>
-                                <Ionicons name="trending-up" size={14} color="#10b981" />
-                                <Text style={[styles.trendText, { color: '#10b981' }]}>+12% YoY</Text>
+                                <Ionicons 
+                                    name={Number(stats?.indicators?.spi || 0) >= 1 ? "trending-up" : "trending-down"} 
+                                    size={14} 
+                                    color={Number(stats?.indicators?.spi || 0) >= 1 ? "#10b981" : "#ef4444"} 
+                                />
+                                <Text style={[styles.trendText, { color: Number(stats?.indicators?.spi || 0) >= 1 ? "#10b981" : "#ef4444" }]}>
+                                    SPI: {stats?.indicators?.spi?.toFixed(2) || '1.00'}
+                                </Text>
                             </View>
                         </Card>
                         <Card variant="elevated" style={styles.summaryCard} padding="md">
-                            <Text style={[styles.cardLabel, { color: Colors.textSecondary }]}>ACTIVE PHASES</Text>
-                            <Text style={[styles.cardValue, { color: Colors.text, fontFamily: 'Inter_900Black' }]}>04</Text>
-                            <View style={[styles.statusChip, { backgroundColor: isDark ? '#1a2e26' : '#ecfdf5' }]}>
-                                <Text style={[styles.statusText, { color: '#10b981' }]}>HEALTHY</Text>
+                            <Text style={[styles.cardLabel, { color: Colors.textSecondary }]}>ACTIVE TASKS</Text>
+                            <Text style={[styles.cardValue, { color: Colors.text, fontFamily: 'Inter_900Black' }]}>
+                                {String(stats?.active_tasks || 0).padStart(2, '0')}
+                            </Text>
+                            <View style={[styles.statusChip, { backgroundColor: (stats?.overdue_tasks || 0) > 0 ? (isDark ? '#3d1a1a' : '#fee2e2') : (isDark ? '#1a2e26' : '#ecfdf5') }]}>
+                                <Text style={[styles.statusText, { color: (stats?.overdue_tasks || 0) > 0 ? '#ef4444' : '#10b981' }]}>
+                                    {(stats?.overdue_tasks || 0) > 0 ? `${stats?.overdue_tasks} OVERDUE` : 'HEALTHY'}
+                                </Text>
                             </View>
                         </Card>
                     </View>
@@ -150,18 +178,22 @@ export default function ProjectDashboard() {
 
                     <Card variant="elevated" style={styles.cameraFrame} padding="none">
                         <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000' }}
+                            source={{ uri: latestImage ? `data:image/jpeg;base64,${latestImage.image_base64}` : 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=1000' }}
                             style={styles.cameraImage}
                         />
                         <View style={styles.liveBadge}>
                             <View style={styles.redDot} />
-                            <Text style={styles.liveText}>REC • SITE ALPHA-9</Text>
+                            <Text style={styles.liveText}>
+                                {latestImage ? `SITE FEED: ${latestImage.code_id || 'GENERAL'}` : 'REC • NO LIVE FEED'}
+                            </Text>
                         </View>
                         <View style={[styles.cameraOverlayBar, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-                            <Text style={styles.cameraCap}>LAST SYNC: 10:42 AM</Text>
+                            <Text style={styles.cameraCap}>
+                                {latestImage ? `CAPTURED: ${new Date(latestImage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'OFFLINE'}
+                            </Text>
                             <View style={styles.badgeRow}>
-                                <Ionicons name="wifi" size={12} color="#10b981" />
-                                <Text style={styles.cameraCap}>STABLE</Text>
+                                <Ionicons name="wifi" size={12} color={latestImage ? "#10b981" : "#94a3b8"} />
+                                <Text style={styles.cameraCap}>{latestImage ? 'STABLE' : 'NO DATA'}</Text>
                             </View>
                         </View>
                     </Card>
@@ -171,21 +203,28 @@ export default function ProjectDashboard() {
                         <Text style={[styles.sectionTitle, { color: Colors.text }]}>CONSTRUCTION PROGRESS</Text>
                     </View>
                     <Card variant="elevated" style={styles.scheduleCard} padding="md">
-                        {[
-                            { label: 'Foundations', progress: 100, color: '#10b981' },
-                            { label: 'Structural Steel', progress: 64, color: Colors.text },
-                            { label: 'Enclosure', progress: 12, color: Colors.primary },
-                        ].map((item, idx) => (
-                            <View key={idx} style={[styles.scheduleItem, idx > 0 && { marginTop: 16 }]}>
-                                <View style={styles.scheduleHeader}>
-                                    <Text style={[styles.scheduleLabel, { color: Colors.text }]}>{item.label}</Text>
-                                    <Text style={[styles.scheduleValue, { color: Colors.textSecondary }]}>{item.progress}%</Text>
+                        {financials.length > 0 ? financials.slice(0, 3).map((item, idx) => {
+                            const progress = item.original_budget > 0 
+                                ? Math.min(100, Math.round((Number(item.certified_value || 0) / Number(item.original_budget)) * 100))
+                                : 0;
+                            return (
+                                <View key={idx} style={[styles.scheduleItem, idx > 0 && { marginTop: 16 }]}>
+                                    <View style={styles.scheduleHeader}>
+                                        <Text style={[styles.scheduleLabel, { color: Colors.text }]} numberOfLines={1}>
+                                            {item.category_name || item.category_id}
+                                        </Text>
+                                        <Text style={[styles.scheduleValue, { color: Colors.textSecondary }]}>{progress}%</Text>
+                                    </View>
+                                    <View style={[styles.progressTrack, { backgroundColor: Colors.border }]}>
+                                        <View style={[styles.progressFill, { width: `${Math.max(2, progress)}%`, backgroundColor: progress >= 100 ? '#10b981' : Colors.primary }]} />
+                                    </View>
                                 </View>
-                                <View style={[styles.progressTrack, { backgroundColor: Colors.border }]}>
-                                    <View style={[styles.progressFill, { width: `${item.progress}%`, backgroundColor: item.color }]} />
-                                </View>
-                            </View>
-                        ))}
+                            );
+                        }) : (
+                            <Text style={{ color: Colors.textSecondary, fontSize: 12, textAlign: 'center', fontStyle: 'italic' }}>
+                                No financial absorption data available.
+                            </Text>
+                        )}
                     </Card>
 
                     {/* Shortcut Matrix */}

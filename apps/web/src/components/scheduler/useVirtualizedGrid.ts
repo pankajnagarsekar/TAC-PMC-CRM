@@ -20,6 +20,8 @@ export type UseVirtualizedGridArgs = {
   rowHeight: number;
   overscan?: Overscan;
   estimatedViewportHeight?: number;
+  initialScrollTop?: number;
+  onScrollTopChange?: (top: number) => void;
 };
 
 const DEFAULT_OVERSCAN: Overscan = { before: 4, after: 4 };
@@ -29,10 +31,20 @@ export function useVirtualizedGrid<TElement extends HTMLElement = HTMLDivElement
   rowHeight,
   overscan = DEFAULT_OVERSCAN,
   estimatedViewportHeight = 480,
+  initialScrollTop = 0,
+  onScrollTopChange,
 }: UseVirtualizedGridArgs) {
   const viewportRef = React.useRef<TElement | null>(null);
-  const [scrollTop, setScrollTop] = React.useState(0);
+  const [scrollTop, setScrollTop] = React.useState(initialScrollTop);
   const [viewportHeight, setViewportHeight] = React.useState(estimatedViewportHeight);
+
+  // Sync internal state if initialScrollTop changes
+  React.useEffect(() => {
+    setScrollTop(initialScrollTop);
+    if (viewportRef.current && viewportRef.current.scrollTop !== initialScrollTop) {
+      viewportRef.current.scrollTop = initialScrollTop;
+    }
+  }, [initialScrollTop]);
 
   React.useEffect(() => {
     const el = viewportRef.current;
@@ -55,8 +67,10 @@ export function useVirtualizedGrid<TElement extends HTMLElement = HTMLDivElement
   }, [estimatedViewportHeight]);
 
   const onScroll = React.useCallback((event: React.UIEvent<TElement>) => {
-    setScrollTop(event.currentTarget.scrollTop);
-  }, []);
+    const top = event.currentTarget.scrollTop;
+    setScrollTop(top);
+    onScrollTopChange?.(top);
+  }, [onScrollTopChange]);
 
   const range: VirtualizedGridRange = React.useMemo(() => {
     const before = Math.max(0, overscan.before);

@@ -41,7 +41,10 @@ export default function AdminDPRListScreen() {
   useEffect(() => {
     if (!selectedProject) {
       requestAnimationFrame(() => {
-        router.replace('/(admin)/select-project');
+        router.replace({
+          pathname: '/(admin)/select-project',
+          params: { redirect: '/(admin)/dpr' }
+        });
       });
     }
   }, [selectedProject, router]);
@@ -237,7 +240,7 @@ export default function AdminDPRListScreen() {
         <FlatList
           data={dprs}
           renderItem={renderDPR}
-          keyExtractor={(item) => item.dpr_id}
+          keyExtractor={(item) => item.dpr_id || (item as any).id || (item as any)._id}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl

@@ -153,6 +153,7 @@ export interface DerivedFinancialState {
   _id?: string;
   project_id: string;
   category_id: string;
+  category_name?: string;
   original_budget: number;
   committed_value: number;
   certified_value: number;
@@ -574,6 +575,7 @@ export interface DPR {
   dpr_date: string;
   status: string;
   progress_notes?: string;
+  weather_conditions?: string;
   created_by_name?: string;
   created_by_role?: string;
   images: DPRImage[];
@@ -743,21 +745,30 @@ export interface Alert {
 // DASHBOARD AGGREGATES
 // ============================================
 export interface AdminDashboardData {
-  approved_budget: number;
-  committed_value: number;
-  certified_value: number;
-  paid_value: number;
-  retention_held: number;
-  outstanding_liability: number;
-  over_commit_indicator: boolean;
-  physical_progress_percentage: number;
-  financial_progress_percentage: number;
-  delay_indicator: boolean;
-  active_alerts: Alert[];
-  total_projects: number;
-  active_projects: number;
-  pending_work_orders: number;
-  pending_payment_certificates: number;
+  total_phases: number;
+  active_tasks: number;
+  overdue_tasks: number;
+  financials: {
+    total_budget: number;
+    certified: number;
+    actual_cost: number;
+    paid: number;
+    remaining: number;
+    over_commit: boolean;
+  };
+  indicators: {
+    cpi: number;
+    spi: number;
+    cost_variance: number;
+    schedule_variance: number;
+  };
+  tasks_count: number;
+  completion_percentage: number;
+  status: string;
+  // Legacy fields kept for backward compatibility if needed
+  approved_budget?: number;
+  committed_value?: number;
+  certified_value?: number;
 }
 
 export interface SupervisorDashboardData {

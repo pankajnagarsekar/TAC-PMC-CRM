@@ -26,7 +26,13 @@ def vendor_service(test_db, mock_audit_service, mock_permission_checker):
 
 @pytest.mark.asyncio
 async def test_create_vendor_success(vendor_service, test_user, mock_audit_service):
-    data = VendorCreate(name="Modern Concrete Ltd", gstin="27AAACM1234F1Z1")
+    data = VendorCreate(
+        name="Modern Concrete Ltd",
+        gstin="27AAACM1234F1Z1",
+        contact_person="John Doe",
+        phone="1234567890",
+        email="john@example.com"
+    )
     vendor = await vendor_service.create_vendor(test_user, data)
 
     assert vendor["name"] == "Modern Concrete Ltd"
@@ -37,7 +43,12 @@ async def test_create_vendor_success(vendor_service, test_user, mock_audit_servi
 
 @pytest.mark.asyncio
 async def test_create_vendor_duplicate_name(vendor_service, test_user):
-    data = VendorCreate(name="Duplicate Corp")
+    data = VendorCreate(
+        name="Duplicate Corp",
+        contact_person="John Doe",
+        phone="1234567890",
+        email="john@example.com"
+    )
     await vendor_service.create_vendor(test_user, data)
 
     with pytest.raises(ValidationError, match="VENDOR_ALREADY_EXISTS"):
@@ -46,7 +57,12 @@ async def test_create_vendor_duplicate_name(vendor_service, test_user):
 
 @pytest.mark.asyncio
 async def test_get_vendor_success(vendor_service, test_user):
-    data = VendorCreate(name="Single Vendor")
+    data = VendorCreate(
+        name="Single Vendor",
+        contact_person="John Doe",
+        phone="1234567890",
+        email="john@example.com"
+    )
     created = await vendor_service.create_vendor(test_user, data)
 
     fetched = await vendor_service.get_vendor(test_user, str(created["id"]))
@@ -61,7 +77,15 @@ async def test_get_vendor_not_found(vendor_service, test_user):
 
 @pytest.mark.asyncio
 async def test_update_vendor_success(vendor_service, test_user, mock_audit_service):
-    created = await vendor_service.create_vendor(test_user, VendorCreate(name="Old Name"))
+    created = await vendor_service.create_vendor(
+        test_user,
+        VendorCreate(
+            name="Old Name",
+            contact_person="John Doe",
+            phone="1234567890",
+            email="john@example.com"
+        )
+    )
 
     update_data = VendorUpdate(name="New Awesome Name", email="contact@awesome.com", expected_version=1)
     updated = await vendor_service.update_vendor(test_user, str(created["id"]), update_data)
@@ -72,7 +96,15 @@ async def test_update_vendor_success(vendor_service, test_user, mock_audit_servi
 
 @pytest.mark.asyncio
 async def test_soft_delete_vendor(vendor_service, test_user, mock_audit_service):
-    created = await vendor_service.create_vendor(test_user, VendorCreate(name="To Delete"))
+    created = await vendor_service.create_vendor(
+        test_user,
+        VendorCreate(
+            name="To Delete",
+            contact_person="John Doe",
+            phone="1234567890",
+            email="john@example.com"
+        )
+    )
 
     await vendor_service.delete_vendor(test_user, str(created["id"]))
 
@@ -82,7 +114,15 @@ async def test_soft_delete_vendor(vendor_service, test_user, mock_audit_service)
 
 @pytest.mark.asyncio
 async def test_delete_vendor_blocked_by_wo(vendor_service, test_user, test_db):
-    vendor = await vendor_service.create_vendor(test_user, VendorCreate(name="Busy Vendor"))
+    vendor = await vendor_service.create_vendor(
+        test_user,
+        VendorCreate(
+            name="Busy Vendor",
+            contact_person="John Doe",
+            phone="1234567890",
+            email="john@example.com"
+        )
+    )
 
     # Manually insert a work order for this vendor
     await test_db.work_orders.insert_one({
@@ -97,8 +137,24 @@ async def test_delete_vendor_blocked_by_wo(vendor_service, test_user, test_db):
 
 @pytest.mark.asyncio
 async def test_list_vendors_filter(vendor_service, test_user):
-    await vendor_service.create_vendor(test_user, VendorCreate(name="Active 1"))
-    v2 = await vendor_service.create_vendor(test_user, VendorCreate(name="Inactive soon"))
+    await vendor_service.create_vendor(
+        test_user,
+        VendorCreate(
+            name="Active 1",
+            contact_person="John Doe",
+            phone="1234567890",
+            email="john@example.com"
+        )
+    )
+    v2 = await vendor_service.create_vendor(
+        test_user,
+        VendorCreate(
+            name="Inactive soon",
+            contact_person="John Doe",
+            phone="1234567890",
+            email="john@example.com"
+        )
+    )
     await vendor_service.delete_vendor(test_user, str(v2["id"]))
 
     all_vendors = await vendor_service.list_vendors(test_user, active_only=False)

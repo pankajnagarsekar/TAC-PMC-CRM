@@ -32,6 +32,8 @@ export default function SchedulerGrid() {
   const toggleParentCollapse = useScheduleStore((state) => state.toggleParentCollapse);
   const selectAllTasks = useScheduleStore((state) => state.selectAllTasks);
   const toggleTaskSelection = useScheduleStore((state) => state.toggleTaskSelection);
+  const scrollTop = useScheduleStore((state) => state.scrollTop);
+  const setScrollTop = useScheduleStore((state) => state.setScrollTop);
 
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -73,6 +75,8 @@ export default function SchedulerGrid() {
   const { viewportRef, onScroll, startIndex, endIndex, topSpacer, bottomSpacer } = useVirtualizedGrid({
     itemCount: filteredTasks.length,
     rowHeight: ROW_HEIGHT,
+    initialScrollTop: scrollTop,
+    onScrollTopChange: setScrollTop,
   });
 
   const visibleTasks = filteredTasks.slice(startIndex, endIndex);

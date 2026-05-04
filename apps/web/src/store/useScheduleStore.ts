@@ -320,6 +320,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     selectedBaselineB: null,
     timescale: "day",
     projectCalendar: null,
+    scrollTop: 0,
 
     loadSchedule: (response) => {
       clearPendingCalculation();
@@ -503,22 +504,35 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         };
       });
 
-      try {
-        await schedulerApi.deleteTasksBulk(projectId, taskIds);
-        toast.success(`Deleted ${taskIds.length} tasks.`);
-
-        // Trigger a recalculation of the remaining schedule
-        const { taskMap } = get();
-        const tasks = Object.values(taskMap);
-        
-        get().queueCalculation({
-          project_id: projectId,
-          task_id: tasks[0]?.task_id || "resync",
-          changes: {},
-          version: 1,
-          trigger_source: "task_delete"
-        });
-      } catch (err) {
+        try {
+          await schedulerApi.deleteTasksBulk(projectId, taskIds);
+          toast.success(`Deleted ${taskIds.length} tasks.`);
+  
+          // Trigger a recalculation of the remaining schedule
+          const { taskMap } = get();
+          const remainingTasks = Object.values(taskMap);
+          
+          // Even if no tasks remain, we must trigger a resync to update the backend snapshot
+          // and clear any cached calculation errors.
+          if (remainingTasks.length === 0) {
+              const resyncRequest: ScheduleChangeRequest = {
+                  project_id: projectId,
+                  task_id: "resync",
+                  changes: {},
+                  version: 1,
+                  trigger_source: "task_delete"
+              };
+              executeCalculationRequest(resyncRequest, set, get);
+          } else {
+              get().queueCalculation({
+                  project_id: projectId,
+                  task_id: remainingTasks[0].task_id,
+                  changes: {},
+                  version: 1,
+                  trigger_source: "task_delete"
+              });
+          }
+        } catch (err) {
         console.error("Failed to delete tasks:", err);
         toast.error("Failed to delete tasks from server. Reverting local change.");
         // Reload the schedule
@@ -741,6 +755,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       activeFilters: { ...state.activeFilters, statusFilter: statuses }
     })),
     setProjectCalendar: (calendar: ProjectCalendar) => set({ projectCalendar: calendar }),
+    setScrollTop: (top: number) => set({ scrollTop: top }),
 
     fetchBaselineComparison: async (projectId: string, baselineA: number, baselineB?: number) => {
       set({ pendingCalculation: true });

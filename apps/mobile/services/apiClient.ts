@@ -293,6 +293,9 @@ async function request<T>(
         return retryData;
       } else {
         await clearTokens();
+        if (baseApiClient.onSessionInvalidated) {
+          baseApiClient.onSessionInvalidated();
+        }
         throw new ApiError('Session expired', 401);
       }
     }
@@ -349,6 +352,7 @@ export const baseApiClient = {
     body: body ? JSON.stringify(body) : undefined,
   }),
   delete: <T>(endpoint: string): Promise<T> => request<T>(endpoint, { method: 'DELETE' }),
+  onSessionInvalidated: null as (() => void) | null,
 };
 
 let refreshTokenPromise: Promise<boolean> | null = null;
@@ -689,8 +693,8 @@ export const dashboardApi = {
   getAdminDashboard: (): Promise<{ projects: unknown[] }> =>
     request(`/api/v1/admin/projects-overview`),
   getProjectDashboard: (projectId: string): Promise<AdminDashboardData> =>
-    request(`/api/v1/reports/${projectId}/dashboard-stats`),
-  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/v1/projects/${projectId}/dashboard`),
+    request(`/api/v1/projects/${projectId}/dashboard-stats`),
+  getSupervisorDashboard: (projectId: string): Promise<SupervisorDashboardData> => request(`/api/v1/reporting/${projectId}/dashboard`),
 };
 
 // ============================================

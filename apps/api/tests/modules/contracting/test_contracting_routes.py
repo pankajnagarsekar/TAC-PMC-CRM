@@ -7,7 +7,10 @@ from bson import ObjectId
 async def test_vendor_routes(client: AsyncClient):
     # 1. Create
     resp = await client.post("/api/v1/vendors/", json={
-        "name": "Integration Test Vendor"
+        "name": "Integration Test Vendor",
+        "contact_person": "Jane Doe",
+        "phone": "9876543210",
+        "email": "jane@example.com"
     })
     assert resp.status_code == 201
 
@@ -95,7 +98,12 @@ async def test_wo_cancel(client: AsyncClient, test_db, test_user, test_project_i
 async def test_vendor_delete_blocked_with_active_wo(client: AsyncClient, test_db, test_user):
     """C5: Vendor delete blocked when active WOs exist."""
     # Create vendor
-    resp = await client.post("/api/v1/vendors/", json={"name": "Blocked Vendor"})
+    resp = await client.post("/api/v1/vendors/", json={
+        "name": "Blocked Vendor",
+        "contact_person": "Admin",
+        "phone": "0000000000",
+        "email": "admin@example.com"
+    })
     assert resp.status_code == 201
     vendor_id = resp.json()["data"]["id"]
 

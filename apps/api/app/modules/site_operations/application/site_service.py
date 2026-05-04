@@ -64,6 +64,10 @@ class SiteService:
                             or u.get("full_name")
                             or u.get("email", "").split("@")[0]
                         )
+                    else:
+                        doc[f"{field}_name"] = "Unknown"
+                else:
+                    doc[f"{field}_name"] = "N/A"
             except Exception as e:
                 logger.warning(f"Failed to enrich user name for field {field}: {e}")
         return doc
@@ -276,14 +280,28 @@ class SiteService:
         return {"status": "deleted"}
 
     async def list_site_logs(
-        self, user: dict, project_id: str, limit: int = 100
+        self, user: dict, project_id: str, limit: int = 100, filters: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
+        """Fetch multiple worker logs for a project with user name enrichment and filtering."""
         await self.permission_checker.check_project_access(user, project_id)
-        return await self.worker_log_repo.list(
-            {"project_id": project_id, "organisation_id": user["organisation_id"]},
+        query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
+
+        if filters:
+            if filters.get("date"):
+                query["date"] = filters["date"]
+            elif filters.get("date_range"):
+                start, end = filters["date_range"]
+                query["date"] = {"$gte": start, "$lte": end}
+
+            if filters.get("vendor_id"):
+                query["entries.vendor_id"] = filters["vendor_id"]
+
+        logs = await self.worker_log_repo.list(
+            query,
             limit=limit,
             sort=[("date", -1)],
         )
+        return [await self._enrich_with_user_names(log, ["supervisor_id"]) for log in logs]
 
     async def list_project_dprs(
         self, user: dict, project_id: str, limit: int = 100, filters: dict = None
@@ -296,20 +314,55 @@ class SiteService:
                 start, end = filters["date_range"]
                 query["dpr_date"] = {"$gte": start, "$lte": end}
 
-        return await self.dpr_repo.list(
+        dprs = await self.dpr_repo.list(
             query,
             limit=limit,
             sort=[("dpr_date", -1)],
         )
 
+        # Map 'images' to 'photos' for Web/Mobile Parity in List View (BUG-02)
+        # and enrich with user names (BUG-11)
+        enriched_dprs = []
+        for dpr in dprs:
+            images = dpr.get("images", [])
+            dpr["photos"] = [img.get("image_data") for img in images if img.get("image_data")]
+
+            # Supervisor name is the primary author in mobile list
+            enriched = await self._enrich_with_user_names(dpr, ["supervisor_id", "created_by"])
+            enriched_dprs.append(enriched)
+
+        return enriched_dprs
+
     async def get_dpr_detail(self, user: dict, dpr_id: str) -> Dict[str, Any]:
+        """Fetch full DPR details with photo-log mapping and worker counts."""
         try:
             dpr = await self.dpr_repo.get_by_id(dpr_id)
             if not dpr:
                 raise NotFoundError("DPR", dpr_id)
+
             await self.permission_checker.check_project_access(user, dpr["project_id"])
+
+            # 1. Map 'images' (objects) to 'photos' (strings) for Web Parity (BUG-02)
+            images = dpr.get("images", [])
+            dpr["photos"] = [img.get("image_data") for img in images if img.get("image_data")]
+
+            # 3. Enrich with user names and project name for mobile parity
+            dpr = await self._enrich_with_user_names(dpr, ["supervisor_id", "created_by"])
+            project = await self.project_repo.get_by_id(dpr["project_id"])
+            if project:
+                dpr["project_name"] = project.get("project_name")
+
+            # 2. Enrich with related worker data for the same date
+            worker_log = await self.worker_log_repo.find_one({
+                "project_id": dpr["project_id"],
+                "date": dpr.get("dpr_date")
+            })
+            if worker_log:
+                dpr["manpower_count"] = worker_log.get("total_workers", 0)
+                dpr["worker_entries"] = worker_log.get("entries", [])
+
             return await self._enrich_with_user_names(
-                dpr, ["approved_by", "rejected_by", "supervisor_id"]
+                dpr, ["approved_by", "rejected_by", "supervisor_id", "created_by"]
             )
         except (NotFoundError, ValidationError):
             raise
@@ -353,18 +406,32 @@ class SiteService:
 
         if filters:
             if filters.get("date"):
-                # Assuming check_in_time is stored as ISO string starting with YYYY-MM-DD
-                query["check_in_time"] = {"$regex": f"^{filters['date']}"}
+                query["date"] = filters["date"]
             if filters.get("date_range"):
                 start, end = filters["date_range"]
-                query["check_in_time"] = {"$gte": start, "$lte": f"{end}T23:59:59"}
+                # Filter by the 'date' field which is YYYY-MM-DD
+                query["date"] = {"$gte": start, "$lte": end}
             if filters.get("search"):
                 # Rough search by user name (if stored in record)
                 query["user_name"] = {"$regex": filters["search"], "$options": "i"}
 
-        return await self.attendance_repo.list(
-            query, limit=limit, sort=[("check_in_time", -1)]
+        records = await self.attendance_repo.list(
+            query, limit=limit, sort=[("date", -1), ("check_in_timestamp", -1)]
         )
+
+        # Enrich with user names for mobile parity (BUG-11)
+        # We map supervisor_id to supervisor_name for mobile UI compatibility
+        enriched = []
+        for rec in records:
+            e = await self._enrich_with_user_names(rec, ["supervisor_id", "user_id"])
+            # Ensure supervisor_name is populated for mobile UI fallback
+            if "supervisor_id_name" in e:
+                e["supervisor_name"] = e["supervisor_id_name"]
+            elif "user_id_name" in e:
+                e["supervisor_name"] = e["user_id_name"]
+            enriched.append(e)
+
+        return enriched
 
     async def get_today_attendance(
         self, user: dict, project_id: str
@@ -379,7 +446,10 @@ class SiteService:
             "supervisor_id": user["user_id"],
             "date": today,
         }
-        return await self.attendance_repo.find_one(query)
+        record = await self.attendance_repo.find_one(query)
+        if record:
+            return await self._enrich_with_user_names(record, ["supervisor_id"])
+        return None
 
     async def list_project_voice_logs(
         self, user: dict, project_id: str, limit: int = 100
@@ -815,16 +885,23 @@ class SiteService:
         return result
 
     async def _build_dpr_snapshot_data(self, dpr: dict) -> Dict[str, Any]:
-        project = await self.db.projects.find_one({"project_id": dpr.get("project_id")})
-        if not project:
-            # Fallback to finding by _id if project_id field is missing or different
+        project_id = dpr.get("project_id")
+        project = None
+
+        if project_id:
+            # 1. Try finding by _id (standard)
             try:
-                project = await self.db.projects.find_one({"_id": ObjectId(dpr.get("project_id"))})
+                query = {"_id": ObjectId(project_id)} if ObjectId.is_valid(project_id) else {"_id": project_id}
+                project = await self.db.projects.find_one(query)
             except Exception:
                 project = None
 
+            # 2. Fallback to project_id field (legacy/internal)
+            if not project:
+                project = await self.db.projects.find_one({"project_id": project_id})
+
         project = serialize_doc(project) or {
-            "project_name": "Project",
+            "project_name": "Unknown Project",
             "project_code": "N/A"
         }
 
@@ -835,12 +912,25 @@ class SiteService:
             else str(dpr_date).split("T")[0]
         )
 
-        worker_log = await self.worker_log_repo.find_one(
-            {"project_id": dpr.get("project_id"), "date": date_str}
-        )
+        # Real-time weather integration (Mock for now, but scalable)
+        weather = dpr.get("weather_conditions") or "Normal (28°C, Clear)"
+        if not dpr.get("weather_conditions"):
+            # If not set, we could potentially fetch from a service here
+            # For now, we'll keep the default or use a deterministic mock
+            pass
+
+        # Ensure project_id is handled consistently in worker log query
+        log_query = {"date": date_str}
+        if project_id:
+            if ObjectId.is_valid(project_id):
+                log_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
+            else:
+                log_query["project_id"] = project_id
+
+        worker_log = await self.worker_log_repo.find_one(log_query)
 
         return {
-            "dpr": dpr,
+            "dpr": {**dpr, "weather_conditions": weather},
             "project": project,
             "worker_log": worker_log,
             "snapshot_timestamp": ts_now().isoformat(),

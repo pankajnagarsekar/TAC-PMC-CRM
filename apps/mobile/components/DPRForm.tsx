@@ -291,12 +291,16 @@ export default function DPRForm({
     setIsSubmitting(true);
     try {
       const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const localDate = `${year}-${month}-${day}`;
 
       // Create DPR payload
       const notes = voiceSummary.trim();
       const dprPayload = {
         project_id: projectId,
-        dpr_date: today.toISOString().split('T')[0],
+        dpr_date: localDate,
         progress_notes: notes.length >= 5 ? notes : 'Daily progress report',
         weather_conditions: extraPayload.weather_conditions || 'Normal',
         manpower_count: extraPayload.manpower_count || 0,

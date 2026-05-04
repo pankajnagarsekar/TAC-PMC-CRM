@@ -296,9 +296,18 @@ export default function GanttChart() {
 
 
 
-  const [scrollTop, setScrollTop] = useState(0);
+  const [scrollTop, setScrollTopState] = useState(0);
+  const globalScrollTop = useScheduleStore((state) => state.scrollTop);
+  const setGlobalScrollTop = useScheduleStore((state) => state.setScrollTop);
   const [showBaseline, setShowBaseline] = useState(false);
   const [activeBaselineNum, setActiveBaselineNum] = useState<number>(1);
+
+  // PP-017: Bidirectional scroll sync
+  useEffect(() => {
+    if (verticalScrollRef.current && globalScrollTop !== verticalScrollRef.current.scrollTop) {
+      verticalScrollRef.current.scrollTop = globalScrollTop;
+    }
+  }, [globalScrollTop]);
 
   // CRIT-004: Auto-scroll to project start on mount or task load
   useEffect(() => {
@@ -349,6 +358,7 @@ export default function GanttChart() {
   const taskMapRef = useRef(taskMap);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const topScrollRef = useRef<HTMLDivElement>(null);
+  const verticalScrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
     if (scrollContainerRef.current && topScrollRef.current) {
@@ -359,14 +369,14 @@ export default function GanttChart() {
   useEffect(() => {
     taskMapRef.current = taskMap;
   }, [taskMap]);
-  const viewportHeight = 1600; // Increased to ensure large monitors don't see blank virtualization areas
+  const viewportHeight = 1600; 
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 20;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
   const endIndex = Math.min(tasks.length, startIndex + visibleCount);
   const visibleTasks = tasks.slice(startIndex, endIndex);
   const topSpacer = startIndex * ROW_HEIGHT;
   const bottomSpacer = Math.max(0, (tasks.length - endIndex) * ROW_HEIGHT);
-  
+
   const timelineWidth = days.length * dayWidth;
   const visibleHeight = visibleTasks.length * ROW_HEIGHT;
 
@@ -401,20 +411,52 @@ export default function GanttChart() {
     };
   }, [activeDragTaskId, previewDeltaDays]);
 
+  // PP-019: Comprehensive dependency node mapping
+  // Map absolute index of ALL tasks first to allow drawing lines to off-screen tasks
+  const taskAbsoluteIndices = useMemo(() => {
+    const map = new Map<string, number>();
+    tasks.forEach((t, i) => map.set(t.task_id, i));
+    return map;
+  }, [tasks]);
+
   const dependencyNodes = useMemo(() => {
     const nodes = new Map<string, GanttDependencyNode>();
-    visibleTasks.forEach((task, index) => {
+    
+    // Process ALL tasks that are relevant to the current view
+    // A task is relevant if it's visible OR if it's a predecessor/successor of a visible task
+    const relevantIds = new Set<string>();
+    visibleTasks.forEach(t => {
+      relevantIds.add(t.task_id);
+      t.predecessors?.forEach(p => relevantIds.add(p.task_id));
+    });
+
+    // Also include tasks that have visible successors
+    tasks.forEach(t => {
+       t.predecessors?.forEach(p => {
+           if (visibleTasks.find(vt => vt.task_id === t.task_id)) {
+               relevantIds.add(p.task_id);
+           }
+       });
+    });
+
+    relevantIds.forEach(id => {
+      const task = taskMap[id];
+      const absIndex = taskAbsoluteIndices.get(id);
+      if (!task || absIndex === undefined) return;
+      
       const previewTask = getPreviewTask(task);
       const { left, width } = getTaskBarPosition(previewTask, rangeStart, timescale);
-      nodes.set(task.task_id, {
-        taskId: task.task_id,
-        rowIndex: index,
+      
+      nodes.set(id, {
+        taskId: id,
+        rowIndex: absIndex - startIndex, // Relative to the visible container's top spacer
         left,
         width,
       });
     });
+    
     return nodes;
-  }, [rangeStart, visibleTasks, getPreviewTask, timescale]);
+  }, [rangeStart, visibleTasks, getPreviewTask, timescale, taskMap, taskAbsoluteIndices, startIndex, tasks]);
 
   const dependencyEdges = useMemo(() => {
     const edges: GanttDependencyEdge[] = [];
@@ -663,7 +705,12 @@ export default function GanttChart() {
           </div>
 
           <div
-            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            ref={verticalScrollRef}
+            onScroll={(event) => {
+                const top = event.currentTarget.scrollTop;
+                setScrollTopState(top);
+                setGlobalScrollTop(top);
+            }}
             className="custom-scrollbar max-h-[72vh] overflow-y-auto"
           >
             <div style={{ height: topSpacer }} />

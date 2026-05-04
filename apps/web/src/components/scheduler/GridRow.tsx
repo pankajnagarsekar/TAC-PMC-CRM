@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { ChevronDown, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,10 @@ const GridRow = memo(function GridRow({
 }: GridRowProps) {
   const status = getTaskStatus(task);
   const statusMeta = KANBAN_META[status];
+  
+  // Authoritative Lock Logic (Point 15)
+  // A task is read-only if the project is locked OR if the specific task is baselined
+  const isTaskLocked = readOnly || !!task.baseline_locked;
 
   return (
     <div
@@ -86,9 +90,10 @@ const GridRow = memo(function GridRow({
         ) : (
           <span className="w-4" />
         )}
-        {readOnly ? (
+        {isTaskLocked ? (
           <span className={`truncate font-semibold ${task.is_critical ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"}`}>
             {task.task_name}
+            {!!task.baseline_locked && <Lock size={10} className="inline-ml-1 opacity-50" />}
           </span>
         ) : (
           <div className="flex-1 flex items-center gap-2">
@@ -146,7 +151,7 @@ const GridRow = memo(function GridRow({
       </div>
 
       <div className="flex items-center px-3 border-r border-slate-200 dark:border-white/5">
-        {readOnly ? (
+        {isTaskLocked ? (
           <span className="text-slate-700 dark:text-slate-300">{task.task_mode === "Manual" ? "Manual" : "Auto (CPM)"}</span>
         ) : (
           <select
@@ -165,7 +170,7 @@ const GridRow = memo(function GridRow({
         className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium"
         title={task.calc_reason || "Calculated by engine"}
       >
-        {!readOnly && task.task_mode === "Manual" ? (
+        {!isTaskLocked && task.task_mode === "Manual" ? (
           <input
             type="date"
             value={task.scheduled_start?.split("T")[0] || ""}
@@ -180,7 +185,7 @@ const GridRow = memo(function GridRow({
         className="flex items-center px-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-medium"
         title={task.calc_reason || "Calculated by engine"}
       >
-        {!readOnly && task.task_mode === "Manual" ? (
+        {!isTaskLocked && task.task_mode === "Manual" ? (
           <input
             type="date"
             value={task.scheduled_finish?.split("T")[0] || ""}
@@ -197,7 +202,7 @@ const GridRow = memo(function GridRow({
       </div>
 
       <div className="flex items-center justify-center px-3 border-r border-slate-200 dark:border-white/5">
-        {readOnly ? (
+        {isTaskLocked ? (
           <span className="text-slate-800 dark:text-slate-300 font-black">{task.percent_complete ?? 0}%</span>
         ) : (
           <div className="w-16">
@@ -227,7 +232,7 @@ const GridRow = memo(function GridRow({
       </div>
 
       <div className="flex items-center justify-center px-3 text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-white/5 font-black italic">
-        {readOnly ? (
+        {isTaskLocked ? (
           task.heads || 0
         ) : (
           <div className="w-12">
@@ -251,7 +256,7 @@ const GridRow = memo(function GridRow({
       </div>
 
       <div className="flex items-center justify-end gap-2 px-3">
-        {!readOnly && (
+        {!isTaskLocked && (
           <>
             <select
               value={status}

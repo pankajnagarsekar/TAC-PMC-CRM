@@ -161,6 +161,16 @@ class BaseRepository(Generic[T]):
         effective_session = session or self.session
         return self.collection.aggregate(pipeline, session=effective_session)
 
+    async def distinct(
+        self,
+        key: str,
+        filter: Dict[str, Any] = None,
+        session: Optional[AsyncIOMotorClientSession] = None,
+    ) -> List[Any]:
+        """Authoritative distinct hook."""
+        effective_session = session or self.session
+        return await self.collection.distinct(key, filter, session=effective_session)
+
     async def count(
         self, query: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None
     ) -> int:

@@ -4,7 +4,6 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 from bson import ObjectId
 
-from app.modules.shared.domain.exceptions import ValidationError
 from app.modules.financial.application.cash_service import CashService
 from app.modules.shared.domain.financial_engine import FinancialEngine
 
@@ -484,7 +483,7 @@ class TestCashServiceIntegration:
         result_debit = await service.create_cash_transaction(user, project_id, debit_data, None)
         assert result_debit["new_cash_in_hand"] == 600.0
 
-        # 4. Test Insufficient Funds (should raise ValidationError)
+        # 4. Test Insufficient Funds (should allow negative balance with warning - BUG-STABILIZATION)
         fail_data = {
             "project_id": project_id,
             "category_id": category_id,
@@ -493,9 +492,9 @@ class TestCashServiceIntegration:
             "description": "Too expensive"
         }
 
-        with pytest.raises(ValidationError) as exc:
-            await service.create_cash_transaction(user, project_id, fail_data, None)
-        assert "Insufficient funds" in str(exc.value)
+        result_fail = await service.create_cash_transaction(user, project_id, fail_data, None)
+        assert result_fail["new_cash_in_hand"] == -100.0
+        assert "negative_cash" in result_fail["warnings"]
 
     @pytest.mark.asyncio
     async def test_create_cash_transaction_idempotency(self, test_db, test_user):

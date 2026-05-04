@@ -1,5 +1,5 @@
 // ADMIN BOTTOM TAB NAVIGATION
-// Tabs: Dashboard, DPR, Workers, More
+// Tabs: Dashboard, Projects, Tasks, DPR, Attendance, More
 
 import React, { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
@@ -71,11 +71,11 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="tasks"
         options={{
-          title: 'Analytics',
+          title: 'Tasks',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart-outline" size={size} color={color} />
+            <Ionicons name="list-outline" size={size} color={color} />
           ),
         }}
       />
@@ -139,6 +139,12 @@ export default function AdminLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="attendance"
+        options={{
+          href: null,
+        }}
+      />
 
       <Tabs.Screen
         name="workers-report"
@@ -147,7 +153,7 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
-        name="tasks"
+        name="analytics"
         options={{
           href: null,
         }}

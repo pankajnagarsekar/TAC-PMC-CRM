@@ -269,6 +269,8 @@ export interface ScheduleStoreState {
   setSearchTerm: (term: string) => void;
   setProjectCalendar: (calendar: ProjectCalendar) => void;
   setStatusFilter: (statuses: ScheduleTaskStatus[]) => void;
+  setScrollTop: (top: number) => void;
+  scrollTop: number;
 
   // Comparison Actions
   fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;

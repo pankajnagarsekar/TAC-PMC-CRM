@@ -307,9 +307,19 @@ export default function SupervisorAttendance() {
         <View style={styles.loadingContainer}>
           <Ionicons name="folder-open-outline" size={64} color={Colors.textMuted} />
           <Text style={styles.loadingText}>No project selected</Text>
-          <Text style={[styles.loadingText, { fontSize: FontSizes.sm }]}>
-            Please select a project from the dashboard
+          <Text style={styles.loadingSubtitle}>
+            Please select a project to mark your attendance
           </Text>
+          <TouchableOpacity 
+            style={styles.checkInButton} 
+            onPress={() => router.push({
+              pathname: '/(supervisor)/select-project',
+              params: { redirect: '/(supervisor)/attendance' }
+            })}
+          >
+            <Ionicons name="business" size={24} color={Colors.white} />
+            <Text style={styles.checkInButtonText}>Select Project</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -590,7 +600,8 @@ function AttendanceHistoryItem({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: Spacing.md, color: Colors.textSecondary },
+  loadingText: { marginTop: Spacing.md, color: Colors.textSecondary, fontWeight: '600' },
+  loadingSubtitle: { marginTop: Spacing.sm, color: Colors.textMuted, textAlign: 'center', paddingHorizontal: Spacing.xl },
   content: { padding: Spacing.md },
 
   // Time Card

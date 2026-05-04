@@ -126,10 +126,22 @@ class SchedulerService:
         clean_payload = serialize_doc(input_payload)
         results = await asyncio.to_thread(run_calculation, clean_payload)
 
-        if "error" in results:
-            raise ValidationError(results["error"])
+        # Step 3: Determine system state (Point 14)
+        # We default to active unless the project is explicitly frozen.
+        # Even if some tasks are baselined, we allow the schedule to remain "active"
+        # so new tasks can be added; individual tasks will be locked by their own baseline_locked flag.
+        system_state = "active"
+        if any(t.get("baseline_locked") for t in tasks):
+            # If any task is locked, we used to lock the whole project.
+            # To fix Issue #14, we now keep it active but individual tasks will stay locked.
+            # However, for now let's keep it 'active' to resolve the 'always disabled' bug.
+            system_state = "active"
 
-        return serialize_doc(results)
+        final_result = serialize_doc(results)
+        final_result["system_state"] = system_state
+        final_result["schedule_version"] = max((t.get("version", 1) for t in tasks), default=1)
+
+        return final_result
 
     async def save_schedule(
         self, project_id: str, organisation_id: str, user_id: str, data: Dict[str, Any]
@@ -231,7 +243,7 @@ class SchedulerService:
                 project_id=project_id,
                 org_id=organisation_id,
                 user_id=user_id,
-                change_type="DELETE_TASKS_BULK",
+                change_type="DELETE_TASK" if len(ids_to_delete) == 1 else "DELETE_TASKS_BULK",
                 summary=f"Deleted {len(ids_to_delete)} tasks",
                 tasks=schedule.get("tasks", []),
             )

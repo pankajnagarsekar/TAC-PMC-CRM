@@ -64,11 +64,23 @@ async def update_worker_log(
 async def list_worker_logs(
     project_id: str,
     limit: int = Query(100),
+    date: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    vendor: Optional[str] = Query(None),
     user: dict = Depends(get_authenticated_user),
     site_service: SiteService = Depends(get_site_service),
 ):
-    """List worker logs for a project."""
-    result = await site_service.list_site_logs(user, project_id, limit=limit)
+    """List worker logs for a project with filters."""
+    filters = {}
+    if date:
+        filters["date"] = date
+    if start_date and end_date:
+        filters["date_range"] = (start_date, end_date)
+    if vendor:
+        filters["vendor_id"] = vendor
+
+    result = await site_service.list_site_logs(user, project_id, limit=limit, filters=filters)
     return GenericResponse(data=result)
 
 

@@ -319,6 +319,11 @@ async def test_empty_project_returns_zero_metrics(analytics_service):
     mock_cursor.to_list = AsyncMock(return_value=[])
     analytics_service.fin_state_repo.aggregate = MagicMock(return_value=mock_cursor)
 
+    # Secondary fallback mock for project_category_budgets (BUG-01)
+    mock_budget_cursor = AsyncMock()
+    mock_budget_cursor.to_list = AsyncMock(return_value=[])
+    analytics_service.db.project_category_budgets.aggregate = MagicMock(return_value=mock_budget_cursor)
+
     # Mock project repo
     analytics_service.project_repo.get_by_id.return_value = {
         "project_id": "proj-001",

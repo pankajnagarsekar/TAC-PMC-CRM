@@ -18,7 +18,10 @@ export default function SupervisorDPRScreen() {
     if (!selectedProject) {
       // Use requestAnimationFrame to ensure layout is mounted first
       requestAnimationFrame(() => {
-        router.replace('/(supervisor)/select-project');
+        router.replace({
+          pathname: '/(supervisor)/select-project',
+          params: { redirect: '/(supervisor)/dpr' }
+        });
       });
     }
   }, [selectedProject, router]);

@@ -1,5 +1,10 @@
 import logging
 import time
+import bcrypt
+
+# Resolve passlib compatibility issue with bcrypt 4.0+
+if not hasattr(bcrypt, "__about__"):
+    bcrypt.__about__ = type("About", (), {"__version__": bcrypt.__version__})
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status

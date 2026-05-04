@@ -117,7 +117,7 @@ export default function AdminSettings() {
   );
 }
 
-function SettingsItem({
+const SettingsItem = React.memo(({
   icon,
   title,
   onPress,
@@ -129,7 +129,7 @@ function SettingsItem({
   onPress: () => void;
   Colors: ThemeContextType['colors'],
   styles: ReturnType<typeof getStyles>
-}) {
+}) => {
   return (
     <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
       <Ionicons name={icon} size={22} color={Colors.textSecondary} />
@@ -137,7 +137,7 @@ function SettingsItem({
       <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
     </TouchableOpacity>
   );
-}
+});
 
 const getStyles = (
   Colors: ThemeContextType['colors'],
