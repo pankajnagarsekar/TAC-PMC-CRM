@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import SchedulerScreen from '../../components/scheduler/SchedulerScreen';
 import { useSchedulerData } from '../../hooks/useSchedulerData';

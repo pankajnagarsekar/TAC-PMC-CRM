@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
-import { View } from 'react-native';
 import { SchedulerList } from '../../components/scheduler/SchedulerList';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import type { ScheduleTask } from '../../types/api';

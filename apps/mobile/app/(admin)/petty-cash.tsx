@@ -48,7 +48,7 @@ const formatCurrency = (val: number) => {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(num);
-  } catch (e) {
+  } catch {
     return "₹0";
   }
 };
@@ -104,8 +104,8 @@ const TransactionRow = React.memo(({ item }: { item: CashTransaction }) => {
       if (!isNaN(d.getTime())) {
         dateStr = format(d, "dd MMM, HH:mm");
       }
-    } catch (e) {
-      dateStr = "—";
+    } catch {
+      return 'N/A';
     }
   }
   
