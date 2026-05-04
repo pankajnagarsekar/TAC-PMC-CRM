@@ -169,6 +169,7 @@ export type ScheduleChangeRequest = {
     ai_suggested_duration?: number | null;
     ai_confidence_score?: number | null;
     ai_status_flag?: string | null;
+    project_id?: string | null;
   };
   version: number;
   trigger_source: ChangeSource;
