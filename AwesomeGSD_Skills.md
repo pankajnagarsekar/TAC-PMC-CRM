@@ -15,6 +15,7 @@
 2. **Document which skills are being used** in your response before beginning work
 3. **Stack skills strategically** (see section 2 below) for complex tasks
 4. **Verify alignment** with project specifications before writing any code
+5. **Mandatory Post-Fix Validation**: For every code modification, you MUST run `@lint-and-validate` and `@verification-before-completion` to ensure zero regressions or orphaned variables.
 
 ### Why This Matters
 - Ensures consistency across all changes
@@ -28,12 +29,9 @@
 
 Stack skills based on task type. Always include the base skill(s) plus context-specific skills:
 
-### Error Detection & Debugging
-```
-Primary: @error-detective + @debugging-toolkit + @software-architecture + @systematic-debugging
-Secondary: @error-diagnostics-smart-debug + @bug-hunter + @vibe-code-auditor + @error-debugging-multi-agent-review
-Example: When fixing a database query failure, use @systematic-debugging to isolate the root cause.
-```
+Primary: @error-detective + @debugging-toolkit + @software-architecture + @systematic-debugging + @lint-and-validate
+Secondary: @error-diagnostics-smart-debug + @bug-hunter + @vibe-code-auditor + @error-debugging-multi-agent-review + @verification-before-completion + @code-reviewer
+Example: When fixing a database query failure, use @systematic-debugging to isolate the root cause, followed by @lint-and-validate to ensure no syntax/import regressions.
 
 ### New Feature Implementation
 ```
@@ -140,12 +138,10 @@ All code modifications **MUST** align with the following specifications. These a
 - [ ] Integration test: [test name]
 - [ ] E2E test (if applicable): [test name]
 
-**Verification Checklist:**
-- [ ] Code runs without errors
-- [ ] All new functions have test coverage
-- [ ] Edge cases tested (null, undefined, empty, boundary values)
+- [ ] **Zero Error State**: Full `pnpm lint` and `pytest` are Green (via @lint-and-validate)
+- [ ] **Orphaned Variable Check**: No references to deleted state/props (via @verification-before-completion)
+- [ ] **Logic Integrity**: All modified functions pass logical audit (via @code-reviewer)
 - [ ] **Path Integrity**: No hardcoded Windows backslashes `\` or `.exe` in configs
-- [ ] **Zero Error State**: Full `pnpm lint` and `pytest` are Green
 - [ ] **Discovery Isolation**: `pytest.ini` correctly points to the `tests/` folder
 - [ ] Performance baseline met
 - [ ] No console warnings or errors

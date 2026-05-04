@@ -8,10 +8,13 @@ import { useAuth } from '../../contexts/AuthContext';
 
 import { useTheme } from '../../contexts/ThemeContext';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 export default function AdminLayout() {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuth();
   const { colors: Colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // Redirect to login if not authenticated or not admin
   useEffect(() => {
@@ -37,9 +40,9 @@ export default function AdminLayout() {
           backgroundColor: Colors.background,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 8,
+          height: 75 + (insets.bottom > 0 ? insets.bottom - 10 : 0),
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+          paddingTop: 12,
           elevation: 0,
         },
         tabBarActiveTintColor: Colors.primary,

@@ -5,7 +5,7 @@
 // UI-3: Version selector for viewing historical snapshots
 // M10: Admin can view images and edit captions
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,22 +20,23 @@ import {
   RefreshControl,
   TouchableOpacity,
   Linking,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { baseApiClient, authApi, dprApi, workerLogsApi } from '../../../services/apiClient';
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../../constants/theme';
-// eslint-disable-next-line import/no-named-as-default
+import { useTheme } from '../../../contexts/ThemeContext';
 import VersionSelector from '../../../components/VersionSelector';
 import { DPR, WorkerLog, WorkerLogEntry } from '../../../types/api';
-
-// Centralized DPR types used from types/api.ts
 
 export default function DPRDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { colors: Colors, spacing: Spacing, typography: Typography, borderRadius: BorderRadius, isDark } = useTheme();
+  
+  const styles = useMemo(() => getStyles(Colors, Spacing, BorderRadius), [Colors, Spacing, BorderRadius]);
 
   const [dpr, setDpr] = useState<DPR | null>(null);
   const [loading, setLoading] = useState(true);
@@ -223,26 +224,6 @@ export default function DPRDetailScreen() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!dpr) return;
-
-    if (dpr.images.length < 4) {
-      showAlert('Cannot Submit', 'A minimum of 4 photos is required to submit a DPR.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await dprApi.submit(id!);
-      showAlert('Success', 'DPR submitted successfully');
-      fetchDPR();
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Failed to submit DPR';
-      showAlert('Error', msg);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Admin: Approve DPR
   const handleApprove = async () => {
@@ -351,7 +332,7 @@ export default function DPRDetailScreen() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved': return Colors.success;
-      case 'submitted': return Colors.info;
+      case 'submitted': return Colors.primary; // Use Primary (Gold) for Submitted
       case 'draft': return Colors.warning;
       case 'rejected': return Colors.error;
       default: return Colors.textMuted;
@@ -360,10 +341,10 @@ export default function DPRDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading DPR...</Text>
+          <Text style={[styles.loadingText, { color: Colors.textSecondary }]}>Retrieving DPR...</Text>
         </View>
       </SafeAreaView>
     );
@@ -371,12 +352,12 @@ export default function DPRDetailScreen() {
 
   if (!dpr) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={Colors.error} />
-          <Text style={styles.errorText}>DPR not found</Text>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <Text style={[styles.errorText, { color: Colors.error }]}>DPR not found</Text>
+          <Pressable style={[styles.backButton, { backgroundColor: Colors.primary }]} onPress={() => router.back()}>
+            <Text style={{ color: Colors.textInverse, fontWeight: '700' }}>Go Back</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -386,10 +367,11 @@ export default function DPRDetailScreen() {
   const totalWorkerCount = workerLogs.reduce((sum, log) => sum + (log.total_workers || 0), 0);
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]} edges={['left', 'right']}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
       >
         {/* UI-3: Version Selector */}
         <VersionSelector
@@ -402,40 +384,42 @@ export default function DPRDetailScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>Daily Progress Report</Text>
-            <Text style={styles.date}>{new Date(dpr.dpr_date).toLocaleDateString()}</Text>
+            <Text style={[styles.title, { color: Colors.text, ...Typography.heading2 }]}>Daily Report</Text>
+            <Text style={[styles.date, { color: Colors.textMuted, ...Typography.overline }]}>
+                {new Date(dpr.dpr_date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(dpr.status) + '20' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(dpr.status) }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(dpr.status), ...Typography.overline }]}>
               {dpr.status}
             </Text>
           </View>
         </View>
 
-        {/* Project Info */}
-        <View style={styles.infoCard}>
-          <Text style={styles.projectName}>{dpr.project_name || 'Unknown Project'}</Text>
+        {/* Project Info Card */}
+        <View style={[styles.infoCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+          <Text style={[styles.projectName, { color: Colors.text, ...Typography.subtitle }]}>{dpr.project_name || 'Unknown Project'}</Text>
           
-          <View style={styles.infoRow}>
+          <View style={[styles.infoRow, { borderTopColor: Colors.border }]}>
             <View style={styles.infoItem}>
-              <Text style={styles.cardTitle}>Created By</Text>
-              <Text style={styles.infoValue}>{dpr.created_by_name || 'Unknown'}</Text>
+              <Text style={[styles.cardTitle, { color: Colors.textMuted, ...Typography.caption }]}>Created By</Text>
+              <Text style={[styles.infoValue, { color: Colors.textSecondary }]}>{dpr.created_by_name || 'Supervisor'}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.cardTitle}>Weather</Text>
-              <Text style={styles.infoValue}>{dpr.weather_conditions || 'Normal'}</Text>
+              <Text style={[styles.cardTitle, { color: Colors.textMuted, ...Typography.caption }]}>Weather</Text>
+              <Text style={[styles.infoValue, { color: Colors.textSecondary }]}>{dpr.weather_conditions || 'Clear Skies'}</Text>
             </View>
           </View>
         </View>
 
         {/* Progress Notes Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Progress Notes</Text>
+            <Text style={[styles.sectionTitle, { color: Colors.text, ...Typography.subtitle }]}>Progress Notes</Text>
             {!isViewingHistorical && (
               <Pressable onPress={() => setEditing(!editing)}>
                 <Ionicons
-                  name={editing ? "checkmark-circle" : "create"}
+                  name={editing ? "checkmark-circle" : "create-outline"}
                   size={24}
                   color={Colors.primary}
                 />
@@ -446,94 +430,94 @@ export default function DPRDetailScreen() {
           {editing && !isViewingHistorical ? (
             <>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { backgroundColor: Colors.background, borderColor: Colors.border, color: Colors.text }]}
                 value={progressNotes}
                 onChangeText={setProgressNotes}
-                placeholder="Describe today's progress..."
+                placeholder="Describe today's work progress..."
                 multiline
                 placeholderTextColor={Colors.textMuted}
               />
-              <Pressable
-                style={[styles.saveButton, saving && styles.buttonDisabled]}
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: Colors.primary }, saving && styles.buttonDisabled]}
                 onPress={handleSave}
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color={Colors.white} />
+                  <ActivityIndicator color={Colors.textInverse} />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save Notes</Text>
+                  <Text style={[styles.saveButtonText, { color: Colors.textInverse }]}>Update Notes</Text>
                 )}
-              </Pressable>
+              </TouchableOpacity>
             </>
           ) : (
-            <Text style={dpr.progress_notes ? styles.detailValue : styles.emptyText}>
-              {dpr.progress_notes || 'No progress notes added yet'}
+            <Text style={[dpr.progress_notes ? styles.detailValue : styles.emptyText, { color: Colors.text }]}>
+              {dpr.progress_notes || 'No detailed notes provided for this report.'}
             </Text>
           )}
         </View>
 
         {/* Worker Log Grid Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Worker Logs</Text>
+            <Text style={[styles.sectionTitle, { color: Colors.text, ...Typography.subtitle }]}>Workforce Log</Text>
             {totalWorkerCount > 0 && (
-              <View style={styles.workerCountBadge}>
-                <Ionicons name="people" size={14} color={Colors.white} />
-                <Text style={styles.workerCountText}>{totalWorkerCount}</Text>
+              <View style={[styles.workerCountBadge, { backgroundColor: Colors.primary }]}>
+                <Ionicons name="people" size={12} color={Colors.textInverse} />
+                <Text style={[styles.workerCountText, { color: Colors.textInverse }]}>{totalWorkerCount}</Text>
               </View>
             )}
           </View>
 
           {workerLogLoading ? (
             <View style={styles.workerLogLoading}>
-              <ActivityIndicator size="small" color={Colors.accent} />
-              <Text style={styles.loadingText}>Loading worker logs...</Text>
+              <ActivityIndicator size="small" color={Colors.primary} />
             </View>
           ) : workerLogs.length === 0 ? (
             <View style={styles.emptyWorkerLog}>
-              <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No worker logs submitted for this date</Text>
+              <Ionicons name="people-outline" size={32} color={Colors.textMuted} />
+              <Text style={[styles.emptyText, { color: Colors.textMuted }]}>No workforce logs for this date</Text>
             </View>
           ) : (
             workerLogs.map((log: WorkerLog) => {
               const logId = log.log_id;
+              if (!logId) return null;
               const entries = editableEntries[logId] || [];
               return (
-                <View key={logId} style={styles.workerLogCard}>
-                  <View style={styles.workerLogHeader}>
+                <View key={logId} style={[styles.workerLogCard, { backgroundColor: Colors.background, borderColor: Colors.border }]}>
+                  <View style={[styles.workerLogHeader, { borderBottomColor: Colors.border }]}>
                     <View style={styles.workerLogHeaderInfo}>
-                      <Text style={styles.workerLogSupervisor}>
-                        <Ionicons name="person" size={14} color={Colors.accent} /> {log.supervisor_name || 'Supervisor'}
+                      <Text style={[styles.workerLogSupervisor, { color: Colors.text }]}>
+                        <Ionicons name="person-outline" size={14} color={Colors.primary} /> {log.supervisor_name || 'Supervisor'}
                       </Text>
-                      <Text style={styles.workerLogMeta}>
-                        {entries.length} entries • {
+                      <Text style={[styles.workerLogMeta, { color: Colors.textMuted }]}>
+                        {entries.length} segments • {
                           entries.reduce((s, e) => s + (e.workers_count || 0), 0)
-                        } workers
+                        } total workers
                       </Text>
                     </View>
                   </View>
 
                   {/* Grid Header */}
-                  <View style={styles.gridHeader}>
-                    <Text style={[styles.gridHeaderText, { flex: 2 }]}>Vendor</Text>
-                    <Text style={[styles.gridHeaderText, { flex: 1 }]}>Workers</Text>
-                    <Text style={[styles.gridHeaderText, { flex: 2 }]}>Purpose</Text>
-                    {!isViewingHistorical && <Text style={[styles.gridHeaderText, { width: 36 }]}></Text>}
+                  <View style={[styles.gridHeader, { borderBottomColor: Colors.border }]}>
+                    <Text style={[styles.gridHeaderText, { flex: 2, color: Colors.textSecondary }]}>Vendor</Text>
+                    <Text style={[styles.gridHeaderText, { flex: 1, color: Colors.textSecondary, textAlign: 'center' }]}>Qty</Text>
+                    <Text style={[styles.gridHeaderText, { flex: 2, color: Colors.textSecondary }]}>Remarks</Text>
+                    {!isViewingHistorical && <Text style={{ width: 30 }}></Text>}
                   </View>
 
                   {/* Grid Rows */}
                   {entries.map((entry, idx) => (
-                    <View key={`${logId}-entry-${idx}`} style={styles.gridRow}>
+                    <View key={`${logId}-entry-${idx}`} style={[styles.gridRow, { borderBottomColor: Colors.border + '30' }]}>
                       <TextInput
-                        style={[styles.gridCell, { flex: 2 }]}
+                        style={[styles.gridCell, { flex: 2, backgroundColor: Colors.surface, borderColor: Colors.border, color: Colors.text }]}
                         value={entry.vendor_name}
                         onChangeText={(v) => updateWorkerEntry(logId, idx, 'vendor_name', v)}
-                        placeholder="Vendor"
+                        placeholder="Name"
                         placeholderTextColor={Colors.textMuted}
                         editable={!isViewingHistorical}
                       />
                       <TextInput
-                        style={[styles.gridCell, { flex: 1, textAlign: 'center' }]}
+                        style={[styles.gridCell, { flex: 1, textAlign: 'center', backgroundColor: Colors.surface, borderColor: Colors.border, color: Colors.text }]}
                         value={entry.workers_count?.toString() || ''}
                         onChangeText={(v) => updateWorkerEntry(logId, idx, 'workers_count', parseInt(v) || 0)}
                         keyboardType="number-pad"
@@ -542,10 +526,10 @@ export default function DPRDetailScreen() {
                         editable={!isViewingHistorical}
                       />
                       <TextInput
-                        style={[styles.gridCell, { flex: 2 }]}
+                        style={[styles.gridCell, { flex: 2, backgroundColor: Colors.surface, borderColor: Colors.border, color: Colors.text }]}
                         value={entry.remarks}
                         onChangeText={(v) => updateWorkerEntry(logId, idx, 'remarks', v)}
-                        placeholder="Purpose"
+                        placeholder="..."
                         placeholderTextColor={Colors.textMuted}
                         editable={!isViewingHistorical}
                       />
@@ -567,20 +551,20 @@ export default function DPRDetailScreen() {
                         style={styles.addEntryBtn}
                         onPress={() => addWorkerEntry(logId)}
                       >
-                        <Ionicons name="add-circle-outline" size={18} color={Colors.accent} />
-                        <Text style={styles.addEntryText}>Add Entry</Text>
+                        <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
+                        <Text style={[styles.addEntryText, { color: Colors.primary }]}>Add Row</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.saveWorkerLogBtn, savingWorkerLog && styles.buttonDisabled]}
+                        style={[styles.saveWorkerLogBtn, { backgroundColor: Colors.success }, savingWorkerLog && styles.buttonDisabled]}
                         onPress={() => handleSaveWorkerLog(logId)}
                         disabled={savingWorkerLog}
                       >
                         {savingWorkerLog ? (
-                          <ActivityIndicator size="small" color={Colors.white} />
+                          <ActivityIndicator size="small" color={Colors.textInverse} />
                         ) : (
                           <>
-                            <Ionicons name="checkmark" size={16} color={Colors.white} />
-                            <Text style={styles.saveWorkerLogText}>Save</Text>
+                            <Ionicons name="save-outline" size={16} color={Colors.textInverse} />
+                            <Text style={[styles.saveWorkerLogText, { color: Colors.textInverse }]}>Save</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -593,26 +577,21 @@ export default function DPRDetailScreen() {
         </View>
 
         {/* Photos Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Photos ({dpr.images.length})</Text>
+            <Text style={[styles.sectionTitle, { color: Colors.text, ...Typography.subtitle }]}>Site Photos ({dpr.images.length})</Text>
             {!isViewingHistorical && (
-              <Pressable style={styles.addPhotoBtn} onPress={addPhoto}>
-                <Ionicons name="camera" size={18} color={Colors.primary} />
-                <Text style={styles.addPhotoBtnText}>Add</Text>
-              </Pressable>
+              <TouchableOpacity style={[styles.addPhotoBtn, { backgroundColor: Colors.primary + '15' }]} onPress={addPhoto}>
+                <Ionicons name="camera-outline" size={18} color={Colors.primary} />
+                <Text style={{ color: Colors.primary, fontWeight: '700', marginLeft: 4 }}>Add</Text>
+              </TouchableOpacity>
             )}
           </View>
 
           {dpr.images.length === 0 ? (
             <View style={styles.emptyPhotos}>
-              <Ionicons name="images-outline" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No photos yet</Text>
-              {!isViewingHistorical && (
-                <Pressable style={styles.addFirstPhotoBtn} onPress={addPhoto}>
-                  <Text style={styles.addFirstPhotoBtnText}>Add First Photo</Text>
-                </Pressable>
-              )}
+              <Ionicons name="images-outline" size={40} color={Colors.textMuted} />
+              <Text style={[styles.emptyText, { color: Colors.textMuted }]}>No images captured yet</Text>
             </View>
           ) : (
             <View style={styles.photoGrid}>
@@ -620,16 +599,16 @@ export default function DPRDetailScreen() {
                 const isExpanded = expandedImageId === img.image_id;
                 const photoKey = img.image_id || `photo-${idx}`;
                 return (
-                  <View key={photoKey} style={styles.photoCard}>
+                  <View key={photoKey} style={[styles.photoCard, { borderColor: Colors.border }]}>
                     <TouchableOpacity
                       style={styles.photoHeader}
                       onPress={() => setExpandedImageId(isExpanded ? null : img.image_id)}
                     >
                       <View style={styles.photoHeaderLeft}>
-                        <Ionicons name="image" size={20} color={Colors.accent} />
-                        <Text style={styles.photoNumber}>Photo {idx + 1}</Text>
+                        <Ionicons name="image-outline" size={20} color={Colors.primary} />
+                        <Text style={[styles.photoNumber, { color: Colors.text, fontWeight: '700' }]}>#{idx + 1}</Text>
                         {!isExpanded && imageCaptions[img.image_id] && (
-                          <Text style={styles.photoPreview} numberOfLines={1}>
+                          <Text style={[styles.photoPreview, { color: Colors.textMuted }]} numberOfLines={1}>
                             - {imageCaptions[img.image_id]}
                           </Text>
                         )}
@@ -645,36 +624,33 @@ export default function DPRDetailScreen() {
                       <View style={styles.photoContent}>
                         <Image
                           source={{ uri: img.image_url || (img.image_data?.startsWith('data:') ? img.image_data : `data:image/jpeg;base64,${img.image_data}`) || 'https://via.placeholder.com/300' }}
-                          style={styles.photo}
+                          style={[styles.photo, { borderRadius: 12 }]}
                           resizeMode="cover"
                         />
 
-                        <Text style={styles.captionLabel}>Caption</Text>
+                        <Text style={[styles.captionLabel, { color: Colors.textSecondary, ...Typography.overline }]}>Caption</Text>
                         <TextInput
-                          style={styles.captionInput}
+                          style={[styles.captionInput, { backgroundColor: Colors.background, borderColor: Colors.border, color: Colors.text }]}
                           value={imageCaptions[img.image_id] || ''}
                           onChangeText={(text) => setImageCaptions(prev => ({
                             ...prev,
                             [img.image_id]: text
                           }))}
-                          placeholder="Add a caption for this photo..."
+                          placeholder="What is happening in this photo?"
                           multiline
                           numberOfLines={2}
                           placeholderTextColor={Colors.textMuted}
                         />
 
                         <TouchableOpacity
-                          style={[styles.saveCaptionBtn, saving && styles.buttonDisabled]}
+                          style={[styles.saveCaptionBtn, { backgroundColor: Colors.primary }, saving && styles.buttonDisabled]}
                           onPress={() => saveImageCaption(img.image_id)}
                           disabled={saving}
                         >
                           {saving ? (
-                            <ActivityIndicator color={Colors.white} size="small" />
+                            <ActivityIndicator color={Colors.textInverse} size="small" />
                           ) : (
-                            <>
-                              <Ionicons name="checkmark" size={16} color={Colors.white} />
-                              <Text style={styles.saveCaptionText}>Save Caption</Text>
-                            </>
+                            <Text style={{ color: Colors.textInverse, fontWeight: '700' }}>Update Caption</Text>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -686,53 +662,38 @@ export default function DPRDetailScreen() {
           )}
 
           {dpr.images.length > 0 && dpr.images.length < 4 && (
-            <Text style={styles.warningText}>
-              Minimum 4 photos required to submit. Add {4 - dpr.images.length} more.
-            </Text>
+            <View style={[styles.warningBox, { backgroundColor: Colors.error + '10' }]}>
+                <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                <Text style={{ color: Colors.error, fontSize: 11, fontWeight: '600', marginLeft: 6 }}>
+                    Requires {4 - dpr.images.length} more photo(s) for submission.
+                </Text>
+            </View>
           )}
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actions}>
-          {/* Approve Button */}
           {!isViewingHistorical && (
-            <Pressable
-              style={[styles.approveButton, saving && styles.buttonDisabled]}
+            <TouchableOpacity
+              style={[styles.approveButton, { backgroundColor: Colors.success }, saving && styles.buttonDisabled]}
               onPress={handleApprove}
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color={Colors.white} />
+                <ActivityIndicator color={Colors.textInverse} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
-                  <Text style={styles.approveButtonText}>
-                    {dpr.status === 'approved' ? 'Re-Approve DPR' : 'Approve DPR'}
+                  <Ionicons name="checkmark-done" size={20} color={Colors.textInverse} />
+                  <Text style={[styles.approveButtonText, { color: Colors.textInverse }]}>
+                    {dpr.status === 'approved' ? 'RE-APPROVE' : 'APPROVE REPORT'}
                   </Text>
                 </>
               )}
-            </Pressable>
+            </TouchableOpacity>
           )}
 
-          {dpr.status === 'draft' && dpr.images.length >= 4 && !isViewingHistorical && (
-            <Pressable
-              style={[styles.submitButton, saving && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                <>
-                  <Ionicons name="send" size={20} color={Colors.white} />
-                  <Text style={styles.submitButtonText}>Submit DPR</Text>
-                </>
-              )}
-            </Pressable>
-          )}
-
-          <Pressable
-            style={[styles.pdfButton, generatingPdf && styles.buttonDisabled]}
+          <TouchableOpacity
+            style={[styles.pdfButton, { borderColor: Colors.primary }, generatingPdf && styles.buttonDisabled]}
             onPress={generatePDF}
             disabled={generatingPdf || dpr.images.length === 0}
           >
@@ -740,96 +701,86 @@ export default function DPRDetailScreen() {
               <ActivityIndicator color={Colors.primary} />
             ) : (
               <>
-                <Ionicons name="document" size={20} color={Colors.primary} />
-                <Text style={styles.pdfButtonText}>Generate PDF</Text>
+                <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
+                <Text style={[styles.pdfButtonText, { color: Colors.primary }]}>DOWNLOAD PDF</Text>
               </>
             )}
-          </Pressable>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const getStyles = (Colors: any, Spacing: any, BorderRadius: any) => StyleSheet.create({
+  container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: Spacing.md, fontSize: FontSizes.md, color: Colors.textSecondary },
+  loadingText: { marginTop: Spacing.md, fontWeight: '600' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
-  errorText: { fontSize: FontSizes.lg, color: Colors.error, marginTop: Spacing.md },
-  backButton: { marginTop: Spacing.lg, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, backgroundColor: Colors.primary, borderRadius: BorderRadius.md },
-  backButtonText: { color: Colors.white, fontWeight: '600' },
-  content: { padding: Spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.lg },
+  errorText: { fontWeight: '700', fontSize: 18, marginTop: Spacing.md },
+  backButton: { marginTop: Spacing.lg, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  content: { padding: Spacing.md, paddingBottom: 60 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.lg, paddingHorizontal: 4 },
   headerLeft: { flex: 1 },
-  title: { fontSize: FontSizes.xl, fontWeight: 'bold', color: Colors.text },
-  date: { fontSize: FontSizes.md, color: Colors.textSecondary, marginTop: 4 },
-  statusBadge: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
-  statusText: { fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' },
-  infoCard: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md, borderLeftWidth: 4, borderLeftColor: Colors.primary },
-  cardTitle: { fontSize: FontSizes.xs, color: Colors.textMuted, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-  projectName: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, marginBottom: Spacing.sm },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: Colors.border + '50', paddingTop: Spacing.sm },
+  title: { fontWeight: '800' },
+  date: { marginTop: 4, letterSpacing: 0.5 },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  statusText: { fontWeight: '800' },
+  infoCard: { padding: Spacing.lg, borderRadius: 20, marginBottom: Spacing.md, borderWidth: 1 },
+  cardTitle: { marginBottom: 2, letterSpacing: 0.5 },
+  projectName: { fontWeight: '700', marginBottom: Spacing.md },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, paddingTop: Spacing.md },
   infoItem: { flex: 1 },
-  infoValue: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.textSecondary },
-  section: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.md },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  sectionTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text },
-  input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, fontSize: FontSizes.md, color: Colors.text },
-  textArea: { minHeight: 80, textAlignVertical: 'top' },
-  saveButton: { backgroundColor: Colors.primary, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', marginTop: Spacing.sm },
-  saveButtonText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.md },
+  infoValue: { fontWeight: '700', fontSize: 13 },
+  section: { padding: Spacing.lg, borderRadius: 20, marginBottom: Spacing.md, borderWidth: 1 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
+  sectionTitle: { fontWeight: '700', letterSpacing: 0.5 },
+  input: { borderRadius: 12, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, fontSize: 14, borderWidth: 1 },
+  textArea: { minHeight: 100, textAlignVertical: 'top' },
+  saveButton: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: Spacing.md },
+  saveButtonText: { fontWeight: '700' },
   buttonDisabled: { opacity: 0.6 },
-  detailValue: { fontSize: FontSizes.md, color: Colors.text, lineHeight: 22 },
-  emptyText: { fontSize: FontSizes.md, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.md },
+  detailValue: { fontSize: 15, lineHeight: 22 },
+  emptyText: { fontStyle: 'italic', opacity: 0.6, textAlign: 'center', paddingVertical: 10 },
 
-  // Worker Log Grid Styles
-  workerCountBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.full },
-  workerCountText: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.white },
-  workerLogLoading: { alignItems: 'center', padding: Spacing.lg, gap: Spacing.sm },
-  emptyWorkerLog: { alignItems: 'center', paddingVertical: Spacing.lg, gap: Spacing.sm },
-  workerLogCard: { backgroundColor: Colors.background, borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  workerLogHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: Spacing.sm, marginBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  workerCountBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  workerCountText: { fontSize: 11, fontWeight: '800' },
+  workerLogLoading: { padding: Spacing.lg },
+  emptyWorkerLog: { alignItems: 'center', paddingVertical: Spacing.lg, gap: 8 },
+  workerLogCard: { borderRadius: 16, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 1 },
+  workerLogHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: Spacing.sm, marginBottom: Spacing.md, borderBottomWidth: 1 },
   workerLogHeaderInfo: { flex: 1 },
-  workerLogSupervisor: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text },
-  workerLogMeta: { fontSize: FontSizes.xs, color: Colors.textMuted, marginTop: 2 },
-  gridHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingBottom: Spacing.xs, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  gridHeaderText: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase' },
-  gridRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: Colors.border + '50' },
-  gridCell: { fontSize: FontSizes.sm, color: Colors.text, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs, paddingVertical: 6 },
-  removeEntryBtn: { width: 36, alignItems: 'center', justifyContent: 'center' },
-  workerLogActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
+  workerLogSupervisor: { fontWeight: '700' },
+  workerLogMeta: { fontSize: 11, marginTop: 2 },
+  gridHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1 },
+  gridHeaderText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  gridRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, borderBottomWidth: 1 },
+  gridCell: { fontSize: 12, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8 },
+  removeEntryBtn: { width: 30, alignItems: 'center' },
+  workerLogActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md },
   addEntryBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addEntryText: { fontSize: FontSizes.sm, color: Colors.accent, fontWeight: '500' },
-  saveWorkerLogBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.success, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm },
-  saveWorkerLogText: { fontSize: FontSizes.sm, color: Colors.white, fontWeight: '600' },
+  addEntryText: { fontWeight: '700', fontSize: 13 },
+  saveWorkerLogBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, gap: 6 },
+  saveWorkerLogText: { fontWeight: '700', fontSize: 13 },
 
-  // Photo styles
-  addPhotoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.primary, borderRadius: BorderRadius.sm },
-  addPhotoBtnText: { fontSize: FontSizes.sm, color: Colors.primary },
-  emptyPhotos: { alignItems: 'center', paddingVertical: Spacing.xl },
-  addFirstPhotoBtn: { marginTop: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, backgroundColor: Colors.primary, borderRadius: BorderRadius.md },
-  addFirstPhotoBtnText: { color: Colors.white, fontWeight: '600' },
+  addPhotoBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  emptyPhotos: { alignItems: 'center', paddingVertical: 40, gap: 12 },
   photoGrid: { gap: Spacing.md },
-  photoCard: { backgroundColor: Colors.background, borderRadius: BorderRadius.md, overflow: 'hidden', marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
-  photoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, backgroundColor: Colors.white },
-  photoHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: Spacing.xs },
-  photoNumber: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text },
-  photoPreview: { fontSize: FontSizes.sm, color: Colors.textMuted, marginLeft: Spacing.xs, flex: 1 },
+  photoCard: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  photoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
+  photoHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  photoNumber: { fontSize: 14 },
+  photoPreview: { fontSize: 12, marginLeft: 4 },
   photoContent: { padding: Spacing.md, paddingTop: 0 },
-  photo: { width: '100%', aspectRatio: 16 / 9, borderRadius: BorderRadius.sm, marginBottom: Spacing.md },
-  captionLabel: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.textSecondary, marginBottom: Spacing.xs },
-  captionInput: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: Spacing.md, fontSize: FontSizes.md, color: Colors.text, minHeight: 60, textAlignVertical: 'top' },
-  saveCaptionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.success, padding: Spacing.sm, borderRadius: BorderRadius.md, marginTop: Spacing.sm, gap: Spacing.xs },
-  saveCaptionText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.sm },
-  warningText: { textAlign: 'center', color: Colors.warning, fontSize: FontSizes.sm, marginTop: Spacing.md },
-
-  // Action button styles
-  actions: { gap: Spacing.md, marginTop: Spacing.md },
-  approveButton: { backgroundColor: Colors.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
-  approveButtonText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.md },
-  submitButton: { backgroundColor: Colors.info, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: BorderRadius.md },
-  submitButtonText: { color: Colors.white, fontWeight: '600', fontSize: FontSizes.md },
-  pdfButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.primary },
-  pdfButtonText: { color: Colors.primary, fontWeight: '600', fontSize: FontSizes.md },
+  photo: { width: '100%', height: 200, marginBottom: Spacing.md },
+  captionLabel: { marginBottom: 6, letterSpacing: 1 },
+  captionInput: { borderRadius: 10, padding: 10, borderWidth: 1, fontSize: 13, marginBottom: Spacing.md },
+  saveCaptionBtn: { paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  warningBox: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, marginTop: Spacing.md },
+  
+  actions: { gap: Spacing.md, marginTop: Spacing.xl },
+  approveButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, borderRadius: 16, gap: 8 },
+  approveButtonText: { fontWeight: '800', letterSpacing: 1 },
+  pdfButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, borderRadius: 16, borderWidth: 1, gap: 8 },
+  pdfButtonText: { fontWeight: '800', letterSpacing: 1 },
 });

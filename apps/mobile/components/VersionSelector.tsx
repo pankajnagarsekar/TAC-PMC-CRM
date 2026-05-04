@@ -22,7 +22,7 @@ interface VersionSelectorProps {
   onVersionSelect: (version: number, snapshotData: unknown | null) => void;
 }
 
-export function VersionSelector({
+export default function VersionSelector({
   entityType,
   entityId,
   currentVersion = 1,
@@ -337,4 +337,3 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VersionSelector;

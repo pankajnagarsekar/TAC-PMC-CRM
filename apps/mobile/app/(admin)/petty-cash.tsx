@@ -1,9 +1,7 @@
 // ============================================================
 // SITE FUNDS SCREEN — Unified Petty Cash + Site Overheads
 // ============================================================
-// GROUND RULE: ZERO client-side math.
-// All logic flags and balances are server-computed.
-// 'CREDIT' types and manual Category selection are disabled.
+// Luxury Industrial Design System Enforcement
 // ============================================================
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
@@ -19,10 +17,12 @@ import {
   Alert,
   RefreshControl,
   SafeAreaView,
+  StatusBar,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
+import { BlurView } from 'expo-blur';
 
 import ScreenHeader from "../../components/ScreenHeader";
 import { Card } from "../../components/ui/Card";
@@ -38,12 +38,6 @@ import type { CashCategory, CashTransaction } from "../../services/apiClient";
 
 type FundType = "PETTY_CASH" | "OVH";
 
-// DELETED LOCAL CASHTRANSACTION INTERFACE
-
-// --------------------------------------------------------
-// HELPERS
-// --------------------------------------------------------
-
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -56,11 +50,12 @@ const formatCurrency = (val: number) =>
 // --------------------------------------------------------
 
 const FundToggle = React.memo(({ active, onChange }: { active: FundType; onChange: (t: FundType) => void; }) => {
-    const { colors: Colors, spacing: Spacing, typography: Typography, borderRadius: BorderRadius } = useTheme();
+    const { colors: Colors, spacing: Spacing, borderRadius: BorderRadius } = useTheme();
     const styles = useMemo(() => getStyles(Colors, Spacing, BorderRadius), [Colors, Spacing, BorderRadius]);
+    
     return (
-    <View style={styles.toggleContainer}>
-      <View style={[styles.toggleTrack, { backgroundColor: Colors.surface }]}>
+    <View style={styles.toggleWrapper}>
+      <View style={[styles.toggleTrack, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
         {(["PETTY_CASH", "OVH"] as FundType[]).map((type) => {
           const isActive = active === type;
           return (
@@ -71,7 +66,13 @@ const FundToggle = React.memo(({ active, onChange }: { active: FundType; onChang
               activeOpacity={0.7}
             >
               <Text
-                style={[styles.toggleText, isActive ? { color: Colors.textInverse, ...Typography.subtitle } : { color: Colors.textSecondary, ...Typography.body }]}
+                style={[
+                  styles.toggleText, 
+                  isActive 
+                    ? { color: Colors.textInverse, fontWeight: '700' } 
+                    : { color: Colors.textSecondary, fontWeight: '500' },
+                  { fontSize: 13 }
+                ]}
               >
                 {type === "PETTY_CASH" ? "Petty Cash" : "Site Overheads"}
               </Text>
@@ -89,54 +90,49 @@ const TransactionRow = React.memo(({ item }: { item: CashTransaction }) => {
   const isDebit = item.type === "DEBIT";
   const txDate = item.recorded_at || item.transaction_date || item.created_at;
   const dateStr = txDate
-    ? format(new Date(txDate), "dd MMM yyyy, HH:mm")
+    ? format(new Date(txDate), "dd MMM, HH:mm")
     : "—";
-  const refId = item.transaction_id || item.id || "";
-
+  
   return (
     <View style={[styles.txRow, { borderBottomColor: Colors.border }]}>
-      {/* Row 1: Purpose + Badge */}
-      <View style={styles.txTopRow}>
-        <Text style={[styles.txPurpose, { color: Colors.text, ...Typography.subtitle }]} numberOfLines={1}>
-          {item.purpose || item.description || "Transaction"}
-        </Text>
-        <View
-          style={[
-            styles.txBadge,
-            isDebit ? styles.badgeError : styles.badgeSuccess,
-          ]}
-        >
-          <Text style={[styles.txBadgeText, { ...Typography.overline, color: "white" }]}>
-            {isDebit ? "DEBIT" : "CREDIT"}
-          </Text>
+      <View style={styles.txIconContainer}>
+        <View style={[styles.txIcon, { backgroundColor: isDebit ? Colors.error + '15' : Colors.success + '15' }]}>
+            <Ionicons 
+                name={isDebit ? "arrow-down-outline" : "arrow-up-outline"} 
+                size={20} 
+                color={isDebit ? Colors.error : Colors.success} 
+            />
         </View>
       </View>
 
-      {/* Row 2: Date + Recorded by */}
-      <Text style={[styles.txMeta, { color: Colors.textMuted, ...Typography.caption }]}>
-        {dateStr} • {item.recorded_by || item.created_by || "System"}
-      </Text>
+      <View style={styles.txInfo}>
+        <View style={styles.txTopRow}>
+            <Text style={[styles.txPurpose, { color: Colors.text, ...Typography.subtitle }]} numberOfLines={1}>
+            {item.purpose || item.description || "Transaction"}
+            </Text>
+            <Text
+                style={[
+                    styles.txAmount,
+                    isDebit ? styles.textError : styles.textSuccess,
+                    { fontWeight: '700', fontSize: 16 },
+                ]}
+            >
+                {isDebit ? "−" : "+"}
+                {formatCurrency(item.amount)}
+            </Text>
+        </View>
 
-      {/* Row 3: Amount */}
-      <View style={styles.txBottomRow}>
-        <Text
-          style={[
-            styles.txAmount,
-            isDebit ? styles.textError : styles.textSuccess,
-            { ...Typography.heading2 },
-          ]}
-        >
-          {isDebit ? "−" : "+"}
-          {formatCurrency(item.amount)}
-        </Text>
+        <View style={styles.txMetaRow}>
+            <Text style={[styles.txMeta, { color: Colors.textMuted, fontSize: 11 }]}>
+                {dateStr} • {item.recorded_by || item.created_by || "System"}
+            </Text>
+            {item.transaction_id && (
+                <Text style={[styles.txRefId, { color: Colors.textMuted, fontSize: 9 }]}>
+                    #{item.transaction_id.slice(-6).toUpperCase()}
+                </Text>
+            )}
+        </View>
       </View>
-
-      {/* Row 4: Reference ID */}
-      {refId ? (
-        <Text style={[styles.txRefId, { color: Colors.textMuted, ...Typography.overline }]}>
-          Ref: {refId.slice(-8).toUpperCase()}
-        </Text>
-      ) : null}
     </View>
   );
 });
@@ -148,7 +144,8 @@ const TransactionRow = React.memo(({ item }: { item: CashTransaction }) => {
 export default function SiteFundsScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
-  const { colors: Colors, spacing: Spacing, typography: Typography, borderRadius: BorderRadius } = useTheme();
+  const { colors: Colors, spacing: Spacing, typography: Typography, borderRadius: BorderRadius, isDark } = useTheme();
+  
   const [activeFundType, setActiveFundType] = useState<FundType>("PETTY_CASH");
   const [categories, setCategories] = useState<CashCategory[]>([]);
   const [transactions, setTransactions] = useState<CashTransaction[]>([]);
@@ -162,11 +159,15 @@ export default function SiteFundsScreen() {
 
   // Server-driven selection matching names
   const currentCategory = useMemo(() => {
-    return categories.find((cat) => {
+    // Priority 1: Match by specific name patterns
+    const target = categories.find((cat) => {
       const name = cat.category_name.toLowerCase();
       if (activeFundType === "PETTY_CASH") return name.includes("petty");
-      return name.includes("ovh") || name.includes("overhead");
+      return name.includes("ovh") || name.includes("overhead") || name.includes("site expense");
     });
+    
+    // Priority 2: If none found, but categories exist, pick first (safety fallback)
+    return target || categories[0] || null;
   }, [categories, activeFundType]);
 
   const syncFunds = useCallback(
@@ -182,11 +183,12 @@ export default function SiteFundsScreen() {
         const freshCats = summary.categories || [];
         setCategories(freshCats);
 
+        // Find matching category for the active tab to load its transactions
         const target = freshCats.find((cat) => {
           const name = cat.category_name.toLowerCase();
           if (activeFundType === "PETTY_CASH") return name.includes("petty");
           return name.includes("ovh") || name.includes("overhead");
-        });
+        }) || freshCats[0];
 
         if (target) {
           const txRes = await cashApi.listTransactions(
@@ -202,7 +204,6 @@ export default function SiteFundsScreen() {
         }
       } catch (err: unknown) {
         console.error("[SiteFunds] sync error:", err);
-        Alert.alert("Sync Error", "Failed to retrieve site funds.");
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -226,6 +227,7 @@ export default function SiteFundsScreen() {
   if (!selectedProject) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
         <ScreenHeader title="Site Funds" />
         <View style={styles.emptyState}>
           <View style={[styles.emptyIconCircle, { backgroundColor: Colors.surface }]}>
@@ -238,7 +240,7 @@ export default function SiteFundsScreen() {
           <Button
             title="Select Project"
             onPress={() => router.push("/(admin)/select-project")}
-            style={{ marginTop: Spacing.lg }}
+            style={{ marginTop: Spacing.lg, paddingHorizontal: 40 }}
           />
         </View>
       </SafeAreaView>
@@ -260,7 +262,7 @@ export default function SiteFundsScreen() {
         {
           category_id: currentCategory.category_id,
           amount,
-          type: "DEBIT", // Forced Security constraint
+          type: "DEBIT",
           purpose: formData.purpose.trim(),
         },
         idempotencyKey,
@@ -268,10 +270,10 @@ export default function SiteFundsScreen() {
       setModalVisible(false);
       setFormData({ amount: "", purpose: "" });
       syncFunds(true);
-      Alert.alert("Recorded", "Expense logged successfully.");
+      Alert.alert("Success", "Expense logged successfully.");
     } catch (err: unknown) {
       console.error("[SiteFunds] create error:", err);
-      Alert.alert("Error", "Failed to log transaction.");
+      Alert.alert("Error", "Failed to log transaction. Check permissions or balance.");
     } finally {
       setSubmitting(false);
     }
@@ -280,66 +282,54 @@ export default function SiteFundsScreen() {
   const renderHeader = () => (
     <View style={styles.headerStack}>
       {currentCategory ? (
-        <Card variant="elevated" padding="lg" style={styles.summaryCard}>
-          <Text style={[styles.summaryLabel, { color: Colors.textSecondary, ...Typography.overline }]}>Available Balance</Text>
-          <Text
-            style={[
-              styles.summaryValue,
-              currentCategory.is_negative && styles.textError,
-              { color: Colors.text, ...Typography.heading1 }
-            ]}
-          >
-            {formatCurrency(currentCategory.cash_in_hand)}
-          </Text>
-          <View style={[styles.summaryDivider, { backgroundColor: Colors.border }]} />
-          <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: Colors.textSecondary, ...Typography.body }]}>Allocated</Text>
-            <Text style={[styles.metaValue, { color: Colors.text, ...Typography.subtitle }]}>
-              {formatCurrency(currentCategory.allocation_total)}
-            </Text>
-          </View>
-          <View style={[styles.metaRow, { marginTop: Spacing.sm }]}>
-            <Text style={[styles.metaLabel, { color: Colors.textSecondary, ...Typography.body }]}>Used Amount</Text>
-            <Text style={[styles.metaValue, styles.textError, { ...Typography.subtitle }]}>
-              {formatCurrency(
-                currentCategory.allocation_total -
-                  currentCategory.cash_in_hand,
-              )}
-            </Text>
-          </View>
-          <View style={[styles.metaRow, { marginTop: Spacing.sm }]}>
-            <Text style={[styles.metaLabel, { color: Colors.textSecondary, ...Typography.body }]}>Pending Approvals</Text>
-            <Text style={[styles.metaValue, { color: Colors.textMuted, ...Typography.subtitle }]}>
-              {formatCurrency(0)}
-            </Text>
-          </View>
-          {currentCategory.days_since_last_pc_close !== null && (
-            <View style={[styles.metaRow, { marginTop: Spacing.sm }]}>
-              <Text style={[styles.metaLabel, { color: Colors.textSecondary, ...Typography.body }]}>Last Replenishment</Text>
-              <Text style={[styles.metaValue, { color: Colors.text, ...Typography.subtitle }]}>
-                {currentCategory.days_since_last_pc_close === 0 
-                  ? 'Today' 
-                  : `${currentCategory.days_since_last_pc_close}d ago`}
-              </Text>
+        <Card variant="elevated" padding="none" style={styles.summaryCard}>
+            <View style={[styles.summaryPrimary, { backgroundColor: Colors.surface }]}>
+                <Text style={[styles.summaryLabel, { color: Colors.textSecondary, ...Typography.overline }]}>Available Balance</Text>
+                <Text
+                    style={[
+                    styles.summaryValue,
+                    currentCategory.is_negative && styles.textError,
+                    { color: Colors.text, ...Typography.heading1, fontSize: 32 }
+                    ]}
+                >
+                    {formatCurrency(currentCategory.cash_in_hand)}
+                </Text>
+                
+                {(currentCategory.is_negative || currentCategory.threshold_breached) && (
+                    <View style={styles.flagContainer}>
+                        {currentCategory.is_negative && (
+                        <View style={[styles.flagPill, { backgroundColor: Colors.error }]}>
+                            <Ionicons name="alert-circle" size={12} color="white" />
+                            <Text style={[styles.flagText, { fontSize: 10, fontWeight: '700' }]}>DEFICIT</Text>
+                        </View>
+                        )}
+                        {currentCategory.threshold_breached && (
+                        <View style={[styles.flagPill, { backgroundColor: Colors.warning }]}>
+                            <Ionicons name="warning" size={12} color="white" />
+                            <Text style={[styles.flagText, { fontSize: 10, fontWeight: '700' }]}>LOW BALANCE</Text>
+                        </View>
+                        )}
+                    </View>
+                )}
             </View>
-          )}
-          {(currentCategory.is_negative ||
-            currentCategory.threshold_breached) && (
-              <View style={styles.flagContainer}>
-                {currentCategory.is_negative && (
-                  <View style={styles.flagPill}>
-                    <Ionicons name="alert-circle" size={14} color="white" />
-                    <Text style={[styles.flagText, { ...Typography.overline, color: 'white' }]}>Deficit</Text>
-                  </View>
-                )}
-                {currentCategory.threshold_breached && (
-                  <View style={styles.flagPillWarning}>
-                    <Ionicons name="warning" size={14} color="white" />
-                    <Text style={[styles.flagText, { ...Typography.overline, color: 'white' }]}>Strict Limit</Text>
-                  </View>
-                )}
-              </View>
-            )}
+
+            <View style={[styles.summarySecondary, { borderTopWidth: 1, borderTopColor: Colors.border }]}>
+                <View style={styles.metaRow}>
+                    <View style={styles.metaCol}>
+                        <Text style={[styles.metaLabel, { color: Colors.textMuted, fontSize: 10 }]}>ALLOCATED</Text>
+                        <Text style={[styles.metaValue, { color: Colors.text, fontSize: 14 }]}>
+                            {formatCurrency(currentCategory.allocation_total)}
+                        </Text>
+                    </View>
+                    <View style={[styles.metaDivider, { backgroundColor: Colors.border }]} />
+                    <View style={styles.metaCol}>
+                        <Text style={[styles.metaLabel, { color: Colors.textMuted, fontSize: 10 }]}>USED</Text>
+                        <Text style={[styles.metaValue, { color: Colors.error, fontSize: 14 }]}>
+                            {formatCurrency(currentCategory.allocation_total - currentCategory.cash_in_hand)}
+                        </Text>
+                    </View>
+                </View>
+            </View>
         </Card>
       ) : loading ? (
         <View style={[styles.placeholderCard, { backgroundColor: Colors.surface }]}>
@@ -348,37 +338,45 @@ export default function SiteFundsScreen() {
       ) : (
         <Card variant="elevated" padding="lg" style={styles.summaryCard}>
           <Text style={[styles.summaryLabel, { color: Colors.textSecondary, ...Typography.overline }]}>Fund Data</Text>
-          <Text style={[styles.summaryValue, styles.textError, { ...Typography.heading1 }]}>No Data</Text>
+          <Text style={[styles.summaryValue, styles.textError, { ...Typography.heading1 }]}>Not Configured</Text>
           <Text style={[styles.emptySubtext, { color: Colors.textMuted, ...Typography.body }]}>
-            No fund allocation found for this project type.
+            No fund allocation found for this project. Contact Admin to initialize.
           </Text>
         </Card>
       )}
 
-      <Button
-        title="Record Expense"
-        onPress={() => setModalVisible(true)}
-        variant="primary"
-        size="lg"
-        disabled={!currentCategory}
-        icon={<Ionicons name="add" size={20} color={Colors.textInverse} />}
-      />
+      <View style={styles.actionRow}>
+        <Button
+            title="Record Expense"
+            onPress={() => setModalVisible(true)}
+            variant="primary"
+            size="lg"
+            disabled={!currentCategory || currentCategory.is_negative}
+            style={styles.recordBtn}
+            icon={<Ionicons name="add" size={20} color={Colors.textInverse} />}
+        />
+      </View>
 
-      <Text style={[styles.sectionTitle, { color: Colors.text, ...Typography.overline }]}>Fund Ledger</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: Colors.textSecondary, ...Typography.overline }]}>Transaction History</Text>
+        <Ionicons name="filter-outline" size={16} color={Colors.textMuted} />
+      </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <ScreenHeader title="Site Funds" />
+      
       <FundToggle active={activeFundType} onChange={setActiveFundType} />
 
       <FlatList
         data={transactions}
-        keyExtractor={(item) => item.id || item.transaction_id}
+        keyExtractor={(item) => item.transaction_id || item.id || Math.random().toString()}
         renderItem={({ item }) => <TransactionRow item={item} />}
         ListHeaderComponent={renderHeader}
-        contentContainerStyle={[styles.listContent, { padding: Spacing.md }]}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -387,42 +385,43 @@ export default function SiteFundsScreen() {
           />
         }
         ListEmptyComponent={
-          !loading && categories.length > 0 ? (
+          !loading ? (
             <View style={styles.ledgerEmpty}>
               <View style={[styles.emptyIconCircle, { backgroundColor: Colors.surface, opacity: 0.5 }]}>
                 <Ionicons name="receipt-outline" size={32} color={Colors.textMuted} />
               </View>
               <Text style={[styles.emptyText, { color: Colors.text, ...Typography.subtitle }]}>
-                No transactions recorded yet.
+                No transactions yet
               </Text>
               <Text style={[styles.emptySubtext, { color: Colors.textMuted, ...Typography.body, marginTop: 4 }]}>
-                Tap &quot;Record Expense&quot; to log the first entry.
+                All expenditures will appear here.
               </Text>
             </View>
           ) : null
         }
       />
 
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
           <View style={[styles.modalSheet, { backgroundColor: Colors.surface }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: Colors.text, ...Typography.heading2 }]}>Record Expense</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Colors.text} />
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <Text style={[styles.modalSubtitle, { color: Colors.textSecondary, ...Typography.overline }]}>
-              Target:{" "}
-              {activeFundType === "PETTY_CASH"
-                ? "Petty Cash"
-                : "Site Overheads"}
-            </Text>
+            
+            <View style={[styles.modalBadge, { backgroundColor: Colors.primary + '15' }]}>
+                <Text style={{ color: Colors.primary, fontSize: 11, fontWeight: '700' }}>
+                    FROM: {activeFundType === "PETTY_CASH" ? "PETTY CASH" : "SITE OVERHEADS"}
+                </Text>
+            </View>
 
             <View style={styles.field}>
               <Text style={[styles.label, { color: Colors.textSecondary, ...Typography.caption }]}>Amount (₹)</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.text, ...Typography.heading1 }]}
+                style={[styles.input, { backgroundColor: Colors.background, borderColor: Colors.border, color: Colors.text, fontSize: 28, fontWeight: '700' }]}
                 value={formData.amount}
                 onChangeText={(t) =>
                   setFormData({
@@ -432,34 +431,30 @@ export default function SiteFundsScreen() {
                 }
                 keyboardType="decimal-pad"
                 autoFocus
-                placeholder="0"
+                placeholder="0.00"
                 placeholderTextColor={Colors.textMuted}
               />
             </View>
+            
             <View style={styles.field}>
-              <Text style={[styles.label, { color: Colors.textSecondary, ...Typography.caption }]}>Note</Text>
+              <Text style={[styles.label, { color: Colors.textSecondary, ...Typography.caption }]}>Description / Purpose</Text>
               <TextInput
-                style={[styles.input, { height: 80, backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.text, ...Typography.body }]}
+                style={[styles.input, { height: 80, backgroundColor: Colors.background, borderColor: Colors.border, color: Colors.text, ...Typography.body, textAlignVertical: 'top' }]}
                 value={formData.purpose}
                 onChangeText={(t) => setFormData({ ...formData, purpose: t })}
-                placeholder="Details..."
+                placeholder="What was this spent on?"
                 placeholderTextColor={Colors.textMuted}
                 multiline
               />
             </View>
+            
             <View style={styles.modalActions}>
               <Button
-                title="Cancel"
-                variant="outline"
-                onPress={() => setModalVisible(false)}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Save Entry"
+                title="Save Transaction"
                 variant="primary"
                 onPress={handleRecordExpense}
                 loading={submitting}
-                style={{ flex: 1 }}
+                style={{ flex: 1, height: 55 }}
               />
             </View>
           </View>
@@ -471,152 +466,163 @@ export default function SiteFundsScreen() {
 
 const getStyles = (Colors: any, Spacing: any, BorderRadius: any) => StyleSheet.create({
   container: { flex: 1 },
-  header: {
+  toggleWrapper: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: 10,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-  },
-  toggleContainer: {
-    padding: Spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: Spacing.md,
   },
   toggleTrack: {
     flexDirection: "row",
     padding: 4,
-    borderRadius: BorderRadius.md,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: "center",
-    borderRadius: BorderRadius.sm,
+    borderRadius: 10,
   },
-  toggleText: {},
-  title: {},
-  switchContainer: {
-    flexDirection: "row",
-    backgroundColor: Colors.surface,
-    padding: 4,
-    borderRadius: 8,
+  toggleText: {
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  headerStack: { 
+    paddingHorizontal: Spacing.lg, 
+    paddingBottom: Spacing.md 
+  },
+  summaryCard: {
+    marginTop: Spacing.sm,
+    borderRadius: 20,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  switchBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+  summaryPrimary: {
+    padding: Spacing.xl,
+    alignItems: 'center',
   },
-  switchBtnActive: {
-    backgroundColor: Colors.primary,
+  summarySecondary: {
+    flexDirection: 'row',
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
   },
-  switchText: {
-    fontSize: 10,
-    fontWeight: "800",
+  summaryLabel: { 
+    marginBottom: 8,
     letterSpacing: 1,
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  summaryCard: {
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
-  },
-  balanceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: Spacing.md,
-  },
-  balanceLabel: { marginBottom: 4 },
-  balanceValue: {},
   summaryValue: {
-    marginBottom: Spacing.md,
-  },
-  summaryLabel: { marginBottom: 4 },
-  summaryDivider: { height: 1, marginVertical: Spacing.md, opacity: 0.5 },
-  headerStack: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
-  listContent: {},
-  divider: {
-    height: 1,
-    opacity: 0.1,
-    marginVertical: Spacing.md,
+    fontWeight: '800',
   },
   metaRow: {
+    flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     alignItems: "center",
   },
-  metaLabel: {},
-  metaValue: { fontWeight: "700" },
+  metaCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  metaDivider: {
+    width: 1,
+    height: '60%',
+    opacity: 0.5,
+  },
+  metaLabel: { 
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  metaValue: { 
+    fontWeight: "700" 
+  },
   flagContainer: {
-    marginTop: Spacing.lg,
+    marginTop: 12,
     flexDirection: "row",
     gap: 8,
   },
   flagPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.error,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  flagPillWarning: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.warning,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
+    borderRadius: 6,
     gap: 4,
   },
   flagText: { color: "white" },
-  sectionTitle: {
+  actionRow: {
     marginTop: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  recordBtn: {
+    borderRadius: 14,
+    height: 55,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  sectionTitle: {
+    letterSpacing: 1,
+  },
+  listContent: {
+    paddingBottom: 100,
+  },
   txRow: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+  },
+  txIconContainer: {
+    marginRight: Spacing.md,
+  },
+  txIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  txInfo: {
+    flex: 1,
   },
   txTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  txPurpose: { flex: 1, marginRight: 8 },
-  txBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  txPurpose: { 
+    flex: 1, 
+    marginRight: 8,
+    fontWeight: '600',
   },
-  txBadgeText: {},
-  txMeta: { marginBottom: 6 },
-  txBottomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  txMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  txAmount: {},
+  txAmount: {
+  },
+  txMeta: { 
+    opacity: 0.8,
+  },
   txRefId: {
-    marginTop: 4,
-    fontFamily: "monospace",
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    opacity: 0.5,
   },
   textError: { color: Colors.error },
   textSuccess: { color: Colors.success },
-  badgeError: { backgroundColor: Colors.error },
-  badgeSuccess: { backgroundColor: Colors.success },
   ledgerEmpty: {
     alignItems: "center",
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   emptyIconCircle: {
     width: 80,
@@ -627,9 +633,9 @@ const getStyles = (Colors: any, Spacing: any, BorderRadius: any) => StyleSheet.c
     marginBottom: Spacing.md,
   },
   placeholderCard: {
-    height: 160,
+    height: 180,
     justifyContent: "center",
-    borderRadius: BorderRadius.lg,
+    borderRadius: 20,
     marginBottom: Spacing.md,
   },
   emptyState: {
@@ -642,44 +648,59 @@ const getStyles = (Colors: any, Spacing: any, BorderRadius: any) => StyleSheet.c
     marginTop: Spacing.md,
     textAlign: "center",
   },
-  emptyText: { textAlign: "center" },
   emptySubtext: {
-    marginTop: 8,
+    marginTop: 12,
     textAlign: "center",
+    opacity: 0.7,
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
   modalSheet: {
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    paddingBottom: 40,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: Spacing.xl,
+    paddingBottom: 50,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  modalTitle: {},
-  modalSubtitle: {
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontWeight: '800',
+  },
+  modalBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     marginBottom: Spacing.lg,
   },
-  field: { marginBottom: Spacing.md },
+  field: { marginBottom: Spacing.lg },
   label: {
-    marginBottom: 4,
+    marginBottom: 8,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   input: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    borderRadius: 14,
+    padding: Spacing.lg,
     borderWidth: 1,
   },
   modalActions: {
-    flexDirection: "row",
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
   },
 });

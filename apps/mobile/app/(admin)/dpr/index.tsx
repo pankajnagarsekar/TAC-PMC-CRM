@@ -1,6 +1,5 @@
 // ADMIN DPR INDEX - LIST VIEW
-// Shows DPRs for selected project with Create + Worker Log buttons
-// Admin can view, edit, approve DPRs created by supervisors or themselves
+// Shows DPRs for selected project with premium luxury design
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -14,6 +13,7 @@ import {
   Alert,
   TextInput,
   GestureResponderEvent,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,14 +27,13 @@ import { DPR, Project } from '../../../types/api';
 export default function AdminDPRListScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
-  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius, typography: Typography } = useTheme();
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius, typography: Typography, isDark } = useTheme();
   const styles = React.useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
   const [dprs, setDprs] = useState<DPR[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
   // Redirect if no project selected
@@ -57,7 +56,6 @@ export default function AdminDPRListScreen() {
     try {
       const data = await dprApi.getAll(projectId, {
         search: searchQuery || undefined,
-        date: dateFilter || undefined,
       });
       setDprs(data);
     } catch (error) {
@@ -66,7 +64,7 @@ export default function AdminDPRListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [projectId, searchQuery, dateFilter]);
+  }, [projectId, searchQuery]);
 
   useEffect(() => {
     if (projectId) loadDPRs();
@@ -81,7 +79,7 @@ export default function AdminDPRListScreen() {
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'approved': return Colors.success;
-      case 'submitted': return Colors.info;
+      case 'submitted': return Colors.primary; // Gold for submitted
       case 'draft': return Colors.warning;
       case 'rejected': return Colors.error;
       default: return Colors.textMuted;
@@ -91,14 +89,13 @@ export default function AdminDPRListScreen() {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
   const approveDPR = async (dprId: string) => {
     try {
       setApprovingId(dprId);
       await dprApi.approve(dprId);
-      // Immediate UI update
       setDprs(prev => prev.map(dpr =>
         (dpr.dpr_id === dprId || (dpr as any).id === dprId) ? { ...dpr, status: 'Approved' } : dpr
       ));
@@ -113,56 +110,73 @@ export default function AdminDPRListScreen() {
 
   const renderDPR = ({ item }: { item: DPR }) => {
     const dprId = item.dpr_id || (item as any).id || (item as any)._id;
+    const isApproved = item.status?.toLowerCase() === 'approved';
 
     return (
-      <TouchableOpacity onPress={() => {
-        if (!dprId) {
-          Alert.alert('Error', 'Invalid DPR ID');
-          return;
-        }
-        router.push(`/(admin)/dpr/${dprId}`);
-      }}>
-        <Card style={styles.dprCard}>
+      <TouchableOpacity 
+        activeOpacity={0.8}
+        onPress={() => dprId && router.push(`/(admin)/dpr/${dprId}`)}
+      >
+        <Card variant="elevated" style={[styles.dprCard, isApproved && { opacity: 0.9 }]}>
           <View style={styles.dprHeader}>
-            <View>
-              <Text style={[styles.dprDate, { ...Typography.subtitle }]}>{formatDate(item.dpr_date)}</Text>
-              <Text style={[styles.dprCreator, { ...Typography.caption }]}>
-                by {item.created_by_name || 'Unknown'} ({item.created_by_role || 'N/A'})
-              </Text>
+            <View style={styles.dateBlock}>
+                <Text style={[styles.dprDate, { color: Colors.text, ...Typography.subtitle }]}>{formatDate(item.dpr_date)}</Text>
+                <Text style={[styles.dprYear, { color: Colors.textMuted, fontSize: 10 }]}>{new Date(item.dpr_date).getFullYear()}</Text>
             </View>
-            <View style={styles.statusContainer}>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-                <Text style={[styles.statusText, { color: getStatusColor(item.status), ...Typography.overline }]}>
-                  {item.status}
-                </Text>
-              </View>
-              {item.status?.toLowerCase() === 'submitted' && (
-                <TouchableOpacity
-                  style={styles.quickApproveBtn}
-                  onPress={(e: GestureResponderEvent) => {
-                    e.stopPropagation();
-                    if (dprId) approveDPR(dprId);
-                  }}
-                  disabled={approvingId === dprId}
-                >
-                  {approvingId === dprId ? (
-                    <ActivityIndicator size="small" color={Colors.success} />
-                  ) : (
-                    <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
-                  )}
-                </TouchableOpacity>
-              )}
+            
+            <View style={styles.statusSection}>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
+                    <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+                    <Text style={[styles.statusText, { color: getStatusColor(item.status), ...Typography.overline }]}>
+                    {item.status}
+                    </Text>
+                </View>
+                
+                {item.status?.toLowerCase() === 'submitted' && (
+                    <TouchableOpacity
+                    style={[styles.quickApproveBtn, { backgroundColor: Colors.success + '15' }]}
+                    onPress={(e: GestureResponderEvent) => {
+                        e.stopPropagation();
+                        if (dprId) approveDPR(dprId);
+                    }}
+                    disabled={approvingId === dprId}
+                    >
+                    {approvingId === dprId ? (
+                        <ActivityIndicator size="small" color={Colors.success} />
+                    ) : (
+                        <Ionicons name="checkmark" size={18} color={Colors.success} />
+                    )}
+                    </TouchableOpacity>
+                )}
             </View>
           </View>
+
+          <View style={styles.contentDivider} />
+
           {item.progress_notes && (
-            <Text style={[styles.dprNotes, { ...Typography.body }]} numberOfLines={2}>{item.progress_notes}</Text>
+            <Text style={[styles.dprNotes, { color: Colors.textSecondary, ...Typography.body }]} numberOfLines={2}>
+                {item.progress_notes}
+            </Text>
           )}
-          <View style={styles.dprMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="camera" size={16} color={Colors.textMuted} />
-              <Text style={[styles.metaText, { ...Typography.caption }]}>{item.images_count || 0} photos</Text>
+
+          <View style={styles.dprFooter}>
+            <View style={styles.creatorInfo}>
+                <View style={[styles.avatar, { backgroundColor: Colors.primary + '20' }]}>
+                    <Text style={{ color: Colors.primary, fontSize: 10, fontWeight: '700' }}>
+                        {(item.created_by_name || 'U').charAt(0).toUpperCase()}
+                    </Text>
+                </View>
+                <Text style={[styles.dprCreator, { color: Colors.textMuted, ...Typography.caption }]}>
+                    {item.created_by_name || 'Supervisor'}
+                </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+
+            <View style={styles.metaBadge}>
+              <Ionicons name="images-outline" size={12} color={Colors.primary} />
+              <Text style={[styles.metaText, { color: Colors.primary, fontWeight: '700', fontSize: 10 }]}>
+                {item.images_count || 0}
+              </Text>
+            </View>
           </View>
         </Card>
       </TouchableOpacity>
@@ -171,61 +185,58 @@ export default function AdminDPRListScreen() {
 
   if (!selectedProject) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.accent} />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]} edges={['top']}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerInfo}>
-          <Text style={[styles.headerTitle, { ...Typography.heading1 }]}>Daily Progress Reports</Text>
-          <Text style={[styles.headerSubtitle, { ...Typography.overline }]}>{selectedProject.project_name}</Text>
+        <View>
+          <Text style={[styles.headerTitle, { color: Colors.text, ...Typography.heading2 }]}>Daily Reports</Text>
+          <Text style={[styles.headerSubtitle, { color: Colors.textMuted, ...Typography.overline }]}>{selectedProject.project_name}</Text>
         </View>
+        <TouchableOpacity style={[styles.headerIcon, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+            <Ionicons name="options-outline" size={20} color={Colors.text} />
+        </TouchableOpacity>
       </View>
 
-      {/* Action Buttons */}
+      {/* Action Row */}
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.createButton]}
+          style={[styles.actionButton, { backgroundColor: Colors.primary }]}
           onPress={() => router.push('/(admin)/dpr/create')}
         >
-          <Ionicons name="add-circle" size={20} color={Colors.white} />
-          <Text style={[styles.actionButtonText, { color: Colors.white, ...Typography.subtitle }]}>Create DPR</Text>
+          <Ionicons name="add" size={22} color={Colors.textInverse} />
+          <Text style={[styles.actionButtonText, { color: Colors.textInverse }]}>New DPR</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
-          style={[styles.actionButton, styles.workerLogButton]}
+          style={[styles.actionButton, { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border }]}
           onPress={() => router.push('/(admin)/worker-log')}
         >
-          <Ionicons name="people" size={20} color={Colors.white} />
-          <Text style={[styles.actionButtonText, { color: Colors.white, ...Typography.subtitle }]}>Worker Log</Text>
+          <Ionicons name="people-outline" size={20} color={Colors.text} />
+          <Text style={[styles.actionButtonText, { color: Colors.text }]}>Worker Log</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Filters */}
-      <View style={styles.filterContainer}>
-        <View style={styles.searchBox}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBox, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
           <Ionicons name="search" size={18} color={Colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search by notes..."
+            style={[styles.searchInput, { color: Colors.text }]}
+            placeholder="Search reports..."
+            placeholderTextColor={Colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
-          />
-        </View>
-        <View style={styles.dateBox}>
-          <Ionicons name="calendar" size={18} color={Colors.textMuted} />
-          <TextInput
-            style={styles.dateInput}
-            placeholder="YYYY-MM-DD"
-            value={dateFilter}
-            onChangeText={setDateFilter}
-            maxLength={10}
           />
         </View>
       </View>
@@ -233,8 +244,8 @@ export default function AdminDPRListScreen() {
       {/* DPR List */}
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.accent} />
-          <Text style={styles.loadingText}>Loading DPRs...</Text>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={[styles.loadingText, { color: Colors.textSecondary }]}>Retrieving records...</Text>
         </View>
       ) : (
         <FlatList
@@ -246,14 +257,17 @@ export default function AdminDPRListScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => { setRefreshing(true); loadDPRs(); }}
+              tintColor={Colors.primary}
             />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={64} color={Colors.textMuted} />
-              <Text style={styles.emptyTitle}>No DPRs Yet</Text>
-              <Text style={styles.emptyText}>
-                Create your first DPR or wait for supervisors to submit their reports.
+              <View style={[styles.emptyIconCircle, { backgroundColor: Colors.surface }]}>
+                <Ionicons name="document-text-outline" size={40} color={Colors.textMuted} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: Colors.text }]}>No Reports Found</Text>
+              <Text style={[styles.emptyText, { color: Colors.textMuted }]}>
+                Try adjusting your filters or create a new report.
               </Text>
             </View>
           }
@@ -271,7 +285,6 @@ const getStyles = (
 ) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   centerContainer: {
     flex: 1,
@@ -280,189 +293,183 @@ const getStyles = (
     gap: Spacing.md,
   },
   loadingText: {
-    color: Colors.textSecondary,
     fontFamily: 'Inter_500Medium',
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.md,
-    backgroundColor: Colors.cardBg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerInfo: {
-    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-    fontFamily: 'Inter_700Bold',
+    fontWeight: '800',
   },
   headerSubtitle: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
   },
   actionRow: {
     flexDirection: 'row',
     gap: Spacing.md,
-    padding: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-  },
-  createButton: {
-    backgroundColor: Colors.accent,
-  },
-  workerLogButton: {
-    backgroundColor: Colors.primary,
+    height: 50,
+    borderRadius: 14,
+    gap: 8,
   },
   actionButtonText: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.white,
-    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  searchContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    height: 46,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    marginLeft: 10,
+    fontSize: 14,
   },
   listContent: {
-    padding: Spacing.md,
-    paddingTop: 0,
-    paddingBottom: 100,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: 120,
   },
   dprCard: {
     marginBottom: Spacing.md,
+    borderRadius: 18,
+    padding: Spacing.md,
   },
   dprHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+  dateBlock: {
   },
   dprDate: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: Colors.text,
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '700',
   },
-  dprCreator: {
-    fontSize: FontSizes.xs,
-    color: Colors.textMuted,
-    marginTop: 4,
-    fontFamily: 'Inter_400Regular',
+  dprYear: {
+    marginTop: 2,
   },
-  statusContainer: {
+  statusSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  quickApproveBtn: {
-    padding: 4,
+    gap: 8,
   },
   statusBadge: {
-    paddingHorizontal: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: BorderRadius.full,
+    borderRadius: 8,
+    gap: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '700',
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  quickApproveBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contentDivider: {
+    height: 1,
+    backgroundColor: 'transparent',
+    marginVertical: Spacing.md,
   },
   dprNotes: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginTop: Spacing.md,
-    lineHeight: 22,
-    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: Spacing.md,
   },
-  dprMeta: {
+  dprFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Spacing.md,
     paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
-  metaItem: {
+  creatorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  avatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dprCreator: {
+    fontWeight: '500',
+  },
+  metaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   metaText: {
-    fontSize: FontSizes.xs,
-    color: Colors.textMuted,
-    fontFamily: 'Inter_400Regular',
+    marginLeft: 2,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: 80,
+    paddingVertical: 100,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '600',
-    color: Colors.text,
-    marginTop: Spacing.md,
-    fontFamily: 'Inter_600SemiBold',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+    fontSize: 14,
     textAlign: 'center',
-    marginTop: Spacing.sm,
-    lineHeight: 24,
-    fontFamily: 'Inter_400Regular',
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    padding: Spacing.md,
-    paddingTop: 0,
-    gap: Spacing.md,
-  },
-  searchBox: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  dateBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    marginLeft: Spacing.sm,
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-    fontFamily: 'Inter_400Regular',
-  },
-  dateInput: {
-    flex: 1,
-    height: 44,
-    marginLeft: Spacing.sm,
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-    fontFamily: 'Inter_400Regular',
+    paddingHorizontal: 40,
+    lineHeight: 20,
   },
 });
