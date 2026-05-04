@@ -100,10 +100,64 @@ export const Shadows = {
   },
 };
 
+export const Typography = {
+  heading1: {
+    fontFamily: 'Inter_900Black',
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.5,
+  },
+  heading2: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: 0,
+  },
+  body: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
+  caption: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.2,
+  },
+  overline: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase' as const,
+  },
+  kpiValue: {
+    fontFamily: 'Inter_900Black',
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.5,
+  },
+};
+
+export const AnimationConfig = {
+  pressScale: 0.97,
+  springConfig: { damping: 15, stiffness: 150 },
+  fadeDuration: 200,
+};
+
 export default {
   Colors,
   Spacing,
   FontSizes,
   BorderRadius,
   Shadows,
+  Typography,
+  AnimationConfig,
 };

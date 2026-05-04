@@ -716,6 +716,7 @@ export interface CashCategory {
   allocation_total: number;
   is_negative: boolean;
   threshold_breached: boolean;
+  days_since_last_pc_close: number | null;
 }
 
 export interface CashSummaryResponse {

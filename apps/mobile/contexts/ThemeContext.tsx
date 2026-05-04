@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import { useColorScheme as useDeviceColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors as BaseColors, Spacing as BaseSpacing, FontSizes as BaseFontSizes, BorderRadius, Shadows } from '../constants/theme';
+import { Colors as BaseColors, Spacing as BaseSpacing, FontSizes as BaseFontSizes, BorderRadius, Shadows, Typography, AnimationConfig } from '../constants/theme';
 
 const STORAGE_KEY = 'app_appearance_settings';
 
@@ -29,6 +29,8 @@ export interface ThemeContextType {
   fontSizes: typeof BaseFontSizes;
   borderRadius: typeof BorderRadius;
   shadows: typeof Shadows;
+  typography: typeof Typography;
+  animation: typeof AnimationConfig;
   isDark: boolean;
   toggleTheme: () => void;
 }
@@ -141,6 +143,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     fontSizes,
     borderRadius: BorderRadius,
     shadows: Shadows,
+    typography: Typography,
+    animation: AnimationConfig,
     isDark,
     toggleTheme,
   }), [settings, updateSettings, colors, spacing, fontSizes, isDark, toggleTheme]);

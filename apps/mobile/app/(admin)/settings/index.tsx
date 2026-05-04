@@ -67,15 +67,37 @@ export default function AdminSettings() {
           </View>
         </Card>
 
-        {/* Settings Sections */}
+        {/* Site Operations */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Work Management</Text>
+          <Text style={styles.sectionTitle}>Site Operations</Text>
           <Card padding="none">
-            <SettingsItem icon="calendar" title="Scheduler" onPress={() => router.push('/(admin)/scheduler')} Colors={Colors} styles={styles} />
-            <SettingsItem icon="checkmark-circle" title="Tasks" onPress={() => router.push('/(admin)/tasks')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="business-outline" title="Projects" onPress={() => router.push('/(admin)/projects')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="document-text-outline" title="Daily Progress Report" onPress={() => router.push('/(admin)/dpr')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="people-outline" title="Attendance" onPress={() => router.push('/(admin)/attendance-view')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="hammer-outline" title="Workers Report" onPress={() => router.push('/(admin)/workers-report')} Colors={Colors} styles={styles} />
           </Card>
         </View>
 
+        {/* Work Management */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Work Management</Text>
+          <Card padding="none">
+            <SettingsItem icon="calendar-outline" title="Scheduler" onPress={() => router.push('/(admin)/scheduler')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="checkmark-circle-outline" title="Tasks" onPress={() => router.push('/(admin)/tasks')} Colors={Colors} styles={styles} />
+          </Card>
+        </View>
+
+        {/* Tools */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tools</Text>
+          <Card padding="none">
+            <SettingsItem icon="notifications-outline" title="Notifications" onPress={() => router.push('/(admin)/notifications')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="scan-outline" title="Invoice Scanner" onPress={() => router.push('/(admin)/ocr')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="stats-chart-outline" title="Analytics" onPress={() => router.push('/(admin)/analytics')} Colors={Colors} styles={styles} />
+          </Card>
+        </View>
+
+        {/* Organization */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Organization</Text>
           <Card padding="none">
@@ -85,14 +107,13 @@ export default function AdminSettings() {
           </Card>
         </View>
 
-        {/*
+        {/* Preferences */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           <Card padding="none">
-            <SettingsItem icon="color-palette" title="Appearance" onPress={() => router.push('/(admin)/settings/appearance')} Colors={Colors} styles={styles} />
+            <SettingsItem icon="color-palette-outline" title="Appearance" onPress={() => router.push('/(admin)/settings/appearance')} Colors={Colors} styles={styles} />
           </Card>
         </View>
-        */}
 
         {/* Logout Button */}
         <TouchableOpacity

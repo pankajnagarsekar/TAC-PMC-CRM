@@ -27,7 +27,7 @@ import { DPR, Project } from '../../../types/api';
 export default function AdminDPRListScreen() {
   const router = useRouter();
   const { selectedProject } = useProject();
-  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius } = useTheme();
+  const { colors: Colors, spacing: Spacing, fontSizes: FontSizes, borderRadius: BorderRadius, typography: Typography } = useTheme();
   const styles = React.useMemo(() => getStyles(Colors, Spacing, FontSizes, BorderRadius), [Colors, Spacing, FontSizes, BorderRadius]);
 
   const [dprs, setDprs] = useState<DPR[]>([]);
@@ -125,14 +125,14 @@ export default function AdminDPRListScreen() {
         <Card style={styles.dprCard}>
           <View style={styles.dprHeader}>
             <View>
-              <Text style={styles.dprDate}>{formatDate(item.dpr_date)}</Text>
-              <Text style={styles.dprCreator}>
+              <Text style={[styles.dprDate, { ...Typography.subtitle }]}>{formatDate(item.dpr_date)}</Text>
+              <Text style={[styles.dprCreator, { ...Typography.caption }]}>
                 by {item.created_by_name || 'Unknown'} ({item.created_by_role || 'N/A'})
               </Text>
             </View>
             <View style={styles.statusContainer}>
               <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-                <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(item.status), ...Typography.overline }]}>
                   {item.status}
                 </Text>
               </View>
@@ -155,12 +155,12 @@ export default function AdminDPRListScreen() {
             </View>
           </View>
           {item.progress_notes && (
-            <Text style={styles.dprNotes} numberOfLines={2}>{item.progress_notes}</Text>
+            <Text style={[styles.dprNotes, { ...Typography.body }]} numberOfLines={2}>{item.progress_notes}</Text>
           )}
           <View style={styles.dprMeta}>
             <View style={styles.metaItem}>
               <Ionicons name="camera" size={16} color={Colors.textMuted} />
-              <Text style={styles.metaText}>{item.images_count || 0} photos</Text>
+              <Text style={[styles.metaText, { ...Typography.caption }]}>{item.images_count || 0} photos</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
           </View>
@@ -184,8 +184,8 @@ export default function AdminDPRListScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Daily Progress Reports</Text>
-          <Text style={styles.headerSubtitle}>{selectedProject.project_name}</Text>
+          <Text style={[styles.headerTitle, { ...Typography.heading1 }]}>Daily Progress Reports</Text>
+          <Text style={[styles.headerSubtitle, { ...Typography.overline }]}>{selectedProject.project_name}</Text>
         </View>
       </View>
 
@@ -196,14 +196,14 @@ export default function AdminDPRListScreen() {
           onPress={() => router.push('/(admin)/dpr/create')}
         >
           <Ionicons name="add-circle" size={20} color={Colors.white} />
-          <Text style={styles.actionButtonText}>Create DPR</Text>
+          <Text style={[styles.actionButtonText, { color: Colors.white, ...Typography.subtitle }]}>Create DPR</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.workerLogButton]}
           onPress={() => router.push('/(admin)/worker-log')}
         >
           <Ionicons name="people" size={20} color={Colors.white} />
-          <Text style={styles.actionButtonText}>Worker Log</Text>
+          <Text style={[styles.actionButtonText, { color: Colors.white, ...Typography.subtitle }]}>Worker Log</Text>
         </TouchableOpacity>
       </View>
 

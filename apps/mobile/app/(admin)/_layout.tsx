@@ -62,36 +62,18 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
-        name="projects"
-        options={{
-          title: 'Projects',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="business-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="tasks"
         options={{
           title: 'Tasks',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+            <Ionicons name="checkmark-circle-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="dpr"
+        name="scheduler"
         options={{
-          title: 'DPR',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="attendance-view"
-        options={{
-          title: 'Attendance',
+          title: 'Schedule',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
@@ -100,8 +82,10 @@ export default function AdminLayout() {
       <Tabs.Screen
         name="petty-cash"
         options={{
-          title: 'Petty Cash',
-          href: null, // Keep null to hide from bottom tab strip, but reachable via push
+          title: 'Budget',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -111,6 +95,24 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="ellipsis-horizontal-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="projects"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="dpr"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="attendance-view"
+        options={{
+          href: null,
         }}
       />
       {/* Hidden screens - accessible but not in tab bar */}
@@ -172,12 +174,6 @@ export default function AdminLayout() {
       />
       <Tabs.Screen
         name="tasks/[id]"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="scheduler"
         options={{
           href: null,
         }}
