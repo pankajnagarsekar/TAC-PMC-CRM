@@ -215,6 +215,14 @@ class PaymentService:
 
             new_pc = await uow.payments.create(pc_dict, session=uow.session)
 
+            # Update last_pc_created_at for timer tracking (Notebook Truth Scenario 3)
+            if fund_request:
+                await uow.db.fund_allocations.update_one(
+                    {"project_id": project_id, "category_id": pc_data.category_id},
+                    {"$set": {"last_pc_created_at": now()}},
+                    session=uow.session
+                )
+
             if idempotency_key:
                 from app.core.idempotency import record_operation
 

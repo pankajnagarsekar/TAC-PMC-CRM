@@ -11,6 +11,7 @@ from app.core.utils import serialize_doc
 
 # Note: UserRepository still in Identity context
 from app.modules.identity.infrastructure.repository import UserRepository
+from app.modules.project.infrastructure.repository import ProjectRepository
 from app.modules.shared.domain.exceptions import (
     NotFoundError,
     ValidationError,
@@ -51,6 +52,7 @@ class SiteService:
         self.voice_log_repo = VoiceLogRepository(db)
         self.site_overhead_repo = SiteOverheadRepository(db)
         self.user_repo = UserRepository(db)
+        self.project_repo = ProjectRepository(db)
 
     async def _enrich_with_user_names(self, doc: dict, fields: List[str]) -> dict:
         for field in fields:

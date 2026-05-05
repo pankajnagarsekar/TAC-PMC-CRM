@@ -92,19 +92,47 @@ class CashService:
                                     "$and": [
                                         {"$eq": ["$project_id", project_id]},
                                         {"$eq": ["$category_id", "$$cat_id"]},
-                                        {"$eq": ["$status", "Closed"]},
                                         {"$eq": ["$fund_request", True]},
                                     ]
                                 }
                             }
                         },
-                        {"$project": {"updated_at": 1}},
+                        {"$project": {"status": 1, "created_at": 1, "updated_at": 1, "closed_at": 1}},
                     ],
-                    "as": "closed_pcs",
+                    "as": "all_pcs",
                 }
             },
-            {"$addFields": {"last_pc_close_date": {"$max": "$closed_pcs.updated_at"}}},
-            {"$project": {"closed_pcs": 0}},
+            {
+                "$addFields": {
+                    "last_pc_closed_date": {
+                        "$max": [
+                            "$last_pc_closed_date",
+                            {
+                                "$max": {
+                                    "$map": {
+                                        "input": {
+                                            "$filter": {
+                                                "input": "$all_pcs",
+                                                "as": "p",
+                                                "cond": {"$eq": ["$$p.status", "Closed"]}
+                                            }
+                                        },
+                                        "as": "pc",
+                                        "in": "$$pc.updated_at"
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "last_pc_created_at": {
+                        "$max": [
+                            "$last_pc_created_at",
+                            {"$max": "$all_pcs.created_at"}
+                        ]
+                    }
+                }
+            },
+            {"$project": {"all_pcs": 0}},
         ]
 
         allocation_docs = await self.db.fund_allocations.aggregate(pipeline).to_list(
@@ -132,12 +160,32 @@ class CashService:
             alloc_remaining = alloc_original - alloc_received
             total_cash_in_hand += cash_in_hand
 
-            days_since = None
-            last_close = allocation.get("last_pc_close_date")
-            if last_close:
-                if last_close.tzinfo is None:
-                    last_close = last_close.replace(tzinfo=timezone.utc)
-                days_since = (now_dt - last_close).days
+            # §15-Day Replenishment Timer Logic (Notebook Truth Scenario 2)
+            # Timer starts from last PC creation and resets on PC close or cash receipt.
+            # We take the most recent of: created_at, last_pc_created_at, last_pc_close_date
+            last_pc_created = allocation.get("last_pc_created_at")
+            last_pc_closed = allocation.get("last_pc_close_date")
+            alloc_created = allocation.get("created_at")
+
+            # Helper to handle timezone-aware vs naive comparison
+            def to_utc(dt):
+                if not dt:
+                    return None
+                if isinstance(dt, str):
+                    dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=timezone.utc)
+                return dt
+
+            dates = [to_utc(d) for d in [last_pc_created, last_pc_closed, alloc_created] if d]
+            last_activity = max(dates) if dates else now_dt
+
+            # Backward countdown from 15 days
+            timer_days = 15 - (now_dt - last_activity).days
+
+            days_since_close = None
+            if last_pc_closed:
+                days_since_close = (now_dt - to_utc(last_pc_closed)).days
 
             categories_data.append(
                 {
@@ -147,9 +195,11 @@ class CashService:
                     "allocation_remaining": float(alloc_remaining),
                     "allocation_total": float(alloc_original),
                     "threshold": float(threshold),
-                    "days_since_last_pc_close": days_since,
+                    "days_since_last_pc_close": days_since_close,
+                    "replenishment_timer_days": int(timer_days),
                     "is_negative": cash_in_hand < 0,
                     "threshold_breached": cash_in_hand <= threshold,
+                    "timer_overdue": timer_days < 0
                 }
             )
 
@@ -165,6 +215,10 @@ class CashService:
                     ),
                     default=0,
                 ),
+                "min_replenishment_timer_days": min(
+                    (c["replenishment_timer_days"] for c in categories_data),
+                    default=15
+                )
             },
         }
 
@@ -194,6 +248,7 @@ class CashService:
                     "allocation_received": 1,
                     "allocation_remaining": 1,
                     "last_pc_closed_date": 1,
+                    "last_pc_created_at": 1,
                     "created_at": 1,
                     "category_name": "$cat_info.category_name",
                 }
@@ -322,9 +377,15 @@ class CashService:
             if txn_type == "DEBIT":
                 inc_ops["total_expenses"] = FinancialEngine.to_d128(amount)
 
+            update_ops = {"$inc": inc_ops}
+            if txn_type == "CREDIT":
+                if "$set" not in update_ops:
+                    update_ops["$set"] = {}
+                update_ops["$set"]["last_pc_closed_date"] = now()
+
             updated_alloc = await uow.db.fund_allocations.find_one_and_update(
                 {"_id": allocation["_id"]},
-                {"$inc": inc_ops},
+                update_ops,
                 return_document=True,
                 session=uow.session,
             )

@@ -164,6 +164,7 @@ class FundAllocation(BaseModel):
     cash_in_hand: Decimal = Decimal("0.0")
     total_expenses: Decimal = Decimal("0.0")
     last_pc_closed_date: Optional[datetime] = None
+    last_pc_created_at: Optional[datetime] = None
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
