@@ -13,6 +13,7 @@ import {
   Download,
   Loader2,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -127,6 +128,16 @@ export default function PaymentCertificateDetail({
       link.remove();
     } catch {
       alert("Failed to export PDF");
+    }
+  };
+
+  const handleDeleteDocument = async (fileId: string) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      await api.delete(`/api/v1/payments/${id}/attachments/${fileId}`);
+      await mutate();
+    } catch {
+      alert("Failed to delete document");
     }
   };
 
@@ -260,6 +271,100 @@ export default function PaymentCertificateDetail({
           {error}
         </div>
       )}
+
+      {/* SUPPORTING DOCUMENTS SECTION (Added per Request) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+            Supporting Documents
+          </h2>
+          {pc.status !== "Closed" && (
+            <label className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors border border-slate-700">
+              <FileText size={14} className="text-blue-400" />
+              Add Document (PDF)
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  try {
+                    await api.post(`/api/v1/payments/${id}/attachments`, formData);
+                    await mutate();
+                  } catch {
+                    alert("Failed to upload document");
+                  }
+                }}
+              />
+            </label>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          {/* Main PC is always Page 1-N */}
+          <div className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-slate-800/50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <FileText size={16} className="text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-white font-medium">Payment Certificate (Main)</p>
+                <p className="text-xs text-slate-500">System Generated Document</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-white font-mono">Pages 1 - {pc.base_page_count || 1}</p>
+              <p className="text-xs text-slate-500">{pc.base_page_count || 1} {pc.base_page_count === 1 ? 'Page' : 'Pages'}</p>
+            </div>
+          </div>
+
+          {pc.additional_documents?.map((doc, idx) => {
+            let startPage = (pc.base_page_count || 1) + 1;
+            for (let i = 0; i < idx; i++) {
+              startPage += pc.additional_documents?.[i]?.page_count || 0;
+            }
+            const endPage = startPage + (doc.page_count || 1) - 1;
+
+            return (
+              <div key={doc.file_id} className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800 group hover:border-slate-700 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
+                    <FileText size={16} className="text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-white font-medium">{doc.original_name}</p>
+                    <p className="text-xs text-slate-500">Uploaded {formatDate(doc.uploaded_at)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-sm text-blue-400 font-mono">Pages {startPage} - {endPage}</p>
+                    <p className="text-xs text-slate-500">{doc.page_count} Pages</p>
+                  </div>
+                  {pc.status !== "Closed" && (
+                    <button
+                      onClick={() => handleDeleteDocument(doc.file_id)}
+                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete Document"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {(!pc.additional_documents || pc.additional_documents.length === 0) && (
+            <p className="text-xs text-slate-500 italic text-center py-2">
+              No additional supporting documents attached.
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">

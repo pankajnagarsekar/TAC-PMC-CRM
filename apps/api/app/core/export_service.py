@@ -2,7 +2,8 @@ import logging
 from app.core.time import now
 
 from io import BytesIO
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -363,3 +364,73 @@ class ExportService:
         elements.append(t)
         doc.build(elements)
         return buffer.getvalue()
+
+    @staticmethod
+    def merge_pdfs(base_pdf: bytes, attachments: List[bytes]) -> bytes:
+        """
+        Merges multiple PDF documents into a single PDF.
+        The base_pdf is placed first, followed by each attachment in order.
+        Adds page numbering (e.g. "Page 1 / 10") to the bottom of each page.
+        """
+        from pypdf import PdfWriter, PdfReader
+        from reportlab.pdfgen import canvas
+
+        writer = PdfWriter()
+
+        # 1. Add all pages to the writer
+        # Add base PDF
+        try:
+            reader = PdfReader(io.BytesIO(base_pdf))
+            for page in reader.pages:
+                writer.add_page(page)
+        except Exception as e:
+            logger.error(f"Failed to read base PDF for merging: {e}")
+            return base_pdf
+
+        # Add attachments
+        for i, attachment_bytes in enumerate(attachments):
+            try:
+                reader = PdfReader(io.BytesIO(attachment_bytes))
+                for page in reader.pages:
+                    writer.add_page(page)
+            except Exception as e:
+                logger.error(f"Failed to append attachment {i} during PDF merge: {e}")
+                continue
+
+        total_pages = len(writer.pages)
+        if total_pages == 0:
+            return base_pdf
+
+        # 2. Add page numbers by overlaying a reportlab-generated PDF
+        output_writer = PdfWriter()
+
+        for i in range(total_pages):
+            page = writer.pages[i]
+
+            # Create a temporary PDF with just the page number
+            packet = io.BytesIO()
+            can = canvas.Canvas(packet, pagesize=(page.mediabox.width, page.mediabox.height))
+
+            # Set font and size
+            can.setFont("Helvetica", 9)
+            can.setFillColorRGB(0.5, 0.5, 0.5)  # Grey color
+
+            # Draw page number at bottom center
+            page_num_text = f"Page {i + 1} of {total_pages}"
+            text_width = can.stringWidth(page_num_text, "Helvetica", 9)
+
+            # Position: 20 units from bottom, centered
+            can.drawString((float(page.mediabox.width) - text_width) / 2, 20, page_num_text)
+            can.save()
+
+            packet.seek(0)
+            overlay_reader = PdfReader(packet)
+            overlay_page = overlay_reader.pages[0]
+
+            # Merge overlay onto the original page
+            page.merge_page(overlay_page)
+            output_writer.add_page(page)
+
+        out = io.BytesIO()
+        output_writer.write(out)
+        return out.getvalue()

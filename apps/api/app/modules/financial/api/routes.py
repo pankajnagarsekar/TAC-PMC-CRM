@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 
 from app.core.dependencies import (
     get_authenticated_user,
@@ -58,6 +58,46 @@ async def get_payment_certificate(
     return GenericResponse(data=pc)
 
 
+@router.post(
+    "/payments/{pc_id}/attachments",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Payments"],
+)
+async def attach_payment_document(
+    pc_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Attach a supporting PDF document to a payment certificate."""
+    if not file.filename.lower().endswith(".pdf"):
+        from app.modules.shared.domain.exceptions import ValidationError
+        raise ValidationError("Only PDF files are allowed")
+
+    content = await file.read()
+    result = await payment_service.attach_document(
+        user, pc_id, file.filename, content
+    )
+
+    return GenericResponse(data=result, message="Document attached successfully")
+
+
+@router.delete(
+    "/payments/{pc_id}/attachments/{file_id}",
+    response_model=GenericResponse[bool],
+    tags=["Payments"],
+)
+async def delete_payment_document(
+    pc_id: str,
+    file_id: str,
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Delete a supporting document from a payment certificate."""
+    result = await payment_service.delete_document(user, pc_id, file_id)
+    return GenericResponse(data=result, message="Document deleted successfully")
+
+
 @router.get(
     "/payments/{pc_id}/export/excel",
     tags=["Payments"],
@@ -95,62 +135,34 @@ async def export_payment_certificate_pdf(
     from fastapi.responses import StreamingResponse
     import io
     from app.core.template_export_service import TemplateExportService
-    from app.core.dependencies import get_db
 
     from fastapi import HTTPException as _HTTPException
     pc = await payment_service.get_payment_certificate(user, pc_id)
 
-    # Vendor — guard None vendor_id (deleted vendor / legacy data)
-    vendor_id = pc.get("vendor_id")
-    if vendor_id:
-        try:
-            pc["vendor"] = await vendor_service.get_vendor(user, vendor_id)
-        except Exception:
-            pc["vendor"] = {"name": pc.get("vendor_name", ""), "gst_no": ""}
-    else:
-        pc["vendor"] = {"name": pc.get("vendor_name", ""), "gst_no": ""}
+    # Use the new helper for consistent data enrichment
+    pc = await payment_service.prepare_pc_for_export(user, pc)
 
-    # Category (CodeMaster) — guard None category_id
-    from app.modules.financial.application.master_data_service import MasterDataService
-    db = await get_db()
-    category_id = pc.get("category_id")
-    if category_id:
-        try:
-            md_service = MasterDataService(db, None, None)
-            category = await md_service.get_code_by_id(user, category_id)
-            pc["category"] = category
-            pc["code"] = category.get("code", "") if category else ""
-        except Exception:
-            pc["category"] = {}
-            pc["code"] = pc.get("code", "")
-    else:
-        pc["category"] = {}
-        pc["code"] = pc.get("code", "")
-
-    # Default date
-    if "pc_date" not in pc:
-        pc["pc_date"] = pc.get("created_at", "")
-
-    # Company / Organisation details
-    settings = await db.organisation_settings.find_one({"organisation_id": user["organisation_id"]})
-    if settings:
-        pc["company"] = {
-            "name": settings.get("name", "TAC PMC"),
-            "address": settings.get("address", ""),
-            "gst_number": settings.get("gst_number", ""),
-            "pan_number": settings.get("pan_number", ""),
-            "email": settings.get("email", ""),
-            "phone": settings.get("phone", "")
-        }
-    else:
-        from bson import ObjectId
-        is_oid = ObjectId.is_valid(user["organisation_id"])
-        query = {"_id": ObjectId(user["organisation_id"])} if is_oid else {"organisation_id": user["organisation_id"]}
-        org = await db.organisations.find_one(query)
-        pc["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": ""}
+    # Fetch additional documents
+    attachments = []
+    if pc.get("additional_documents"):
+        from app.core.storage import storage_manager
+        for doc in pc["additional_documents"]:
+            try:
+                content = await storage_manager.get_file(doc["file_path"])
+                if content:
+                    attachments.append(content)
+            except Exception as e:
+                import logging as _logging
+                _logging.getLogger(__name__).warning(f"Failed to fetch attachment {doc.get('file_id')}: {e}")
+                continue
 
     try:
-        pdf_bytes = TemplateExportService.export_payment_certificate_exact(pc, fmt="pdf")
+        pdf_bytes, base_count = TemplateExportService.export_payment_certificate_exact(
+            pc, fmt="pdf", attachments=attachments, return_metadata=True
+        )
+        # Update base page count in DB for UI consistency
+        if pc.get("base_page_count") != base_count:
+            await payment_service.update_base_page_count(user, pc_id, base_count)
     except Exception as exc:
         import logging as _logging
         _logging.getLogger(__name__).error(f"PC PDF generation failed for {pc_id}: {exc}", exc_info=True)

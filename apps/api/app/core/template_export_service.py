@@ -2,7 +2,7 @@ import os
 from copy import copy
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import openpyxl
 from openpyxl.worksheet.worksheet import Worksheet
@@ -123,9 +123,13 @@ class TemplateExportService(ExportService):
         return out.getvalue()
 
     @classmethod
-    def export_payment_certificate_exact(cls, data: Dict[str, Any], fmt: str = "excel") -> bytes:
+    def export_payment_certificate_exact(
+        cls, data: Dict[str, Any], fmt: str = "excel", attachments: Optional[List[bytes]] = None,
+        return_metadata: bool = False
+    ) -> Any:
         """
         Exports a Payment Certificate dynamically matching exact PC Excel Sheet.
+        If fmt is "pdf" and attachments are provided, they are appended to the main document.
         """
         if fmt.lower() == "pdf":
             items = data.get("line_items", data.get("items", []))
@@ -139,7 +143,22 @@ class TemplateExportService(ExportService):
                 "template": "payment_certificate_exact.html",
                 "columns": [("Sr No", 5), ("Description", 40), ("Rate", 10), ("Qty", 10), ("Unit", 10), ("Total", 15)]
             }
-            return cls.export_to_pdf_service("payment_certificate_exact", pdf_data, data.get("company"))
+            base_pdf = cls.export_to_pdf_service("payment_certificate_exact", pdf_data, data.get("company"))
+
+            # Ensure consistent page numbering by always routing through merge_pdfs
+            final_pdf = cls.merge_pdfs(base_pdf, attachments or [])
+
+            if return_metadata:
+                from pypdf import PdfReader
+                import io
+                try:
+                    reader = PdfReader(io.BytesIO(base_pdf))
+                    base_count = len(reader.pages)
+                except Exception:
+                    base_count = 1
+                return final_pdf, base_count
+
+            return final_pdf
 
         wb = openpyxl.load_workbook(cls.get_template_path())
         ws: Worksheet = wb["PC"]

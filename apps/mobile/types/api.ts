@@ -235,6 +235,14 @@ export interface ReviseWorkOrderRequest {
 // ============================================
 // PAYMENT CERTIFICATES
 // ============================================
+export interface SupportingDocument {
+  file_id: string;
+  original_name: string;
+  file_path: string;
+  page_count: number;
+  uploaded_at: string;
+}
+
 export interface PaymentCertificate {
   pc_id: string;
   organisation_id: string;
@@ -264,6 +272,7 @@ export interface PaymentCertificate {
   created_by: string;
   created_at: string;
   updated_at: string;
+  additional_documents?: SupportingDocument[];
 }
 
 export interface CreatePaymentCertificateRequest {

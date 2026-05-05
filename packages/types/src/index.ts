@@ -255,6 +255,14 @@ export interface PaymentCertificate {
   version?: number;
   created_at?: string;
   certification_date?: string;
+  base_page_count?: number;
+  additional_documents?: Array<{
+    file_id: string;
+    original_name: string;
+    uploaded_at: string;
+    page_count: number;
+    url?: string;
+  }>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

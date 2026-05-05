@@ -71,6 +71,14 @@ class CodeMasterUpdate(BaseModel):
 
 
 # PAYMENT CERTIFICATE DTOs
+class PCDocument(BaseModel):
+    file_id: str
+    original_name: str
+    file_path: str
+    page_count: int = 1
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class PCLineItem(BaseModel):
     sr_no: int
     scope_of_work: str = ""
@@ -111,6 +119,8 @@ class PaymentCertificate(BaseModel):
     approved_at: Optional[datetime] = None
     rejected_reason: Optional[str] = None
     approval_trail: List[ApprovalEventSchema] = Field(default_factory=list)
+    additional_documents: List[PCDocument] = Field(default_factory=list)
+    base_page_count: int = 1
 
     @computed_field
     @property

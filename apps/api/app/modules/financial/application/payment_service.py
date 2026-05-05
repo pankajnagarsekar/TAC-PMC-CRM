@@ -6,8 +6,10 @@ from typing import Any, Dict, List, Optional
 from bson import ObjectId
 
 from app.core.idempotency import IdempotencyGuard
+from app.core.storage import storage_manager
 from app.core.time import now
 from app.core.uow import UnitOfWork
+import uuid
 
 # Note: Repositories from other contexts
 from app.modules.project.infrastructure.repository import ProjectRepository
@@ -214,6 +216,14 @@ class PaymentService:
             )
 
             new_pc = await uow.payments.create(pc_dict, session=uow.session)
+
+            # Calculate initial base_page_count for UI consistency (Point 98)
+            try:
+                await self.refresh_base_page_count(user, new_pc["id"])
+            except Exception as e:
+                logger.warning(
+                    f"Failed to refresh base_page_count for new PC {new_pc['id']}: {e}"
+                )
 
             # Update last_pc_created_at for timer tracking (Notebook Truth Scenario 3)
             if fund_request:
@@ -658,3 +668,220 @@ class PaymentService:
             raise NotFoundError("Payment", payment_id)
 
         return payment.get("approval_trail", [])
+
+    async def attach_document(
+        self, user: dict, pc_id: str, file_name: str, file_content: bytes
+    ) -> Dict[str, Any]:
+        """Attach a supporting PDF document to a payment certificate."""
+        organisation_id = user["organisation_id"]
+
+        # Validate PC existence and access
+        pc = await self.pc_repo.get_by_id(pc_id, organisation_id=organisation_id)
+        if not pc:
+            raise NotFoundError("Payment Certificate", pc_id)
+
+        await self.permission_checker.check_project_access(
+            user, pc["project_id"], require_write=True
+        )
+
+        # 1. Calculate page count using pypdf
+        import io
+        from pypdf import PdfReader
+        try:
+            reader = PdfReader(io.BytesIO(file_content))
+            page_count = len(reader.pages)
+        except Exception as e:
+            logger.error(f"Failed to parse PDF: {e}")
+            raise ValidationError("Invalid PDF file")
+
+        # 2. Save to storage
+        file_ext = file_name.split(".")[-1] if "." in file_name else "pdf"
+        file_id = str(uuid.uuid4())
+        relative_path = f"organisations/{organisation_id}/payments/{pc_id}/{file_id}.{file_ext}"
+        await storage_manager.save_file(file_content, relative_path)
+
+        # 3. Update PC record
+        new_doc = {
+            "file_id": file_id,
+            "original_name": file_name,
+            "file_path": relative_path,
+            "page_count": page_count,
+            "uploaded_at": now(),
+        }
+
+        await self.pc_repo.update_one(
+            {"_id": pc_id, "organisation_id": organisation_id},
+            {"$push": {"additional_documents": new_doc}}
+        )
+
+        # 4. Refresh base_page_count in case the main document list was updated
+        try:
+            await self.refresh_base_page_count(user, pc_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh base_page_count after attachment: {e}")
+
+        await self.audit_service.log_action(
+            organisation_id=organisation_id,
+            module_name="PAYMENT_CERTIFICATES",
+            entity_type="PAYMENT_CERTIFICATE",
+            entity_id=pc_id,
+            action_type="ATTACH_DOCUMENT",
+            user_id=user["user_id"],
+            project_id=pc["project_id"],
+            new_value=new_doc,
+        )
+
+        return new_doc
+
+    async def delete_document(self, user: dict, pc_id: str, file_id: str) -> bool:
+        """Delete a supporting document from a payment certificate."""
+        organisation_id = user["organisation_id"]
+        pc = await self.pc_repo.get_by_id(pc_id, organisation_id=organisation_id)
+        if not pc:
+            raise NotFoundError("Payment Certificate", pc_id)
+
+        await self.permission_checker.check_project_access(
+            user, pc["project_id"], require_write=True
+        )
+
+        docs = list(pc.get("additional_documents") or [])
+        doc_to_delete = next((d for d in docs if d["file_id"] == file_id), None)
+
+        if not doc_to_delete:
+            raise NotFoundError("Attachment", file_id)
+
+        # 1. Delete from storage
+        try:
+            await storage_manager.delete_file(doc_to_delete["file_path"])
+        except Exception as e:
+            logger.error(f"Failed to delete file {file_id} from storage: {e}")
+
+        # 2. Update DB atomically
+        await self.pc_repo.update_one(
+            {"_id": pc_id, "organisation_id": organisation_id},
+            {"$pull": {"additional_documents": {"file_id": file_id}}}
+        )
+
+        # 3. Refresh base_page_count in case the main document list was updated
+        try:
+            await self.refresh_base_page_count(user, pc_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh base_page_count after deletion: {e}")
+
+        # 4. Log audit action
+        await self.audit_service.log_action(
+            organisation_id=organisation_id,
+            module_name="PAYMENT_CERTIFICATES",
+            entity_type="PAYMENT_CERTIFICATE",
+            entity_id=pc_id,
+            action_type="DELETE_DOCUMENT",
+            user_id=user["user_id"],
+            project_id=pc["project_id"],
+            old_value=doc_to_delete,
+        )
+
+        return True
+
+    async def refresh_base_page_count(self, user: dict, pc_id: str):
+        """
+        Calculates and updates the base page count for a payment certificate.
+        Ensures the UI always knows where attachments begin.
+        """
+        from app.core.template_export_service import TemplateExportService
+        organisation_id = user["organisation_id"]
+
+        pc = await self.get_payment_certificate(user, pc_id)
+        enriched_pc = await self.prepare_pc_for_export(user, pc)
+
+        # Dry run export to get exact page count of the main document
+        _, base_count = TemplateExportService.export_payment_certificate_exact(
+            enriched_pc, fmt="pdf", attachments=[], return_metadata=True
+        )
+
+        await self.pc_repo.update(
+            pc_id,
+            {"base_page_count": base_count, "updated_at": now()},
+            organisation_id=organisation_id
+        )
+        return base_count
+
+    async def update_base_page_count(self, user: dict, pc_id: str, page_count: int):
+        """Update the base page count for the PC document itself."""
+        organisation_id = user["organisation_id"]
+        await self.pc_repo.update(
+            pc_id,
+            {"base_page_count": page_count, "updated_at": now()},
+            organisation_id=organisation_id
+        )
+
+    async def prepare_pc_for_export(self, user: dict, pc: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enriches PC data with vendor, category, and company details for export.
+        This ensures consistent PDF generation across routes.
+        """
+        organisation_id = user["organisation_id"]
+
+        # 1. Vendor enrichment
+        vendor_id = pc.get("vendor_id")
+        if vendor_id:
+            try:
+                v_oid = ObjectId(vendor_id) if ObjectId.is_valid(vendor_id) else None
+                if v_oid:
+                    vendor = await self.db.vendors.find_one({"_id": v_oid})
+                    if vendor:
+                        pc["vendor"] = vendor
+                    else:
+                        pc["vendor"] = {"name": pc.get("vendor_name", "Unknown"), "gst_no": ""}
+                else:
+                    pc["vendor"] = {"name": pc.get("vendor_name", "Unknown"), "gst_no": ""}
+            except Exception:
+                pc["vendor"] = {"name": pc.get("vendor_name", "Unknown"), "gst_no": ""}
+        else:
+            pc["vendor"] = {"name": pc.get("vendor_name", "Unknown"), "gst_no": ""}
+
+        # 2. Category enrichment
+        category_id = pc.get("category_id")
+        if category_id:
+            try:
+                c_query = {
+                    "$or": [
+                        {"_id": ObjectId(category_id) if ObjectId.is_valid(category_id) else None},
+                        {"code": category_id}
+                    ]
+                }
+                category = await self.db.code_master.find_one(c_query)
+                if category:
+                    pc["category"] = category
+                    pc["code"] = category.get("code", "")
+                else:
+                    pc["category"] = {}
+                    pc["code"] = pc.get("code", "")
+            except Exception:
+                pc["category"] = {}
+                pc["code"] = pc.get("code", "")
+        else:
+            pc["category"] = {}
+            pc["code"] = pc.get("code", "")
+
+        # 3. Default date
+        if "pc_date" not in pc:
+            pc["pc_date"] = pc.get("created_at", now())
+
+        # 4. Company details
+        settings = await self.db.organisation_settings.find_one({"organisation_id": organisation_id})
+        if settings:
+            pc["company"] = {
+                "name": settings.get("name", "Third Angle Concepts (PMC)"),
+                "address": settings.get("address", ""),
+                "gst_number": settings.get("gst_number", ""),
+                "pan_number": settings.get("pan_number", ""),
+                "email": settings.get("email", ""),
+                "phone": settings.get("phone", "")
+            }
+        else:
+            is_oid = ObjectId.is_valid(organisation_id)
+            query = {"_id": ObjectId(organisation_id)} if is_oid else {"organisation_id": organisation_id}
+            org = await self.db.organisations.find_one(query)
+            pc["company"] = {"name": org.get("name") if org else "Third Angle Concepts (PMC)", "address": ""}
+
+        return pc
