@@ -5,10 +5,25 @@ This guide provides instructions on how to use the `notebooklm-mcp-cli` (`nlm`) 
 ## 🚀 Getting Started
 
 ### Authentication
-The user has already logged in and authenticated. If you encounter authentication errors, ask the user to run:
+The user has already logged in and authenticated. 
+
+#### Auth Verification
+Before performing critical notebook operations, verify the session is active:
+```bash
+nlm login --check
+```
+
+If you encounter issues, run the diagnostic tool:
+```bash
+nlm doctor
+```
+
+#### Troubleshooting
+If the session is stale or authentication fails (401/403 errors), ask the user to run:
 ```bash
 nlm login
 ```
+*Note: Agents should never attempt to log in manually as it requires a browser.*
 
 ### Common Flags
 - `--json`: Output structured data (ideal for parsing).
@@ -120,6 +135,18 @@ Install the NotebookLM skill for specific tools:
 ```bash
 nlm skill install Antigravity
 ```
+
+---
+
+## 📋 Project Source of Truth
+
+The following notebook contains the single source of truth for the project's financial and budgetary flow requirements.
+
+- **Name:** CRM Project Management and Budgetary Flow Requirements
+- **Notebook ID:** `7545c303-a2eb-4be7-8be9-e7c065a3b29b`
+
+> [!IMPORTANT]
+> **This notebook is the heart of all financial logic and calculations.** Always refer to this notebook when verifying financial workflows, budget deductions, or petty cash logic.
 
 ---
 
