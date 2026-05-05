@@ -46,6 +46,8 @@ interface OrgSettings {
   owner_mobile: string;
   owner_address: string;
   owner_email: string;
+  ai_provider: string;
+  ai_api_key: string;
 }
 
 export default function OrganizationSettingsScreen() {
@@ -57,6 +59,7 @@ export default function OrganizationSettingsScreen() {
     terms_and_conditions: '',
     currency: 'INR', currency_symbol: '₹',
     owner_name: '', owner_mobile: '', owner_address: '', owner_email: '',
+    ai_provider: 'openai', ai_api_key: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -243,6 +246,50 @@ export default function OrganizationSettingsScreen() {
           <Text style={styles.hintText}>These prefixes will be used when generating document numbers (e.g., WO-00001)</Text>
         </Section>
 
+        {/* AI Configuration */}
+        <Section title="AI Intelligence" icon="sparkles" id="ai">
+          <Text style={styles.hintText}>Configure organization-specific AI capabilities for voice transcription and summary generation.</Text>
+          
+          <Text style={styles.inputLabel}>Select AI Provider</Text>
+          <View style={styles.providerList}>
+            {[
+              { id: 'openai', name: 'OpenAI (GPT-4o)', icon: 'logo-openai' },
+              { id: 'gemini', name: 'Google Gemini', icon: 'logo-google' },
+              { id: 'azure', name: 'Azure OpenAI', icon: 'cloud-outline' },
+            ].map((p) => (
+              <Pressable
+                key={p.id}
+                style={[
+                  styles.providerCard,
+                  settings.ai_provider === p.id && styles.providerCardActive
+                ]}
+                onPress={() => updateField('ai_provider', p.id)}
+              >
+                <Ionicons 
+                  name={p.icon as any} 
+                  size={24} 
+                  color={settings.ai_provider === p.id ? Colors.primary : Colors.textMuted} 
+                />
+                <Text style={[
+                  styles.providerName,
+                  settings.ai_provider === p.id && styles.providerNameActive
+                ]}>{p.name}</Text>
+                {settings.ai_provider === p.id && (
+                  <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                )}
+              </Pressable>
+            ))}
+          </View>
+
+          <InputField 
+            label="API Key" 
+            value={settings.ai_api_key} 
+            onChangeText={(v: string) => updateField('ai_api_key', v)} 
+            placeholder={settings.ai_provider === 'openai' ? 'sk-...' : 'Enter your API key'} 
+          />
+          <Text style={styles.hintText}>Note: Providing your own API key enables advanced analytics and custom voice summaries.</Text>
+        </Section>
+
         {/* Terms & Conditions */}
         <Section title="Terms & Conditions" icon="document" id="terms">
           <Text style={styles.hintText}>This text will be appended to Work Order PDF exports on a separate page.</Text>
@@ -335,4 +382,30 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.white },
+  providerList: { gap: Spacing.sm, marginBottom: Spacing.md },
+  providerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+  },
+  providerCardActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.white,
+    borderWidth: 2,
+  },
+  providerName: {
+    flex: 1,
+    fontSize: FontSizes.md,
+    color: Colors.textMuted,
+    fontWeight: '500',
+  },
+  providerNameActive: {
+    color: Colors.text,
+    fontWeight: '600',
+  },
 });

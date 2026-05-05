@@ -15,13 +15,29 @@ class AIService:
 
     def __init__(self, db):
         self.db = db
-        self.openai_key = settings.OPENAI_API_KEY
+
+    async def _get_config(self, organisation_id: str) -> Dict[str, Any]:
+        """Fetch AI configuration for the organisation."""
+        from ...identity.infrastructure.repository import SettingsRepository
+        repo = SettingsRepository(self.db)
+        settings_doc = await repo.find_one({"organisation_id": organisation_id})
+
+        provider = "openai"
+        api_key = settings.OPENAI_API_KEY  # System fallback from global config
+
+        if settings_doc:
+            provider = settings_doc.get("ai_provider", "openai")
+            api_key = settings_doc.get("ai_api_key") or api_key
+        return {"provider": provider, "api_key": api_key}
 
     async def transcribe_audio(self, user: dict, audio_base64: str) -> str:
         """
         Transcribes base64 audio data using OpenAI Whisper.
         """
-        if not self.openai_key:
+        config = await self._get_config(user["organisation_id"])
+        api_key = config["api_key"]
+
+        if not api_key:
             logger.warning("AI_STT: No API key found, returning mock transcription.")
             return (
                 "Sample Voice Summary (Mock): Foundations for Sector 7 are 100% complete. "
@@ -34,7 +50,7 @@ class AIService:
 
             from openai import AsyncOpenAI
 
-            client = AsyncOpenAI(api_key=self.openai_key)
+            client = AsyncOpenAI(api_key=api_key)
 
             # Handle Data URL prefix if present
             if "," in audio_base64:
@@ -61,12 +77,15 @@ class AIService:
             raise ValidationError(f"Transcription failed: {str(e)}")
 
     async def extract_mom(
-        self, project_id: str, task_id: str, raw_notes: str
+        self, organisation_id: str, project_id: str, task_id: str, raw_notes: str
     ) -> Dict[str, Any]:
         """
         Extracts action items and duration suggestions from meeting notes.
         """
-        if not self.openai_key:
+        config = await self._get_config(organisation_id)
+        api_key = config["api_key"]
+
+        if not api_key:
             logger.warning("AI_MOM: No API key found, returning mock extraction.")
             return {
                 "action_items": [
@@ -88,7 +107,7 @@ class AIService:
         try:
             from openai import AsyncOpenAI
 
-            client = AsyncOpenAI(api_key=self.openai_key)
+            client = AsyncOpenAI(api_key=api_key)
 
             prompt = f"""
             Analyze the following meeting notes for a construction project (Task: {task_id}).

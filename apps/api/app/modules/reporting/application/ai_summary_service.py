@@ -151,14 +151,23 @@ class AISummaryService:
         self.db = db
         self.permission_checker = permission_checker
         self.analytics_service = analytics_service
-        api_key = settings.OPENAI_API_KEY
-        self.provider = (
-            EmergentSummaryProvider(api_key) if api_key else MockSummaryProvider()
-        )
         self.ai_repo = AISummaryRepository(db)
         self.project_repo = ProjectRepository(db)
         self.budget_repo = BudgetRepository(db)
         self.fin_state_repo = FinancialStateRepository(db)
+
+    async def _get_provider(self, organisation_id: str) -> SummaryProvider:
+        """Fetch AI configuration and return appropriate provider."""
+        from ...identity.infrastructure.repository import SettingsRepository
+        repo = SettingsRepository(self.db)
+        settings_doc = await repo.find_one({"organisation_id": organisation_id})
+
+        api_key = settings.OPENAI_API_KEY  # System fallback
+
+        if settings_doc:
+            api_key = settings_doc.get("ai_api_key") or api_key
+
+        return EmergentSummaryProvider(api_key) if api_key else MockSummaryProvider()
 
     async def get_latest(self, user: dict, project_id: str) -> Optional[Dict[str, Any]]:
         await self.permission_checker.check_project_access(user, project_id)
@@ -221,7 +230,8 @@ class AISummaryService:
             project.get("project_name", project_id) if project else project_id
         )
 
-        summary_text = await self.provider.generate_summary(report_data, project_name)
+        provider = await self._get_provider(organisation_id)
+        summary_text = await provider.generate_summary(report_data, project_name)
 
         doc = {
             "project_id": project_id,
@@ -253,7 +263,8 @@ class AISummaryService:
                 "critical_path_days": metrics_dict.get("critical_path_days", 0),
             }
 
-            return await self.provider.generate_summary(report_data, "Schedule Health")
+            provider = await self._get_provider(organisation_id)
+            return await provider.generate_summary(report_data, "Schedule Health")
         except Exception as e:
             logger.error(f"Schedule summary failed: {e}")
             return "[SCHEDULE] Unable to generate summary at this time."
@@ -278,7 +289,8 @@ class AISummaryService:
                 "burn_rate_pct": float(fin_dict.get("burn_rate_pct", 0)),
             }
 
-            return await self.provider.generate_summary(report_data, "Financial Status")
+            provider = await self._get_provider(organisation_id)
+            return await provider.generate_summary(report_data, "Financial Status")
         except Exception as e:
             logger.error(f"Financial summary failed: {e}")
             return "[FINANCIAL] Unable to generate summary at this time."
@@ -302,7 +314,8 @@ class AISummaryService:
                 "total_resources": res_dict.get("total_resources", 0),
             }
 
-            return await self.provider.generate_summary(report_data, "Resource Allocation")
+            provider = await self._get_provider(organisation_id)
+            return await provider.generate_summary(report_data, "Resource Allocation")
         except Exception as e:
             logger.error(f"Resource summary failed: {e}")
             return "[RESOURCES] Unable to generate summary at this time."
@@ -340,11 +353,12 @@ class AISummaryService:
                 return
 
             # Use provider's stream if available, else fallback to word-by-word
-            if hasattr(self.provider, 'stream_summary'):
-                async for chunk in self.provider.stream_summary(report_data, project_name):
+            provider = await self._get_provider(organisation_id)
+            if hasattr(provider, 'stream_summary'):
+                async for chunk in provider.stream_summary(report_data, project_name):
                     yield chunk
             else:
-                summary = await self.provider.generate_summary(report_data, project_name)
+                summary = await provider.generate_summary(report_data, project_name)
                 for word in summary.split():
                     yield word + " "
         except Exception as e:

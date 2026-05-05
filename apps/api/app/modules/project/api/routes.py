@@ -595,6 +595,6 @@ async def task_mom_extract(
 ):
     """Analyze meeting notes to extract action items and duration suggestions for a specific task."""
     result = await ai_service.extract_mom(
-        project_id, task_id, data.get("raw_notes", "")
+        user["organisation_id"], project_id, task_id, data.get("raw_notes", "")
     )
     return GenericResponse(data=result)

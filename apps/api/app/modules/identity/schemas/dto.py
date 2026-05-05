@@ -136,6 +136,8 @@ class GlobalSettings(BaseModel):
     terms_and_conditions: str = "Standard terms and conditions apply..."
     logo_base64: Optional[str] = None
     client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
+    ai_provider: str = Field("openai", description="AI Provider (openai, gemini)")
+    ai_api_key: str = Field("", description="API Key for the selected provider")
 
     @field_validator("gst_number")
     @classmethod
@@ -183,6 +185,8 @@ class GlobalSettingsUpdate(BaseModel):
     terms_and_conditions: Optional[str] = None
     logo_base64: Optional[str] = None
     client_permissions: Optional[ClientPermissions] = None
+    ai_provider: Optional[str] = None
+    ai_api_key: Optional[str] = None
     expected_version: int
 
     @field_validator("email")

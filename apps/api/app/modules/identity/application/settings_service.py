@@ -47,6 +47,8 @@ class SettingsService:
                     "can_view_reports": True,
                     "can_view_scheduler": False,
                 },
+                "ai_provider": "openai",
+                "ai_api_key": "",
             }
         if settings:
             # Strip internal and deprecated nested fields
@@ -76,6 +78,8 @@ class SettingsService:
                     "can_view_reports": True,
                     "can_view_scheduler": False,
                 }),
+                "ai_provider": settings.get("ai_provider", "openai"),
+                "ai_api_key": settings.get("ai_api_key", ""),
                 "version": settings.get("version", 1),
             }
         return settings
