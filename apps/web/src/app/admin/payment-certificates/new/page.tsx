@@ -19,6 +19,7 @@ import type {
 } from "ag-grid-community";
 
 import api, { fetcher } from "@/lib/api";
+import { calculatePCFinancials, financialRound } from "@/lib/financial";
 import { useRequestLock } from "@/lib/requestLock";
 import { idempotency } from "@/lib/idempotency";
 import { useProjectStore } from "@/store/projectStore";
@@ -101,29 +102,29 @@ export default function NewPaymentCertificatePage() {
   }, [isWoLinked, selectedWoId, workOrders]);
 
   // Calculations Preview
-  const { subtotal, retentionAmount, totalAfterRetention, gst, totalPayable, cgstRate, sgstRate } =
+  const { subtotal, retentionAmount, totalAfterRetention, gst, totalPayable, cgstRate, sgstRate, cgstAmount, sgstAmount } =
     useMemo(() => {
       const p = activeProject;
-      const cgst = p?.project_cgst_percentage ?? 9;
-      const sgst = p?.project_sgst_percentage ?? 9;
+      const cgstPct = p?.project_cgst_percentage ?? 9;
+      const sgstPct = p?.project_sgst_percentage ?? 9;
 
       const rawSub = lineItems.reduce(
         (sum, item) => sum + (Number(item.total) || 0),
         0,
       );
-      const reten = rawSub * (retentionPercent / 100);
-      const afterReten = rawSub - reten;
-      const gstTotal = afterReten * ((cgst + sgst) / 100);
-      const payable = afterReten + gstTotal;
+
+      const fin = calculatePCFinancials(rawSub, retentionPercent, cgstPct, sgstPct);
 
       return {
-        subtotal: rawSub,
-        retentionAmount: reten,
-        totalAfterRetention: afterReten,
-        gst: gstTotal,
-        totalPayable: payable,
-        cgstRate: cgst,
-        sgstRate: sgst
+        subtotal: fin.subtotal,
+        retentionAmount: fin.retentionAmount,
+        totalAfterRetention: fin.totalAfterRetention,
+        gst: fin.gstAmount,
+        totalPayable: fin.grandTotal,
+        cgstRate: cgstPct,
+        sgstRate: sgstPct,
+        cgstAmount: fin.cgst,
+        sgstAmount: fin.sgst
       };
     }, [lineItems, retentionPercent, activeProject]);
 
@@ -177,11 +178,12 @@ export default function NewPaymentCertificatePage() {
             unit: item.unit,
             qty: qty,
             rate: rate,
-            total: qty * rate,
+            total: financialRound(qty * rate),
           };
         }),
-        cgst: Number((totalAfterRetention * (cgstRate / 100)).toFixed(2)),
-        sgst: Number((totalAfterRetention * (sgstRate / 100)).toFixed(2)),
+        cgst: cgstAmount,
+        sgst: sgstAmount,
+        idempotency_key: idempotencyKey,
       };
 
 
