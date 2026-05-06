@@ -47,6 +47,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
+        "https://tac-pmc-crm-web.vercel.app",
     ]
 
     model_config = SettingsConfigDict(

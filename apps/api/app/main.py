@@ -57,10 +57,10 @@ def create_app() -> FastAPI:
                 # We use a try/except for each component to ensure one failure doesn't block others
                 if 'guardian' in locals():
                     await guardian.stop()
-                
+
                 # Shutdown concurrency pools
                 concurrency_hub.shutdown()
-                
+
                 # Close DB connection
                 db_manager.close()
                 logger.info("LIFECYCLE: Shutdown complete.")

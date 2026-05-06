@@ -176,7 +176,8 @@ class TestWorkOrderFinancials:
         """Basic work order calculation without tax or retention"""
         result = FinancialEngine.calculate_wo_financials(
             subtotal=Decimal("1000.00"),
-            discount=Decimal("0.00"),
+            discount_value=Decimal("0.00"),
+            discount_type="value",
             retention_pct=Decimal("0"),
             cgst_pct=Decimal("9"),
             sgst_pct=Decimal("9"),
@@ -196,7 +197,8 @@ class TestWorkOrderFinancials:
         """Work order with discount"""
         result = FinancialEngine.calculate_wo_financials(
             subtotal=Decimal("1000.00"),
-            discount=Decimal("100.00"),
+            discount_value=Decimal("100.00"),
+            discount_type="value",
             retention_pct=Decimal("0"),
             cgst_pct=Decimal("9"),
             sgst_pct=Decimal("9"),
@@ -211,7 +213,8 @@ class TestWorkOrderFinancials:
         """Work order with retention"""
         result = FinancialEngine.calculate_wo_financials(
             subtotal=Decimal("1000.00"),
-            discount=Decimal("0.00"),
+            discount_value=Decimal("0.00"),
+            discount_type="value",
             retention_pct=Decimal("5"),
             cgst_pct=Decimal("9"),
             sgst_pct=Decimal("9"),
@@ -225,7 +228,8 @@ class TestWorkOrderFinancials:
         """Work order with discount, tax, and retention"""
         result = FinancialEngine.calculate_wo_financials(
             subtotal=Decimal("1000.00"),
-            discount=Decimal("50.00"),
+            discount_value=Decimal("50.00"),
+            discount_type="value",
             retention_pct=Decimal("10"),
             cgst_pct=Decimal("9"),
             sgst_pct=Decimal("9"),

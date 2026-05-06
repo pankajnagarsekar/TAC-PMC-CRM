@@ -174,6 +174,22 @@ export default function FinancialGrid<T>({
         lineHeight: "1.5",
         textOverflow: 'clip',
       },
+      // Suppress AG Grid Warning #48 for object types
+      valueFormatter: (params) => {
+        if (params.value === null || params.value === undefined) return '';
+        if (typeof params.value === 'object') {
+          if (Array.isArray(params.value)) return `[${params.value.length}]`;
+          if (params.value.name) return params.value.name;
+          if (params.value.title) return params.value.title;
+          if (params.value.label) return params.value.label;
+          return '{...}';
+        }
+        return params.value;
+      },
+      valueParser: (params) => {
+        // Simple parser to avoid warning #48 when editable
+        return params.newValue;
+      }
     }),
     [editable],
   );

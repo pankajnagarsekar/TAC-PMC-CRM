@@ -40,7 +40,7 @@ export default function ProjectModal({
 }: ProjectModalProps) {
   const { data: clients } = useSWR<Client[]>("/api/v1/clients/", fetcher);
   const { data: codes } = useSWR<CodeMaster[]>("/api/v1/settings/codes", fetcher);
-  const { data: globalSettings } = useSWR<GlobalSettings>("/api/v1/settings/global", fetcher);
+  const { data: globalSettings } = useSWR<GlobalSettings>("/api/v1/settings/", fetcher);
 
   const [formData, setFormData] = useState({
     project_name: "",

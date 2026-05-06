@@ -45,7 +45,10 @@ def ai_summary_service(mock_db, mock_permission_checker, mock_analytics_service)
     service.project_repo = AsyncMock()
     service.budget_repo = AsyncMock()
     service.fin_state_repo = AsyncMock()
-    service.provider = MockSummaryProvider()
+
+    # Mock _get_provider to return a MockSummaryProvider
+    service._get_provider = AsyncMock(return_value=MockSummaryProvider())
+
     return service
 
 

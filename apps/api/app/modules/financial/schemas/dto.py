@@ -98,6 +98,8 @@ class PaymentCertificate(BaseModel):
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
     pc_ref: str = ""
+    pc_refn: int = 0
+    contractor_category: Optional[str] = None
     subtotal: Decimal = Field(Decimal("0.0"), ge=0)
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     retention_amount: Decimal = Field(Decimal("0.0"), ge=0)
@@ -142,6 +144,7 @@ class PaymentCertificateCreate(BaseModel):
     work_order_id: Optional[str] = None
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None
+    contractor_category: Optional[str] = None
     line_items: List[PCLineItem] = Field(default_factory=list)
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     fund_request: bool = False

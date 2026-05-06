@@ -24,6 +24,11 @@ class RateLimiter:
         }
 
     async def check(self, identity: str, tier: str = "Standard"):
+        # Fixed BULL-124: Disable rate limiting in test environment
+        from app.core.config import settings
+        if settings.ENVIRONMENT.lower() == "test":
+            return True
+
         now = time.time()
         conf = self.TIERS.get(tier, self.TIERS["Standard"])
 

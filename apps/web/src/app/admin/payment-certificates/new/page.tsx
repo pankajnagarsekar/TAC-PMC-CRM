@@ -154,6 +154,8 @@ export default function NewPaymentCertificatePage() {
 
       const wo = isWoLinked ? workOrders.find(w => w._id === selectedWoId) : null;
 
+      const projectId = activeProject.project_id || activeProject._id;
+      const payload = {
         project_id: projectId,
         work_order_id: isWoLinked ? selectedWoId : null,
         category_id: !isWoLinked ? selectedCategoryId : (wo?.category_id || undefined),

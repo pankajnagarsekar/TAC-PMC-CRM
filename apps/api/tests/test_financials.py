@@ -64,10 +64,11 @@ class TestLineItems(unittest.TestCase):
 class TestWOFinancials(unittest.TestCase):
     """§3.3: WO Totals — strict field-by-field verification."""
 
-    def _calc(self, subtotal, discount=0, retention_pct=0, cgst_pct=9, sgst_pct=9):
+    def _calc(self, subtotal, discount=0, discount_type="value", retention_pct=0, cgst_pct=9, sgst_pct=9):
         return FinancialEngine.calculate_wo_financials(
             subtotal=Decimal(str(subtotal)),
-            discount=Decimal(str(discount)),
+            discount_value=Decimal(str(discount)),
+            discount_type=discount_type,
             retention_pct=Decimal(str(retention_pct)),
             cgst_pct=Decimal(str(cgst_pct)),
             sgst_pct=Decimal(str(sgst_pct)),
@@ -290,7 +291,8 @@ class TestWOAndPCDifference(unittest.TestCase):
 
         wo = FinancialEngine.calculate_wo_financials(
             subtotal=subtotal,
-            discount=Decimal("0"),
+            discount_value=Decimal("0"),
+            discount_type="value",
             retention_pct=retention_pct,
             cgst_pct=cgst_pct,
             sgst_pct=sgst_pct,

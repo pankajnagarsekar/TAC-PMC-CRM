@@ -63,6 +63,9 @@ class WorkOrder(BaseModel):
     workmanship_warranty: Optional[str] = None
     discount_type: Literal["percentage", "value"] = "value"
     discount_value: Decimal = Field(Decimal("0.0"), ge=0)
+    issued_by: Optional[str] = None
+    shipping_to: Optional[str] = None
+    terms_and_conditions: Optional[str] = None
 
     @computed_field
     @property
@@ -92,6 +95,9 @@ class WorkOrderCreate(BaseModel):
     discount_type: Literal["percentage", "value"] = "value"
     discount_value: Decimal = Field(Decimal("0.0"), ge=0)
     wo_date: Optional[datetime] = None
+    issued_by: Optional[str] = None
+    shipping_to: Optional[str] = None
+    terms_and_conditions: Optional[str] = None
     idempotency_key: Optional[str] = None
 
 
@@ -114,6 +120,9 @@ class WorkOrderUpdate(BaseModel):
     discount: Optional[Decimal] = Field(None, ge=0)
     retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)
     wo_date: Optional[datetime] = None
+    issued_by: Optional[str] = None
+    shipping_to: Optional[str] = None
+    terms_and_conditions: Optional[str] = None
     expected_version: int
 
     @field_validator("status")
