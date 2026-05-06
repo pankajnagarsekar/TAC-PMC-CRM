@@ -1,6 +1,7 @@
 import hashlib
 import logging
 from datetime import datetime, timezone
+from dateutil import parser
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
@@ -555,7 +556,6 @@ class SiteService:
         if in_time:
             # Handle both datetime objects and string timestamps if any
             if isinstance(in_time, str):
-                from dateutil import parser
                 in_time = parser.parse(in_time)
 
             if in_time.tzinfo is None:

@@ -52,6 +52,17 @@ class WorkOrder(BaseModel):
     category_name: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    description_of_works: str = ""
+    general_t_and_c: str = ""
+    payment_terms: str = ""
+    vendor_contact_person: Optional[str] = None
+    vendor_phone: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    product_warranty: Optional[str] = None
+    workmanship_warranty: Optional[str] = None
+    discount_type: Literal["percentage", "value"] = "value"
+    discount_value: Decimal = Field(Decimal("0.0"), ge=0)
 
     @computed_field
     @property
@@ -67,10 +78,19 @@ class WorkOrderCreate(BaseModel):
     category_id: str
     vendor_id: Optional[str] = None
     line_items: List[WOLineItem] = Field(default_factory=list)
-    description: str = ""
-    terms: str = ""
     discount: Decimal = Field(Decimal("0.0"), ge=0)
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
+    description_of_works: str = ""
+    general_t_and_c: str = ""
+    payment_terms: str = ""
+    vendor_contact_person: Optional[str] = None
+    vendor_phone: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    product_warranty: Optional[str] = None
+    workmanship_warranty: Optional[str] = None
+    discount_type: Literal["percentage", "value"] = "value"
+    discount_value: Decimal = Field(Decimal("0.0"), ge=0)
     wo_date: Optional[datetime] = None
     idempotency_key: Optional[str] = None
 
@@ -80,8 +100,17 @@ class WorkOrderUpdate(BaseModel):
     vendor_id: Optional[str] = None
     status: Optional[Literal["Draft", "Pending", "Approved", "Completed", "Closed", "Cancelled"]] = None
     line_items: Optional[List[WOLineItem]] = None
-    description: Optional[str] = None
-    terms: Optional[str] = None
+    description_of_works: Optional[str] = None
+    general_t_and_c: Optional[str] = None
+    payment_terms: Optional[str] = None
+    vendor_contact_person: Optional[str] = None
+    vendor_phone: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    product_warranty: Optional[str] = None
+    workmanship_warranty: Optional[str] = None
+    discount_type: Optional[Literal["percentage", "value"]] = None
+    discount_value: Optional[Decimal] = Field(None, ge=0)
     discount: Optional[Decimal] = Field(None, ge=0)
     retention_percent: Optional[Decimal] = Field(None, ge=0, le=100)
     wo_date: Optional[datetime] = None

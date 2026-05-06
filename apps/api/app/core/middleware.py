@@ -153,9 +153,9 @@ class BackpressureMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         sem = self.get_semaphore()
-        print(f"DEBUG: BackpressureMiddleware checking {request.url.path} | Sem Locked: {sem.locked()}")
+        logger.debug(f"BACKPRESSURE: checking {request.url.path} | Sem Locked: {sem.locked()}")
         if sem.locked():
-            print("DEBUG: BackpressureMiddleware DETECTED LOCK - returning 503")
+            logger.debug("BACKPRESSURE: DETECTED LOCK - returning 503")
             logger.warning(
                 f"BACKPRESSURE_REJECTION: System saturated at {self.MAX_CONCURRENT} "
                 f"concurrent requests. Path: {request.url.path}"
@@ -171,6 +171,6 @@ class BackpressureMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        print("DEBUG: BackpressureMiddleware PASSED - acquiring semaphore")
+        logger.debug("BACKPRESSURE: PASSED - acquiring semaphore")
         async with sem:
             return await call_next(request)

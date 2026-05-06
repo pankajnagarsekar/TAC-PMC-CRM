@@ -5,6 +5,7 @@ import time
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.consistency import ConsistencyGuardian
+from app.core.concurrency import concurrency_hub
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +21,10 @@ class BackgroundGuardian:
         self.guardian = ConsistencyGuardian(db)
         self.active = False
         self._task = None
-        self._concurrency_manager = None  # Lazy load (BUG-31)
 
     async def start(self):
         """Boot maintenance loops."""
         self.active = True
-
-        # Lazy load ConcurrencyManager (Point 118, BUG-31)
-        from app.core.concurrency import ConcurrencyManager
-        self._concurrency_manager = ConcurrencyManager()
 
         self._task = asyncio.create_task(self._run_loop())
         logger.info("BACKGROUND_GUARDIAN: Maintenance loops initiated.")

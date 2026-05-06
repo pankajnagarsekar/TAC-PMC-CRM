@@ -131,8 +131,9 @@ class WorkOrderService:
 
                     fin = FinancialEngine.calculate_wo_financials(
                         subtotal=subtotal,
+                        discount_value=FinancialEngine.to_decimal(wo_data.discount_value or 0),
+                        discount_type=wo_data.discount_type or "value",
                         retention_pct=FinancialEngine.to_decimal(wo_data.retention_percent or 0),
-                        discount=FinancialEngine.to_decimal(wo_data.discount or 0),
                         cgst_pct=cgst_pct,
                         sgst_pct=sgst_pct,
                     )
@@ -151,6 +152,8 @@ class WorkOrderService:
                             "project_id": project_id,
                             "wo_ref": wo_ref,
                             "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
+                            "discount_value": FinancialEngine.to_d128(fin["discount_value"]),
+                            "discount_type": fin["discount_type"],
                             "discount": FinancialEngine.to_d128(fin["discount"]),
                             "total_before_tax": FinancialEngine.to_d128(
                                 fin["total_before_tax"]
@@ -342,16 +345,22 @@ class WorkOrderService:
                 if update_req.retention_percent is not None
                 else old_wo.get("retention_percent", 0)
             )
-            discount_val = FinancialEngine.to_decimal(
-                update_req.discount
-                if update_req.discount is not None
-                else old_wo.get("discount", 0)
+            discount_type = (
+                update_req.discount_type
+                if update_req.discount_type is not None
+                else old_wo.get("discount_type", "value")
+            )
+            discount_value = (
+                FinancialEngine.to_decimal(update_req.discount_value)
+                if update_req.discount_value is not None
+                else FinancialEngine.to_decimal(old_wo.get("discount_value", 0))
             )
 
             fin = FinancialEngine.calculate_wo_financials(
                 subtotal=subtotal,
+                discount_value=discount_value,
+                discount_type=discount_type,
                 retention_pct=retention_pct,
-                discount=discount_val,
                 cgst_pct=cgst_pct,
                 sgst_pct=sgst_pct,
             )
@@ -361,6 +370,8 @@ class WorkOrderService:
 
             update_dict = {
                 "subtotal": FinancialEngine.to_d128(fin["subtotal"]),
+                "discount_value": FinancialEngine.to_d128(fin["discount_value"]),
+                "discount_type": fin["discount_type"],
                 "discount": FinancialEngine.to_d128(fin["discount"]),
                 "total_before_tax": FinancialEngine.to_d128(fin["total_before_tax"]),
                 "cgst": FinancialEngine.to_d128(fin["cgst"]),
@@ -382,6 +393,33 @@ class WorkOrderService:
 
             if update_req.vendor_id is not None:
                 update_dict["vendor_id"] = update_req.vendor_id
+
+            if update_req.description_of_works is not None:
+                update_dict["description_of_works"] = update_req.description_of_works
+
+            if update_req.general_t_and_c is not None:
+                update_dict["general_t_and_c"] = update_req.general_t_and_c
+
+            if update_req.payment_terms is not None:
+                update_dict["payment_terms"] = update_req.payment_terms
+
+            if update_req.vendor_contact_person is not None:
+                update_dict["vendor_contact_person"] = update_req.vendor_contact_person
+
+            if update_req.vendor_phone is not None:
+                update_dict["vendor_phone"] = update_req.vendor_phone
+
+            if update_req.start_date is not None:
+                update_dict["start_date"] = update_req.start_date
+
+            if update_req.end_date is not None:
+                update_dict["end_date"] = update_req.end_date
+
+            if update_req.product_warranty is not None:
+                update_dict["product_warranty"] = update_req.product_warranty
+
+            if update_req.workmanship_warranty is not None:
+                update_dict["workmanship_warranty"] = update_req.workmanship_warranty
 
             result = await uow.work_orders.update(
                 wo_id, update_dict, expected_version=update_req.expected_version, session=uow.session

@@ -59,6 +59,13 @@ export default function NewWorkOrderPage() {
     sgst: 9,
     retention_percent: 5,
     wo_date: new Date().toISOString().split('T')[0],
+    vendor_gstin: "",
+    shipping_address: "",
+    billing_address: "",
+    validity_period: "30 Days",
+    warranty_period: "12 Months",
+    contact_person: "",
+    contact_number: "",
   });
 
   const [lineItems, setLineItems] = useState<LineItem[]>([
@@ -96,12 +103,13 @@ export default function NewWorkOrderPage() {
   // Calculations
   const subtotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
   const discount = formData.discount;
-  const totalBeforeTax = subtotal - discount;
-  const cgstAmount = totalBeforeTax * (formData.cgst / 100);
-  const sgstAmount = totalBeforeTax * (formData.sgst / 100);
-  const grandTotal = totalBeforeTax + cgstAmount + sgstAmount;
-  const retentionAmount = grandTotal * (formData.retention_percent / 100);
-  const totalPayable = grandTotal - retentionAmount;
+  const netSubtotal = subtotal - discount;
+  const retentionAmount = netSubtotal * (formData.retention_percent / 100);
+  const totalAfterRetention = netSubtotal - retentionAmount;
+  const cgstAmount = totalAfterRetention * (formData.cgst / 100);
+  const sgstAmount = totalAfterRetention * (formData.sgst / 100);
+  const grandTotal = totalAfterRetention + cgstAmount + sgstAmount;
+  const totalPayable = grandTotal; // In WO, Grand Total is the net commitment
 
   // Grid Definitions
   const columnDefs: ColDef<LineItem>[] = useMemo(
@@ -407,7 +415,13 @@ export default function NewWorkOrderPage() {
             <select
               value={formData.vendor_id}
               onChange={(e) => {
-                setFormData({ ...formData, vendor_id: e.target.value });
+                const vendor = vendors?.find(v => v._id === e.target.value);
+                setFormData({ 
+                  ...formData, 
+                  vendor_id: e.target.value,
+                  vendor_gstin: vendor?.gstin || "",
+                  contact_person: vendor?.contact_person || ""
+                });
                 setIsDirty(true);
               }}
               className={`w-full bg-slate-950 border ${fieldErrors.vendor_id ? "border-red-500" : "border-slate-800"} rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500`}
@@ -426,19 +440,32 @@ export default function NewWorkOrderPage() {
             )}
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
-              Work Order Date
-            </label>
-            <input
-              type="date"
-              value={formData.wo_date}
-              onChange={(e) => {
-                setFormData({ ...formData, wo_date: e.target.value });
-                setIsDirty(true);
-              }}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+                Vendor GSTIN
+              </label>
+              <input
+                type="text"
+                value={formData.vendor_gstin}
+                readOnly
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-400 cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+                WO Date
+              </label>
+              <input
+                type="date"
+                value={formData.wo_date}
+                onChange={(e) => {
+                  setFormData({ ...formData, wo_date: e.target.value });
+                  setIsDirty(true);
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+              />
+            </div>
           </div>
 
           <div>
@@ -470,6 +497,52 @@ export default function NewWorkOrderPage() {
               rows={2}
               placeholder="e.g., Delivery within 7 days, 15% advance..."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+                Validity
+              </label>
+              <input
+                type="text"
+                value={formData.validity_period}
+                onChange={(e) => {
+                  setFormData({ ...formData, validity_period: e.target.value });
+                  setIsDirty(true);
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+                Warranty
+              </label>
+              <input
+                type="text"
+                value={formData.warranty_period}
+                onChange={(e) => {
+                  setFormData({ ...formData, warranty_period: e.target.value });
+                  setIsDirty(true);
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              Shipping Address
+            </label>
+            <textarea
+              value={formData.shipping_address}
+              onChange={(e) => {
+                setFormData({ ...formData, shipping_address: e.target.value });
+                setIsDirty(true);
+              }}
+              rows={2}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
         </div>
@@ -521,9 +594,42 @@ export default function NewWorkOrderPage() {
             </div>
 
             <div className="flex justify-between text-slate-400 p-2 bg-slate-800/20 rounded">
-              <span className="font-medium">Total Before Tax:</span>
+              <span className="font-medium">Net Value (After Discount):</span>
               <span className="font-mono text-white font-medium">
-                {formatCurrency(totalBeforeTax)}
+                {formatCurrency(netSubtotal)}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-slate-400 px-2 pt-2 border-t border-slate-800/50">
+              <span>Retention (%):</span>
+              <div className="flex flex-col items-end">
+                <input
+                  type="number"
+                  value={formData.retention_percent}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setFormData({
+                      ...formData,
+                      retention_percent: Math.max(0, Math.min(100, val)),
+                    });
+                    setIsDirty(true);
+                  }}
+                  className={`w-16 bg-slate-950 border ${fieldErrors.retention ? 'border-red-500' : 'border-slate-700'} text-white p-1 rounded text-right focus:outline-none focus:border-amber-500`}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between text-slate-500 px-2 text-xs">
+              <span>Retention Amount:</span>
+              <span className="font-mono">
+                -{formatCurrency(retentionAmount)}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-slate-400 p-2 bg-slate-800/20 rounded border border-slate-700/30 italic">
+              <span>Taxable Value (After Retention):</span>
+              <span className="font-mono text-white">
+                {formatCurrency(totalAfterRetention)}
               </span>
             </div>
 
@@ -542,7 +648,7 @@ export default function NewWorkOrderPage() {
             </div>
 
             <div className="flex justify-between items-center text-orange-500 font-bold p-3 bg-orange-500/5 rounded-lg border border-orange-500/10">
-              <span>Grand Total:</span>
+              <span>Grand Total (Commitment):</span>
               <span className="font-mono text-lg">
                 {formatCurrency(grandTotal)}
               </span>

@@ -19,32 +19,72 @@ async def seed_codes():
         {
             "code": "CIV",
             "category_name": "Civil Works",
-            "description": "Excavation, RCC, Masonry",
+            "description": "Excavation, RCC, PCC, masonry, plaster, waterproofing, basic structure",
         },
         {
-            "code": "ELE",
-            "category_name": "Electrical",
-            "description": "Wiring, Fixtures, DBs",
+            "code": "PLB",
+            "category_name": "Plumbing Works",
+            "description": "Piping, valves, traps, drainage, pump-room piping",
         },
         {
-            "code": "PLU",
-            "category_name": "Plumbing",
-            "description": "Piping, Sanitary, Drainage",
+            "code": "ELC",
+            "category_name": "Electrical Works",
+            "description": "Conduits, wiring, DBs, breakers, earthing",
+        },
+        {
+            "code": "SWP",
+            "category_name": "Swimming Pool Works",
+            "description": "Waterproofing, Tiling, Pool Light Fixing, Complete Pool Plumbing & Electricals, Pumps, Heaters",
+        },
+        {
+            "code": "HVC",
+            "category_name": "HVAC / Air Conditioning",
+            "description": "Copper piping, drain lines, insulation, installation",
         },
         {
             "code": "FIN",
-            "category_name": "Finishes",
-            "description": "Painting, Tiling, False Ceiling",
+            "category_name": "Finishing Works",
+            "description": "Doors, Windows, Glazing, Flooring, Tiling, Painting, False ceiling",
         },
         {
-            "code": "HVAC",
-            "category_name": "HVAC",
-            "description": "AC, Ventilation, Ducting",
+            "code": "CRP",
+            "category_name": "Carpentry / Fixed",
+            "description": "Wardrobes, kitchen, vanities, fixed furniture",
         },
         {
-            "code": "EXT",
-            "category_name": "External Works",
-            "description": "Landscaping, Paving, Fencing",
+            "code": "LAN",
+            "category_name": "Landscaping & External Works",
+            "description": "Plants, turf, irrigation, pavers, decks",
+        },
+        {
+            "code": "EQP",
+            "category_name": "Equipments & Special System",
+            "description": "Solar, filtration, STP, CCTV backbone",
+        },
+        {
+            "code": "PRF",
+            "category_name": "Professional Fees",
+            "description": "Architect, Engineers, Consultants, PMC, CA, Security Guards",
+        },
+        {
+            "code": "STC",
+            "category_name": "Approvals & Statutory Charges",
+            "description": "Govt/Panchayat Permissions, licenses, NOCs, utility connections",
+        },
+        {
+            "code": "OVH",
+            "category_name": "Site Overheads / Running Expenses",
+            "description": "Drinking Water, Water Tankers, Chairs, stationery, extension boards, Health compliant activities",
+        },
+        {
+            "code": "CSA",
+            "category_name": "Client Supplied Assets",
+            "description": "Fixtures, lights, appliances, loose furniture, décor",
+        },
+        {
+            "code": "CON",
+            "category_name": "Contingency",
+            "description": "Buffer for variations & unforeseen items",
         },
     ]
 

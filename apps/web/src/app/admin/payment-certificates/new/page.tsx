@@ -101,7 +101,7 @@ export default function NewPaymentCertificatePage() {
   }, [isWoLinked, selectedWoId, workOrders]);
 
   // Calculations Preview
-  const { subtotal, retentionAmount, gst, totalPayable, cgstRate, sgstRate } =
+  const { subtotal, retentionAmount, totalAfterRetention, gst, totalPayable, cgstRate, sgstRate } =
     useMemo(() => {
       const p = activeProject;
       const cgst = p?.project_cgst_percentage ?? 9;
@@ -112,13 +112,14 @@ export default function NewPaymentCertificatePage() {
         0,
       );
       const reten = rawSub * (retentionPercent / 100);
-      const gstTotal = rawSub * ((cgst + sgst) / 100);
-      const grand = rawSub + gstTotal;
-      const payable = grand - reten;
+      const afterReten = rawSub - reten;
+      const gstTotal = afterReten * ((cgst + sgst) / 100);
+      const payable = afterReten + gstTotal;
 
       return {
         subtotal: rawSub,
         retentionAmount: reten,
+        totalAfterRetention: afterReten,
         gst: gstTotal,
         totalPayable: payable,
         cgstRate: cgst,
@@ -153,8 +154,6 @@ export default function NewPaymentCertificatePage() {
 
       const wo = isWoLinked ? workOrders.find(w => w._id === selectedWoId) : null;
 
-      const projectId = activeProject.project_id || activeProject._id;
-      const payload = {
         project_id: projectId,
         work_order_id: isWoLinked ? selectedWoId : null,
         category_id: !isWoLinked ? selectedCategoryId : (wo?.category_id || undefined),
@@ -162,6 +161,11 @@ export default function NewPaymentCertificatePage() {
         fund_request: !isWoLinked,
         pc_type: isWoLinked ? "WO_LINKED" : "PETTY_OVH",
         retention_percent: retentionPercent,
+        bill_reference: (document.getElementById("bill_reference") as HTMLInputElement)?.value || "",
+        bill_date: (document.getElementById("bill_date") as HTMLInputElement)?.value || null,
+        tax_invoice_number: (document.getElementById("tax_invoice_number") as HTMLInputElement)?.value || "",
+        pmc_comments: (document.getElementById("pmc_comments") as HTMLTextAreaElement)?.value || "",
+        service_engineer_name: (document.getElementById("service_engineer_name") as HTMLInputElement)?.value || "",
         line_items: lineItems.map((item, index) => {
           const qty = Math.max(0, Number(item.qty) || 0);
           const rate = Math.max(0, Number(item.rate) || 0);
@@ -174,8 +178,8 @@ export default function NewPaymentCertificatePage() {
             total: qty * rate,
           };
         }),
-        cgst: Number((subtotal * (cgstRate / 100)).toFixed(2)),
-        sgst: Number((subtotal * (sgstRate / 100)).toFixed(2)),
+        cgst: Number((totalAfterRetention * (cgstRate / 100)).toFixed(2)),
+        sgst: Number((totalAfterRetention * (sgstRate / 100)).toFixed(2)),
       };
 
 
@@ -516,6 +520,64 @@ export default function NewPaymentCertificatePage() {
               </div>
             </div>
           </div>
+
+          {/* New Mandatory PC Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-slate-800/50">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Bill Reference (Vendor)
+              </label>
+              <input
+                id="bill_reference"
+                type="text"
+                placeholder="e.g. VEND/24/001"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Bill Date
+              </label>
+              <input
+                id="bill_date"
+                type="date"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Tax Invoice No
+              </label>
+              <input
+                id="tax_invoice_number"
+                type="text"
+                placeholder="e.g. GST-9988-1"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                PMC Comments / Notes
+              </label>
+              <textarea
+                id="pmc_comments"
+                rows={2}
+                placeholder="Internal verification notes..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Service Engineer
+              </label>
+              <input
+                id="service_engineer_name"
+                type="text"
+                placeholder="Name of checking engineer"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Grid Space */}
@@ -552,16 +614,21 @@ export default function NewPaymentCertificatePage() {
               </span>
             </div>
 
-            {isWoLinked && (
-              <div className="flex justify-between text-sm text-amber-500/80">
-                <span>Retention Held ({retentionPercent}%)</span>
-                <span className="font-mono">
-                  -{formatCurrency(retentionAmount)}
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between text-sm text-amber-500/80">
+              <span>Retention Held ({retentionPercent}%)</span>
+              <span className="font-mono">
+                -{formatCurrency(retentionAmount)}
+              </span>
+            </div>
 
-            <div className="flex justify-between text-sm text-slate-500 border-t border-slate-800 pt-2 top-padding-2 mt-2">
+            <div className="flex justify-between text-sm text-slate-400 p-2 bg-slate-800/20 rounded border border-slate-700/30 italic">
+              <span>Taxable Value (After Retention):</span>
+              <span className="font-mono text-white">
+                {formatCurrency(totalAfterRetention)}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-sm text-slate-500 pt-2">
               <span>Estimated GST ({cgstRate + sgstRate}%)</span>
               <span className="font-mono">{formatCurrency(gst)}</span>
             </div>

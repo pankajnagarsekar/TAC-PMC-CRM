@@ -131,9 +131,12 @@ class GlobalSettings(BaseModel):
     wo_prefix: str = "WO"
     pc_prefix: str = "PC"
     invoice_prefix: str = "INV"
+    company_code: str = "TAC"
     currency: str = "INR"
     currency_symbol: str = "₹"
     terms_and_conditions: str = "Standard terms and conditions apply..."
+    general_terms_and_conditions: List[str] = Field(default_factory=list)
+    shipping_address: str = ""
     logo_base64: Optional[str] = None
     client_permissions: ClientPermissions = Field(default_factory=ClientPermissions)
     ai_provider: str = Field("openai", description="AI Provider (openai, gemini)")
@@ -180,9 +183,12 @@ class GlobalSettingsUpdate(BaseModel):
     wo_prefix: Optional[str] = None
     pc_prefix: Optional[str] = None
     invoice_prefix: Optional[str] = None
+    company_code: Optional[str] = None
     currency: Optional[str] = None
     currency_symbol: Optional[str] = None
     terms_and_conditions: Optional[str] = None
+    general_terms_and_conditions: Optional[List[str]] = None
+    shipping_address: Optional[str] = None
     logo_base64: Optional[str] = None
     client_permissions: Optional[ClientPermissions] = None
     ai_provider: Optional[str] = None

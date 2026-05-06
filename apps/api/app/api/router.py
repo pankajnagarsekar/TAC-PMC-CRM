@@ -31,5 +31,5 @@ v1_router.include_router(portfolio_router, prefix="/portfolio", tags=["Portfolio
 v1_router.include_router(tasks_router)      # Handles /tasks
 v1_router.include_router(shared_router)  # Handles /notifications, /audit
 
-# Mount Version 1
-api_router.include_router(v1_router, prefix="/v1")
+# Mount Version 1 (Removed redundant /v1 prefix to match settings.API_V1_STR)
+api_router.include_router(v1_router)

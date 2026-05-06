@@ -45,6 +45,17 @@ class ConcurrencyManager:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self.io_pool, func, *args)
 
+    def shutdown(self):
+        """Graceful cleanup of all pools."""
+        if self._heavy_pool:
+            logger.info("CONCURRENCY_HUB: Shutting down heavy process pool...")
+            self._heavy_pool.shutdown(wait=True)
+            self._heavy_pool = None
+        if self._io_pool:
+            logger.info("CONCURRENCY_HUB: Shutting down IO thread pool...")
+            self._io_pool.shutdown(wait=True)
+            self._io_pool = None
+
 
 # GLOBAL SINGLETON
 concurrency_hub = ConcurrencyManager()

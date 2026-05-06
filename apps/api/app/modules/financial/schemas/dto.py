@@ -84,6 +84,8 @@ class PCLineItem(BaseModel):
     scope_of_work: str = ""
     rate: Decimal = Field(Decimal("0.0"), ge=0)
     qty: Decimal = Field(Decimal("0.0"), ge=0)
+    previous_qty: Decimal = Field(Decimal("0.0"), ge=0)
+    cumulative_qty: Decimal = Field(Decimal("0.0"), ge=0)
     unit: str = ""
     total: Decimal = Field(Decimal("0.0"), ge=0)
 
@@ -108,6 +110,10 @@ class PaymentCertificate(BaseModel):
     fund_request: bool = False
     pc_type: Optional[Literal["WO_LINKED", "PETTY_OVH"]] = None
     line_items: List[PCLineItem] = Field(default_factory=list)
+    certification_period_start: Optional[datetime] = None
+    certification_period_end: Optional[datetime] = None
+    vendor_gst_no: Optional[str] = None
+    pmc_comments: str = ""
     idempotency_key: Optional[str] = None
     version: int = 1
     vendor_name: Optional[str] = None
@@ -140,6 +146,10 @@ class PaymentCertificateCreate(BaseModel):
     retention_percent: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     fund_request: bool = False
     pc_type: Optional[Literal["WO_LINKED", "PETTY_OVH"]] = None
+    certification_period_start: Optional[datetime] = None
+    certification_period_end: Optional[datetime] = None
+    vendor_gst_no: Optional[str] = None
+    pmc_comments: str = ""
     idempotency_key: Optional[str] = None
 
 

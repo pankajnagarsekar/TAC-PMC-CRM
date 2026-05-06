@@ -13,6 +13,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.concurrency import concurrency_hub
 from app.core.lifecycle import BackgroundGuardian
 from app.core.middleware import BackpressureMiddleware, StandardResponseMiddleware
 from app.db.mongodb import db_manager
@@ -29,31 +30,6 @@ def create_app() -> FastAPI:
     App Factory following the Supreme Constitution.
     Handles lifecycle, registry, shielding, and background loops.
     """
-    app = FastAPI(
-        title=settings.PROJECT_NAME,
-        version="2.2.0+",
-        description="TAC-PMC-CRM Supreme Hardened Backend",
-    )
-
-    # RESILIENCE: Shield Gateway
-    app.add_middleware(BackpressureMiddleware)
-    app.add_middleware(StandardResponseMiddleware)
-
-    # CORS (Fixed CR-06: Using restricted list from settings)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # REGISTRY: Central Routing
-    app.include_router(api_router, prefix="/api")
-
-    # ERROR HANDLING: Hardened Centralized Handlers (BUG-10)
-    register_exception_handlers(app)
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         """Lifecycle: Hard Ping DB & Boot Guardian (Point 6, 7, 103)"""
@@ -71,17 +47,49 @@ def create_app() -> FastAPI:
                 logger.warning("LIFECYCLE: AI engine in MOCK mode (key missing)")
 
             yield
-
-            # Shutdown
-            logger.info("LIFECYCLE: Initiating clean shutdown...")
-            await guardian.stop()
-            db_manager.close()
-
         except Exception as e:
-            logger.critical(f"LIFECYCLE_FATAL: Core systems failed to bootstrap: {e}")
+            logger.critical(f"LIFECYCLE_FATAL: Core systems failed: {e}")
             raise
+        finally:
+            # Shutdown (Guaranteed even if yield raises or exception occurs)
+            logger.info("LIFECYCLE: Initiating clean shutdown...")
+            try:
+                # We use a try/except for each component to ensure one failure doesn't block others
+                if 'guardian' in locals():
+                    await guardian.stop()
+                
+                # Shutdown concurrency pools
+                concurrency_hub.shutdown()
+                
+                # Close DB connection
+                db_manager.close()
+                logger.info("LIFECYCLE: Shutdown complete.")
+            except Exception as se:
+                logger.error(f"LIFECYCLE_ERROR: Error during shutdown sequence: {se}")
 
-    app.router.lifespan_context = lifespan
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version="2.2.0+",
+        description="TAC-PMC-CRM Supreme Hardened Backend",
+        lifespan=lifespan,
+    )
+
+    # 1. Register Exception Handlers (BUG-10)
+    register_exception_handlers(app)
+
+    # 2. Add Middlewares (Point 4, 15, 105)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(BackpressureMiddleware)
+    app.add_middleware(StandardResponseMiddleware)
+
+    # 3. Include Routers (Point 2)
+    app.include_router(api_router, prefix=settings.API_V1_STR)
 
     @app.get("/system/health", tags=["System"])
     async def health_check():

@@ -90,16 +90,22 @@ class FinancialEngine:
     def calculate_wo_financials(
         cls,
         subtotal: Decimal,
-        discount: Decimal,
+        discount_value: Decimal,
+        discount_type: str,  # "percentage" or "value"
         retention_pct: Decimal,
         cgst_pct: Decimal,
         sgst_pct: Decimal,
     ) -> Dict[str, Any]:
         """Core logic for Work Orders. (Strict CR-11/75 alignment)."""
         subtotal = cls.round(subtotal)
-        discount = cls.round(discount)
+        discount_value = cls.round(discount_value)
 
-        total_before_tax = cls.round(subtotal - discount)
+        if discount_type == "percentage":
+            calculated_discount = cls.round(subtotal * (discount_value / Decimal("100")))
+        else:
+            calculated_discount = discount_value
+
+        total_before_tax = cls.round(subtotal - calculated_discount)
         if total_before_tax < 0:
             raise FinancialIntegrityError("Subtotal cannot be negative after discount.")
 
@@ -120,7 +126,9 @@ class FinancialEngine:
 
         return {
             "subtotal": subtotal,
-            "discount": discount,
+            "discount": calculated_discount,
+            "discount_value": discount_value,
+            "discount_type": discount_type,
             "after_discount": total_before_tax,  # Alias for total_before_tax
             "total_before_tax": total_before_tax,
             "cgst": cgst_amount,
