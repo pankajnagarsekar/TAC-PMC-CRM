@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -43,6 +44,12 @@ export default function TasksIndex() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchTasks();
+    }, [fetchTasks])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

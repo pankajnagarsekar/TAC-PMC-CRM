@@ -36,9 +36,10 @@ export default function NewTaskScreen() {
         try {
             await tasksApi.create(selectedProject.project_id, {
                 task_description: title.trim(),
+                notes: description.trim(),
                 priority,
-                status: 'In Progress',
                 project_id: selectedProject.project_id,
+                assigned_to_name: 'Unassigned',
             });
 
             Alert.alert('Success', 'Task created successfully');

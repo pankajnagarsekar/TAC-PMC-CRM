@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { format, parse } from 'date-fns';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { formatINRShort } from '@/lib/formatters';
 
 interface DailyBreakdown {
   date: string;
@@ -46,8 +47,7 @@ export default function CashFlowChart({ cashFlow }: CashFlowChartProps) {
     }));
   }, [cashFlow.daily_breakdown]);
 
-  const formatCurrency = (value: number) =>
-    `₹${(value / 1000).toFixed(1)}k`;
+  const formatCurrency = (value: number) => formatINRShort(value);
 
   interface CustomTooltipProps {
     active?: boolean;

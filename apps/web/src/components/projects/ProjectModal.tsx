@@ -17,7 +17,7 @@ import {
   Hash,
   MapPin,
   Building,
-  DollarSign,
+  IndianRupee,
   Save,
   Loader2,
   AlertCircle,
@@ -445,7 +445,7 @@ export default function ProjectModal({
                       </span>
                     </div>
                     <div className="relative">
-                      <DollarSign
+                      <IndianRupee
                         size={12}
                         className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-slate-600"
                       />

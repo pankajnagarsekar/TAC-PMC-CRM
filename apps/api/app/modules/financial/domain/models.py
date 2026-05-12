@@ -21,7 +21,13 @@ class FinancialState:
 
     @property
     def balance_remaining(self) -> Decimal:
-        return FinancialEngine.round(self.original_budget - self.committed_value)
+        """
+        Spec-compliant remaining budget calculation.
+        Remaining = Budget - max(Committed, Certified)
+        """
+        return FinancialEngine.round(
+            self.original_budget - max(self.committed_value, self.certified_value)
+        )
 
     @property
     def is_over_committed(self) -> bool:

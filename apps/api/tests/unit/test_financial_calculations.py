@@ -260,11 +260,11 @@ class TestPettyChashFinancials:
 
         assert result["subtotal"] == Decimal("1000.00")
         assert result["retention_amount"] == Decimal("0.00")
-        assert result["total_after_retention"] == Decimal("1000.00")
         assert result["cgst"] == Decimal("90.00")
         assert result["sgst"] == Decimal("90.00")
         assert result["gst_amount"] == Decimal("180.00")
         assert result["grand_total"] == Decimal("1180.00")
+        assert result["actual_payable"] == Decimal("1180.00")
 
     def test_pc_with_retention(self):
         """PC with retention"""
@@ -276,11 +276,13 @@ class TestPettyChashFinancials:
         )
 
         assert result["retention_amount"] == Decimal("50.00")
-        assert result["total_after_retention"] == Decimal("950.00")
-        # GST calculated on total after retention
-        assert result["cgst"] == Decimal("85.50")
-        assert result["sgst"] == Decimal("85.50")
-        assert result["grand_total"] == Decimal("1121.00")
+        # GST calculated on FULL subtotal (BUG-003 fix)
+        assert result["cgst"] == Decimal("90.00")
+        assert result["sgst"] == Decimal("90.00")
+        # grand_total = Subtotal + GST = 1000 + 180 = 1180
+        assert result["grand_total"] == Decimal("1180.00")
+        # actual_payable = Grand Total - Retention = 1180 - 50 = 1130
+        assert result["actual_payable"] == Decimal("1130.00")
 
 
 class TestRounding:

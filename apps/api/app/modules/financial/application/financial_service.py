@@ -50,6 +50,10 @@ class FinancialService:
         self, project_id: str, category_id: str, session=None
     ):
         """Standard recurrence pattern for project-category financial health."""
+        # Ensure ID consistency (BUG-001 Mitigation)
+        project_id = str(project_id)
+        category_id = str(category_id)
+        
         budget = await self.budget_repo.get_by_project_and_category(
             project_id, category_id, session=session
         )
@@ -59,12 +63,13 @@ class FinancialService:
         p_id_obj = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
         c_id_obj = ObjectId(category_id) if ObjectId.is_valid(category_id) else category_id
 
+        # BUG-002: Committed strictly maps to Grand Total of non-cancelled WOs
         committed_pipeline = [
             {
                 "$match": {
                     "project_id": {"$in": [project_id, p_id_obj]},
                     "category_id": {"$in": [category_id, c_id_obj]},
-                    "status": {"$nin": ["Cancelled"]},
+                    "status": {"$nin": ["Cancelled", "Draft"]}, # Exclude Draft to prevent speculative commitments
                 }
             },
             {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
@@ -84,7 +89,8 @@ class FinancialService:
                     "status": "Closed",
                 }
             },
-            {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
+            # BUG-001: Certified strictly maps to Net Payable (total_payable)
+            {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$total_payable", "$grand_total"]}}}},
         ]
         certified_result = await self.pc_repo.aggregate(
             certified_pipeline, session=session
@@ -120,39 +126,52 @@ class FinancialService:
             "version": budget.get("version", 1) if budget else 1,
         }
 
-        await self.financial_state_repo.update_one(
+        # Authoritative Unique Constraint Enforcement (BUG-001)
+        await self.financial_state_repo.delete_many(
             {"project_id": project_id, "category_id": category_id},
-            {"$set": serializable_doc},
-            session=session,
-            upsert=True,
+            session=session
         )
+        
+        await self.financial_state_repo.create(serializable_doc, session=session)
 
         return serializable_doc
 
     async def recalculate_master_budget(self, project_id: str, session=None):
         """Aggregates all project categories into a single Master Snapshot."""
+        project_id = str(project_id)
+        from bson import ObjectId
+        p_id_obj = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+
         # 1. Identify all unique categories involved in this project (Budget, WorkOrders, PCs)
         category_ids = set()
 
         # From Budgets
-        budgets = await self.budget_repo.list({"project_id": project_id}, limit=1000, session=session)
+        budgets = await self.budget_repo.list({"project_id": {"$in": [project_id, p_id_obj]}}, limit=1000, session=session)
         for b in budgets:
             if b.get("category_id"):
-                category_ids.add(b["category_id"])
+                category_ids.add(str(b["category_id"]))
 
-        # From Work Orders (to catch untracked commitments)
-        from bson import ObjectId
-        p_id_obj = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+        # From Work Orders
         wo_cats = await self.wo_repo.distinct("category_id", {"project_id": {"$in": [project_id, p_id_obj]}})
         for cid in wo_cats:
             if cid:
-                category_ids.add(cid)
+                category_ids.add(str(cid))
 
         # From PCs
         pc_cats = await self.pc_repo.distinct("category_id", {"project_id": {"$in": [project_id, p_id_obj]}})
         for cid in pc_cats:
             if cid:
-                category_ids.add(cid)
+                category_ids.add(str(cid))
+
+        # BUG-001 Cleanup: Purge orphaned/stale financial state entries
+        # This ensures "ghost" numbers from old categories or different ID formats are removed.
+        await self.financial_state_repo.delete_many(
+            {
+                "project_id": {"$in": [project_id, p_id_obj]},
+                "category_id": {"$nin": list(category_ids) + ["MASTER"]}
+            },
+            session=session
+        )
 
         totals = {
             "total_budget": FinancialEngine.round(0),

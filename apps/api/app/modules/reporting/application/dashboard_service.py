@@ -209,7 +209,7 @@ class DashboardService:
 
         master_state = await self.db.financial_state.find_one(
             {
-                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id},
+                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
                 "category_id": "MASTER"
             }
         )
@@ -269,7 +269,7 @@ class DashboardService:
 
         # 4. Get active schedule snapshot from CORRECT collection (project_schedules)
         schedule = await self.db.project_schedules.find_one(
-            {"project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id}}
+            {"project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]}}
         )
         tasks = schedule.get("tasks", []) if schedule else []
         tasks_count = len(tasks)
@@ -304,7 +304,7 @@ class DashboardService:
             # Map category_id to its PV
             cat_pv_map = {}
             cursor = self.db.financial_state.find({
-                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id},
+                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
                 "category_id": {"$ne": "MASTER"}
             })
             async for s in cursor:
@@ -397,7 +397,7 @@ class DashboardService:
         # Fetch all financial states for this project (excluding MASTER)
         states_cursor = self.db.financial_state.find(
             {
-                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id},
+                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
                 "category_id": {"$ne": "MASTER"}
             }
         )
@@ -448,7 +448,7 @@ class DashboardService:
         pipeline = [
             {
                 "$match": {
-                    "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else project_id}
+                    "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]}
                 }
             },
             {

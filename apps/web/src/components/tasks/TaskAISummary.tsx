@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Sparkles, Loader2, AlertCircle, RefreshCw, Brain } from "lucide-react";
 import api from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
+import { sanitizeAIText } from "@/lib/formatters";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 interface TaskAISummaryProps {
@@ -135,7 +136,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
             strong: ({ children, ...props }: React.ComponentPropsWithoutRef<'span'>) => <span className="font-extrabold text-blue-400" {...props}>{children}</span>,
           }}
         >
-          {(data.summary_text || "").replace(/\\n/g, '\n') || "Synthesizing project velocity and task distribution metrics..."}
+          {sanitizeAIText(data.summary_text) || "Synthesizing project velocity and task distribution metrics..."}
         </ReactMarkdown>
       </div>
 

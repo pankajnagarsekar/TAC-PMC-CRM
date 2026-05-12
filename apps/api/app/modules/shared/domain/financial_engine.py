@@ -57,7 +57,11 @@ class FinancialEngine:
         else:
             target_precision = precision
 
-        return value.quantize(target_precision, rounding=ROUND_HALF_UP)
+        rounded = value.quantize(target_precision, rounding=ROUND_HALF_UP)
+        # BUG-025: Fix negative zero display artefact
+        if rounded == Decimal("0") or rounded == Decimal("-0"):
+            return Decimal("0.00")
+        return rounded
 
     @classmethod
     def calculate_tax(cls, amount: Decimal, tax_pct: Decimal) -> Decimal:
@@ -150,29 +154,33 @@ class FinancialEngine:
         sgst_pct: Decimal,
     ) -> Dict[str, Any]:
         """
-        Sovereign PC Logic (Restored to Spec).
-        Formula: Grand Total = (Subtotal - Retention) + CGST + SGST
-        Retention is calculated on the Gross Subtotal.
-        GST is calculated on the Total After Retention.
+        Sovereign PC Logic (Corrected for statutory compliance).
+        Formula: Grand Total = (Subtotal + CGST + SGST)
+        Retention is a payment deduction from the Grand Total.
+        GST is calculated on the FULL Gross Subtotal (BUG-003).
         """
         pc_value = cls.round(pc_value)
         retention_amount = cls.calculate_retention(pc_value, retention_pct)
-        total_after_retention = cls.round(pc_value - retention_amount)
-
-        cgst_amount = cls.calculate_tax(total_after_retention, cgst_pct)
-        sgst_amount = cls.calculate_tax(total_after_retention, sgst_pct)
+        
+        # BUG-003 FIX: Calculate GST on FULL value, not post-retention
+        cgst_amount = cls.calculate_tax(pc_value, cgst_pct)
+        sgst_amount = cls.calculate_tax(pc_value, sgst_pct)
         gst_amount = cls.round(cgst_amount + sgst_amount)
 
-        grand_total = cls.round(total_after_retention + gst_amount)
+        # grand_total = Gross + GST
+        grand_total = cls.round(pc_value + gst_amount)
+        # actual_payable = (Gross + GST) - Retention
+        actual_payable = cls.round(grand_total - retention_amount)
 
         return {
             "subtotal": pc_value,
-            "retention_amount": retention_amount,
-            "total_after_retention": total_after_retention,
             "cgst": cgst_amount,
             "sgst": sgst_amount,
             "gst_amount": gst_amount,
             "grand_total": grand_total,
+            "retention_amount": retention_amount,
+            "actual_payable": actual_payable,
+            "net_payable": actual_payable,  # Authoritative name for Net Payable (BUG-001)
             "logic_version": cls.DOMAIN_LOGIC_VERSION,
         }
 

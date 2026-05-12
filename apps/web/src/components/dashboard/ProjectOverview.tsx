@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, IndianRupee } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { formatCurrencySafe } from "@/lib/formatters";
 
 interface KPIMetric {
   label: string;
@@ -48,12 +49,12 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       label: "Budget Utilization",
       value: Math.round(Number(metrics.budget_utilization_pct)),
       unit: "%",
-      icon: <DollarSign className="w-5 h-5" />,
+      icon: <IndianRupee className="w-5 h-5" />,
       status: metrics.financial_status,
     },
     {
       label: "Daily Burn Rate",
-      value: "$" + (metrics.burn_rate_daily || 0).toFixed(0),
+      value: formatCurrencySafe(metrics.burn_rate_daily),
       icon: <TrendingDown className="w-5 h-5" />,
       status: "neutral" as const,
     },
@@ -66,7 +67,7 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     {
       label: "Financial Health",
       value: metrics.financial_status.toUpperCase(),
-      icon: <DollarSign className="w-5 h-5" />,
+      icon: <IndianRupee className="w-5 h-5" />,
       status: metrics.financial_status,
     },
   ];

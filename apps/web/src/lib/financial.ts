@@ -15,17 +15,14 @@ export function formatCurrency(num: number): string {
   return financialRound(num).toFixed(2);
 }
 
-/**
- * Interface matching the backend's calculate_pc_financials logic
- */
 export interface PCFinancials {
   subtotal: number;
   retentionAmount: number;
-  totalAfterRetention: number;
   cgst: number;
   sgst: number;
   gstAmount: number;
   grandTotal: number;
+  actualPayable: number;
 }
 
 /**
@@ -39,20 +36,79 @@ export function calculatePCFinancials(
 ): PCFinancials {
   const subtotal = financialRound(pcValue);
   const retentionAmount = financialRound(subtotal * (retentionPct / 100));
-  const totalAfterRetention = financialRound(subtotal - retentionAmount);
-  
-  const cgst = financialRound(totalAfterRetention * (cgstPct / 100));
-  const sgst = financialRound(totalAfterRetention * (sgstPct / 100));
+
+  // BUG-003: GST on FULL subtotal
+  const cgst = financialRound(subtotal * (cgstPct / 100));
+  const sgst = financialRound(subtotal * (sgstPct / 100));
   const gstAmount = financialRound(cgst + sgst);
-  const grandTotal = financialRound(totalAfterRetention + gstAmount);
+
+  // Grand Total = Gross Subtotal + GST
+  const grandTotal = financialRound(subtotal + gstAmount);
+  // Actual Payable = Grand Total - Retention
+  const actualPayable = financialRound(grandTotal - retentionAmount);
 
   return {
     subtotal,
     retentionAmount,
-    totalAfterRetention,
     cgst,
     sgst,
     gstAmount,
-    grandTotal
+    grandTotal,
+    actualPayable,
+  };
+}
+
+export interface WOFinancials {
+  subtotal: number;
+  discount: number;
+  totalBeforeTax: number;
+  cgst: number;
+  sgst: number;
+  gstAmount: number;
+  retentionAmount: number;
+  grandTotal: number;
+  actualPayable: number;
+}
+
+/**
+ * Replicates FinancialEngine.calculate_wo_financials in TypeScript
+ */
+export function calculateWOFinancials(
+  subtotal: number,
+  discountValue: number,
+  discountType: "percentage" | "value",
+  retentionPct: number,
+  cgstPct: number,
+  sgstPct: number
+): WOFinancials {
+  const roundedSubtotal = financialRound(subtotal);
+  const roundedDiscountValue = financialRound(discountValue);
+
+  let calculatedDiscount = 0;
+  if (discountType === "percentage") {
+    calculatedDiscount = financialRound(roundedSubtotal * (roundedDiscountValue / 100));
+  } else {
+    calculatedDiscount = roundedDiscountValue;
+  }
+
+  const totalBeforeTax = financialRound(roundedSubtotal - calculatedDiscount);
+  const cgst = financialRound(totalBeforeTax * (cgstPct / 100));
+  const sgst = financialRound(totalBeforeTax * (sgstPct / 100));
+  const gstAmount = financialRound(cgst + sgst);
+
+  const retentionAmount = financialRound(totalBeforeTax * (retentionPct / 100));
+  const grandTotal = financialRound(totalBeforeTax + gstAmount);
+  const actualPayable = financialRound(grandTotal - retentionAmount);
+
+  return {
+    subtotal: roundedSubtotal,
+    discount: calculatedDiscount,
+    totalBeforeTax,
+    cgst,
+    sgst,
+    gstAmount,
+    retentionAmount,
+    grandTotal,
+    actualPayable,
   };
 }

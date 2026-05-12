@@ -198,12 +198,12 @@ class PaymentService:
                         fin["retention_amount"]
                     ),
                     "total_after_retention": FinancialEngine.to_d128(
-                        fin["total_after_retention"]
+                        fin["actual_payable"]
                     ),
                     "cgst": FinancialEngine.to_d128(fin["cgst"]),
                     "sgst": FinancialEngine.to_d128(fin["sgst"]),
                     "grand_total": FinancialEngine.to_d128(fin["grand_total"]),
-                    "total_payable": FinancialEngine.to_d128(fin["grand_total"]),
+                    "total_payable": FinancialEngine.to_d128(fin["actual_payable"]),
                     "retention_percent": FinancialEngine.to_d128(
                         Decimal(str(pc_data.retention_percent or 0))
                     ),

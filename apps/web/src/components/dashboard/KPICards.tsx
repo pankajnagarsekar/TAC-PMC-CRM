@@ -1,21 +1,13 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Activity, BarChart3, Coins, DollarSign, Gauge, Timer } from "lucide-react";
+import { Activity, BarChart3, Coins, IndianRupee, Gauge, Timer } from "lucide-react";
 import { startOfDay, isAfter } from "date-fns";
 
 import KPICard from "@/components/ui/KPICard";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { normalizeTaskOrder, parseTaskDate } from "@/components/scheduler/scheduler-utils";
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    notation: "compact",
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
+import { formatINRShort } from "@/lib/formatters";
 
 interface KPICardsProps {
   stats?: {
@@ -112,7 +104,7 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
     <div className="grid gap-5 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
       <KPICard
         label="Total Baseline"
-        value={stats.totalBaselineCost > 0 ? formatCurrency(stats.totalBaselineCost) : "Not Initialized"}
+        value={stats.totalBaselineCost > 0 ? formatINRShort(stats.totalBaselineCost) : "Not Initialized"}
         subtitle={stats.totalBaselineCost > 0 ? "Original project value" : "Action required: Initialize budget"}
         status="neutral"
         icon={<Coins size={18} />}
@@ -120,24 +112,24 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
       />
       <KPICard
         label="Planned Value"
-        value={formatCurrency(stats.plannedValue)}
+        value={formatINRShort(stats.plannedValue)}
         subtitle="PV (Should be earned)"
         status="neutral"
         icon={<Timer size={18} />}
       />
       <KPICard
         label="Earned Value"
-        value={formatCurrency(stats.earnedValue)}
+        value={formatINRShort(stats.earnedValue)}
         subtitle="EV (Work performed)"
         status={stats.earnedValue >= stats.plannedValue ? "positive" : "warning"}
         icon={<Activity size={18} />}
       />
       <KPICard
         label="Actual Cost"
-        value={formatCurrency(stats.actualCost)}
+        value={formatINRShort(stats.actualCost)}
         subtitle="AC (Work Order value)"
         status={stats.actualCost <= stats.earnedValue ? "positive" : "negative"}
-        icon={<DollarSign size={18} />}
+        icon={<IndianRupee size={18} />}
       />
       <KPICard
         label="SPI"

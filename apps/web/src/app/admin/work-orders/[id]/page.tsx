@@ -20,7 +20,8 @@ import { useRequestLock } from "@/lib/requestLock";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import { WorkOrder, Project, Vendor, CodeMaster } from "@/types/api";
-import { formatCurrency, formatDate } from "@tac-pmc/ui";
+import { formatCurrency, calculateWOFinancials, WOFinancials } from "@/lib/financial";
+import { formatDate } from "@tac-pmc/ui";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
@@ -159,33 +160,28 @@ export default function WorkOrderDetailPage() {
     setIsEditing(true);
   }, [wo]);
 
-  // Calculate financials for edit mode
+  // Calculate financials for edit mode (Authoritative Logic)
   const editFinancials = useMemo(() => {
     const subtotal = editLineItems.reduce((sum, item) => sum + (item.total || 0), 0);
-    const discount = editState.discount || 0;
-    const totalBeforeTax = subtotal - discount;
+    
+    // Determine rates (fallback to 9% if undefined)
+    const cgstRate = project?.project_cgst_percentage ?? 9;
+    const sgstRate = project?.project_sgst_percentage ?? 9;
 
-    // Use project-level rates if available, fallback to WO values
-    const cgstRate = (project?.project_cgst_percentage ?? wo?.cgst ?? 9) / 100;
-    const sgstRate = (project?.project_sgst_percentage ?? wo?.sgst ?? 9) / 100;
-
-    const cgst = totalBeforeTax * cgstRate;
-    const sgst = totalBeforeTax * sgstRate;
-    const grandTotal = totalBeforeTax + cgst + sgst;
-    const retentionAmount = grandTotal * ((editState.retention_percent || 0) / 100);
-    const totalPayable = grandTotal - retentionAmount;
+    const financials = calculateWOFinancials(
+      subtotal,
+      editState.discount || 0,
+      "value",
+      editState.retention_percent || 0,
+      cgstRate,
+      sgstRate
+    );
 
     return {
-      subtotal,
-      discount,
-      totalBeforeTax,
-      cgst,
-      sgst,
-      cgstLabel: (cgstRate * 100).toFixed(0),
-      sgstLabel: (sgstRate * 100).toFixed(0),
-      grandTotal,
-      retentionAmount,
-      totalPayable,
+      ...financials,
+      cgstLabel: cgstRate.toFixed(0),
+      sgstLabel: sgstRate.toFixed(0),
+      totalPayable: financials.actualPayable,
     };
   }, [editLineItems, editState, wo, project]);
 

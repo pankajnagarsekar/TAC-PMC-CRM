@@ -434,6 +434,7 @@ export interface Task {
   assigned_to_type: string;
   deadline?: string;
   priority: string;
+  notes?: string;
   status: "Open" | "In Progress" | "Completed" | "Closed";
   sr_no: number;
   created_by: string;

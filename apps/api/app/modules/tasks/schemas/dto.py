@@ -38,7 +38,7 @@ class TaskCreate(BaseSchema):
     project_id: str
     task_description: str
     assigned_to_user_id: Optional[str] = None
-    assigned_to_name: str
+    assigned_to_name: str = "Unassigned"
     assigned_to_type: str = "user"
     deadline: Optional[datetime] = None
     priority: str = "Normal"

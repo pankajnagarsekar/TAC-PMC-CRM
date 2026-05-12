@@ -42,3 +42,15 @@ export function formatINRShort(value: number | undefined | null): string {
     if (normalized >= 1000) return `₹${(normalized / 1000).toFixed(0)}K`;
     return `₹${normalized.toFixed(0)}`;
 }
+
+/**
+ * Sanitizes text returned from AI models.
+ * Replaces escaped newlines with actual newlines and 
+ * converts dollar signs ($) to rupee symbols (₹) for currency consistency.
+ */
+export function sanitizeAIText(text: string | undefined | null): string {
+    if (!text) return "";
+    return text
+        .replace(/\\n/g, '\n')
+        .replace(/\$/g, '₹');
+}

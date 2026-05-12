@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from "recharts";
 import { format, startOfMonth, isBefore } from "date-fns";
+import { formatINRShort } from "@/lib/formatters";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { normalizeTaskOrder, parseTaskDate } from "@/components/scheduler/scheduler-utils";
@@ -40,12 +41,7 @@ export default function CashFlowChart() {
     return Array.from(buckets.values()).sort((a, b) => a.key.localeCompare(b.key));
   }, [tasks]);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-IN", {
-      notation: "compact",
-      style: "currency",
-      currency: "INR",
-    }).format(value);
+  const formatCurrency = (value: number) => formatINRShort(value);
 
   const today = startOfMonth(new Date());
 

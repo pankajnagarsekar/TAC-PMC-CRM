@@ -8,6 +8,7 @@ import { AISummary } from "@/types/api";
 import { Brain, RefreshCw, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
+import { sanitizeAIText } from "@/lib/formatters";
 
 interface AISummaryCardProps {
   projectId: string;
@@ -139,7 +140,7 @@ export function AISummaryCard({ projectId }: AISummaryCardProps) {
                 li: (props) => <li {...props} />,
               }}
             >
-              {(summary.summary_text || "").replace(/\\n/g, '\n')}
+              {sanitizeAIText(summary.summary_text)}
             </ReactMarkdown>
           </div>
 

@@ -19,7 +19,7 @@ import { idempotency } from "@/lib/idempotency";
 import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { Vendor, CodeMaster, WorkOrder } from "@/types/api";
-import { formatCurrency } from "@tac-pmc/ui";
+import { formatCurrency, calculateWOFinancials, WOFinancials } from "@/lib/financial";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   Dialog,
@@ -101,15 +101,21 @@ export default function NewWorkOrderPage() {
   );
 
   // Calculations
-  const subtotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
-  const discount = formData.discount;
-  const netSubtotal = subtotal - discount;
-  const retentionAmount = netSubtotal * (formData.retention_percent / 100);
-  const totalAfterRetention = netSubtotal - retentionAmount;
-  const cgstAmount = totalAfterRetention * (formData.cgst / 100);
-  const sgstAmount = totalAfterRetention * (formData.sgst / 100);
-  const grandTotal = totalAfterRetention + cgstAmount + sgstAmount;
-  const totalPayable = grandTotal; // In WO, Grand Total is the net commitment
+  // Centralized Calculations (Authoritative Logic)
+  const rawSubtotal = useMemo(() => 
+    lineItems.reduce((sum, item) => sum + (item.total || 0), 0)
+  , [lineItems]);
+
+  const financials = useMemo(() => {
+    return calculateWOFinancials(
+      rawSubtotal,
+      formData.discount,
+      "value", // Current UI defaults to fixed value discount
+      formData.retention_percent,
+      formData.cgst,
+      formData.sgst
+    );
+  }, [rawSubtotal, formData.discount, formData.retention_percent, formData.cgst, formData.sgst]);
 
   // Grid Definitions
   const columnDefs: ColDef<LineItem>[] = useMemo(
@@ -557,7 +563,7 @@ export default function NewWorkOrderPage() {
             <div className="flex justify-between text-slate-400">
               <span>Subtotal:</span>
               <span className="font-mono text-white">
-                {formatCurrency(subtotal)}
+                {formatCurrency(financials.subtotal)}
               </span>
             </div>
 
@@ -573,7 +579,7 @@ export default function NewWorkOrderPage() {
                       const val = parseFloat(e.target.value) || 0;
                       setFormData({
                         ...formData,
-                        discount: Math.max(0, Math.min(val, subtotal)),
+                        discount: Math.max(0, Math.min(val, financials.subtotal)),
                       });
                       if (val < 0) {
                         setFieldErrors(prev => ({ ...prev, discount: "Discount cannot be negative" }));
@@ -596,7 +602,7 @@ export default function NewWorkOrderPage() {
             <div className="flex justify-between text-slate-400 p-2 bg-slate-800/20 rounded">
               <span className="font-medium">Net Value (After Discount):</span>
               <span className="font-mono text-white font-medium">
-                {formatCurrency(netSubtotal)}
+                {formatCurrency(financials.totalBeforeTax)}
               </span>
             </div>
 
@@ -622,35 +628,35 @@ export default function NewWorkOrderPage() {
             <div className="flex justify-between text-slate-500 px-2 text-xs">
               <span>Retention Amount:</span>
               <span className="font-mono">
-                -{formatCurrency(retentionAmount)}
+                -{formatCurrency(financials.retentionAmount)}
               </span>
             </div>
 
-            <div className="flex justify-between text-slate-400 p-2 bg-slate-800/20 rounded border border-slate-700/30 italic">
-              <span>Taxable Value (After Retention):</span>
-              <span className="font-mono text-white">
-                {formatCurrency(totalAfterRetention)}
+            <div className="flex justify-between text-slate-500 px-2 text-xs">
+              <span>GST Base (Net Subtotal):</span>
+              <span className="font-mono">
+                {formatCurrency(financials.totalBeforeTax)}
               </span>
             </div>
 
             <div className="flex justify-between text-slate-400 px-2">
               <span>CGST ({formData.cgst}%):</span>
               <span className="font-mono text-white">
-                {formatCurrency(cgstAmount)}
+                {formatCurrency(financials.cgst)}
               </span>
             </div>
 
             <div className="flex justify-between text-slate-400 px-2">
               <span>SGST ({formData.sgst}%):</span>
               <span className="font-mono text-white">
-                {formatCurrency(sgstAmount)}
+                {formatCurrency(financials.sgst)}
               </span>
             </div>
 
             <div className="flex justify-between items-center text-orange-500 font-bold p-3 bg-orange-500/5 rounded-lg border border-orange-500/10">
               <span>Grand Total (Commitment):</span>
               <span className="font-mono text-lg">
-                {formatCurrency(grandTotal)}
+                {formatCurrency(financials.grandTotal)}
               </span>
             </div>
 
@@ -686,14 +692,14 @@ export default function NewWorkOrderPage() {
             <div className="flex justify-between text-slate-500 px-2 text-xs">
               <span>Retention Amount:</span>
               <span className="font-mono">
-                -{formatCurrency(retentionAmount)}
+                -{formatCurrency(financials.retentionAmount)}
               </span>
             </div>
 
             <div className="flex justify-between items-center text-emerald-500 font-bold p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
               <span>Net Payable (After Retention):</span>
               <span className="font-mono text-lg">
-                {formatCurrency(totalPayable)}
+                {formatCurrency(financials.actualPayable)}
               </span>
             </div>
           </div>

@@ -102,7 +102,7 @@ export default function NewPaymentCertificatePage() {
   }, [isWoLinked, selectedWoId, workOrders]);
 
   // Calculations Preview
-  const { subtotal, retentionAmount, totalAfterRetention, gst, totalPayable, cgstRate, sgstRate, cgstAmount, sgstAmount } =
+  const { subtotal, retentionAmount, totalAfterRetention, gst, totalPayable, actualPayable, cgstRate, sgstRate, cgstAmount, sgstAmount } =
     useMemo(() => {
       const p = activeProject;
       const cgstPct = p?.project_cgst_percentage ?? 9;
@@ -121,6 +121,7 @@ export default function NewPaymentCertificatePage() {
         totalAfterRetention: fin.totalAfterRetention,
         gst: fin.gstAmount,
         totalPayable: fin.grandTotal,
+        actualPayable: fin.actualPayable,
         cgstRate: cgstPct,
         sgstRate: sgstPct,
         cgstAmount: fin.cgst,
@@ -612,9 +613,26 @@ export default function NewPaymentCertificatePage() {
         <div className="p-6 bg-slate-950/50 border-t border-slate-800">
           <div className="max-w-xs ml-auto space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Subtotal</span>
+              <span className="text-slate-400">Gross Subtotal</span>
               <span className="text-white font-mono">
                 {formatCurrency(subtotal)}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>CGST ({cgstRate}%)</span>
+              <span className="font-mono">{formatCurrency(cgstAmount)}</span>
+            </div>
+
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>SGST ({sgstRate}%)</span>
+              <span className="font-mono">{formatCurrency(sgstAmount)}</span>
+            </div>
+
+            <div className="flex justify-between text-sm font-semibold text-white border-t border-slate-800 pt-2">
+              <span>Grand Total</span>
+              <span className="font-mono">
+                {formatCurrency(totalPayable)}
               </span>
             </div>
 
@@ -625,21 +643,9 @@ export default function NewPaymentCertificatePage() {
               </span>
             </div>
 
-            <div className="flex justify-between text-sm text-slate-400 p-2 bg-slate-800/20 rounded border border-slate-700/30 italic">
-              <span>Taxable Value (After Retention):</span>
-              <span className="font-mono text-white">
-                {formatCurrency(totalAfterRetention)}
-              </span>
-            </div>
-
-            <div className="flex justify-between text-sm text-slate-500 pt-2">
-              <span>Estimated GST ({cgstRate + sgstRate}%)</span>
-              <span className="font-mono">{formatCurrency(gst)}</span>
-            </div>
-
-            <div className="flex justify-between text-lg font-bold text-emerald-400 border-t border-slate-800 pt-3">
-              <span>Total Payable</span>
-              <span className="font-mono">{formatCurrency(totalPayable)}</span>
+            <div className="flex justify-between text-lg font-bold text-emerald-400 border-t border-emerald-500/20 pt-3">
+              <span>Net Payable</span>
+              <span className="font-mono">{formatCurrency(actualPayable)}</span>
             </div>
           </div>
         </div>
