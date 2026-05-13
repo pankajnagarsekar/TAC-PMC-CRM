@@ -89,4 +89,6 @@ class TestReportingService:
 
         # Verify totals (should be sum of CAT1 and CAT2)
         # Budget: 1000 + 2000 = 3000
-        assert report["totals"]["budget"] == "3,000.00"
+        assert report["totals"]["budget"] == "\u20b9 3,000.00"
+        assert report["totals"]["committed"] == "\u20b9 1,500.00"
+        assert report["totals"]["remaining"] == "\u20b9 1,500.00"

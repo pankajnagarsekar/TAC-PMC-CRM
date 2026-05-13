@@ -47,6 +47,23 @@ class ReportingService:
         """Returns a resilient project_id match filter (Handles string/ObjectId)."""
         return {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]}
 
+    def _get_display_status(self, raw_status: Optional[str]) -> str:
+        """BUG-010: Standardized Status Mapping for all reports."""
+        if not raw_status:
+            return "Draft"
+        
+        status_map = {
+            "approved": "Active",
+            "active": "Active",
+            "completed": "Completed",
+            "closed": "Completed",
+            "cancelled": "Cancelled",
+            "pending": "Pending",
+            "draft": "Draft",
+            "paid": "Paid"
+        }
+        return status_map.get(raw_status.lower(), raw_status.capitalize())
+
     async def get_report(
         self,
         user: dict,
@@ -74,6 +91,8 @@ class ReportingService:
             )
         elif report_type == "petty_cash_tracker":
             return await self._petty_cash_tracker_report(project_id, start_dt, end_dt)
+        elif report_type == "csa_report":
+            return await self._csa_report(project_id, start_dt, end_dt)
         elif report_type == "scheduler_gantt":
             return await self._scheduler_gantt_report(project_id)
 
@@ -260,12 +279,26 @@ class ReportingService:
             cid = str(category_id)
             master_budget += FinancialEngine.to_decimal(b.get("original_budget"))
             category_fin = fin_map.get(cid, {})
+            
+            # BUG-001: Dynamic Certified Value calculation (Authoritative)
+            # Aggregate from payment_certificates to ensure no ghost data.
+            pc_agg = await self.db.payment_certificates.aggregate([
+                {
+                    "$match": {
+                        "project_id": resilient_id,
+                        "category_id": cid,
+                        "status": {"$nin": ["Cancelled", "Draft"]}
+                    }
+                },
+                {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
+            ]).to_list(1)
+            
+            pc_certified = FinancialEngine.to_decimal(pc_agg[0]["total"] if pc_agg else 0)
+            
             total_committed += FinancialEngine.to_decimal(
                 category_fin.get("committed_value")
             )
-            total_certified += FinancialEngine.to_decimal(
-                category_fin.get("certified_value")
-            )
+            total_certified += pc_certified
 
         resolved_tasks = await self.wo_repo.count(
             {"project_id": resilient_id, "status": {"$in": ["Closed", "Completed"]}}
@@ -463,8 +496,16 @@ class ReportingService:
         }
 
     async def _project_summary_report(self, project_id: str) -> Dict[str, Any]:
+        """
+        Hardened Project Financial Summary (BUG-001, BUG-005, BUG-006).
+        Authoritative source: financial_state for budget/commitment,
+        but dynamically aggregates payment_certificates for certified values to ensure zero-lag accuracy.
+        """
         pipeline = [
-            {"$match": {"project_id": self._get_project_match(project_id)}},
+            {"$match": {
+                "project_id": self._get_project_match(project_id),
+                "category_id": {"$exists": True, "$ne": None, "$nin": ["MASTER", "master", project_id, str(project_id)]}
+            }},
             {"$addFields": {
                 "cid_obj": {
                     "$convert": {
@@ -514,10 +555,16 @@ class ReportingService:
                     "category_code": {"$arrayElemAt": ["$category.code", 0]},
                 }
             },
-            {"$match": {
-                "category_code": {"$exists": True, "$ne": None, "$ne": ""},
-                "category_id": {"$nin": ["MASTER", project_id]}
-            }},
+            {
+                "$match": {
+                    "category_code": {"$exists": True, "$ne": None, "$ne": ""},
+                    "category_name": {
+                        "$exists": True, 
+                        "$ne": None, 
+                        "$nin": ["Unnamed Category", "MASTER", "master", "Budget", "Total", "TOTAL", ""]
+                    }
+                }
+            },
             {"$sort": {"category_code": 1}},
         ]
 
@@ -534,7 +581,10 @@ class ReportingService:
             budget = FinancialEngine.to_decimal(item.get("original_budget") or 0)
             committed = FinancialEngine.to_decimal(item.get("committed_value") or 0)
             certified = FinancialEngine.to_decimal(item.get("certified_value") or 0)
-            # BUG-006: Remaining = Budget - max(Committed, Certified)
+            
+            # BUG-006: Dynamic Remaining Budget calculation.
+            # Formula: Budget - max(Committed, Certified)
+            # This ensures we don't overstate balance if certification exceeds commitment (rare but possible).
             remaining = budget - max(committed, certified)
 
             rows.append(
@@ -557,7 +607,7 @@ class ReportingService:
             "title": "Project Financial Summary",
             "project_id": project_id,
             "rows": rows,
-            "totals": {k: str(v) for k, v in totals.items()},
+            "totals": {k: ExportService.format_currency(v) for k, v in totals.items()},
             "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
         }
 
@@ -613,6 +663,7 @@ class ReportingService:
                 "$project": {
                     "wo_ref": 1,
                     "category_code": {"$arrayElemAt": ["$category.code", 0]},
+                    "category_name": {"$arrayElemAt": ["$category.category_name", 0]},
                     "vendor_name": {"$arrayElemAt": ["$vendor.name", 0]},
                     "grand_total": 1,
                     "retention_amount": 1,
@@ -631,16 +682,8 @@ class ReportingService:
             c_at = wo.get("created_at")
             date_str = c_at.strftime("%Y-%m-%d") if c_at else "N/A"
 
-            # BUG-010: Status Mapping (Case-insensitive)
-            raw_status = wo.get("status") or "Draft"
-            status_map = {
-                "approved": "Active",
-                "completed": "Completed",
-                "cancelled": "Cancelled",
-                "pending": "Pending",
-                "draft": "Draft"
-            }
-            display_status = status_map.get(raw_status.lower(), raw_status.capitalize())
+            # BUG-010: Status Mapping (Standardized labels)
+            display_status = self._get_display_status(wo.get("status"))
 
             rows.append(
                 [
@@ -654,10 +697,13 @@ class ReportingService:
                 ]
             )
             total_amount += amount
+
         return {
             "title": "Work Order Tracker",
+            "project_id": project_id,
             "rows": rows,
-            "totals": {"total_amount": str(total_amount)},
+            "totals": {"total_amount": ExportService.format_currency(total_amount)},
+            "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
         }
 
     async def _payment_certificate_tracker_report(
@@ -740,15 +786,17 @@ class ReportingService:
                     ExportService.format_currency(amount),
                     date_str,
                     ExportService.format_currency(FinancialEngine.to_decimal(pc.get("net_payable") or pc.get("total_payable") or 0)) if pc.get("status") in ["Paid", "Approved"] else "₹ 0.00",
-                    pc.get("status") or "Draft",
+                    self._get_display_status(pc.get("status")),
                 ]
             )
             if pc.get("status") not in ["Cancelled", "Draft"]:
                 total_certified += amount
         return {
             "title": "Payment Certificate Tracker",
+            "project_id": project_id,
             "rows": rows,
-            "totals": {"total_certified": str(total_certified)},
+            "totals": {"total_certified": ExportService.format_currency(total_certified)},
+            "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
         }
 
     async def _petty_cash_tracker_report(
@@ -792,8 +840,10 @@ class ReportingService:
             total_value += amount
         return {
             "title": "Petty Cash & OVH Tracker",
+            "project_id": project_id,
             "rows": rows,
-            "totals": {"total_funds_received": str(total_value)},
+            "totals": {"total_funds_received": ExportService.format_currency(total_value)},
+            "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
         }
 
     async def _csa_report(
@@ -845,8 +895,10 @@ class ReportingService:
         ]
         return {
             "title": "CSA Report",
+            "project_id": project_id,
             "rows": rows,
             "totals": {"total_count": len(rows)},
+            "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
         }
 
     async def _progress_report(
@@ -908,8 +960,14 @@ class ReportingService:
                 w.get("wo_ref"),
                 w.get("vendor_name"),
                 1.0 if w.get("status") in ["Closed", "Completed"] else 0.5,
-                w.get("status"),
+                self._get_display_status(w.get("status")),
             ]
             for w in wos
         ]
-        return {"title": f"{window.title()} Progress Report", "rows": rows}
+        return {
+            "title": f"{window.title()} Progress Report",
+            "project_id": project_id,
+            "rows": rows,
+            "totals": {"total_count": len(rows)},
+            "metadata": {"generated_at": now().isoformat(), "row_count": len(rows)},
+        }
