@@ -250,6 +250,7 @@ class ReportingService:
                 fin_map[str(cid)] = f
         master_budget = Decimal("0.0")
         total_committed = Decimal("0.0")
+        total_certified = Decimal("0.0")
 
         for b in budgets:
             category_id = b.get("category_id")
@@ -258,8 +259,12 @@ class ReportingService:
 
             cid = str(category_id)
             master_budget += FinancialEngine.to_decimal(b.get("original_budget"))
+            category_fin = fin_map.get(cid, {})
             total_committed += FinancialEngine.to_decimal(
-                fin_map.get(cid, {}).get("committed_value")
+                category_fin.get("committed_value")
+            )
+            total_certified += FinancialEngine.to_decimal(
+                category_fin.get("certified_value")
             )
 
         resolved_tasks = await self.wo_repo.count(
@@ -289,6 +294,7 @@ class ReportingService:
                 "active_items": active_items_count,
                 "master_budget": str(master_budget),
                 "total_committed": str(total_committed),
+                "total_certified": str(total_certified),
             },
             "task_log": {
                 "open_tasks": active_items_count,
@@ -478,11 +484,32 @@ class ReportingService:
                 }
             },
             {
+                "$lookup": {
+                    "from": "payment_certificates",
+                    "let": {"cid": "$category_id", "pid": "$project_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$category_id", "$$cid"]},
+                                        {"$eq": ["$project_id", "$$pid"]},
+                                        {"$not": [{"$in": ["$status", ["Cancelled", "Draft"]]}]}
+                                    ]
+                                }
+                            }
+                        },
+                        {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
+                    ],
+                    "as": "pc_agg"
+                }
+            },
+            {
                 "$project": {
+                    "category_id": 1,
                     "original_budget": 1,
                     "committed_value": 1,
-                    "certified_value": 1,
-                    "balance_budget_remaining": 1,
+                    "certified_value": {"$ifNull": [{"$arrayElemAt": ["$pc_agg.total", 0]}, 0]},
                     "category_name": {"$arrayElemAt": ["$category.category_name", 0]},
                     "category_code": {"$arrayElemAt": ["$category.code", 0]},
                 }
@@ -507,7 +534,8 @@ class ReportingService:
             budget = FinancialEngine.to_decimal(item.get("original_budget") or 0)
             committed = FinancialEngine.to_decimal(item.get("committed_value") or 0)
             certified = FinancialEngine.to_decimal(item.get("certified_value") or 0)
-            remaining = FinancialEngine.to_decimal(item.get("balance_budget_remaining") or 0)
+            # BUG-006: Remaining = Budget - max(Committed, Certified)
+            remaining = budget - max(committed, certified)
 
             rows.append(
                 [
@@ -603,6 +631,17 @@ class ReportingService:
             c_at = wo.get("created_at")
             date_str = c_at.strftime("%Y-%m-%d") if c_at else "N/A"
 
+            # BUG-010: Status Mapping (Case-insensitive)
+            raw_status = wo.get("status") or "Draft"
+            status_map = {
+                "approved": "Active",
+                "completed": "Completed",
+                "cancelled": "Cancelled",
+                "pending": "Pending",
+                "draft": "Draft"
+            }
+            display_status = status_map.get(raw_status.lower(), raw_status.capitalize())
+
             rows.append(
                 [
                     wo.get("category_code") or "N/A",
@@ -611,7 +650,7 @@ class ReportingService:
                     ExportService.format_currency(amount),
                     ExportService.format_currency(ret_amount),
                     date_str,
-                    wo.get("status") or "Draft",
+                    display_status,
                 ]
             )
             total_amount += amount
@@ -690,6 +729,9 @@ class ReportingService:
             c_at = pc.get("created_at")
             date_str = c_at.strftime("%Y-%m-%d") if c_at else "N/A"
 
+            # BUG-001: Unified certified amount (Authoritative)
+            # Display full amount for Approved/Paid, show 0 for others in 'Paid' column if needed
+            # But the report row should reflect the PC's value.
             rows.append(
                 [
                     pc.get("category_code") or "N/A",
@@ -697,11 +739,12 @@ class ReportingService:
                     pc.get("vendor_name") or "Unknown",
                     ExportService.format_currency(amount),
                     date_str,
-                    ExportService.format_currency(FinancialEngine.to_decimal(pc.get("net_payable") or pc.get("total_payable") or 0)) if pc.get("status") == "Paid" else "₹ 0.00",
+                    ExportService.format_currency(FinancialEngine.to_decimal(pc.get("net_payable") or pc.get("total_payable") or 0)) if pc.get("status") in ["Paid", "Approved"] else "₹ 0.00",
                     pc.get("status") or "Draft",
                 ]
             )
-            total_certified += amount
+            if pc.get("status") not in ["Cancelled", "Draft"]:
+                total_certified += amount
         return {
             "title": "Payment Certificate Tracker",
             "rows": rows,

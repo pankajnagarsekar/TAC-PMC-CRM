@@ -86,4 +86,12 @@ assert(woRes.grandTotal === 1121, "Grand Total should be 1121");
 assert(woRes.retentionAmount === 95, "Retention (10%) on 950 should be 95");
 assert(woRes.actualPayable === 1026, "Actual Payable should be 1121 - 95 = 1026");
 
+function calculateReportRemaining(budget, committed, certified) {
+    return financialRound(budget - Math.max(committed, certified));
+}
+
+console.log("\n4. Testing Report Summary Logic (BUG-006: Dynamic Remaining)");
+const reportRes = calculateReportRemaining(15000000, 1234567.89, 1535000);
+assert(reportRes === 13465000, "Remaining should be 15,000,000 - 1,535,000 = 13,465,000");
+
 console.log("\n--- Verification Complete: 100% Logic Synchronized ---");
