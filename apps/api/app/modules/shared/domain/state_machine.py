@@ -22,7 +22,7 @@ class StateMachine:
     PAYMENT_TRANSITIONS: Dict[str, Set[str]] = {
         "Draft": {"Submitted", "Cancelled"},
         "Submitted": {"Approved", "Rejected", "Cancelled"},
-        "Approved": {"Processing", "Rejected"},
+        "Approved": {"Processing", "Rejected", "Paid"},
         "Processing": {"Paid", "Failed"},
         "Rejected": {"Draft", "Cancelled"},
         "Paid": set(),  # FINAL
@@ -47,6 +47,26 @@ class StateMachine:
         "Closed": set(),  # FINAL: Data Freeze
     }
 
+    # WORK ORDER STATES
+    WORK_ORDER_TRANSITIONS: Dict[str, Set[str]] = {
+        "Draft": {"Pending", "Cancelled"},
+        "Pending": {"Approved", "Rejected", "Cancelled"},
+        "Approved": {"Completed", "Cancelled"},
+        "Completed": {"Closed"},
+        "Closed": set(),  # FINAL: Data Freeze
+        "Cancelled": set(),  # FINAL
+        "Rejected": {"Draft", "Cancelled"},
+    }
+
+    # EDITABLE STATES (Where fields can be updated)
+    EDITABLE_STATES: Dict[str, Set[str]] = {
+        "PROJECT": {"Draft", "Active", "On-Hold"},
+        "PAYMENT": {"Draft", "Rejected"},
+        "DPR": {"Draft", "Rejected"},
+        "TASK": {"Open", "In Progress", "Review", "Completed"},
+        "WORK_ORDER": {"Draft", "Pending", "Rejected"},
+    }
+
     @classmethod
     def validate_transition(cls, entity_type: str, current_state: str, next_state: str):
         """Standard validator for all transitions. Raises IllegalTransitionError or DataFreezeError."""
@@ -56,6 +76,8 @@ class StateMachine:
             transitions = cls.DPR_TRANSITIONS
         elif entity_type == "TASK":
             transitions = cls.TASK_TRANSITIONS
+        elif entity_type == "WORK_ORDER":
+            transitions = cls.WORK_ORDER_TRANSITIONS
         else:
             transitions = cls.PAYMENT_TRANSITIONS
 
@@ -78,12 +100,21 @@ class StateMachine:
     @classmethod
     def check_modification_allowed(cls, entity_type: str, state: str):
         """Verify if fields can be updated in current state. Raises DataFreezeError if frozen."""
+        allowed_states = cls.EDITABLE_STATES.get(entity_type)
+        if allowed_states is not None:
+            if state not in allowed_states:
+                raise DataFreezeError(entity_type, state)
+            return True
+
+        # Fallback to legacy 'no targets' logic if not explicitly defined in EDITABLE_STATES
         if entity_type == "PROJECT":
             transitions = cls.PROJECT_TRANSITIONS
         elif entity_type == "DPR":
             transitions = cls.DPR_TRANSITIONS
         elif entity_type == "TASK":
             transitions = cls.TASK_TRANSITIONS
+        elif entity_type == "WORK_ORDER":
+            transitions = cls.WORK_ORDER_TRANSITIONS
         else:
             transitions = cls.PAYMENT_TRANSITIONS
 

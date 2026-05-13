@@ -69,7 +69,7 @@ class CashService:
         if not categories:
             return {
                 "categories": [],
-                "summary": {"total_cash_in_hand": 0.0, "days_since_last_pc_close": 0},
+                "summary": {"total_cash_in_hand": 0.0, "days_since_last_pc_paid": 0},
             }
 
         category_ids = [str(cat["id"]) for cat in categories]
@@ -97,16 +97,16 @@ class CashService:
                                 }
                             }
                         },
-                        {"$project": {"status": 1, "created_at": 1, "updated_at": 1, "closed_at": 1}},
+                        {"$project": {"status": 1, "created_at": 1, "updated_at": 1, "paid_at": 1}},
                     ],
                     "as": "all_pcs",
                 }
             },
             {
                 "$addFields": {
-                    "last_pc_closed_date": {
+                    "last_pc_paid_date": {
                         "$max": [
-                            "$last_pc_closed_date",
+                            "$last_pc_paid_date",
                             {
                                 "$max": {
                                     "$map": {
@@ -114,7 +114,7 @@ class CashService:
                                             "$filter": {
                                                 "input": "$all_pcs",
                                                 "as": "p",
-                                                "cond": {"$eq": ["$$p.status", "Closed"]}
+                                                "cond": {"$eq": ["$$p.status", "Paid"]}
                                             }
                                         },
                                         "as": "pc",
@@ -164,7 +164,7 @@ class CashService:
             # Timer starts from last PC creation and resets on PC close or cash receipt.
             # We take the most recent of: created_at, last_pc_created_at, last_pc_close_date
             last_pc_created = allocation.get("last_pc_created_at")
-            last_pc_closed = allocation.get("last_pc_close_date")
+            last_pc_paid = allocation.get("last_pc_paid_date")
             alloc_created = allocation.get("created_at")
 
             # Helper to handle timezone-aware vs naive comparison
@@ -177,15 +177,15 @@ class CashService:
                     return dt.replace(tzinfo=timezone.utc)
                 return dt
 
-            dates = [to_utc(d) for d in [last_pc_created, last_pc_closed, alloc_created] if d]
+            dates = [to_utc(d) for d in [last_pc_created, last_pc_paid, alloc_created] if d]
             last_activity = max(dates) if dates else now_dt
 
             # Backward countdown from 15 days
             timer_days = 15 - (now_dt - last_activity).days
 
-            days_since_close = None
-            if last_pc_closed:
-                days_since_close = (now_dt - to_utc(last_pc_closed)).days
+            days_since_paid = None
+            if last_pc_paid:
+                days_since_paid = (now_dt - to_utc(last_pc_paid)).days
 
             categories_data.append(
                 {
@@ -195,7 +195,7 @@ class CashService:
                     "allocation_remaining": float(alloc_remaining),
                     "allocation_total": float(alloc_original),
                     "threshold": float(threshold),
-                    "days_since_last_pc_close": days_since_close,
+                    "days_since_last_pc_paid": days_since_paid,
                     "replenishment_timer_days": int(timer_days),
                     "is_negative": cash_in_hand < 0,
                     "threshold_breached": cash_in_hand <= threshold,
@@ -207,11 +207,11 @@ class CashService:
             "categories": categories_data,
             "summary": {
                 "total_cash_in_hand": float(total_cash_in_hand),
-                "days_since_last_pc_close": min(
+                "days_since_last_pc_paid": min(
                     (
-                        c["days_since_last_pc_close"]
+                        c["days_since_last_pc_paid"]
                         for c in categories_data
-                        if c["days_since_last_pc_close"] is not None
+                        if c["days_since_last_pc_paid"] is not None
                     ),
                     default=0,
                 ),
@@ -247,7 +247,7 @@ class CashService:
                     "allocation_original": 1,
                     "allocation_received": 1,
                     "allocation_remaining": 1,
-                    "last_pc_closed_date": 1,
+                    "last_pc_paid_date": 1,
                     "last_pc_created_at": 1,
                     "created_at": 1,
                     "category_name": "$cat_info.category_name",
@@ -381,7 +381,7 @@ class CashService:
             if txn_type == "CREDIT":
                 if "$set" not in update_ops:
                     update_ops["$set"] = {}
-                update_ops["$set"]["last_pc_closed_date"] = now()
+                update_ops["$set"]["last_pc_paid_date"] = now()
 
             updated_alloc = await uow.db.fund_allocations.find_one_and_update(
                 {"_id": allocation["_id"]},

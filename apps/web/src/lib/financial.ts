@@ -3,9 +3,18 @@
  * This prevents 1-paisa drift between frontend and backend.
  */
 export function financialRound(num: number): number {
+  const sign = Math.sign(num);
+  const absNum = Math.abs(num);
+  
   // Use scientific notation strings to avoid floating point issues during intermediate steps
   // e.g., 1.005 + "e+2" -> 100.5, Math.round(100.5) -> 101, 101 + "e-2" -> 1.01
-  return Number(Math.round(Number(num + "e+2")) + "e-2");
+  const rounded = Number(Math.round(Number(absNum + "e+2")) + "e-2") * sign;
+  
+  // BUG-025: Fix negative zero display artefact
+  if (rounded === 0 || Object.is(rounded, -0)) {
+    return 0;
+  }
+  return rounded;
 }
 
 /**
@@ -23,6 +32,8 @@ export interface PCFinancials {
   gstAmount: number;
   grandTotal: number;
   actualPayable: number;
+  netPayable: number; // Authoritative name (BUG-001)
+  logicVersion: number;
 }
 
 /**
@@ -55,6 +66,8 @@ export function calculatePCFinancials(
     gstAmount,
     grandTotal,
     actualPayable,
+    netPayable: actualPayable,
+    logicVersion: 1,
   };
 }
 
@@ -68,6 +81,7 @@ export interface WOFinancials {
   retentionAmount: number;
   grandTotal: number;
   actualPayable: number;
+  logicVersion: number;
 }
 
 /**
@@ -110,5 +124,23 @@ export function calculateWOFinancials(
     retentionAmount,
     grandTotal,
     actualPayable,
+    logicVersion: 1,
   };
+}
+
+export interface FinancialState {
+  originalBudget: number;
+  committedValue: number;
+  certifiedValue: number;
+}
+
+/**
+ * Spec-compliant remaining budget calculation.
+ * Remaining = Budget - max(Committed, Certified)
+ * (BUG-001)
+ */
+export function calculateRemainingBudget(state: FinancialState): number {
+  return financialRound(
+    state.originalBudget - Math.max(state.committedValue, state.certifiedValue)
+  );
 }

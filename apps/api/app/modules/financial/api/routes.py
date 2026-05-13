@@ -216,20 +216,20 @@ async def create_payment_certificate(
 
 
 @router.post(
-    "/payments/{pc_id}/close",
+    "/payments/{pc_id}/mark-as-paid",
     response_model=GenericResponse[Dict[str, Any]],
     tags=["Payments"],
 )
-async def close_payment_certificate(
+async def mark_payment_as_paid(
     pc_id: str,
     expected_version: int = Query(...),
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
-    """Close a payment certificate and update financial models."""
-    result = await payment_service.close_payment_certificate(user, pc_id, expected_version)
+    """Mark a payment certificate as paid and update financial models."""
+    result = await payment_service.mark_as_paid(user, pc_id, expected_version)
     return GenericResponse(
-        data=result, message="Payment certificate closed effectively"
+        data=result, message="Payment certificate marked as paid"
     )
 
 

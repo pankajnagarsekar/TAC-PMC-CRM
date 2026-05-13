@@ -64,19 +64,43 @@ class FinancialService:
         c_id_obj = ObjectId(category_id) if ObjectId.is_valid(category_id) else category_id
 
         # BUG-002: Committed strictly maps to Grand Total of non-cancelled WOs
-        committed_pipeline = [
-            {
-                "$match": {
-                    "project_id": {"$in": [project_id, p_id_obj]},
-                    "category_id": {"$in": [category_id, c_id_obj]},
-                    "status": {"$nin": ["Cancelled", "Draft"]}, # Exclude Draft to prevent speculative commitments
-                }
-            },
-            {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
-        ]
-        committed_result = await self.wo_repo.aggregate(
-            committed_pipeline, session=session
-        ).to_list(length=1)
+        # OR non-cancelled PCs for fund_transfer categories (BUG-004)
+        cat = await self.code_master_repo.get_by_id(category_id, session=session)
+        if not cat:
+            cat = await self.code_master_repo.find_one({"code": category_id}, session=session)
+        
+        is_fund_transfer = cat and cat.get("budget_type") == "fund_transfer"
+
+        if is_fund_transfer:
+            # For Petty Cash/SOH, PCs ARE the commitment
+            committed_pipeline = [
+                {
+                    "$match": {
+                        "project_id": {"$in": [project_id, p_id_obj]},
+                        "category_id": {"$in": [category_id, c_id_obj]},
+                        "status": {"$nin": ["Cancelled"]}, # Include Draft/Approved as commitment
+                    }
+                },
+                {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
+            ]
+            committed_result = await self.pc_repo.aggregate(
+                committed_pipeline, session=session
+            ).to_list(length=1)
+        else:
+            committed_pipeline = [
+                {
+                    "$match": {
+                        "project_id": {"$in": [project_id, p_id_obj]},
+                        "category_id": {"$in": [category_id, c_id_obj]},
+                        "status": {"$nin": ["Cancelled", "Draft"]}, # Exclude Draft to prevent speculative commitments
+                    }
+                },
+                {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
+            ]
+            committed_result = await self.wo_repo.aggregate(
+                committed_pipeline, session=session
+            ).to_list(length=1)
+
         committed_value = FinancialEngine.to_decimal(
             committed_result[0].get("total") if committed_result else None
         )
@@ -86,11 +110,11 @@ class FinancialService:
                 "$match": {
                     "project_id": {"$in": [project_id, p_id_obj]},
                     "category_id": {"$in": [category_id, c_id_obj]},
-                    "status": "Closed",
+                    "status": "Paid",
                 }
             },
-            # BUG-001: Certified strictly maps to Net Payable (total_payable)
-            {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$total_payable", "$grand_total"]}}}},
+            # BUG-001: Certified strictly maps to Net Payable (net_payable)
+            {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$net_payable", {"$ifNull": ["$total_payable", "$grand_total"]}]}}}},
         ]
         certified_result = await self.pc_repo.aggregate(
             certified_pipeline, session=session
@@ -98,6 +122,7 @@ class FinancialService:
         certified_value = FinancialEngine.to_decimal(
             certified_result[0].get("total") if certified_result else None
         )
+
 
         # Use Domain Aggregate for Invariants and Calculations
         state = FinancialState(
@@ -163,6 +188,12 @@ class FinancialService:
             if cid:
                 category_ids.add(str(cid))
 
+        # BUG-005: Ensure we don't treat "MASTER" or the Project ID itself as a category
+        category_ids.discard("MASTER")
+        category_ids.discard(project_id)
+        if ObjectId.is_valid(project_id):
+            category_ids.discard(str(ObjectId(project_id)))
+
         # BUG-001 Cleanup: Purge orphaned/stale financial state entries
         # This ensures "ghost" numbers from old categories or different ID formats are removed.
         await self.financial_state_repo.delete_many(
@@ -189,24 +220,17 @@ class FinancialService:
                     res["original_budget"]
                 )
 
-                # CALC-4: For fund transfer categories, Certified amount acts as a commitment
-                cat = await self.code_master_repo.get_by_id(cat_id, session=session)
-                if not cat:
-                    cat = await self.code_master_repo.find_one({"code": cat_id}, session=session)
-
-                if cat and cat.get("budget_type") == "fund_transfer":
-                    totals["total_committed"] += FinancialEngine.to_decimal(
-                        res["certified_value"]
-                    )
-                else:
-                    totals["total_committed"] += FinancialEngine.to_decimal(
-                        res["committed_value"]
-                    )
+                # Committed is already correctly calculated in recalculate_project_code_financials
+                # (Whether it's based on WOs or PCs depends on budget_type)
+                totals["total_committed"] += FinancialEngine.to_decimal(
+                    res["committed_value"]
+                )
 
                 totals["total_certified"] += FinancialEngine.to_decimal(
                     res["certified_value"]
                 )
                 totals["categories_recalculated"] += 1
+
 
         # Final snapshot for executive dashboard
         if totals["total_budget"] == Decimal("0") and totals["categories_recalculated"] == 0:
@@ -214,15 +238,17 @@ class FinancialService:
             if project:
                 totals["total_budget"] = FinancialEngine.to_decimal(project.get("master_original_budget", "0"))
 
+        # BUG-001: Remaining = Budget - max(Committed, Certified)
+        master_remaining = totals["total_budget"] - max(totals["total_committed"], totals["total_certified"])
+
         master_snapshot = {
             "project_id": project_id,
             "category_id": "MASTER",
             "original_budget": FinancialEngine.to_d128(totals["total_budget"]),
             "committed_value": FinancialEngine.to_d128(totals["total_committed"]),
             "certified_value": FinancialEngine.to_d128(totals["total_certified"]),
-            "balance_remaining": FinancialEngine.to_d128(
-                totals["total_budget"] - totals["total_committed"]
-            ),
+            "balance_remaining": FinancialEngine.to_d128(master_remaining),
+            "balance_budget_remaining": FinancialEngine.to_d128(master_remaining), # Alias for consistency
             "recalculated_at": now(),
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
         }
@@ -246,9 +272,10 @@ class FinancialService:
             try:
                 # We don't have organisation_id here, but we can try to get it from project
                 project = await self.project_repo.get_by_id(project_id, session=session)
-                if project:
+                org_id = project.get("organisation_id") if project else None
+                if org_id:
                     await self.scheduler_service.sync_financials(
-                        project_id, project.get("organisation_id"), session=session
+                        project_id, org_id, session=session
                     )
             except Exception as e:
                 logger.error(f"SCHEDULER_SYNC_FAILED for {project_id}: {str(e)}")

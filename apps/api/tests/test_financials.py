@@ -139,7 +139,7 @@ class TestWOFinancials(unittest.TestCase):
 
 
 class TestPCFinancials(unittest.TestCase):
-    """§4.3: PC Totals — retention first, then tax on remaining."""
+    """§4.3: PC Totals — GST on full subtotal, retention deducted after."""
 
     def _calc(self, subtotal, retention_pct=0, cgst_pct=9, sgst_pct=9):
         return FinancialEngine.calculate_pc_financials(
@@ -152,32 +152,39 @@ class TestPCFinancials(unittest.TestCase):
     def test_retention_applied_to_subtotal(self):
         fin = self._calc(subtotal=1000, retention_pct=10, cgst_pct=0, sgst_pct=0)
         self.assertEqual(fin["retention_amount"], Decimal("100.00"))
-        self.assertEqual(fin["total_after_retention"], Decimal("900.00"))
+        # Note: total_after_retention is no longer a key; we use actual_payable
+        self.assertEqual(fin["actual_payable"], Decimal("900.00"))
 
-    def test_cgst_on_total_after_retention_not_subtotal(self):
+    def test_cgst_on_full_subtotal(self):
         fin = self._calc(subtotal=1000, retention_pct=10, cgst_pct=9, sgst_pct=0)
-        # CGST on 900, not 1000
-        self.assertEqual(fin["cgst"], Decimal("81.00"))
+        # BUG-003 FIX: CGST on 1000, not 900
+        self.assertEqual(fin["cgst"], Decimal("90.00"))
 
-    def test_sgst_on_total_after_retention_not_subtotal(self):
+    def test_sgst_on_full_subtotal(self):
         fin = self._calc(subtotal=1000, retention_pct=10, cgst_pct=0, sgst_pct=9)
-        self.assertEqual(fin["sgst"], Decimal("81.00"))
+        self.assertEqual(fin["sgst"], Decimal("90.00"))
 
     def test_grand_total(self):
         fin = self._calc(subtotal=1000, retention_pct=10, cgst_pct=9, sgst_pct=9)
-        # total_after_retention=900, cgst=81, sgst=81 → grand_total=1062
-        self.assertEqual(fin["grand_total"], Decimal("1062.00"))
+        # subtotal=1000, cgst=90, sgst=90 → grand_total=1180
+        self.assertEqual(fin["grand_total"], Decimal("1180.00"))
+
+    def test_actual_payable(self):
+        fin = self._calc(subtotal=1000, retention_pct=10, cgst_pct=9, sgst_pct=9)
+        # grand_total=1180, retention=100 → actual_payable=1080
+        self.assertEqual(fin["actual_payable"], Decimal("1080.00"))
 
     def test_no_retention_no_taxes(self):
         fin = self._calc(subtotal=500, retention_pct=0, cgst_pct=0, sgst_pct=0)
-        self.assertEqual(fin["total_after_retention"], Decimal("500.00"))
+        self.assertEqual(fin["subtotal"], Decimal("500.00"))
         self.assertEqual(fin["grand_total"], Decimal("500.00"))
+        self.assertEqual(fin["actual_payable"], Decimal("500.00"))
 
     def test_all_keys_present(self):
         fin = self._calc(subtotal=1000)
         required_keys = [
-            "subtotal", "retention_amount", "total_after_retention",
-            "cgst", "sgst", "grand_total",
+            "subtotal", "retention_amount", "cgst", "sgst", 
+            "grand_total", "actual_payable", "net_payable",
         ]
         for key in required_keys:
             self.assertIn(key, fin, f"Missing key: {key}")
@@ -281,9 +288,9 @@ class TestFinancialInvariants(unittest.TestCase):
 
 
 class TestWOAndPCDifference(unittest.TestCase):
-    """Verify the key structural difference: WO tax before retention, PC retention before tax."""
+    """Verify that both WO and PC now follow the same statutory logic (GST on full subtotal)."""
 
-    def test_wo_vs_pc_same_inputs_different_results(self):
+    def test_wo_vs_pc_same_inputs_same_results(self):
         subtotal = Decimal("1000.00")
         retention_pct = Decimal("10")
         cgst_pct = Decimal("9")
@@ -304,19 +311,21 @@ class TestWOAndPCDifference(unittest.TestCase):
             sgst_pct=sgst_pct,
         )
 
-        # WO: tax on full 1000, retention on grand_total
+        # Both: tax on full 1000
         # grand_total = 1000 + 90 + 90 = 1180
         self.assertEqual(wo["grand_total"], Decimal("1180.00"))
-        # 1000 × 10% per spec — retention on total_before_tax
-        self.assertEqual(wo["retention_amount"], Decimal("100.00"))
+        self.assertEqual(pc["grand_total"], Decimal("1180.00"))
 
-        # PC: retention on 1000 first (100), tax on 900
-        # grand_total = 900 + 81 + 81 = 1062
-        self.assertEqual(pc["grand_total"], Decimal("1062.00"))
+        # Both: retention on subtotal (1000 * 10% = 100)
+        self.assertEqual(wo["retention_amount"], Decimal("100.00"))
         self.assertEqual(pc["retention_amount"], Decimal("100.00"))
 
-        # Grand totals must differ
-        self.assertNotEqual(wo["grand_total"], pc["grand_total"])
+        # Both: actual_payable = 1180 - 100 = 1080
+        self.assertEqual(wo["actual_payable"], Decimal("1080.00"))
+        self.assertEqual(pc["actual_payable"], Decimal("1080.00"))
+
+        # Grand totals must be identical now (BUG-003 Resolution)
+        self.assertEqual(wo["grand_total"], pc["grand_total"])
 
 
 if __name__ == "__main__":

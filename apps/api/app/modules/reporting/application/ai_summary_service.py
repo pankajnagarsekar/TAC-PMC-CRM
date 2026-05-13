@@ -1,6 +1,7 @@
 import logging
 from bson import ObjectId
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Dict, Optional, AsyncGenerator
 from app.core.config import settings
 from app.modules.financial.infrastructure.repository import FinancialStateRepository
@@ -368,10 +369,10 @@ class AISummaryService:
     async def _aggregate_report_data(
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
-        def to_f(v):
+        def to_d(v):
             if v is None:
-                return 0.0
-            return float(FinancialEngine.to_decimal(v))
+                return Decimal("0.00")
+            return FinancialEngine.to_decimal(v)
 
         res_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
         resilient_id = {"$in": [project_id, res_id]}
@@ -387,11 +388,18 @@ class AISummaryService:
             if cid:
                 fin_map[cid] = f
 
-        total_budget = sum(to_f(b.get("original_budget")) for b in budgets)
+        total_budget = sum((to_d(b.get("original_budget")) for b in budgets), Decimal("0.00"))
         total_committed = sum(
-            to_f(fin_map.get(str(b.get("category_id") or b.get("code_id") or "")).get("committed_value"))
-            if str(b.get("category_id") or b.get("code_id") or "") in fin_map else 0.0
-            for b in budgets
+            (to_d(fin_map.get(str(b.get("category_id") or b.get("code_id") or "")).get("committed_value"))
+            if str(b.get("category_id") or b.get("code_id") or "") in fin_map else Decimal("0.00")
+            for b in budgets),
+            Decimal("0.00")
+        )
+        total_certified = sum(
+            (to_d(fin_map.get(str(b.get("category_id") or b.get("code_id") or "")).get("certified_value"))
+            if str(b.get("category_id") or b.get("code_id") or "") in fin_map else Decimal("0.00")
+            for b in budgets),
+            Decimal("0.00")
         )
 
         # Fallback to MASTER financial state if categorical budget is missing (CRIT-09)
@@ -406,41 +414,88 @@ class AISummaryService:
 
             # Aggregate report level totals
             if master_state:
-                total_budget = to_f(master_state.get("original_budget"))
-                total_committed = to_f(master_state.get("committed_value"))
+                total_budget = to_d(master_state.get("original_budget"))
+                total_committed = to_d(master_state.get("committed_value"))
+                total_certified = to_d(master_state.get("certified_value"))
                 logger.info(f"AI_SUMMARY_BUDGET_RECONCILED: Using MASTER state for {project_id}")
 
         from app.modules.contracting.infrastructure.repository import WorkOrderRepository
-        from app.modules.financial.infrastructure.repository import PCRepository
+        from app.modules.financial.infrastructure.repository import (
+            PCRepository,
+            FundAllocationRepository,
+        )
+        from app.modules.tasks.infrastructure.repository import TaskRepository
 
         wo_repo = WorkOrderRepository(self.db)
         pc_repo = PCRepository(self.db)
+        fund_repo = FundAllocationRepository(self.db)
+        task_repo = TaskRepository(self.db)
+
+        # Count stats using resilient queries
+        wo_total = await wo_repo.count(query)
         wo_open = await wo_repo.count({
-            "project_id": resilient_id,
-            "organisation_id": organisation_id,
-            "status": {"$in": ["Pending", "Draft"]}
+            **query,
+            "status": {"$in": ["Pending", "Draft", "Approved"]}
         })
+        wo_closed = await wo_repo.count({
+            **query,
+            "status": {"$in": ["Closed", "Completed"]}
+        })
+
+        pc_total = await pc_repo.count(query)
         pc_closed = await pc_repo.count({
-            "project_id": resilient_id,
-            "organisation_id": organisation_id,
-            "status": "Closed"
+            **query,
+            "status": {"$in": ["Approved", "Processing", "Paid"]}
         })
+        pc_paid_count = await pc_repo.count({
+            **query,
+            "status": "Paid"
+        })
+
+        # Cash & Payable stats
+        allocations = await fund_repo.list(query)
+        total_cash_in_hand = sum((to_d(a.get("cash_in_hand")) for a in allocations), Decimal("0.00"))
+
+        paid_pcs = await pc_repo.list({**query, "status": "Paid"})
+        total_paid_amount = sum((to_d(p.get("grand_total")) for p in paid_pcs), Decimal("0.00"))
+        total_vendor_payable = max(Decimal("0.00"), total_certified - total_paid_amount)
+
+        # Petty Cash & OVH Status
+        petty_pcs = await pc_repo.list({**query, "pc_type": "PETTY_OVH"})
+        
+        # Split statuses based on category conventions (OVH code from seed)
+        petty_cash_pending = [p for p in petty_pcs if p.get("category_id") != "OVH" and p.get("status") not in ["Paid", "Cancelled"]]
+        ovh_pending = [p for p in petty_pcs if p.get("category_id") == "OVH" and p.get("status") not in ["Paid", "Cancelled"]]
+        
+        petty_status = "Action Required" if petty_cash_pending else "Healthy"
+        ovh_status = "Action Required" if ovh_pending else "Healthy"
+
+        schedule_task_count = await task_repo.count(query)
 
         over_budget_categories = []
         for b in budgets:
             cid = str(b.get("category_id") or b.get("code_id") or "")
             if not cid:
                 continue
-            o_b = to_f(b.get("original_budget"))
-            committed_val = to_f(fin_map.get(cid, {}).get("committed_value"))
-            if committed_val > o_b and o_b > 0:
+            o_b = to_d(b.get("original_budget"))
+            committed_val = to_d(fin_map.get(cid, {}).get("committed_value"))
+            if committed_val > o_b:
                 over_budget_categories.append(cid)
 
         return {
             "total_budget": total_budget,
             "total_committed": total_committed,
+            "total_certified": total_certified,
             "total_remaining": total_budget - total_committed,
+            "total_vendor_payable": total_vendor_payable,
+            "total_cash_in_hand": total_cash_in_hand,
+            "petty_cash_status": petty_status,
+            "ovh_status": ovh_status,
+            "wo_total": wo_total,
             "wo_open": wo_open,
+            "wo_closed": wo_closed,
+            "pc_total": pc_total,
             "pc_closed": pc_closed,
+            "schedule_task_count": schedule_task_count,
             "over_budget_categories": over_budget_categories
         }

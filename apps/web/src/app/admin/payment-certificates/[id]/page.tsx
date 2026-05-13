@@ -42,11 +42,11 @@ export default function PaymentCertificateDetail({
   const { id } = use(params);
   const { activeProject } = useProjectStore();
 
-  const [isClosing, setIsClosing] = useState(false);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConflictOpen, setIsConflictOpen] = useState(false);
-  const [showCloseDialog, setShowCloseDialog] = useState(false);
-  const [closeSuccessSummary, setCloseSuccessSummary] = useState<{
+  const [showPaidDialog, setShowPaidDialog] = useState(false);
+  const [paidSuccessSummary, setPaidSuccessSummary] = useState<{
     cash_in_hand?: number;
     allocation_remaining?: number;
     master_remaining_budget?: number;
@@ -75,29 +75,29 @@ export default function PaymentCertificateDetail({
 
   const workOrders: WorkOrder[] = woResponse?.items || [];
 
-  const { executeWithLock: executePcCloseWithLock } = useRequestLock({
-    operationId: "PC_CLOSE",
+  const { executeWithLock: executePcPaidWithLock } = useRequestLock({
+    operationId: "PC_PAID",
     timeoutMs: 30000,
   });
 
-  const handleClose = async () => {
+  const handleMarkAsPaid = async () => {
     try {
-      setIsClosing(true);
+      setIsMarkingPaid(true);
       setError(null);
-
-      const response = await executePcCloseWithLock(async () => {
-        return await api.post(`/api/v1/payments/${id}/close?expected_version=${pc?.version || 0}`);
+  
+      const response = await executePcPaidWithLock(async () => {
+        return await api.post(`/api/v1/payments/${id}/mark-as-paid?expected_version=${pc?.version || 0}`);
       });
-
+  
       if (!response) {
-        setError("Close request already in progress.");
+        setError("Mark as paid request already in progress.");
         return;
       }
-
+  
       if (response.data.financial_summary) {
-        setCloseSuccessSummary(response.data.financial_summary);
+        setPaidSuccessSummary(response.data.financial_summary);
       }
-
+  
       await mutate();
     } catch (err: unknown) {
       const axiosError = err as { response?: { status: number; data?: { detail?: string } }; message?: string };
@@ -105,12 +105,12 @@ export default function PaymentCertificateDetail({
         setIsConflictOpen(true);
       } else {
         setError(
-          axiosError.response?.data?.detail || axiosError.message || "Failed to Close PC.",
+          axiosError.response?.data?.detail || axiosError.message || "Failed to mark PC as paid.",
         );
       }
     } finally {
-      setIsClosing(false);
-      setShowCloseDialog(false);
+      setIsMarkingPaid(false);
+      setShowPaidDialog(false);
     }
   };
 
@@ -214,9 +214,9 @@ export default function PaymentCertificateDetail({
                 {pc.pc_ref}
               </h1>
               <span
-                className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${pc.status === "Closed"
+                className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${pc.status === "Paid"
                   ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                  : pc.status === "Approved" || pc.status === "Completed"
+                  : pc.status === "Approved" || pc.status === "Processing"
                     ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
                     : pc.status === "Draft"
                       ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
@@ -243,18 +243,18 @@ export default function PaymentCertificateDetail({
         </div>
 
         <div className="flex gap-3">
-          {!["Closed", "Cancelled", "Approved", "Paid"].includes(pc.status) && (
+          {!["Cancelled", "Approved", "Paid"].includes(pc.status) && (
             <button
-              onClick={() => setShowCloseDialog(true)}
-              disabled={isClosing}
+              onClick={() => setShowPaidDialog(true)}
+              disabled={isMarkingPaid}
               className="admin-only flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg disabled:opacity-50"
             >
-              {isClosing ? (
+              {isMarkingPaid ? (
                 <Lock size={16} className="animate-pulse" />
               ) : (
                 <CheckCircle size={16} />
               )}
-              Close PC & Commit Ledger
+              Mark as Paid & Commit Ledger
             </button>
           )}
           <button
@@ -278,7 +278,7 @@ export default function PaymentCertificateDetail({
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
             Supporting Documents
           </h2>
-          {pc.status !== "Closed" && (
+          {pc.status !== "Paid" && (
             <label className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors border border-slate-700">
               <FileText size={14} className="text-blue-400" />
               Add Document (PDF)
@@ -344,7 +344,7 @@ export default function PaymentCertificateDetail({
                     <p className="text-sm text-blue-400 font-mono">Pages {startPage} - {endPage}</p>
                     <p className="text-xs text-slate-500">{doc.page_count} Pages</p>
                   </div>
-                  {pc.status !== "Closed" && (
+                  {pc.status !== "Paid" && (
                     <button
                       onClick={() => handleDeleteDocument(doc.file_id)}
                       className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
@@ -423,7 +423,7 @@ export default function PaymentCertificateDetail({
               <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
                 Line Items Target
               </h2>
-              {pc.status === "Closed" && (
+              {pc.status === "Paid" && (
                 <span className="flex items-center gap-1.5 text-xs text-slate-500">
                   <Lock size={14} /> Read Only
                 </span>
@@ -519,24 +519,24 @@ export default function PaymentCertificateDetail({
         onReload={() => mutate()}
       />
 
-      <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+      <Dialog open={showPaidDialog} onOpenChange={setShowPaidDialog}>
         <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-xl font-bold">
               <AlertTriangle className="text-amber-500" size={24} />
-              Close Payment Certificate
+              Mark Payment Certificate as Paid
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-slate-300">
-              Are you absolutely certain you want to Close this Payment
-              Certificate? This action will irreversibly update budgets,
+              Are you absolutely certain you want to mark this Payment
+              Certificate as PAID? This action will irreversibly update budgets,
               ledgers, and cash positions.
             </p>
             {pc.fund_request && (
               <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <p className="text-amber-500 text-sm">
-                  This is a Fund Request. Closing will inject funds into the
+                  This is a Fund Request. Marking as paid will inject funds into the
                   petty cash / OVH category.
                 </p>
               </div>
@@ -544,61 +544,61 @@ export default function PaymentCertificateDetail({
           </div>
           <DialogFooter className="flex gap-3">
             <button
-              onClick={() => setShowCloseDialog(false)}
+              onClick={() => setShowPaidDialog(false)}
               className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={handleClose}
+              onClick={handleMarkAsPaid}
               className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors"
             >
-              Yes, Close PC
+              Yes, Mark as Paid
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog
-        open={!!closeSuccessSummary}
-        onOpenChange={() => setCloseSuccessSummary(null)}
+        open={!!paidSuccessSummary}
+        onOpenChange={() => setPaidSuccessSummary(null)}
       >
         <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-xl font-bold">
               <CheckCircle className="text-emerald-500" size={24} />
-              Payment Certificate Closed
+              Payment Certificate Paid
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <p className="text-slate-300">
-              The Payment Certificate has been successfully closed. Updated
+              The Payment Certificate has been successfully marked as paid. Updated
               financial positions:
             </p>
-            {closeSuccessSummary && (
+            {paidSuccessSummary && (
               <div className="space-y-3">
-                {closeSuccessSummary.cash_in_hand !== undefined && (
+                {paidSuccessSummary.cash_in_hand !== undefined && (
                   <div className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
                     <span className="text-slate-400">Cash in Hand</span>
                     <span className="font-mono font-bold text-white">
-                      {formatCurrency(closeSuccessSummary.cash_in_hand)}
+                      {formatCurrency(paidSuccessSummary.cash_in_hand)}
                     </span>
                   </div>
                 )}
-                {closeSuccessSummary.allocation_remaining !== undefined && (
+                {paidSuccessSummary.allocation_remaining !== undefined && (
                   <div className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
                     <span className="text-slate-400">Allocation Remaining</span>
                     <span className="font-mono font-bold text-white">
-                      {formatCurrency(closeSuccessSummary.allocation_remaining)}
+                      {formatCurrency(paidSuccessSummary.allocation_remaining)}
                     </span>
                   </div>
                 )}
-                {closeSuccessSummary.master_remaining_budget !== undefined && (
+                {paidSuccessSummary.master_remaining_budget !== undefined && (
                   <div className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
                     <span className="text-slate-400">Master Remaining</span>
                     <span className="font-mono font-bold text-white">
                       {formatCurrency(
-                        closeSuccessSummary.master_remaining_budget,
+                        paidSuccessSummary.master_remaining_budget,
                       )}
                     </span>
                   </div>
@@ -608,7 +608,7 @@ export default function PaymentCertificateDetail({
           </div>
           <DialogFooter>
             <button
-              onClick={() => setCloseSuccessSummary(null)}
+              onClick={() => setPaidSuccessSummary(null)}
               className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors"
             >
               Done

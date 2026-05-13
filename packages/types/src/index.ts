@@ -246,7 +246,7 @@ export interface PaymentCertificate {
   cgst: number;
   sgst: number;
   grand_total: number;
-  status: "Draft" | "Pending" | "Approved" | "Completed" | "Closed" | "Cancelled";
+  status: "Draft" | "Pending" | "Approved" | "Processing" | "Paid" | "Rejected" | "Cancelled";
   fund_request?: boolean;
   line_items: PCLineItem[];
   category_name?: string;
@@ -542,7 +542,7 @@ export interface CashSummaryCategory {
   allocation_remaining: number;
   allocation_total: number;
   threshold: number;
-  days_since_last_pc_close: number | null;
+  days_since_last_pc_paid: number | null;
   is_negative: boolean;
   threshold_breached: boolean;
 }
@@ -551,7 +551,7 @@ export interface CashSummaryResponse {
   categories: CashSummaryCategory[];
   summary: {
     total_cash_in_hand: number;
-    days_since_last_pc_close: number;
+    days_since_last_pc_paid: number;
   };
 }
 
@@ -572,7 +572,7 @@ export interface AISummaryReportData {
   wo_open: number;
   wo_closed: number;
   pc_total: number;
-  pc_closed: number;
+  pc_paid: number;
   schedule_task_count: number;
 }
 

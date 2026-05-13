@@ -10,7 +10,6 @@ from ..schemas.dto import (
     DPR,
     DPRImage,
     DPRCreate,
-    RejectDPRRequest,
     SiteOverhead,
     SiteOverheadCreate,
     SiteOverheadUpdate,
@@ -182,11 +181,11 @@ async def approve_dpr(
 )
 async def reject_dpr(
     dpr_id: str,
-    body: RejectDPRRequest,
+    reason: str = Query(..., min_length=1, max_length=500),
     user: dict = Depends(get_authenticated_user),
     site_service: SiteService = Depends(get_site_service),
 ):
-    result = await site_service.reject_dpr(user, dpr_id, body.reason)
+    result = await site_service.reject_dpr(user, dpr_id, reason)
     return GenericResponse(data=result, message="DPR rejected successfully")
 
 

@@ -487,6 +487,10 @@ class ReportingService:
                     "category_code": {"$arrayElemAt": ["$category.code", 0]},
                 }
             },
+            {"$match": {
+                "category_code": {"$exists": True, "$ne": None, "$ne": ""},
+                "category_id": {"$nin": ["MASTER", project_id]}
+            }},
             {"$sort": {"category_code": 1}},
         ]
 
@@ -584,6 +588,7 @@ class ReportingService:
                     "vendor_name": {"$arrayElemAt": ["$vendor.name", 0]},
                     "grand_total": 1,
                     "retention_amount": 1,
+                    "status": 1,
                     "created_at": 1,
                 }
             },
@@ -606,7 +611,7 @@ class ReportingService:
                     ExportService.format_currency(amount),
                     ExportService.format_currency(ret_amount),
                     date_str,
-                    "Active",
+                    wo.get("status") or "Draft",
                 ]
             )
             total_amount += amount
@@ -669,6 +674,8 @@ class ReportingService:
                     "category_code": {"$arrayElemAt": ["$category.code", 0]},
                     "vendor_name": {"$arrayElemAt": ["$vendor.name", 0]},
                     "grand_total": 1,
+                    "net_payable": 1,
+                    "total_payable": 1,
                     "status": 1,
                     "created_at": 1,
                 }
@@ -690,7 +697,7 @@ class ReportingService:
                     pc.get("vendor_name") or "Unknown",
                     ExportService.format_currency(amount),
                     date_str,
-                    ExportService.format_currency(amount) if pc.get("status") == "Closed" else "₹ 0.00",
+                    ExportService.format_currency(FinancialEngine.to_decimal(pc.get("net_payable") or pc.get("total_payable") or 0)) if pc.get("status") == "Paid" else "₹ 0.00",
                     pc.get("status") or "Draft",
                 ]
             )
@@ -707,7 +714,14 @@ class ReportingService:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
-        match_stage = {"project_id": self._get_project_match(project_id), "work_order_id": None}
+        match_stage = {
+            "project_id": self._get_project_match(project_id),
+            "$or": [
+                {"work_order_id": None},
+                {"work_order_id": ""},
+                {"fund_request": True}
+            ]
+        }
         if start_date or end_date:
             match_stage["created_at"] = {
                 k: v for k, v in [("$gte", start_date), ("$lte", end_date)] if v
@@ -850,7 +864,7 @@ class ReportingService:
                 w.get("category_code"),
                 w.get("wo_ref"),
                 w.get("vendor_name"),
-                1.0 if w.get("status") == "Closed" else 0.5,
+                1.0 if w.get("status") in ["Closed", "Completed"] else 0.5,
                 w.get("status"),
             ]
             for w in wos

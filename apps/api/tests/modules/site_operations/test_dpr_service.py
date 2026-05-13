@@ -100,7 +100,6 @@ async def test_dpr_reject_requires_reason(client, supervisor_token, admin_token,
     # Missing reason → 422
     resp = await client.patch(
         f"/api/v1/dprs/{dpr_id}/reject",
-        json={},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 422
@@ -121,7 +120,7 @@ async def test_dpr_reject_with_reason(client, supervisor_token, admin_token, tes
 
     resp = await client.patch(
         f"/api/v1/dprs/{dpr_id}/reject",
-        json={"reason": "Incomplete photos"},
+        params={"reason": "Incomplete photos"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200

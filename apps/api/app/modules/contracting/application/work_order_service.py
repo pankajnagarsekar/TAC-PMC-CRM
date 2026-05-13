@@ -14,10 +14,10 @@ from app.modules.project.infrastructure.repository import (
 )
 from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
 from app.modules.shared.domain.financial_engine import FinancialEngine
+from app.modules.shared.domain.state_machine import StateMachine
 
 # Note: SequenceRepository is now in Shared Kernel
 from app.modules.shared.infrastructure.sequence_repo import SequenceRepository
-
 from ..domain.models import WorkOrder as WorkOrderModel
 from ..infrastructure.repository import (
     LedgerRepository,
@@ -201,7 +201,7 @@ class WorkOrderService:
                                 "$match": {
                                     "project_id": project_id,
                                     "category_id": wo_data.category_id,
-                                    "status": {"$ne": "Cancelled"},
+                                    "status": {"$nin": ["Cancelled", "Draft"]},
                                 }
                             },
                         ],
@@ -298,10 +298,11 @@ class WorkOrderService:
                 line_res = FinancialEngine.calculate_line_items(items_raw)
                 updates["subtotal"] = line_res["subtotal"]
 
-            validation_data = {**old_wo, **updates}
-            await self.financial_service.validate_financial_document(
-                "WORK_ORDER", validation_data, old_wo["project_id"]
-            )
+            # Authoritative State Check: Standardized Data Freeze
+            StateMachine.check_modification_allowed("WORK_ORDER", old_wo.get("status", "Draft"))
+
+            if update_req.status and update_req.status != old_wo.get("status"):
+                StateMachine.validate_transition("WORK_ORDER", old_wo.get("status", "Draft"), update_req.status)
 
             wo_model = WorkOrderModel(old_wo)
 
@@ -623,8 +624,8 @@ class WorkOrderService:
             if not wo_data:
                 raise NotFoundError("Work Order", wo_id)
 
-            wo_model = WorkOrderModel(wo_data)
-            wo_model.submit()
+            # Sovereign State Transition
+            StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Pending")
 
             result = await uow.work_orders.update(
                 wo_id,
@@ -665,8 +666,8 @@ class WorkOrderService:
             if not wo_data:
                 raise NotFoundError("Work Order", wo_id)
 
-            wo_model = WorkOrderModel(wo_data)
-            wo_model.approve()
+            # Sovereign State Transition
+            StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Approved")
 
             result = await uow.work_orders.update(
                 wo_id,
@@ -706,8 +707,8 @@ class WorkOrderService:
             if not wo_data:
                 raise NotFoundError("Work Order", wo_id)
 
-            wo_model = WorkOrderModel(wo_data)
-            wo_model.cancel()
+            # Sovereign State Transition
+            StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Cancelled")
 
             result = await uow.work_orders.update(
                 wo_id,
@@ -739,4 +740,113 @@ class WorkOrderService:
                 wo_data["project_id"], session=uow.session
             )
 
+            return result
+
+    async def reject_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
+        """Orchestrate WO rejection (Admin only)."""
+        async with UnitOfWork(self.db) as uow:
+            wo_data = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=user["organisation_id"], session=uow.session
+            )
+            if not wo_data:
+                raise NotFoundError("Work Order", wo_id)
+
+            # Sovereign State Transition
+            StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Rejected")
+
+            result = await uow.work_orders.update(
+                wo_id,
+                {"status": "Rejected", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1},
+                expected_version=expected_version,
+                session=uow.session
+            )
+            if not result:
+                raise ValidationError("CONFLICT: Work Order was modified by another process (Version Mismatch).")
+
+            await self.audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="WORK_ORDERS",
+                entity_type="WORK_ORDER",
+                entity_id=wo_id,
+                action_type="REJECT",
+                user_id=user["user_id"],
+                project_id=wo_data["project_id"],
+                old_value=wo_data,
+                new_value=result,
+                session=uow.session
+            )
+
+            # Authoritative Recalculate
+            await self.financial_service.recalculate_master_budget(
+                wo_data["project_id"], session=uow.session
+            )
+
+            return result
+
+    async def complete_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
+        """Transition WO to Completed status."""
+        async with UnitOfWork(self.db) as uow:
+            wo_data = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=user["organisation_id"], session=uow.session
+            )
+            if not wo_data:
+                raise NotFoundError("Work Order", wo_id)
+
+            StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Completed")
+
+            result = await uow.work_orders.update(
+                wo_id,
+                {"status": "Completed", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1},
+                expected_version=expected_version,
+                session=uow.session
+            )
+            if not result:
+                raise ValidationError("CONFLICT: Work Order was modified by another process.")
+
+            await self.audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="WORK_ORDERS",
+                entity_type="WORK_ORDER",
+                entity_id=wo_id,
+                action_type="COMPLETE",
+                user_id=user["user_id"],
+                project_id=wo_data["project_id"],
+                old_value=wo_data,
+                new_value=result,
+                session=uow.session
+            )
+            return result
+
+    async def close_work_order(self, user: dict, wo_id: str, expected_version: int) -> Dict[str, Any]:
+        """Transition WO to Closed status (Final)."""
+        async with UnitOfWork(self.db) as uow:
+            wo_data = await uow.work_orders.get_by_id(
+                wo_id, organisation_id=user["organisation_id"], session=uow.session
+            )
+            if not wo_data:
+                raise NotFoundError("Work Order", wo_id)
+
+            StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Closed")
+
+            result = await uow.work_orders.update(
+                wo_id,
+                {"status": "Closed", "updated_at": datetime.now(timezone.utc), "version": expected_version + 1},
+                expected_version=expected_version,
+                session=uow.session
+            )
+            if not result:
+                raise ValidationError("CONFLICT: Work Order was modified by another process.")
+
+            await self.audit_service.log_action(
+                organisation_id=user["organisation_id"],
+                module_name="WORK_ORDERS",
+                entity_type="WORK_ORDER",
+                entity_id=wo_id,
+                action_type="CLOSE",
+                user_id=user["user_id"],
+                project_id=wo_data["project_id"],
+                old_value=wo_data,
+                new_value=result,
+                session=uow.session
+            )
             return result

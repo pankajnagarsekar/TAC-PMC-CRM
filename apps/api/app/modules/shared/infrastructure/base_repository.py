@@ -214,6 +214,14 @@ class BaseRepository(Generic[T]):
         result = await self.collection.delete_one(query, session=effective_session)
         return result.deleted_count > 0
 
+    async def delete_many(
+        self, query: Dict[str, Any], session: Optional[AsyncIOMotorClientSession] = None
+    ) -> int:
+        """Atomic batch deletion (Point 87)."""
+        effective_session = session or self.session
+        result = await self.collection.delete_many(query, session=effective_session)
+        return result.deleted_count
+
     def _format_id(self, doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """
         Move _id to id string for JSON parity and recursively serialize.

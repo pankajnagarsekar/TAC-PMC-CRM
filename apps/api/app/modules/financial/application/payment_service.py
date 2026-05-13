@@ -258,7 +258,8 @@ class PaymentService:
 
             return new_pc
 
-    async def close_payment_certificate(self, user: dict, pc_id: str, expected_version: int) -> Dict[str, Any]:
+    async def mark_as_paid(self, user: dict, pc_id: str, expected_version: int) -> Dict[str, Any]:
+        """Finalize payment (Approved/Processing -> Paid). Updates all downstream financial ledgers."""
         organisation_id = user["organisation_id"]
 
         async with UnitOfWork(self.db) as uow:
@@ -271,8 +272,10 @@ class PaymentService:
             await self.permission_checker.check_project_access(
                 user, pc["project_id"], require_write=True
             )
-            if pc["status"] == "Closed":
-                raise ValidationError("Already closed")
+            
+            # Authoritative State Validation (BUG-RECONCILE)
+            current_status = pc.get("status", "Draft")
+            StateMachine.validate_transition("PAYMENT", current_status, "Paid")
 
             grand_total = Decimal(str(pc["grand_total"]))
             retention_amount = Decimal(str(pc["retention_amount"]))
@@ -281,7 +284,7 @@ class PaymentService:
 
             updated_pc = await uow.payments.update(
                 pc_id,
-                {"status": "Closed", "closed_at": now(), "version": expected_version + 1},
+                {"status": "Paid", "paid_at": now(), "version": expected_version + 1},
                 expected_version=expected_version,
                 session=uow.session,
             )
@@ -335,7 +338,7 @@ class PaymentService:
                                 new_remaining
                             ),
                             "cash_in_hand": FinancialEngine.to_d128(new_cash),
-                            "last_pc_closed_date": now(),
+                            "last_pc_paid_date": now(),
                         },
                         session=uow.session,
                     )
@@ -356,7 +359,7 @@ class PaymentService:
                 module_name="PAYMENT_CERTIFICATES",
                 entity_type="PAYMENT_CERTIFICATE",
                 entity_id=pc_id,
-                action_type="CLOSE",
+                action_type="MARK_AS_PAID",
                 user_id=user["user_id"],
                 project_id=project_id,
                 new_value=updated_pc,
@@ -390,7 +393,7 @@ class PaymentService:
                 project_id, session=uow.session
             )
 
-            return {"status": "success", "message": "PC closed and financials updated"}
+            return {"status": "success", "message": "PC marked as paid and financials updated"}
 
     async def get_payment_certificate(self, user: dict, pc_id: str) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]

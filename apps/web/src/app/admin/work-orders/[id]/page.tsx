@@ -225,15 +225,15 @@ export default function WorkOrderDetailPage() {
     setIsEditing(false);
   }, []);
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (newStatus === "Cancelled" && !showCancelConfirm) {
+  const handleStatusAction = async (action: string) => {
+    if (action === "cancel" && !showCancelConfirm) {
       setShowCancelConfirm(true);
       return;
     }
 
     try {
-      await api.patch(
-        `/api/v1/work-orders/${woId}/status?status=${newStatus}&expected_version=${wo?.version || 1}`,
+      await api.post(
+        `/api/v1/work-orders/${woId}/${action}?expected_version=${wo?.version || 1}`,
       );
       setShowCancelConfirm(false);
       mutateWO();
@@ -242,7 +242,7 @@ export default function WorkOrderDetailPage() {
       if (error.response?.status === 409) {
         setIsConflictOpen(true);
       } else {
-        alert(error.response?.data?.detail || "Failed to update status");
+        alert(error.response?.data?.detail || `Failed to ${action} work order`);
       }
     }
   };
@@ -348,20 +348,58 @@ export default function WorkOrderDetailPage() {
               )}
               {!isClosed && (
                 <>
-                  {wo.status !== "Completed" && (
+                  {wo.status === "Draft" && (
                     <button
-                      onClick={() => handleStatusChange("Completed")}
+                      onClick={() => handleStatusAction("submit")}
+                      className="admin-only flex items-center gap-1.5 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-500/20 transition-colors"
+                    >
+                      <CheckCircle size={14} /> Submit
+                    </button>
+                  )}
+
+                  {wo.status === "Pending" && (
+                    <>
+                      <button
+                        onClick={() => handleStatusAction("approve")}
+                        className="admin-only flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-500/20 transition-colors"
+                      >
+                        <CheckCircle size={14} /> Approve
+                      </button>
+                      <button
+                        onClick={() => handleStatusAction("reject")}
+                        className="admin-only flex items-center gap-1.5 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
+                      >
+                        <XCircle size={14} /> Reject
+                      </button>
+                    </>
+                  )}
+
+                  {wo.status === "Approved" && (
+                    <button
+                      onClick={() => handleStatusAction("complete")}
                       className="admin-only flex items-center gap-1.5 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-500/20 transition-colors"
                     >
                       <CheckCircle size={14} /> Mark Completed
                     </button>
                   )}
-                  <button
-                    onClick={() => handleStatusChange("Cancelled")}
-                    className="admin-only flex items-center gap-1.5 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
-                  >
-                    <XCircle size={14} /> Cancel
-                  </button>
+
+                  {wo.status === "Completed" && (
+                    <button
+                      onClick={() => handleStatusAction("close")}
+                      className="admin-only flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-500/20 transition-colors"
+                    >
+                      <CheckCircle size={14} /> Close Work Order
+                    </button>
+                  )}
+
+                  {(wo.status === "Draft" || wo.status === "Pending" || wo.status === "Approved") && (
+                    <button
+                      onClick={() => handleStatusAction("cancel")}
+                      className="admin-only flex items-center gap-1.5 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
+                    >
+                      <XCircle size={14} /> Cancel
+                    </button>
+                  )}
                 </>
               )}
 
@@ -624,7 +662,7 @@ export default function WorkOrderDetailPage() {
       <ConfirmDialog
         isOpen={showCancelConfirm}
         onClose={() => setShowCancelConfirm(false)}
-        onConfirm={() => handleStatusChange("Cancelled")}
+        onConfirm={() => handleStatusAction("cancel")}
         title="Cancel Work Order"
         description="Are you sure you want to cancel this work order? This will release all committed funds back to the project budget. This action is permanent and will be logged for auditing."
         confirmText="Cancel Order"

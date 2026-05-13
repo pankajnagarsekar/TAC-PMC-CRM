@@ -323,6 +323,18 @@ async def cancel_work_order(
     return GenericResponse(data=result, message="Work order cancelled")
 
 
+@router.post("/work-orders/{wo_id}/reject", response_model=GenericResponse[WorkOrder], tags=["Work Orders"])
+async def reject_work_order(
+    wo_id: str,
+    expected_version: int = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    wo_service: WorkOrderService = Depends(get_work_order_service),
+):
+    """Reject a pending work order."""
+    result = await wo_service.reject_work_order(user, wo_id, expected_version)
+    return GenericResponse(data=result, message="Work order rejected")
+
+
 @router.delete("/work-orders/{wo_id}", response_model=GenericResponse[dict], tags=["Work Orders"])
 async def delete_work_order(
     wo_id: str,
@@ -334,6 +346,30 @@ async def delete_work_order(
     if success:
         return GenericResponse(data={"deleted": True}, message="Work order deleted successfully")
     return GenericResponse(data={"deleted": False}, message="Failed to delete work order")
+
+
+@router.post("/work-orders/{wo_id}/complete", response_model=GenericResponse[WorkOrder], tags=["Work Orders"])
+async def complete_work_order(
+    wo_id: str,
+    expected_version: int = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    wo_service: WorkOrderService = Depends(get_work_order_service),
+):
+    """Transition WO from Approved to Completed."""
+    result = await wo_service.complete_work_order(user, wo_id, expected_version)
+    return GenericResponse(data=result, message="Work order marked as completed")
+
+
+@router.post("/work-orders/{wo_id}/close", response_model=GenericResponse[WorkOrder], tags=["Work Orders"])
+async def close_work_order(
+    wo_id: str,
+    expected_version: int = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    wo_service: WorkOrderService = Depends(get_work_order_service),
+):
+    """Transition WO from Completed to Closed."""
+    result = await wo_service.close_work_order(user, wo_id, expected_version)
+    return GenericResponse(data=result, message="Work order closed successfully")
 
 
 # --- CONTRACT ENDPOINTS ---
