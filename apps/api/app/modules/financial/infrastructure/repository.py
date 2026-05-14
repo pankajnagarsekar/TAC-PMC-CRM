@@ -70,6 +70,36 @@ class FinancialStateRepository(BaseRepository[DerivedFinancialState]):
             [("project_id", ASCENDING), ("category_id", ASCENDING)], unique=True
         )
 
+    async def get_master_state(self, project_id: str, organisation_id: str = None) -> Optional[Dict[str, Any]]:
+        """Fetch the authoritative MASTER snapshot for a project."""
+        from app.modules.shared.domain.financial_engine import FinancialEngine
+        from bson import ObjectId
+
+        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+        query = {
+            "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
+            "category_id": FinancialEngine.MASTER_CATEGORY
+        }
+        if organisation_id:
+            query["organisation_id"] = organisation_id
+
+        return await self.find_one(query)
+
+    async def list_categorical_states(self, project_id: str, organisation_id: str = None) -> list:
+        """Fetch all financial states EXCLUDING the MASTER snapshot (BUG-005 Mitigation)."""
+        from app.modules.shared.domain.financial_engine import FinancialEngine
+        from bson import ObjectId
+
+        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+        query = {
+            "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
+            "category_id": {"$ne": FinancialEngine.MASTER_CATEGORY}
+        }
+        if organisation_id:
+            query["organisation_id"] = organisation_id
+
+        return await self.list(query, limit=1000)
+
 
 class FundAllocationRepository(BaseRepository[FundAllocation]):
     def __init__(self, db):

@@ -99,7 +99,7 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
                 error_msg,
                 request_id,
                 start_time,
-             )
+            )
 
     def _standard_error(
         self, code: int, message: Any, request_id: str, start_time: float

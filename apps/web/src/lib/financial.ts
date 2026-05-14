@@ -32,6 +32,7 @@ export interface PCFinancials {
   gstAmount: number;
   grandTotal: number;
   actualPayable: number;
+  totalAfterRetention: number;
   netPayable: number; // Authoritative name (BUG-001)
   logicVersion: number;
 }
@@ -66,6 +67,7 @@ export function calculatePCFinancials(
     gstAmount,
     grandTotal,
     actualPayable,
+    totalAfterRetention: financialRound(subtotal - retentionAmount),
     netPayable: actualPayable,
     logicVersion: 1,
   };

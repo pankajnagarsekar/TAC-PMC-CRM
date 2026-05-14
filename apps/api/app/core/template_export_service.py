@@ -90,7 +90,7 @@ class TemplateExportService(ExportService):
                 ws.insert_rows(current_row)
                 # Copy styling from previous row
                 for col in range(2, 7):
-                    prev_cell = ws.cell(row=current_row-1, column=col)
+                    prev_cell = ws.cell(row=current_row - 1, column=col)
                     new_cell = ws.cell(row=current_row, column=col)
                     new_cell.font = copy(prev_cell.font)
                     new_cell.border = copy(prev_cell.border)
@@ -183,7 +183,7 @@ class TemplateExportService(ExportService):
             if current_row >= 43:
                 ws.insert_rows(current_row)
                 for col in range(2, 8):
-                    prev_cell = ws.cell(row=current_row-1, column=col)
+                    prev_cell = ws.cell(row=current_row - 1, column=col)
                     new_cell = ws.cell(row=current_row, column=col)
                     new_cell.font = copy(prev_cell.font)
                     new_cell.border = copy(prev_cell.border)

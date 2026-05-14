@@ -3,6 +3,7 @@ from decimal import Decimal
 from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.financial.application.financial_service import FinancialService
 
+
 @pytest.mark.asyncio
 async def test_petty_cash_committed_logic(test_db):
     """
@@ -10,7 +11,7 @@ async def test_petty_cash_committed_logic(test_db):
     """
     service = FinancialService(test_db, None)
     project_id = "proj-123"
-    category_id = "PTC-001" # Petty Cash code
+    category_id = "PTC-001"  # Petty Cash code
     org_id = "org-123"
 
     # 1. Setup Category
@@ -54,8 +55,9 @@ async def test_petty_cash_committed_logic(test_db):
     # Expected behavior: committed_value should be 2500.00
     committed = FinancialEngine.to_decimal(res["committed_value"])
     print(f"DEBUG: Committed Value = {committed}")
-    
+
     assert committed == Decimal("2500.00"), "Petty Cash PC should be counted as committed"
+
 
 @pytest.mark.asyncio
 async def test_petty_cash_certified_logic(test_db):
@@ -88,6 +90,6 @@ async def test_petty_cash_certified_logic(test_db):
     })
 
     res = await service.recalculate_project_code_financials(project_id, category_id)
-    
+
     certified = FinancialEngine.to_decimal(res["certified_value"])
     assert certified == Decimal("3000.00")

@@ -199,7 +199,7 @@ export interface WorkOrder {
   retention_amount: number;
   total_payable: number;
   actual_payable: number;
-  status: "Draft" | "Pending" | "Completed" | "Closed" | "Cancelled";
+  status: "Draft" | "Pending" | "Approved" | "Completed" | "Closed" | "Cancelled";
   line_items: WOLineItem[];
   category_name?: string;
   vendor_name?: string;
@@ -573,6 +573,7 @@ export interface AISummaryReportData {
   wo_closed: number;
   pc_total: number;
   pc_paid: number;
+  pc_closed: number;
   schedule_task_count: number;
 }
 

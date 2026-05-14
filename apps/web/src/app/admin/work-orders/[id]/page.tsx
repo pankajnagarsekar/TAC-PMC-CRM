@@ -20,7 +20,7 @@ import { useRequestLock } from "@/lib/requestLock";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import { WorkOrder, Project, Vendor, CodeMaster } from "@/types/api";
-import { formatCurrency, calculateWOFinancials, WOFinancials } from "@/lib/financial";
+import { formatCurrency, calculateWOFinancials } from "@/lib/financial";
 import { formatDate } from "@tac-pmc/ui";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -183,7 +183,7 @@ export default function WorkOrderDetailPage() {
       sgstLabel: sgstRate.toFixed(0),
       totalPayable: financials.actualPayable,
     };
-  }, [editLineItems, editState, wo, project]);
+  }, [editLineItems, editState, project]);
 
   // Save work order edits
   const handleSave = useCallback(async () => {

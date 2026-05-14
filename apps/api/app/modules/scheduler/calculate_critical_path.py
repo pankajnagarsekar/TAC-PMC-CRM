@@ -295,16 +295,16 @@ def run_calculation(input_data: dict) -> dict:
                 orig = task["original"]
                 # Try multiple sources for manual dates to prevent "flattening" (HIGH-07)
                 manual_es = (
-                    _parse_date(orig.get("scheduled_start")) or
-                    _parse_date(orig.get("early_start")) or
-                    _parse_date(orig.get("baseline_start"))
+                    _parse_date(orig.get("scheduled_start"))
+                    or _parse_date(orig.get("early_start"))
+                    or _parse_date(orig.get("baseline_start"))
                 )
                 task["es"] = manual_es or project_start
 
                 manual_ef = (
-                    _parse_date(orig.get("scheduled_finish")) or
-                    _parse_date(orig.get("early_finish")) or
-                    _parse_date(orig.get("baseline_finish"))
+                    _parse_date(orig.get("scheduled_finish"))
+                    or _parse_date(orig.get("early_finish"))
+                    or _parse_date(orig.get("baseline_finish"))
                 )
                 task["ef"] = manual_ef or add_dur(task["es"], task["duration"])
                 task["calc_reason"] = "Manual date override"

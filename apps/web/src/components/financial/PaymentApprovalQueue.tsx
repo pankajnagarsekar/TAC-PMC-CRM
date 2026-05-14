@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { parse } from 'date-fns';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrencySafe } from '@/lib/formatters';
 
 interface ApprovalTrail {
   action: string;
@@ -112,7 +112,7 @@ export default function PaymentApprovalQueue({
                     <tr className="border-b border-gray-800 hover:bg-gray-900 transition-colors">
                       <td className="py-4 px-4 text-white">{approval.vendor_name}</td>
                       <td className="py-4 px-4 text-right font-semibold text-teal-400">
-                        {formatCurrency(approval.payment_amount)}
+                        {formatCurrencySafe(approval.payment_amount)}
                       </td>
                       <td className="py-4 px-4 text-center text-gray-400 text-xs">
                         {new Date(approval.created_at).toLocaleDateString()}

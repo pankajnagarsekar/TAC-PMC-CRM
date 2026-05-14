@@ -53,7 +53,7 @@ class FinancialService:
         # Ensure ID consistency (BUG-001 Mitigation)
         project_id = str(project_id)
         category_id = str(category_id)
-        
+
         budget = await self.budget_repo.get_by_project_and_category(
             project_id, category_id, session=session
         )
@@ -68,7 +68,7 @@ class FinancialService:
         cat = await self.code_master_repo.get_by_id(category_id, session=session)
         if not cat:
             cat = await self.code_master_repo.find_one({"code": category_id}, session=session)
-        
+
         is_fund_transfer = cat and cat.get("budget_type") == "fund_transfer"
 
         if is_fund_transfer:
@@ -78,7 +78,7 @@ class FinancialService:
                     "$match": {
                         "project_id": {"$in": [project_id, p_id_obj]},
                         "category_id": {"$in": [category_id, c_id_obj]},
-                        "status": {"$nin": ["Cancelled"]}, # Include Draft/Approved as commitment
+                        "status": {"$nin": ["Cancelled"]},  # Include Draft/Approved as commitment
                     }
                 },
                 {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
@@ -92,7 +92,7 @@ class FinancialService:
                     "$match": {
                         "project_id": {"$in": [project_id, p_id_obj]},
                         "category_id": {"$in": [category_id, c_id_obj]},
-                        "status": {"$nin": ["Cancelled", "Draft"]}, # Exclude Draft to prevent speculative commitments
+                        "status": {"$nin": ["Cancelled", "Draft"]},  # Exclude Draft to prevent speculative commitments
                     }
                 },
                 {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}},
@@ -114,7 +114,16 @@ class FinancialService:
                 }
             },
             # BUG-001: Certified strictly maps to Net Payable (net_payable)
-            {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$net_payable", {"$ifNull": ["$total_payable", "$grand_total"]}]}}}},
+            {
+                "$group": {
+                    "_id": None,
+                    "total": {
+                        "$sum": {
+                            "$ifNull": ["$net_payable", {"$ifNull": ["$total_payable", "$grand_total"]}]
+                        }
+                    }
+                }
+            },
         ]
         certified_result = await self.pc_repo.aggregate(
             certified_pipeline, session=session
@@ -122,7 +131,6 @@ class FinancialService:
         certified_value = FinancialEngine.to_decimal(
             certified_result[0].get("total") if certified_result else None
         )
-
 
         # Use Domain Aggregate for Invariants and Calculations
         state = FinancialState(
@@ -156,7 +164,7 @@ class FinancialService:
             {"project_id": project_id, "category_id": category_id},
             session=session
         )
-        
+
         await self.financial_state_repo.create(serializable_doc, session=session)
 
         return serializable_doc
@@ -171,7 +179,9 @@ class FinancialService:
         category_ids = set()
 
         # From Budgets
-        budgets = await self.budget_repo.list({"project_id": {"$in": [project_id, p_id_obj]}}, limit=1000, session=session)
+        budgets = await self.budget_repo.list(
+            {"project_id": {"$in": [project_id, p_id_obj]}}, limit=1000, session=session
+        )
         for b in budgets:
             if b.get("category_id"):
                 category_ids.add(str(b["category_id"]))
@@ -189,7 +199,7 @@ class FinancialService:
                 category_ids.add(str(cid))
 
         # BUG-005: Ensure we don't treat "MASTER" or the Project ID itself as a category
-        category_ids.discard("MASTER")
+        category_ids.discard(FinancialEngine.MASTER_CATEGORY)
         category_ids.discard(project_id)
         if ObjectId.is_valid(project_id):
             category_ids.discard(str(ObjectId(project_id)))
@@ -199,7 +209,7 @@ class FinancialService:
         await self.financial_state_repo.delete_many(
             {
                 "project_id": {"$in": [project_id, p_id_obj]},
-                "category_id": {"$nin": list(category_ids) + ["MASTER"]}
+                "category_id": {"$nin": list(category_ids) + [FinancialEngine.MASTER_CATEGORY]}
             },
             session=session
         )
@@ -231,7 +241,6 @@ class FinancialService:
                 )
                 totals["categories_recalculated"] += 1
 
-
         # Final snapshot for executive dashboard
         if totals["total_budget"] == Decimal("0") and totals["categories_recalculated"] == 0:
             project = await self.project_repo.get_by_id(project_id, session=session)
@@ -243,18 +252,18 @@ class FinancialService:
 
         master_snapshot = {
             "project_id": project_id,
-            "category_id": "MASTER",
+            "category_id": FinancialEngine.MASTER_CATEGORY,
             "original_budget": FinancialEngine.to_d128(totals["total_budget"]),
             "committed_value": FinancialEngine.to_d128(totals["total_committed"]),
             "certified_value": FinancialEngine.to_d128(totals["total_certified"]),
             "balance_remaining": FinancialEngine.to_d128(master_remaining),
-            "balance_budget_remaining": FinancialEngine.to_d128(master_remaining), # Alias for consistency
+            "balance_budget_remaining": FinancialEngine.to_d128(master_remaining),  # Alias for consistency
             "recalculated_at": now(),
             "logic_version": FinancialEngine.DOMAIN_LOGIC_VERSION,
         }
 
         await self.financial_state_repo.update_one(
-            {"project_id": project_id, "category_id": "MASTER"},
+            {"project_id": project_id, "category_id": FinancialEngine.MASTER_CATEGORY},
             {"$set": master_snapshot},
             session=session,
             upsert=True,

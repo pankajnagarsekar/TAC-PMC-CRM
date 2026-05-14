@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Tuple
 
+from bson import ObjectId
+
 
 from app.modules.financial.infrastructure.repository import FinancialStateRepository
 from app.modules.project.infrastructure.repository import (
@@ -370,18 +372,11 @@ class AnalyticsService:
         data = FinancialSummaryData()
 
         # Fetch master financial state (Resilient ID Check BUG-002)
-        query = {"category_id": "MASTER", "organisation_id": organisation_id}
-        from bson import ObjectId
-        if ObjectId.is_valid(project_id):
-            query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
-        else:
-            query["project_id"] = project_id
-
-        master_state = await self.fin_state_repo.find_one(query)
+        master_state = await self.fin_state_repo.get_master_state(project_id, organisation_id)
 
         if not master_state:
             # Fallback: sum all per-category states
-            agg_query = {"category_id": {"$ne": "MASTER"}, "organisation_id": organisation_id}
+            agg_query = {"category_id": {"$ne": FinancialEngine.MASTER_CATEGORY}, "organisation_id": organisation_id}
             if ObjectId.is_valid(project_id):
                 agg_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
             else:
@@ -450,10 +445,7 @@ class AnalyticsService:
         if isinstance(tasks_raw, list) and len(tasks_raw) > 0:
             cat_pv_map = {}
             # Map category budgets to facilitate EV aggregation
-            states = await self.fin_state_repo.list(
-                {"project_id": project_id, "category_id": {"$ne": "MASTER"}},
-                limit=1000
-            )
+            states = await self.fin_state_repo.list_categorical_states(project_id, organisation_id)
             if isinstance(states, list):
                 for s in states:
                     cat_pv_map[s["category_id"]] = FinancialEngine.to_decimal(s.get("original_budget", 0))

@@ -389,28 +389,28 @@ class AISummaryService:
                 fin_map[cid] = f
 
         total_budget = sum((to_d(b.get("original_budget")) for b in budgets), Decimal("0.00"))
+
+        def get_cid(b):
+            return str(b.get("category_id") or b.get("code_id") or "")
+
         total_committed = sum(
-            (to_d(fin_map.get(str(b.get("category_id") or b.get("code_id") or "")).get("committed_value"))
-            if str(b.get("category_id") or b.get("code_id") or "") in fin_map else Decimal("0.00")
-            for b in budgets),
+            (to_d(fin_map.get(get_cid(b)).get("committed_value"))
+             if get_cid(b) in fin_map else Decimal("0.00")
+             for b in budgets),
             Decimal("0.00")
         )
         total_certified = sum(
-            (to_d(fin_map.get(str(b.get("category_id") or b.get("code_id") or "")).get("certified_value"))
-            if str(b.get("category_id") or b.get("code_id") or "") in fin_map else Decimal("0.00")
-            for b in budgets),
+            (to_d(fin_map.get(get_cid(b)).get("certified_value"))
+             if get_cid(b) in fin_map else Decimal("0.00")
+             for b in budgets),
             Decimal("0.00")
         )
 
         # Fallback to MASTER financial state if categorical budget is missing (CRIT-09)
         if total_budget == 0:
-            master_state = fin_map.get("MASTER")
+            master_state = fin_map.get(FinancialEngine.MASTER_CATEGORY)
             if not master_state:
-                master_state = await self.fin_state_repo.find_one({
-                    "project_id": resilient_id,
-                    "category_id": "MASTER",
-                    "organisation_id": organisation_id
-                })
+                master_state = await self.fin_state_repo.get_master_state(resilient_id, organisation_id)
 
             # Aggregate report level totals
             if master_state:
@@ -447,10 +447,6 @@ class AISummaryService:
             **query,
             "status": {"$in": ["Approved", "Processing", "Paid"]}
         })
-        pc_paid_count = await pc_repo.count({
-            **query,
-            "status": "Paid"
-        })
 
         # Cash & Payable stats
         allocations = await fund_repo.list(query)
@@ -462,11 +458,16 @@ class AISummaryService:
 
         # Petty Cash & OVH Status
         petty_pcs = await pc_repo.list({**query, "pc_type": "PETTY_OVH"})
-        
+
         # Split statuses based on category conventions (OVH code from seed)
-        petty_cash_pending = [p for p in petty_pcs if p.get("category_id") != "OVH" and p.get("status") not in ["Paid", "Cancelled"]]
-        ovh_pending = [p for p in petty_pcs if p.get("category_id") == "OVH" and p.get("status") not in ["Paid", "Cancelled"]]
-        
+        petty_cash_pending = [
+            p for p in petty_pcs
+            if p.get("category_id") != "OVH" and p.get("status") not in ["Paid", "Cancelled"]
+        ]
+        ovh_pending = [
+            p for p in petty_pcs
+            if p.get("category_id") == "OVH" and p.get("status") not in ["Paid", "Cancelled"]
+        ]
         petty_status = "Action Required" if petty_cash_pending else "Healthy"
         ovh_status = "Action Required" if ovh_pending else "Healthy"
 

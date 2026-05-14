@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 import { SchedulerList } from '../../components/scheduler/SchedulerList';
 import { ThemeProvider } from '../../contexts/ThemeContext';
@@ -6,7 +7,6 @@ import type { ScheduleTask } from '../../types/api';
 
 // Mock @shopify/flash-list to render children as a plain View to avoid native measurement
 jest.mock('@shopify/flash-list', () => {
-  const { View } = require('react-native');
   return {
     FlashList: ({ data, renderItem }: { data: unknown[]; renderItem: (info: { item: unknown }) => React.ReactNode }) => (
       <View>

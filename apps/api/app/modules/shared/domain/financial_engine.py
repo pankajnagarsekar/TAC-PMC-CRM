@@ -17,6 +17,7 @@ class FinancialEngine:
 
     DOMAIN_LOGIC_VERSION: int = 1
     PRECISION: Decimal = Decimal("0.01")
+    MASTER_CATEGORY: str = "MASTER"
 
     @staticmethod
     def to_d128(value: Any) -> Decimal128:
@@ -161,7 +162,7 @@ class FinancialEngine:
         """
         pc_value = cls.round(pc_value)
         retention_amount = cls.calculate_retention(pc_value, retention_pct)
-        
+
         # BUG-003 FIX: Calculate GST on FULL value, not post-retention
         cgst_amount = cls.calculate_tax(pc_value, cgst_pct)
         sgst_amount = cls.calculate_tax(pc_value, sgst_pct)

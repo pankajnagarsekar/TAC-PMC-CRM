@@ -5,7 +5,7 @@ import BudgetTracker from '../BudgetTracker';
 import CashFlowChart from '../CashFlowChart';
 import PaymentApprovalQueue from '../PaymentApprovalQueue';
 import MasterDataManager from '../MasterDataManager';
-import FinancialDashboard from '../../app/financial/page';
+import FinancialDashboard from '../../../app/financial/page';
 
 // ============================================================================
 // TEST SUITE 1: BudgetTracker Component

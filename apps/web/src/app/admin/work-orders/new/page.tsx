@@ -19,7 +19,7 @@ import { idempotency } from "@/lib/idempotency";
 import FinancialGrid, { RowValidation } from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { Vendor, CodeMaster, WorkOrder } from "@/types/api";
-import { formatCurrency, calculateWOFinancials, WOFinancials } from "@/lib/financial";
+import { formatCurrency, calculateWOFinancials } from "@/lib/financial";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   Dialog,

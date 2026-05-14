@@ -183,7 +183,7 @@ class TestPCFinancials(unittest.TestCase):
     def test_all_keys_present(self):
         fin = self._calc(subtotal=1000)
         required_keys = [
-            "subtotal", "retention_amount", "cgst", "sgst", 
+            "subtotal", "retention_amount", "cgst", "sgst",
             "grand_total", "actual_payable", "net_payable",
         ]
         for key in required_keys:

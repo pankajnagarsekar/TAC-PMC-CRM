@@ -229,9 +229,9 @@ class ResourceCalendar:
         # Remove overlapping exceptions of same type
         self.exceptions = [
             e for e in self.exceptions
-            if not (e.exception_type == exception.exception_type and
-                    e.start_date <= exception.end_date and
-                    e.end_date >= exception.start_date)
+            if not (e.exception_type == exception.exception_type
+                    and e.start_date <= exception.end_date
+                    and e.end_date >= exception.start_date)
         ]
         self.exceptions.append(exception)
 

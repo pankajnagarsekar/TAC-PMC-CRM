@@ -11,6 +11,7 @@ from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.project.infrastructure.repository import ProjectRepository
 from app.modules.reporting.domain.metrics import ProjectDashboardData
 from app.modules.reporting.application.analytics_service import AnalyticsService
+from app.modules.financial.infrastructure.repository import FinancialStateRepository
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class DashboardService:
         self.db = db
         self.analytics_service = analytics_service
         self.project_repo = ProjectRepository(db)
+        self.financial_state_repo = FinancialStateRepository(db)
 
     @classmethod
     def invalidate_project_cache(cls, project_id: str):
@@ -204,15 +206,9 @@ class DashboardService:
         self, project_id: str, organisation_id: str
     ) -> Dict[str, Any]:
         """Returns aggregated statistics for the project dashboard."""
-        # 1. Fetch Master Financial State with resilient ID matching
         p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
-
-        master_state = await self.db.financial_state.find_one(
-            {
-                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
-                "category_id": "MASTER"
-            }
-        )
+        # 1. Fetch Master Financial State with strictly governed repo method
+        master_state = await self.financial_state_repo.get_master_state(project_id)
 
         # 2. Fetch Project Metadata
         try:
@@ -303,11 +299,8 @@ class DashboardService:
             tasks = schedule.get("tasks", [])
             # Map category_id to its PV
             cat_pv_map = {}
-            cursor = self.db.financial_state.find({
-                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
-                "category_id": {"$ne": "MASTER"}
-            })
-            async for s in cursor:
+            states = await self.financial_state_repo.list_categorical_states(project_id, organisation_id)
+            for s in states:
                 # Safe navigation for category_id (BUG-01)
                 cid = s.get("category_id") or s.get("code_id")
                 if cid:
@@ -392,16 +385,8 @@ class DashboardService:
         return stats
 
     async def get_financials(self, project_id: str) -> List[Any]:
-        p_id = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
-
-        # Fetch all financial states for this project (excluding MASTER)
-        states_cursor = self.db.financial_state.find(
-            {
-                "project_id": {"$in": [project_id, p_id] if isinstance(p_id, ObjectId) else [project_id]},
-                "category_id": {"$ne": "MASTER"}
-            }
-        )
-        states = await states_cursor.to_list(length=100)
+        # Fetch all financial states for this project (excluding MASTER) using repository helper
+        states = await self.financial_state_repo.list_categorical_states(project_id)
 
         # Join with category names
         results = []

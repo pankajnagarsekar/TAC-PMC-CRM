@@ -302,8 +302,8 @@ class TestTightConstraintScenarios:
             f"T{i}": {
                 "task_id": f"T{i}",
                 "task_name": f"Task {i}",
-                "es": base_date + timedelta(days=i*5),
-                "ef": base_date + timedelta(days=(i+1)*5-1),
+                "es": base_date + timedelta(days=i * 5),
+                "ef": base_date + timedelta(days=(i + 1) * 5 - 1),
                 "total_slack": i,  # Increasing slack
                 "is_critical": i == 0,  # Only first is critical
             }
@@ -398,7 +398,7 @@ class TestLargeSchedulePerformance:
                 "task_id": f"T{i}",
                 "task_name": f"Task {i}",
                 "es": base_date + timedelta(days=i),
-                "ef": base_date + timedelta(days=i+2),
+                "ef": base_date + timedelta(days=i + 2),
                 "total_slack": i % 10,
                 "is_critical": i % 5 == 0,
             }

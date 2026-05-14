@@ -27,7 +27,7 @@ class PortfolioService:
         # 2. Fetch Master Financial States
         master_states = await self.db.financial_state.find({
             "project_id": {"$in": project_ids},
-            "category_id": "MASTER"
+            "category_id": FinancialEngine.MASTER_CATEGORY
         }).to_list(length=1000)
 
         total_budget = 0.0

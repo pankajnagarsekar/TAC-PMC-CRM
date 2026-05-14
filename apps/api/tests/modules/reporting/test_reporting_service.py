@@ -1,8 +1,6 @@
 import pytest
-from datetime import datetime, timezone
-from decimal import Decimal
 from app.modules.reporting.application.reporting_service import ReportingService
-from app.modules.shared.domain.financial_engine import FinancialEngine
+
 
 @pytest.mark.asyncio
 class TestReportingService:
@@ -17,7 +15,7 @@ class TestReportingService:
         # 1. Create categories in code_master
         cat1_id = "507f1f77bcf86cd799439011"
         cat2_id = "507f1f77bcf86cd799439012"
-        
+
         from bson import ObjectId
         await test_db.code_master.insert_many([
             {"_id": ObjectId(cat1_id), "category_name": "Category 1", "code": "CAT1"},
@@ -52,6 +50,42 @@ class TestReportingService:
                 "balance_budget_remaining": 1500.0,
             }
         ])
+
+        # 4. Create Work Orders and Payment Certificates (Authoritative sources for BUG-001/002)
+        await test_db.work_orders.insert_many([
+            {
+                "project_id": test_project_id,
+                "category_id": cat1_id,
+                "grand_total": 500.0,
+                "status": "Approved",
+                "wo_ref": "WO-001"
+            },
+            {
+                "project_id": test_project_id,
+                "category_id": cat2_id,
+                "grand_total": 1000.0,
+                "status": "Approved",
+                "wo_ref": "WO-002"
+            }
+        ])
+
+        await test_db.payment_certificates.insert_many([
+            {
+                "project_id": test_project_id,
+                "category_id": cat1_id,
+                "grand_total": 400.0,
+                "status": "Approved",
+                "pc_ref": "PC-001"
+            },
+            {
+                "project_id": test_project_id,
+                "category_id": cat2_id,
+                "grand_total": 800.0,
+                "status": "Approved",
+                "pc_ref": "PC-002"
+            }
+        ])
+
         return {"cat1_id": cat1_id, "cat2_id": cat2_id}
 
     async def test_project_summary_report_excludes_master_row(self, reporting_service, sample_data, test_project_id):
@@ -61,26 +95,25 @@ class TestReportingService:
         """
         user = {"user_id": "test-user", "organisation_id": "test-org"}
         report = await reporting_service.get_report(
-            user=user, 
-            project_id=test_project_id, 
+            user=user,
+            project_id=test_project_id,
             report_type="project_summary",
             start_date=None,
             end_date=None
         )
-        
+
         # We expect 2 rows (CAT1, CAT2), not 3.
         rows = report["rows"]
-        
+
         # Print rows for debugging if test fails
         print(f"Report Rows: {rows}")
-        
-        # BUG REPRODUCTION: 
+
+        # BUG REPRODUCTION:
         # If the bug exists, len(rows) will be 3.
         # One row will have "Unnamed Category" or "MASTER" details.
-        
-        # Assertions
+
         assert len(rows) == 2, f"Expected 2 rows, but found {len(rows)}. Rows: {rows}"
-        
+
         # Verify no "Unnamed Category" or "N/A" code (which usually indicates the MASTER row)
         for row in rows:
             assert row[1] != "Unnamed Category"

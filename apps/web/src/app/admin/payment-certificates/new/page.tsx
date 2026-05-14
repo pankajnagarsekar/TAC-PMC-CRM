@@ -102,7 +102,7 @@ export default function NewPaymentCertificatePage() {
   }, [isWoLinked, selectedWoId, workOrders]);
 
   // Calculations Preview
-  const { subtotal, retentionAmount, totalAfterRetention, gst, totalPayable, actualPayable, cgstRate, sgstRate, cgstAmount, sgstAmount } =
+  const { subtotal, retentionAmount, totalPayable, actualPayable, cgstRate, sgstRate, cgstAmount, sgstAmount } =
     useMemo(() => {
       const p = activeProject;
       const cgstPct = p?.project_cgst_percentage ?? 9;

@@ -272,7 +272,7 @@ class PaymentService:
             await self.permission_checker.check_project_access(
                 user, pc["project_id"], require_write=True
             )
-            
+
             # Authoritative State Validation (BUG-RECONCILE)
             current_status = pc.get("status", "Draft")
             StateMachine.validate_transition("PAYMENT", current_status, "Paid")

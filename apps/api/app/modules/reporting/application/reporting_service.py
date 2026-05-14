@@ -51,7 +51,7 @@ class ReportingService:
         """BUG-010: Standardized Status Mapping for all reports."""
         if not raw_status:
             return "Draft"
-        
+
         status_map = {
             "approved": "Active",
             "active": "Active",
@@ -278,8 +278,7 @@ class ReportingService:
 
             cid = str(category_id)
             master_budget += FinancialEngine.to_decimal(b.get("original_budget"))
-            category_fin = fin_map.get(cid, {})
-            
+
             # BUG-001: Dynamic Certified Value calculation (Authoritative)
             # Aggregate from payment_certificates to ensure no ghost data.
             pc_agg = await self.db.payment_certificates.aggregate([
@@ -292,12 +291,25 @@ class ReportingService:
                 },
                 {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
             ]).to_list(1)
-            
+
             pc_certified = FinancialEngine.to_decimal(pc_agg[0]["total"] if pc_agg else 0)
-            
-            total_committed += FinancialEngine.to_decimal(
-                category_fin.get("committed_value")
-            )
+
+            # BUG-002: Dynamic Committed Value calculation (Authoritative)
+            # Aggregate from work_orders to ensure no stale data from financial_state.
+            wo_agg = await self.db.work_orders.aggregate([
+                {
+                    "$match": {
+                        "project_id": resilient_id,
+                        "category_id": cid,
+                        "status": {"$nin": ["Cancelled", "Draft"]}
+                    }
+                },
+                {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
+            ]).to_list(1)
+
+            wo_committed = FinancialEngine.to_decimal(wo_agg[0]["total"] if wo_agg else 0)
+
+            total_committed += wo_committed
             total_certified += pc_certified
 
         resolved_tasks = await self.wo_repo.count(
@@ -356,15 +368,8 @@ class ReportingService:
 
             p_id_resilient = self._get_project_match(p_id)
 
-            # 1. Financial Stats - Use standard category identifier (BUG-002)
-            master_state = await self.fin_state_repo.find_one(
-                {"project_id": p_id, "category_id": "MASTER"}
-            )
-            if not master_state:
-                # Fallback to resilient lookup if project_id mapping is inconsistent
-                master_state = await self.fin_state_repo.find_one(
-                    {"project_id": p_id_resilient, "category_id": "MASTER"}
-                )
+            # 1. Financial Stats - Use repository helper (BUG-002)
+            master_state = await self.fin_state_repo.get_master_state(p_id)
 
             # 2. DPR & Worker Stats
             dpr_total = await self.worker_log_repo.count({"project_id": p_id_resilient})
@@ -504,7 +509,11 @@ class ReportingService:
         pipeline = [
             {"$match": {
                 "project_id": self._get_project_match(project_id),
-                "category_id": {"$exists": True, "$ne": None, "$nin": ["MASTER", "master", project_id, str(project_id)]}
+                "category_id": {
+                    "$exists": True,
+                    "$ne": None,
+                    "$nin": [FinancialEngine.MASTER_CATEGORY, "master", project_id, str(project_id)]
+                }
             }},
             {"$addFields": {
                 "cid_obj": {
@@ -546,10 +555,31 @@ class ReportingService:
                 }
             },
             {
+                "$lookup": {
+                    "from": "work_orders",
+                    "let": {"cid": "$category_id", "pid": "$project_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        {"$eq": ["$category_id", "$$cid"]},
+                                        {"$eq": ["$project_id", "$$pid"]},
+                                        {"$not": [{"$in": ["$status", ["Cancelled", "Draft"]]}]}
+                                    ]
+                                }
+                            }
+                        },
+                        {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}
+                    ],
+                    "as": "wo_agg"
+                }
+            },
+            {
                 "$project": {
                     "category_id": 1,
                     "original_budget": 1,
-                    "committed_value": 1,
+                    "committed_value": {"$ifNull": [{"$arrayElemAt": ["$wo_agg.total", 0]}, 0]},
                     "certified_value": {"$ifNull": [{"$arrayElemAt": ["$pc_agg.total", 0]}, 0]},
                     "category_name": {"$arrayElemAt": ["$category.category_name", 0]},
                     "category_code": {"$arrayElemAt": ["$category.code", 0]},
@@ -557,11 +587,14 @@ class ReportingService:
             },
             {
                 "$match": {
-                    "category_code": {"$exists": True, "$ne": None, "$ne": ""},
+                    "category_code": {"$exists": True, "$nin": [None, ""]},
                     "category_name": {
-                        "$exists": True, 
-                        "$ne": None, 
-                        "$nin": ["Unnamed Category", "MASTER", "master", "Budget", "Total", "TOTAL", ""]
+                        "$exists": True,
+                        "$ne": None,
+                        "$nin": [
+                            "Unnamed Category", FinancialEngine.MASTER_CATEGORY, "master",
+                            "Budget", "Total", "TOTAL", ""
+                        ]
                     }
                 }
             },
@@ -581,7 +614,7 @@ class ReportingService:
             budget = FinancialEngine.to_decimal(item.get("original_budget") or 0)
             committed = FinancialEngine.to_decimal(item.get("committed_value") or 0)
             certified = FinancialEngine.to_decimal(item.get("certified_value") or 0)
-            
+
             # BUG-006: Dynamic Remaining Budget calculation.
             # Formula: Budget - max(Committed, Certified)
             # This ensures we don't overstate balance if certification exceeds commitment (rare but possible).
@@ -785,7 +818,9 @@ class ReportingService:
                     pc.get("vendor_name") or "Unknown",
                     ExportService.format_currency(amount),
                     date_str,
-                    ExportService.format_currency(FinancialEngine.to_decimal(pc.get("net_payable") or pc.get("total_payable") or 0)) if pc.get("status") in ["Paid", "Approved"] else "₹ 0.00",
+                    ExportService.format_currency(
+                        FinancialEngine.to_decimal(pc.get("net_payable") or pc.get("total_payable") or 0)
+                    ) if pc.get("status") in ["Paid", "Approved"] else "₹ 0.00",
                     self._get_display_status(pc.get("status")),
                 ]
             )
