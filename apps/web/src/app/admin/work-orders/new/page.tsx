@@ -21,6 +21,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { Vendor, CodeMaster, WorkOrder } from "@/types/api";
 import { formatCurrency, calculateWOFinancials } from "@/lib/financial";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ interface LineItem {
 export default function NewWorkOrderPage() {
   const router = useRouter();
   const { activeProject } = useProjectStore();
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     category_id: "",
@@ -239,10 +241,22 @@ export default function NewWorkOrderPage() {
   }, []);
 
   const handleSave = async () => {
-    if (!activeProject) return alert("No active project selected.");
-    if (!formData.category_id) return alert("Please select a Category.");
-    if (!formData.vendor_id) return alert("Please select a Vendor.");
-    if (!isGridValid) return alert("Please fix grid validation errors.");
+    if (!activeProject) {
+      toast({ title: "Validation Error", description: "No active project selected.", variant: "destructive" });
+      return;
+    }
+    if (!formData.category_id) {
+      toast({ title: "Validation Error", description: "Please select a Category.", variant: "destructive" });
+      return;
+    }
+    if (!formData.vendor_id) {
+      toast({ title: "Validation Error", description: "Please select a Vendor.", variant: "destructive" });
+      return;
+    }
+    if (!isGridValid) {
+      toast({ title: "Validation Error", description: "Please fix grid validation errors.", variant: "destructive" });
+      return;
+    }
 
     setIsSaving(true);
     setFieldErrors({});
@@ -289,7 +303,11 @@ export default function NewWorkOrderPage() {
         router.push(`/admin/work-orders/${createdItem._id}`);
       } else {
         setIsDirty(false);
-        alert("Work Order created but missing ID. Redirecting to registry...");
+        toast({
+          title: "Incomplete Redirect",
+          description: "Work Order created but missing ID. Redirecting to registry...",
+          variant: "destructive"
+        });
         router.push("/admin/work-orders");
       }
     } catch (err: unknown) {

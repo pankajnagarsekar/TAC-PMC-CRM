@@ -33,6 +33,7 @@ import { formatCurrency, formatDate } from "@tac-pmc/ui";
 import { PaymentCertificate, CodeMaster, WorkOrder } from "@/types/api";
 
 import { useVendorNames } from "@/hooks/useVendorNames";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PaymentCertificateDetail({
   params,
@@ -41,6 +42,7 @@ export default function PaymentCertificateDetail({
 }) {
   const { id } = use(params);
   const { activeProject } = useProjectStore();
+  const { toast } = useToast();
 
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +129,11 @@ export default function PaymentCertificateDetail({
       link.click();
       link.remove();
     } catch {
-      alert("Failed to export PDF");
+      toast({
+        title: "Export Failed",
+        description: "Failed to export PDF",
+        variant: "destructive"
+      });
     }
   };
 
@@ -137,7 +143,11 @@ export default function PaymentCertificateDetail({
       await api.delete(`/api/v1/payments/${id}/attachments/${fileId}`);
       await mutate();
     } catch {
-      alert("Failed to delete document");
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete document",
+        variant: "destructive"
+      });
     }
   };
 
@@ -295,7 +305,11 @@ export default function PaymentCertificateDetail({
                     await api.post(`/api/v1/payments/${id}/attachments`, formData);
                     await mutate();
                   } catch {
-                    alert("Failed to upload document");
+                    toast({
+                      title: "Upload Failed",
+                      description: "Failed to upload document",
+                      variant: "destructive"
+                    });
                   }
                 }}
               />

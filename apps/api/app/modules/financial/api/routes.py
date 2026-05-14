@@ -58,6 +58,17 @@ async def get_payment_certificate(
     return GenericResponse(data=pc)
 
 
+@router.get("/payments/wo-summary/{work_order_id}", tags=["Payments"])
+async def get_wo_certification_summary(
+    work_order_id: str,
+    user=Depends(get_authenticated_user),
+    payment_service=Depends(get_payment_service)
+):
+    """Aggregate all non-cancelled PCs against a WO to return certified-to-date."""
+    result = await payment_service.get_wo_certification_summary(user, work_order_id)
+    return GenericResponse(data=result)
+
+
 @router.post(
     "/payments/{pc_id}/attachments",
     response_model=GenericResponse[Dict[str, Any]],

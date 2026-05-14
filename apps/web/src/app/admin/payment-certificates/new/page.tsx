@@ -80,6 +80,13 @@ export default function NewPaymentCertificatePage() {
     return filtered;
   }, [woResponse, filterCategoryId, isWoLinked]);
 
+  const { data: woSummary } = useSWR(
+    isWoLinked && selectedWoId
+      ? `/api/v1/payments/wo-summary/${selectedWoId}`
+      : null,
+    fetcher,
+  );
+
   const { data: categories } = useSWR<CodeMaster[]>(
     "/api/v1/settings/codes?active_only=true",
     fetcher,
@@ -129,6 +136,12 @@ export default function NewPaymentCertificatePage() {
       };
     }, [lineItems, retentionPercent, activeProject]);
 
+  const isOverCertified = useMemo(() => {
+    if (!isWoLinked || !woSummary) return false;
+    // Tolerance for minor rounding differences (0.01)
+    return totalPayable > (woSummary.remaining_balance + 0.01);
+  }, [isWoLinked, woSummary, totalPayable]);
+
   const { executeWithLock: executePcCreateWithLock } = useRequestLock({
     operationId: "PC_CREATE",
     timeoutMs: 30000,
@@ -146,6 +159,10 @@ export default function NewPaymentCertificatePage() {
     }
     if (lineItems.length === 0) {
       setError("Add at least one line item describing the scope of work");
+      return;
+    }
+    if (isOverCertified && woSummary) {
+      setError(`Financial Guard: This certificate (₹${formatCurrency(totalPayable)}) exceeds the remaining Work Order balance (₹${formatCurrency(woSummary.remaining_balance)}). Please adjust quantities.`);
       return;
     }
 
@@ -210,6 +227,7 @@ export default function NewPaymentCertificatePage() {
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string | { errors?: { field: string; message: string }[] } } } };
       const detail = axiosError.response?.data?.detail;
+      const serverError = (axiosError.response?.data as { error?: { message?: string } })?.error;
 
       if (detail && typeof detail === "object" && "errors" in detail && Array.isArray(detail.errors)) {
         const fieldErrorsObj: Record<string, string> = {};
@@ -221,6 +239,7 @@ export default function NewPaymentCertificatePage() {
       } else {
         setError(
           (typeof detail === "string" ? detail : null) ||
+          (serverError?.message) ||
           (err as Error).message ||
           "Failed to submit Payment Certificate",
         );
@@ -362,7 +381,7 @@ export default function NewPaymentCertificatePage() {
         </div>
         <button
           onClick={handleSave}
-          disabled={isSubmitting || !activeProject}
+          disabled={isSubmitting || !activeProject || isOverCertified}
           className="admin-only flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-emerald-500/20"
         >
           {isSubmitting ? (
@@ -472,6 +491,31 @@ export default function NewPaymentCertificatePage() {
                     <p className="text-[10px] text-red-500 mt-1 uppercase font-bold">
                       {fieldErrors.work_order_id}
                     </p>
+                  )}
+
+                  {isWoLinked && woSummary && (
+                    <div className="mt-3 p-3 bg-slate-950/50 border border-slate-800 rounded-lg space-y-2 animate-in slide-in-from-top-1 duration-300">
+                      <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
+                        <span className="text-slate-500">Authorized WO Total</span>
+                        <span className="text-slate-300 font-mono">{formatCurrency(woSummary.total_authorized)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
+                        <span className="text-slate-500">Previously Certified</span>
+                        <span className="text-emerald-500/80 font-mono">{formatCurrency(woSummary.total_certified_to_date)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-bold border-t border-slate-800 pt-2">
+                        <span className="text-slate-400">Available Balance</span>
+                        <span className={`${isOverCertified ? "text-red-400" : "text-emerald-400"} font-mono`}>
+                          {formatCurrency(woSummary.remaining_balance)}
+                        </span>
+                      </div>
+                      {isOverCertified && (
+                        <div className="flex items-center gap-2 text-[10px] text-red-400 font-bold bg-red-400/5 p-2 rounded border border-red-400/10 mt-2">
+                          <AlertTriangle size={12} />
+                          <span>EXCEEDS REMAINING BALANCE BY {formatCurrency(totalPayable - woSummary.remaining_balance)}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </>

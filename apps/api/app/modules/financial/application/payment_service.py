@@ -180,6 +180,19 @@ class PaymentService:
                 sgst_pct=sgst_pct,
             )
 
+            # BUG-016: Over-certification guard
+            if not fund_request and pc_data.work_order_id:
+                summary = await self.get_wo_certification_summary(user, pc_data.work_order_id)
+                new_total = FinancialEngine.to_decimal(summary["previously_certified"]) + fin["grand_total"]
+                wo_total = FinancialEngine.to_decimal(summary["wo_grand_total"])
+                if new_total > wo_total:
+                    overage = new_total - wo_total
+                    logger.warning(f"Over-certification: WO {pc_data.work_order_id} by {overage}")
+                    raise ValidationError(
+                        f"This PC (₹{fin['grand_total']}) would exceed WO total by ₹{overage:.2f}. "
+                        f"Previously certified: ₹{summary['previously_certified']:.2f}, WO total: ₹{summary['wo_grand_total']:.2f}"
+                    )
+
             # Use modular seq repo
             pc_ref_id = f"pc_seq_{organisation_id}"
             next_seq = await uow.sequences.get_next_sequence(
@@ -423,6 +436,32 @@ class PaymentService:
                 pc["category_name"] = cat.get("category_name") or cat.get("name") or cat.get("code") or "Unknown"
 
         return pc
+
+    async def get_wo_certification_summary(self, user: dict, work_order_id: str) -> Dict:
+        """Aggregate all non-cancelled PCs against a WO to return certified-to-date."""
+        pipeline = [
+            {"$match": {
+                "work_order_id": work_order_id,
+                "organisation_id": user["organisation_id"],
+                "status": {"$nin": ["Cancelled", "Draft"]}
+            }},
+            {"$group": {"_id": None, "total_certified": {"$sum": "$grand_total"}, "pc_count": {"$sum": 1}}}
+        ]
+        result = await self.db.payment_certificates.aggregate(pipeline).to_list(1)
+        agg = result[0] if result else {"total_certified": 0, "pc_count": 0}
+
+        # Fetch WO grand_total
+        wo = await self.db.work_orders.find_one({"_id": ObjectId(work_order_id)})
+        wo_total = FinancialEngine.to_decimal(wo.get("grand_total", 0)) if wo else Decimal("0")
+        certified = FinancialEngine.to_decimal(agg["total_certified"])
+
+        return {
+            "work_order_id": work_order_id,
+            "wo_grand_total": float(wo_total),
+            "previously_certified": float(certified),
+            "balance_remaining": float(wo_total - certified),
+            "pc_count": agg["pc_count"],
+        }
 
     # -------------------------------------------------------------------------
     # APPROVAL WORKFLOW METHODS
