@@ -128,11 +128,11 @@ class TestReportingService:
 
     async def test_progress_report_date_filter(self, reporting_service, sample_data, test_project_id):
         user = {"user_id": "test-user", "organisation_id": "test-org"}
-        
+
         # Test with date filter strings
         start_date = "2023-01-01T00:00:00+00:00"
         end_date = "2023-12-31T00:00:00+00:00"
-        
+
         report = await reporting_service.get_report(
             user=user,
             project_id=test_project_id,

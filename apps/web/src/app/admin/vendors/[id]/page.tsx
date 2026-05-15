@@ -116,7 +116,7 @@ export default function VendorDetailPage() {
         field: "flow_direction", 
         headerName: "Direction", 
         flex: 0.8,
-        cellRenderer: (params: any) => {
+        cellRenderer: (params: { value: string }) => {
           const val = params.value || "UNKNOWN";
           const isOut = val === "OUTFLOW";
           return (

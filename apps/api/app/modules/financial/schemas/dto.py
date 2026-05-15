@@ -210,7 +210,7 @@ class CashTransaction(BaseModel):
     category_id: str
     amount: Decimal
     type: Literal["DEBIT", "CREDIT"]
-    flow_direction: Optional[Literal["INFLOW", "OUTFLOW"]] = None # BUG-017
+    flow_direction: Optional[Literal["INFLOW", "OUTFLOW"]] = None  # BUG-017
     description: Optional[str] = None
     transaction_date: datetime
     created_by: str
@@ -224,7 +224,7 @@ class CashTransactionCreate(BaseModel):
     category_id: str
     amount: Decimal = Field(..., ge=0)
     type: Literal["DEBIT", "CREDIT"]
-    flow_direction: Optional[Literal["INFLOW", "OUTFLOW"]] = None # BUG-017
+    flow_direction: Optional[Literal["INFLOW", "OUTFLOW"]] = None  # BUG-017
     description: Optional[str] = None
     transaction_date: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(timezone.utc)
@@ -239,7 +239,7 @@ class VendorLedgerEntry(BaseModel):
     project_id: str
     ref_id: str
     entry_type: Literal["PC_CERTIFIED", "PAYMENT_MADE", "RETENTION_HELD"]
-    flow_direction: Literal["INFLOW", "OUTFLOW"] # BUG-017
+    flow_direction: Literal["INFLOW", "OUTFLOW"]  # BUG-017
     amount: Decimal = Decimal("0.0")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

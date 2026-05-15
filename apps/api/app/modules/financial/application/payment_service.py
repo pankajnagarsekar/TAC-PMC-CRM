@@ -50,7 +50,7 @@ class PaymentService:
             query["project_id"] = project_id
         if vendor_id:
             query["vendor_id"] = vendor_id
-            
+
         if cursor:
             try:
                 parsed_cursor = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
@@ -196,7 +196,8 @@ class PaymentService:
                     logger.warning(f"Over-certification: WO {pc_data.work_order_id} by {overage}")
                     raise ValidationError(
                         f"This PC (₹{fin['grand_total']}) would exceed WO total by ₹{overage:.2f}. "
-                        f"Previously certified: ₹{summary['previously_certified']:.2f}, WO total: ₹{summary['wo_grand_total']:.2f}"
+                        f"Previously: ₹{summary['previously_certified']:.2f}, "
+                        f"WO Total: ₹{summary['wo_grand_total']:.2f}"
                     )
 
             # Use modular seq repo

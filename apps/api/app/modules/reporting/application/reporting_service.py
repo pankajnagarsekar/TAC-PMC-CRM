@@ -948,7 +948,7 @@ class ReportingService:
             match_stage["created_at"] = {
                 k: v for k, v in [("$gte", start_date), ("$lte", end_date)] if v
             }
-            
+
         pipeline = [
             {"$match": match_stage},
             {"$addFields": {
