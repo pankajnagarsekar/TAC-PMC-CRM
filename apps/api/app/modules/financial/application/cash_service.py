@@ -397,6 +397,7 @@ class CashService:
                 "category_id": category_id,
                 "amount": FinancialEngine.to_d128(amount),
                 "type": txn_type,
+                "flow_direction": "INFLOW" if txn_type == "CREDIT" else "OUTFLOW",
                 "description": data.get("description"),
                 "transaction_date": data.get("transaction_date"),
                 "created_by": user["user_id"],

@@ -943,8 +943,14 @@ class ReportingService:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> Dict[str, Any]:
+        match_stage = {"project_id": self._get_project_match(project_id)}
+        if start_date or end_date:
+            match_stage["created_at"] = {
+                k: v for k, v in [("$gte", start_date), ("$lte", end_date)] if v
+            }
+            
         pipeline = [
-            {"$match": {"project_id": self._get_project_match(project_id)}},
+            {"$match": match_stage},
             {"$addFields": {
                 "cid_obj": {
                     "$convert": {

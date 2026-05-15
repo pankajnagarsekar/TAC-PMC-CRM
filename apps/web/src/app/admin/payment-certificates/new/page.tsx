@@ -28,6 +28,7 @@ import { formatCurrency } from "@tac-pmc/ui";
 import { CodeMaster, WorkOrder } from "@/types/api";
 import { v4 as uuidv4 } from "uuid";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useToast } from "@/hooks/use-toast";
 
 // Need a specific interface for PC line items, different from WO
 interface PCLineItem {
@@ -43,6 +44,7 @@ interface PCLineItem {
 export default function NewPaymentCertificatePage() {
   const router = useRouter();
   const { activeProject } = useProjectStore();
+  const { toast } = useToast();
 
   // States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,19 +152,19 @@ export default function NewPaymentCertificatePage() {
   const handleSave = async () => {
     if (!activeProject) return;
     if (isWoLinked && !selectedWoId) {
-      setError("Please map to an active Work Order");
+      toast({ title: "Validation Error", description: "Please map to an active Work Order", variant: "destructive" });
       return;
     }
     if (!isWoLinked && !selectedCategoryId) {
-      setError("Fund Requests mandate an active internal category target");
+      toast({ title: "Validation Error", description: "Fund Requests mandate an active internal category target", variant: "destructive" });
       return;
     }
     if (lineItems.length === 0) {
-      setError("Add at least one line item describing the scope of work");
+      toast({ title: "Validation Error", description: "Add at least one line item describing the scope of work", variant: "destructive" });
       return;
     }
     if (isOverCertified && woSummary) {
-      setError(`Financial Guard: This certificate (₹${formatCurrency(totalPayable)}) exceeds the remaining Work Order balance (₹${formatCurrency(woSummary.remaining_balance)}). Please adjust quantities.`);
+      toast({ title: "Financial Guard", description: `This certificate (₹${formatCurrency(totalPayable)}) exceeds the remaining Work Order balance (₹${formatCurrency(woSummary.remaining_balance)}).`, variant: "destructive" });
       return;
     }
 
@@ -222,6 +224,7 @@ export default function NewPaymentCertificatePage() {
       }
 
       setIsDirty(false); // Reset dirty state before navigation
+      toast({ title: "Success", description: "Payment Certificate created successfully." });
       router.push(`/admin/payment-certificates/${res.data._id}`);
       router.refresh();
     } catch (err: unknown) {
@@ -235,14 +238,14 @@ export default function NewPaymentCertificatePage() {
           fieldErrorsObj[e.field] = e.message;
         });
         setFieldErrors(fieldErrorsObj);
-        setError("Validation failed. Please check the fields below.");
+        toast({ title: "Validation Failed", description: "Please check the highlighted fields.", variant: "destructive" });
       } else {
-        setError(
-          (typeof detail === "string" ? detail : null) ||
+        const errorMsg = (typeof detail === "string" ? detail : null) ||
           (serverError?.message) ||
           (err as Error).message ||
-          "Failed to submit Payment Certificate",
-        );
+          "Failed to submit Payment Certificate";
+        
+        toast({ title: "Submission Failed", description: errorMsg, variant: "destructive" });
       }
     } finally {
       setIsSubmitting(false);

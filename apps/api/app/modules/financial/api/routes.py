@@ -193,6 +193,7 @@ async def export_payment_certificate_pdf(
 )
 async def list_payment_certificates(
     project_id: str,
+    vendor_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     cursor: Optional[str] = Query(None),
     user: dict = Depends(get_authenticated_user),
@@ -200,7 +201,26 @@ async def list_payment_certificates(
 ):
     """List payment certificates for a project."""
     result = await payment_service.list_payment_certificates(
-        user, project_id, limit, cursor
+        user, project_id, limit, cursor, vendor_id=vendor_id
+    )
+    return GenericResponse(data=result)
+
+
+@router.get(
+    "/payments/all/history/vendor/{vendor_id}",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Payments"],
+)
+async def list_vendor_payment_history(
+    vendor_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    cursor: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """List all payment certificates for a vendor across all projects."""
+    result = await payment_service.list_payment_certificates(
+        user, None, limit, cursor, vendor_id=vendor_id
     )
     return GenericResponse(data=result)
 

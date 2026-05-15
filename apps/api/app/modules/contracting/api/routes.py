@@ -108,6 +108,20 @@ async def get_vendor_ledger(
     return GenericResponse(data=entries)
 
 
+@router.get(
+    "/vendors/{vendor_id}/stats",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Vendors"],
+)
+async def get_vendor_stats(
+    vendor_id: str,
+    user: dict = Depends(get_authenticated_user),
+    vendor_service: VendorService = Depends(get_vendor_service),
+):
+    stats = await vendor_service.get_vendor_stats(user, vendor_id)
+    return GenericResponse(data=stats)
+
+
 # --- WORK ORDER ENDPOINTS ---
 
 
@@ -118,13 +132,14 @@ async def get_vendor_ledger(
 )
 async def list_work_orders(
     project_id: Optional[str] = Query(None),
+    vendor_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=1000),
     cursor: Optional[str] = Query(None),
     user: dict = Depends(get_authenticated_user),
     wo_service: WorkOrderService = Depends(get_work_order_service),
 ):
-    """List work orders with optional project filter."""
-    result = await wo_service.list_work_orders(user, project_id, limit, cursor)
+    """List work orders with optional filters."""
+    result = await wo_service.list_work_orders(user, project_id, limit, cursor, vendor_id=vendor_id)
     return GenericResponse(data=result)
 
 

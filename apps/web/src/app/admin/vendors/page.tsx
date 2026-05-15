@@ -17,6 +17,7 @@ import { Vendor } from "@tac-pmc/types";
 import FinancialGrid from "@/components/ui/FinancialGrid";
 import VendorModal from "@/components/vendors/VendorModal";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import {
 import type { ColDef, ICellRendererParams } from "ag-grid-community";
 
 export default function VendorsPage() {
+  const router = useRouter();
   const {
     data: vendors = [],
     mutate,
@@ -227,6 +229,11 @@ export default function VendorsPage() {
             height="calc(100vh - 380px)"
             editable={false}
             quickFilterText={searchTerm}
+            onRowClicked={(event) => {
+              if (event.data && event.data._id) {
+                router.push(`/admin/vendors/${event.data._id}`);
+              }
+            }}
           />
         )}
       </div>

@@ -40,11 +40,17 @@ class PaymentService:
         self.seq_repo = SequenceRepository(db)
 
     async def list_payment_certificates(
-        self, user: dict, project_id: str, limit: int, cursor: Optional[str]
+        self, user: dict, project_id: Optional[str], limit: int, cursor: Optional[str], vendor_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        await self.permission_checker.check_project_access(user, project_id)
+        if project_id:
+            await self.permission_checker.check_project_access(user, project_id)
 
-        query = {"project_id": project_id, "organisation_id": user["organisation_id"]}
+        query = {"organisation_id": user["organisation_id"]}
+        if project_id:
+            query["project_id"] = project_id
+        if vendor_id:
+            query["vendor_id"] = vendor_id
+            
         if cursor:
             try:
                 parsed_cursor = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
@@ -361,6 +367,7 @@ class PaymentService:
                         "category_id": category_id,
                         "amount": FinancialEngine.to_d128(grand_total),
                         "type": "CREDIT",
+                        "flow_direction": "INFLOW",
                         "description": f"Replenishment via PC {pc['pc_ref']}",
                         "transaction_date": now(),
                         "created_by": user["user_id"],
@@ -386,6 +393,7 @@ class PaymentService:
                     "project_id": project_id,
                     "ref_id": str(pc_id),
                     "entry_type": "PAYMENT_MADE",
+                    "flow_direction": "OUTFLOW",
                     "amount": FinancialEngine.to_d128(grand_total),
                     "created_at": now()
                 }, session=uow.session)
@@ -397,6 +405,7 @@ class PaymentService:
                         "project_id": project_id,
                         "ref_id": str(pc_id),
                         "entry_type": "RETENTION_HELD",
+                        "flow_direction": "INFLOW",
                         "amount": FinancialEngine.to_d128(retention_amount),
                         "created_at": now()
                     }, session=uow.session)
@@ -603,6 +612,7 @@ class PaymentService:
                     "project_id": updated["project_id"],
                     "ref_id": str(updated["id"]),
                     "entry_type": "PC_CERTIFIED",
+                    "flow_direction": "INFLOW",
                     "amount": FinancialEngine.to_d128(amount),
                     "created_at": now()
                 }, session=uow.session)

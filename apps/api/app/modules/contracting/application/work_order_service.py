@@ -530,11 +530,13 @@ class WorkOrderService:
             return True
 
     async def list_work_orders(
-        self, user: dict, project_id: Optional[str], limit: int, cursor: Optional[str]
+        self, user: dict, project_id: Optional[str], limit: int, cursor: Optional[str], vendor_id: Optional[str] = None
     ) -> Dict[str, Any]:
         query = {"organisation_id": user["organisation_id"]}
         if project_id:
             query["project_id"] = project_id
+        if vendor_id:
+            query["vendor_id"] = vendor_id
         if cursor:
             query["created_at"] = {"$lt": datetime.fromisoformat(cursor)}
 

@@ -167,3 +167,42 @@ class VendorService:
         return await self.ledger_repo.list(
             {"vendor_id": vendor_id}, sort=[("created_at", -1)], limit=500
         )
+
+    async def get_vendor_stats(self, user: dict, vendor_id: str) -> Dict[str, Any]:
+        """BUG-015: Aggregate vendor financial metrics across all projects."""
+        organisation_id = user["organisation_id"]
+        
+        # 1. Total Work Orders
+        wo_count = await self.db.work_orders.count_documents({
+            "vendor_id": vendor_id,
+            "organisation_id": organisation_id,
+            "status": {"$ne": "Cancelled"}
+        })
+        
+        # 2. Financial Aggregation from PCs
+        pipeline = [
+            {"$match": {
+                "vendor_id": vendor_id,
+                "organisation_id": organisation_id,
+                "status": {"$in": ["Approved", "Paid", "Submitted"]}
+            }},
+            {"$group": {
+                "_id": None,
+                "total_certified": {"$sum": "$grand_total"},
+                "total_paid": {"$sum": {"$cond": [{"$eq": ["$status", "Paid"]}, "$grand_total", 0]}},
+                "total_retention": {"$sum": "$retention_amount"}
+            }}
+        ]
+        
+        agg_result = await self.db.payment_certificates.aggregate(pipeline).to_list(1)
+        agg = agg_result[0] if agg_result else {"total_certified": 0, "total_paid": 0, "total_retention": 0}
+        
+        from app.modules.shared.domain.financial_engine import FinancialEngine
+        return {
+            "vendor_id": vendor_id,
+            "total_work_orders": wo_count,
+            "total_certified": float(FinancialEngine.to_decimal(agg["total_certified"])),
+            "total_paid": float(FinancialEngine.to_decimal(agg["total_paid"])),
+            "total_retention": float(FinancialEngine.to_decimal(agg["total_retention"])),
+            "outstanding_balance": float(FinancialEngine.to_decimal(agg["total_certified"]) - FinancialEngine.to_decimal(agg["total_paid"]))
+        }
