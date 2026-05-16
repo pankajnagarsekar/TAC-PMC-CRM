@@ -10,6 +10,7 @@ import type {
   CellKeyDownEvent,
   TabToNextCellParams,
   CellPosition,
+  RowClickedEvent,
 } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import { isEnterprise } from "@/lib/features";
@@ -60,6 +61,7 @@ export interface FinancialGridProps<T> {
   domLayout?: "normal" | "autoHeight" | "print";
   loading?: boolean;
   quickFilterText?: string;
+  onRowClicked?: (event: RowClickedEvent<T>) => void;
 }
 
 export default function FinancialGrid<T>({
@@ -78,6 +80,7 @@ export default function FinancialGrid<T>({
   domLayout = "normal",
   loading = false,
   quickFilterText = "",
+  onRowClicked,
 }: FinancialGridProps<T>) {
   const gridRef = useRef<AgGridReact<T>>(null);
   const [invalidCount, setInvalidCount] = useState(0);
@@ -281,6 +284,7 @@ export default function FinancialGrid<T>({
           domLayout={domLayout}
           loading={loading}
           quickFilterText={quickFilterText}
+          onRowClicked={onRowClicked}
           headerHeight={48}
           rowHeight={44}
           suppressColumnVirtualisation={true}
