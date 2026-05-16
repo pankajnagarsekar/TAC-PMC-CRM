@@ -241,6 +241,18 @@ class ExportService:
                 </html>
             """)
 
+        # BUG-018: PDF row limit guard
+        MAX_PDF_ROWS = 500
+        rows = report_data.get("rows", [])
+        original_count = len(rows)
+        if original_count > MAX_PDF_ROWS:
+            logger.warning(f"Report has {original_count} rows, truncating to {MAX_PDF_ROWS}")
+            report_data["rows"] = rows[:MAX_PDF_ROWS]
+            if "metadata" not in report_data:
+                report_data["metadata"] = {}
+            report_data["metadata"]["truncated"] = True
+            report_data["metadata"]["original_count"] = original_count
+
         # Build context — explicit keys take priority; extra keys from report_data
         # (e.g. tasks, months for specialized templates) are merged in without
         # duplicating the named keys (which would cause a TypeError).
@@ -256,6 +268,14 @@ class ExportService:
         for k, v in report_data.items():
             if k not in context:
                 context[k] = v
+
+        # BUG-018: Performance optimization
+        # For large reports (>100 rows), skip WeasyPrint (which renders full HTML/CSS)
+        # and use ReportLab's SimpleDocTemplate which handles memory/pagination better.
+        if len(report_data.get("rows", [])) > 100:
+            logger.info(f"Report has {len(report_data.get('rows', []))} rows. Using ReportLab primary engine.")
+            return ExportService._generate_pdf_reportlab(report_data, config)
+
         html_out = template.render(**context)
 
         try:

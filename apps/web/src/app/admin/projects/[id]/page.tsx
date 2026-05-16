@@ -22,6 +22,7 @@ import api, { fetcher } from "@/lib/api";
 import { Project, DerivedFinancialState } from "@/types/api";
 import { formatCurrency } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
+import { useToast } from "@/hooks/use-toast";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
 import LinkedWorkOrders from "@/components/work-orders/LinkedWorkOrders";
@@ -36,6 +37,7 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const projectId = params.id as string;
   const { setActiveProject, activeProject: storeActiveProject } = useProjectStore();
+  const { toast } = useToast();
 
   const { data: project, error: projectError, mutate: mutateProject, isLoading: projectLoading } = useSWR<Project>(
     `/api/v1/projects/${projectId}`,
@@ -113,7 +115,11 @@ export default function ProjectDetailPage() {
 
           if (!validation.success || isNaN(parsed)) {
             const errorMsg = !validation.success ? validation.error.issues[0].message : "Invalid numeric value for budget.";
-            alert(errorMsg);
+            toast({
+              title: "Validation Error",
+              description: errorMsg,
+              variant: "destructive",
+            });
             params.node?.setDataValue("original_budget", params.oldValue);
             return;
           }
@@ -132,9 +138,17 @@ export default function ProjectDetailPage() {
               setIsConflictModalOpen(true);
             } else if (err.response?.status === 422) {
               const msg = err.response.data?.error?.message || "Budget cannot be below committed amount.";
-              alert(msg);
+              toast({
+                title: "Budget Restriction",
+                description: msg,
+                variant: "destructive",
+              });
             } else {
-              alert("Failed to update budget. Please check permissions.");
+              toast({
+                title: "Update Failed",
+                description: "Failed to update budget. Please check permissions.",
+                variant: "destructive",
+              });
             }
             // Restore old value on failure
             params.node?.setDataValue("original_budget", params.oldValue);
@@ -268,8 +282,16 @@ export default function ProjectDetailPage() {
                     mutateFinancials();
                     // also refresh project to get new master budgets
                     mutateProject();
+                    toast({
+                      title: "Baseline Synchronized",
+                      description: "Budgetary baseline has been successfully initialized.",
+                    });
                   } catch {
-                    alert("Failed to synchronize budget baseline.");
+                    toast({
+                      title: "Sync Failed",
+                      description: "Failed to synchronize budget baseline.",
+                      variant: "destructive",
+                    });
                   }
                 }}
                 className="admin-only bg-orange-600 dark:bg-orange-500 hover:bg-orange-700 dark:hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-orange-500/20"
