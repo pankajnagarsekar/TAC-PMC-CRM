@@ -1,4 +1,5 @@
 import logging
+import tracemalloc
 from app.core.time import now
 
 from io import BytesIO
@@ -195,14 +196,17 @@ class ExportService:
             raise
 
         # Setup Jinja2 environment
-        # Search for templates directory in multiple locations to support local dev and production
         search_paths = [
             os.path.join(os.getcwd(), "templates"),
-            os.path.join(os.getcwd(), "apps", "api", "templates"),
-            os.path.join(os.path.dirname(__file__), "..", "..", "templates"),
-            os.path.join(os.path.dirname(__file__), "..", "templates"),
             os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates"),
+            os.path.join(os.path.dirname(__file__), "..", "templates"),
+            "app/core/templates",
+            "templates"
         ]
+
+        # BUG-018: Memory Profiling Instrumentation (Dev Mode)
+        tracemalloc.start()
+        snapshot_start = tracemalloc.take_snapshot()
 
         template_dir = next((p for p in search_paths if os.path.exists(p)), search_paths[0])
         loader = jinja2.FileSystemLoader(template_dir)
@@ -274,114 +278,173 @@ class ExportService:
         # and use ReportLab's SimpleDocTemplate which handles memory/pagination better.
         if len(report_data.get("rows", [])) > 100:
             logger.info(f"Report has {len(report_data.get('rows', []))} rows. Using ReportLab primary engine.")
-            return ExportService._generate_pdf_reportlab(report_data, config)
-
-        html_out = template.render(**context)
-
-        try:
-            # Check if WeasyPrint is likely to work before attempting import
-            # This avoids system-level DLL hangs on Windows if missing GTK
-            from weasyprint import HTML
-            pdf_bytes = HTML(string=html_out).write_pdf()
-            return pdf_bytes
-        except (ImportError, OSError, Exception) as e:
-            # Fallback to ReportLab if WeasyPrint system dependencies are missing
-            logger.error(
-                f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab. "
-                f"HTML length: {len(html_out)}"
-            )
+            pdf_bytes = ExportService._generate_pdf_reportlab(report_data, config)
+        else:
+            html_out = template.render(**context)
             try:
-                return ExportService._generate_pdf_reportlab(report_data, config)
-            except Exception as re:
-                logger.error(f"ReportLab fallback also failed: {re}")
-                raise RuntimeError(
-                    "PDF generation failed: Both WeasyPrint and ReportLab engines are "
-                    "unavailable or encountered a terminal error."
+                # Check if WeasyPrint is likely to work before attempting import
+                # This avoids system-level DLL hangs on Windows if missing GTK
+                from weasyprint import HTML
+                pdf_bytes = HTML(string=html_out).write_pdf()
+            except (ImportError, OSError, Exception) as e:
+                # Fallback to ReportLab if WeasyPrint system dependencies are missing
+                logger.error(
+                    f"WeasyPrint failed ({type(e).__name__}: {e}), falling back to ReportLab. "
+                    f"HTML length: {len(html_out)}"
                 )
+                try:
+                    pdf_bytes = ExportService._generate_pdf_reportlab(report_data, config)
+                except Exception as re:
+                    logger.error(f"ReportLab fallback also failed: {re}")
+                    # Cleanup tracemalloc before raising
+                    tracemalloc.stop()
+                    raise RuntimeError(
+                        "PDF generation failed: Both WeasyPrint and ReportLab engines are "
+                        "unavailable or encountered a terminal error."
+                    )
+
+        # Log memory metrics
+        snapshot_end = tracemalloc.take_snapshot()
+        top_stats = snapshot_end.compare_to(snapshot_start, 'lineno')
+        peak = tracemalloc.get_traced_memory()[1] / (1024 * 1024)
+        logger.info(f"PDF Export Memory Peak: {peak:.2f} MB | Rows: {len(report_data.get('rows', []))}")
+        tracemalloc.stop()
+
+        return pdf_bytes
 
     @staticmethod
     def _generate_pdf_reportlab(report_data: Dict[str, Any], config: Dict[str, Any]) -> bytes:
         from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
         elements = []
         styles = getSampleStyleSheet()
 
-        # Title
-        title = report_data.get("title", "Report")
-        elements.append(Paragraph(title, styles['Title']))
+        # Add custom styles for Luxury Industrial aesthetic
+        if "Title" not in styles:
+            styles.add(ParagraphStyle(name="Title", fontSize=18, leading=22, alignment=TA_CENTER, spaceAfter=20, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a")))
+        
+        # Luxury Header Style
+        header_style = ParagraphStyle(
+            name="LuxuryHeader",
+            parent=styles["Normal"],
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor("#64748b"),
+            fontName="Helvetica"
+        )
+
+        # Luxury Accent Color
+        GOLD_ACCENT = colors.HexColor("#b45309")  # Muted Amber/Gold
+        CHARCOAL = colors.HexColor("#0f172a")
+
+        # Company Info Header
+        company = report_data.get("company", {"name": "TAC PMC", "address": "Sovereign HQ"})
+        elements.append(Paragraph(company.get("name", "TAC PMC").upper(), styles["Title"]))
+        elements.append(Paragraph(company.get("address", ""), header_style))
+        elements.append(Spacer(1, 5))
+        
+        # Luxury Accent Line
+        from reportlab.platypus import HRFlowable
+        elements.append(HRFlowable(width="100%", thickness=1.5, color=GOLD_ACCENT, spaceBefore=5, spaceAfter=15))
+
+        # Report Title
+        report_title = report_data.get("title", "Project Report")
+        elements.append(Paragraph(report_title, styles["Heading1"]))
+        
+        # Metadata / Date
+        meta_style = ParagraphStyle(name="Meta", fontSize=8, textColor=colors.grey, alignment=TA_RIGHT)
+        elements.append(Paragraph(f"Generated on: {now().strftime('%d-%b-%Y %H:%M')}", meta_style))
         elements.append(Spacer(1, 12))
+
+        # Truncation Warning
+        if report_data.get("metadata", {}).get("truncated"):
+            warn_style = ParagraphStyle(name="Warning", fontSize=9, textColor=colors.red, fontName="Helvetica-Bold")
+            orig = report_data["metadata"].get("original_count", 500)
+            elements.append(Paragraph(f"⚠️ NOTICE: Report truncated to 500 rows (Original: {orig} rows) to preserve system memory.", warn_style))
+            elements.append(Spacer(1, 10))
 
         # Table Data
         headers = [col[0] for col in config.get("columns", [])]
         col_widths_raw = [col[1] for col in config.get("columns", [])]
 
-        # Calculate absolute widths based on 500px content area
+        # Content area width is ~535px (A4 width 595 - margins 60)
         total_relative = sum(col_widths_raw)
         if total_relative > 0:
-            col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
+            col_widths = [(w / total_relative) * 535 for w in col_widths_raw]
         else:
-            # Fallback for empty columns
             col_widths = [100.0] * max(1, len(headers))
 
         rows = report_data.get("rows", [])
-        if not rows and "tasks" in report_data:
-            # Fallback for scheduler/Gantt reports in ReportLab (Point 118)
-            rows = report_data["tasks"]
-            if not config.get("columns"):
-                # Provide default columns for Gantt tasks if missing
-                config["columns"] = [
-                    ("Task Name", 40),
-                    ("Start", 15),
-                    ("Finish", 15),
-                    ("Duration", 10),
-                    ("Predecessors", 20)
-                ]
-                headers = ["Task Name", "Start", "Finish", "Duration", "Predecessors"]
-                col_widths_raw = [40, 15, 15, 10, 20]
-                total_relative = sum(col_widths_raw)
-                col_widths = [(w / total_relative) * 520 for w in col_widths_raw]
+        
+        # Format currency cells
+        def wrap_cell(val, idx):
+            s_val = str(val) if val is not None else ""
+            style = styles["Normal"]
+            style.fontSize = 8
+            # Align currency to right if header contains budget/amount/total
+            if headers and idx < len(headers):
+                h = headers[idx].lower()
+                if any(k in h for k in ["budget", "amount", "total", "certified", "committed", "remaining", "value"]):
+                    style = ParagraphStyle(name=f"Cell_{idx}", parent=style, alignment=TA_RIGHT)
+            return Paragraph(s_val, style)
 
-        # Wrap data in Paragraphs to support multi-line text
-        cell_style = styles["Normal"]
-        cell_style.fontSize = 8
-
-        if not headers and rows:
-            # If no headers but we have rows, maybe they are dicts?
-            # For 'exact' templates, rows (items) are often dicts.
-            # ReportLab fallback is not great for dicts but let's try to show something.
-            first_row = rows[0]
-            if isinstance(first_row, dict):
-                headers = list(first_row.keys())
-                col_widths = [520 / len(headers)] * len(headers)
-
-        data = [[Paragraph(str(h), styles["Normal"]) for h in headers]]
+        data = [[Paragraph(str(h), ParagraphStyle(name="H", parent=styles["Normal"], fontSize=9, fontName="Helvetica-Bold", textColor=colors.whitesmoke)) for h in headers]]
         for row in rows:
             if isinstance(row, dict):
-                formatted_row = [Paragraph(str(row.get(h, "")), cell_style) for h in headers]
+                formatted_row = [wrap_cell(row.get(h, ""), i) for i, h in enumerate(headers)]
             else:
-                formatted_row = [Paragraph(str(cell), cell_style) for cell in row]
+                formatted_row = [wrap_cell(cell, i) for i, cell in enumerate(row)]
             data.append(formatted_row)
 
         # Create Table
-        t = Table(data, colWidths=col_widths, repeatRows=1)
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f172a")),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
-        ]))
+        if data:
+            t = Table(data, colWidths=col_widths, repeatRows=1)
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), CHARCOAL),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, 0), 12),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ]))
+            elements.append(t)
 
-        elements.append(t)
+        # Totals Section (if available)
+        totals = report_data.get("totals", {})
+        if totals:
+            elements.append(Spacer(1, 20))
+            elements.append(Paragraph("SUMMARY TOTALS", ParagraphStyle(name="TotalHeader", parent=styles["Heading3"], textColor=GOLD_ACCENT, spaceAfter=10)))
+            total_data = [[k, ExportService.format_currency(v)] for k, v in totals.items()]
+            tt = Table(total_data, colWidths=[200, 150])
+            tt.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('LINEABOVE', (0, 0), (-1, 0), 1.5, CHARCOAL),
+                ('TEXTCOLOR', (0, 0), (-1, -1), CHARCOAL),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+            elements.append(tt)
+
         doc.build(elements)
         return buffer.getvalue()
 
