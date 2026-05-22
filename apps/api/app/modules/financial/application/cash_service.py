@@ -41,15 +41,21 @@ class CashService:
         self.user_repo = UserRepository(db)
 
     def _get_threshold_for_category(self, category, project) -> Decimal:
-        default_threshold = Decimal("1000.0")
+        default_threshold = Decimal("10000.0")
         if not category or not project:
             return default_threshold
         cat_name = category.get("category_name", "").lower()
         if "petty" in cat_name:
-            return Decimal(str(project.get("threshold_petty", default_threshold)))
+            threshold = project.get("threshold_petty")
+            if threshold is None:
+                return default_threshold
+            return Decimal(str(threshold))
         elif "ovh" in cat_name or "overhead" in cat_name:
-            return Decimal(str(project.get("threshold_ovh", default_threshold)))
-        return default_threshold
+            threshold = project.get("threshold_ovh")
+            if threshold is None:
+                return Decimal("1000.0")
+            return Decimal(str(threshold))
+        return Decimal("0.0")
 
     async def get_cash_summary(self, user: dict, project_id: str) -> Dict[str, Any]:
         """Aggregate project-wide cash state with threshold status."""
@@ -425,6 +431,16 @@ class CashService:
                 user_id=user["user_id"],
                 project_id=project_id,
                 new_value=new_txn,
+                session=uow.session,
+            )
+
+            await self.audit_service.evaluate_and_log_petty_cash_alert(
+                organisation_id=user["organisation_id"],
+                user_id=user["user_id"],
+                project_id=project_id,
+                category_id=category_id,
+                old_cash=current_cash,
+                new_cash=new_cash,
                 session=uow.session,
             )
 

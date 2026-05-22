@@ -7,6 +7,7 @@ import FinancialGrid from "@/components/ui/FinancialGrid";
 import { useProjectStore } from "@/store/projectStore";
 import { fetcher } from "@/lib/api";
 import ExpenseEntryModal from "@/components/petty-cash/ExpenseEntryModal";
+import PettyCashAlertBanner from "@/components/petty-cash/PettyCashAlertBanner";
 import { formatCurrency } from "@tac-pmc/ui";
 import { CashTransaction } from "@/types/api";
 import { ColDef, ICellRendererParams } from "ag-grid-community";
@@ -91,6 +92,11 @@ export default function FundsTab() {
 
     return (
         <div className="space-y-6">
+            <PettyCashAlertBanner
+                projectId={activeProject.project_id || activeProject._id || ""}
+                projectName={activeProject.project_name}
+            />
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">

@@ -366,6 +366,17 @@ class PaymentService:
                         session=uow.session,
                     )
 
+                    old_cash = FinancialEngine.to_decimal(fund_alloc.get("cash_in_hand", 0))
+                    await self.audit_service.evaluate_and_log_petty_cash_alert(
+                        organisation_id=organisation_id,
+                        user_id=user["user_id"],
+                        project_id=project_id,
+                        category_id=category_id,
+                        old_cash=old_cash,
+                        new_cash=new_cash,
+                        session=uow.session,
+                    )
+
                     await uow.cash_transactions.create({
                         "project_id": project_id,
                         "category_id": category_id,

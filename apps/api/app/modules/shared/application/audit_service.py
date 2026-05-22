@@ -256,3 +256,94 @@ class AuditService:
             result.append(log)
 
         return result
+
+    async def evaluate_and_log_petty_cash_alert(
+        self,
+        organisation_id: str,
+        user_id: str,
+        project_id: str,
+        category_id: str,
+        old_cash: Any,
+        new_cash: Any,
+        session=None
+    ):
+        """
+        Evaluate cash threshold breaches/resolutions and log PETTY_CASH_ALERT.
+        """
+        from decimal import Decimal
+        from app.modules.shared.domain.financial_engine import FinancialEngine
+
+        try:
+            # 1. Fetch category
+            cat_filter = {"_id": ObjectId(category_id) if ObjectId.is_valid(category_id) else category_id}
+            category = await self.db["code_master"].find_one(cat_filter, session=session)
+            if not category or "petty" not in category.get("category_name", "").lower():
+                return
+
+            # 2. Fetch project to get configured threshold
+            proj_filter = {"_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id}
+            project = await self.db["projects"].find_one(proj_filter, session=session)
+
+            threshold = Decimal("10000.0")
+            if project:
+                proj_threshold = project.get("threshold_petty")
+                if proj_threshold is not None:
+                    threshold = FinancialEngine.to_decimal(proj_threshold)
+
+            old_cash_dec = FinancialEngine.to_decimal(old_cash)
+            new_cash_dec = FinancialEngine.to_decimal(new_cash)
+
+            # 3. Assess transitions
+            # Breach: old_cash > threshold and new_cash <= threshold
+            # Resolve: old_cash <= threshold and new_cash > threshold
+            if old_cash_dec > threshold and new_cash_dec <= threshold:
+                await self.log_financial_event(
+                    organisation_id=organisation_id,
+                    entity_type="PETTY_CASH_ALERT",
+                    entity_id=str(project_id),
+                    action_type="BREACH",
+                    user_id=user_id,
+                    project_id=str(project_id),
+                    old_value={"cash_in_hand": float(old_cash_dec)},
+                    new_value={"cash_in_hand": float(new_cash_dec)},
+                    metadata={
+                        "project": project.get("project_name") if project else "Unknown",
+                        "cashInHand": float(new_cash_dec),
+                        "threshold": float(threshold),
+                        "triggeredAt": datetime.now(timezone.utc).isoformat(),
+                    },
+                    session=session
+                )
+            elif old_cash_dec <= threshold and new_cash_dec > threshold:
+                # Resolve: only log if there is an unresolved BREACH alert
+                # (which means the latest PETTY_CASH_ALERT logged for this project is a BREACH)
+                last_alert = await self.db["audit_logs"].find_one(
+                    {
+                        "project_id": str(project_id),
+                        "entity_type": "PETTY_CASH_ALERT"
+                    },
+                    sort=[("timestamp", -1)],
+                    session=session
+                )
+                if last_alert and last_alert.get("action_type") == "BREACH":
+                    await self.log_financial_event(
+                        organisation_id=organisation_id,
+                        entity_type="PETTY_CASH_ALERT",
+                        entity_id=str(project_id),
+                        action_type="RESOLVE",
+                        user_id=user_id,
+                        project_id=str(project_id),
+                        old_value={"cash_in_hand": float(old_cash_dec)},
+                        new_value={"cash_in_hand": float(new_cash_dec)},
+                        metadata={
+                            "project": project.get("project_name") if project else "Unknown",
+                            "cashInHand": float(new_cash_dec),
+                            "threshold": float(threshold),
+                            "resolvedAt": datetime.now(timezone.utc).isoformat(),
+                            "resolvedBy": str(user_id)
+                        },
+                        session=session
+                    )
+        except Exception as exc:
+            logger.error("evaluate_and_log_petty_cash_alert failed: %s", exc, exc_info=True)
+

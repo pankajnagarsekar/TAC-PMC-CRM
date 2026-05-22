@@ -44,7 +44,7 @@ class Project(BaseModel):
     completion_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     master_original_budget: Decimal = Field(Decimal("0.0"), ge=0)
     master_remaining_budget: Decimal = Field(Decimal("0.0"), ge=0)
-    threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
+    threshold_petty: Decimal = Field(Decimal("10000.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -71,7 +71,7 @@ class ProjectCreate(BaseModel):
     project_cgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
     project_sgst_percentage: Decimal = Field(Decimal("9.0"), ge=0, le=100)
     completion_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
-    threshold_petty: Decimal = Field(Decimal("0.0"), ge=0)
+    threshold_petty: Decimal = Field(Decimal("10000.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
 
     @field_validator("project_name", mode="before")

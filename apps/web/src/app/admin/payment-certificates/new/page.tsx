@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
   ArrowLeft,
@@ -42,7 +42,16 @@ interface PCLineItem {
 }
 
 export default function NewPaymentCertificatePage() {
+  return (
+    <Suspense fallback={<div className="h-20 animate-pulse bg-slate-900 rounded-xl" />}>
+      <NewPaymentCertificateContent />
+    </Suspense>
+  );
+}
+
+function NewPaymentCertificateContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
 
@@ -93,14 +102,37 @@ export default function NewPaymentCertificatePage() {
     "/api/v1/settings/codes?active_only=true",
     fetcher,
   );
-  const fundCategories =
-    categories?.filter((c) => c.budget_type === "fund_transfer") || [];
+  const fundCategories = useMemo(() => {
+    return categories?.filter((c) => c.budget_type === "fund_transfer") || [];
+  }, [categories]);
 
   // Generate idempotency layer on mount
   useEffect(() => {
     idempotency.clear("PC_CREATE");
     setIdempotencyKey(idempotency.generate());
   }, []);
+
+  // Preselect Internal Fund Request and Petty Cash category from query params
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "internal") {
+      setIsWoLinked(false);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const typeParam = searchParams.get("type");
+    if (!isWoLinked && typeParam === "petty-cash" && fundCategories.length > 0 && !selectedCategoryId) {
+      const pettyCat = fundCategories.find(
+        (c) =>
+          c.category_name?.toLowerCase().includes("petty") ||
+          c.code?.toLowerCase().includes("petty")
+      );
+      if (pettyCat) {
+        setSelectedCategoryId(pettyCat._id || pettyCat.code_id || "");
+      }
+    }
+  }, [isWoLinked, fundCategories, selectedCategoryId, searchParams]);
 
   // Sync Category when WO selected
   useEffect(() => {

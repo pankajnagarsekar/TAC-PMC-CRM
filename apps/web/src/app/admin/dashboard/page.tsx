@@ -31,6 +31,7 @@ import ProjectMiniGantt from "@/components/dashboard/ProjectMiniGantt";
 import SCurveChart from "@/components/scheduler/SCurveChart";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
 import SchedulerCalendarView from "@/components/scheduler/SchedulerCalendarView";
+import PettyCashAlertBanner from "@/components/petty-cash/PettyCashAlertBanner";
 
 import { formatCurrencySafe, normalizeFinancial } from "@/lib/formatters";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -671,6 +672,13 @@ export default function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      {activeProject && (
+        <PettyCashAlertBanner
+          projectId={activeProject.project_id}
+          projectName={activeProject.project_name}
+        />
+      )}
 
       {activeProject && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-1000">

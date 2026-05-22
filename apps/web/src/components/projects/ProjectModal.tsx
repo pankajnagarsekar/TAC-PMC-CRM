@@ -54,7 +54,7 @@ export default function ProjectModal({
     project_cgst_percentage: 9,
     project_sgst_percentage: 9,
     completion_percentage: 0,
-    threshold_petty: 0,
+    threshold_petty: 10000,
     threshold_ovh: 0,
   });
 
@@ -77,7 +77,7 @@ export default function ProjectModal({
         project_cgst_percentage: project.project_cgst_percentage,
         project_sgst_percentage: project.project_sgst_percentage,
         completion_percentage: project.completion_percentage || 0,
-        threshold_petty: project.threshold_petty || 0,
+        threshold_petty: project.threshold_petty !== undefined ? project.threshold_petty : 10000,
         threshold_ovh: project.threshold_ovh || 0,
       });
 
@@ -104,7 +104,7 @@ export default function ProjectModal({
         project_cgst_percentage: globalSettings?.cgst_percentage ?? 9,
         project_sgst_percentage: globalSettings?.sgst_percentage ?? 9,
         completion_percentage: 0,
-        threshold_petty: 0,
+        threshold_petty: 10000,
         threshold_ovh: 0,
       });
       setBudgets({});
