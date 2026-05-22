@@ -27,6 +27,8 @@ class BudgetRevision:
         self.updated_at = data.get("updated_at") or datetime.now(timezone.utc)
         self.approved_at = data.get("approved_at")
         self.version = data.get("version", 1)
+        self.document_url = data.get("document_url")
+        self.document_name = data.get("document_name")
 
     @property
     def revision_amount(self) -> Decimal:
@@ -37,6 +39,8 @@ class BudgetRevision:
         """Transition to SUBMITTED."""
         if self.status != "DRAFT":
             raise ValueError(f"Cannot submit revision in status: {self.status}")
+        if not self.document_url:
+            raise ValueError("A supporting document must be uploaded before submitting the revision.")
         self.status = "SUBMITTED"
         self.submitted_by = user_id
         self.updated_at = datetime.now(timezone.utc)
@@ -77,4 +81,6 @@ class BudgetRevision:
             "updated_at": self.updated_at,
             "approved_at": self.approved_at,
             "version": self.version,
+            "document_url": self.document_url,
+            "document_name": self.document_name,
         }

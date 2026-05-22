@@ -439,6 +439,8 @@ class BudgetService:
             "status": "DRAFT",
             "created_by": user_id,
             "version": 1,
+            "document_url": revision_data.document_url,
+            "document_name": revision_data.document_name,
         }
 
         revision = BudgetRevisionDomain(revision_dict)
@@ -611,3 +613,87 @@ class BudgetService:
         return await self.revision_repo.list_by_project(
             project_id, organisation_id, category_id
         )
+
+    async def attach_document(
+        self, user: dict, revision_id: str, file_name: str, file_content: bytes
+    ) -> Dict[str, Any]:
+        """Attach a supporting document to a budget revision draft."""
+        import uuid
+        from app.core.storage import storage_manager
+
+        organisation_id = user["organisation_id"]
+        revision_doc = await self.revision_repo.get_by_id(revision_id, organisation_id=organisation_id)
+        if not revision_doc:
+            raise NotFoundError(f"Budget revision {revision_id} not found.")
+
+        revision = BudgetRevisionDomain(revision_doc)
+        if revision.status != "DRAFT":
+            raise ValidationError(f"Cannot upload attachments in status: {revision.status}")
+
+        # 1. Save to storage
+        file_ext = file_name.split(".")[-1] if "." in file_name else "pdf"
+        file_id = str(uuid.uuid4())
+        relative_path = f"organisations/{organisation_id}/revisions/{revision_id}/{file_id}.{file_ext}"
+        await storage_manager.save_file(file_content, relative_path)
+
+        # 2. Update revision record
+        revision.document_url = relative_path
+        revision.document_name = file_name
+        revision.updated_at = datetime.now(timezone.utc)
+
+        updated = await self.revision_repo.update(revision_id, revision.to_dict(), organisation_id=organisation_id)
+
+        # Audit
+        await self.audit_service.log_financial_event(
+            organisation_id=organisation_id,
+            entity_type="BUDGET_REVISION",
+            entity_id=revision_id,
+            action_type="ATTACH_DOCUMENT",
+            user_id=user["user_id"],
+            project_id=revision.project_id,
+            new_value={"document_url": relative_path, "document_name": file_name},
+        )
+
+        return updated
+
+    async def delete_document(self, user: dict, revision_id: str) -> Dict[str, Any]:
+        """Delete supporting document from a budget revision draft."""
+        from app.core.storage import storage_manager
+
+        organisation_id = user["organisation_id"]
+        revision_doc = await self.revision_repo.get_by_id(revision_id, organisation_id=organisation_id)
+        if not revision_doc:
+            raise NotFoundError(f"Budget revision {revision_id} not found.")
+
+        revision = BudgetRevisionDomain(revision_doc)
+        if revision.status != "DRAFT":
+            raise ValidationError(f"Cannot delete attachments in status: {revision.status}")
+
+        if not revision.document_url:
+            return revision.to_dict()
+
+        # 1. Delete from storage
+        try:
+            await storage_manager.delete_file(revision.document_url)
+        except Exception as e:
+            logger.error(f"Failed to delete file {revision.document_url} from storage: {e}")
+
+        # 2. Clear fields
+        revision.document_url = None
+        revision.document_name = None
+        revision.updated_at = datetime.now(timezone.utc)
+
+        updated = await self.revision_repo.update(revision_id, revision.to_dict(), organisation_id=organisation_id)
+
+        # Audit
+        await self.audit_service.log_financial_event(
+            organisation_id=organisation_id,
+            entity_type="BUDGET_REVISION",
+            entity_id=revision_id,
+            action_type="DELETE_DOCUMENT",
+            user_id=user["user_id"],
+            project_id=revision.project_id,
+            new_value={},
+        )
+
+        return updated

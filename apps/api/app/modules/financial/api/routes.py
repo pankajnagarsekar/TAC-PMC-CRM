@@ -847,3 +847,83 @@ async def list_budget_revisions(
     """List all budget revisions for a project."""
     result = await budget_service.list_revisions(user, project_id, category_id)
     return GenericResponse(data=result)
+
+
+@router.post(
+    "/budgets/revisions/{revision_id}/attachments",
+    response_model=GenericResponse[BudgetRevision],
+    tags=["Budgets"],
+)
+async def attach_budget_revision_document(
+    revision_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Attach a supporting PDF or image document to a budget revision."""
+    allowed_extensions = (".pdf", ".png", ".jpg", ".jpeg")
+    if not file.filename.lower().endswith(allowed_extensions):
+        from app.modules.shared.domain.exceptions import ValidationError
+        raise ValidationError("Only PDF and image (PNG, JPG, JPEG) files are allowed as supporting documents.")
+
+    content = await file.read()
+    result = await budget_service.attach_document(
+        user, revision_id, file.filename, content
+    )
+
+    return GenericResponse(data=result, message="Document attached successfully")
+
+
+@router.delete(
+    "/budgets/revisions/{revision_id}/attachments",
+    response_model=GenericResponse[BudgetRevision],
+    tags=["Budgets"],
+)
+async def delete_budget_revision_document(
+    revision_id: str,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Delete a supporting document from a budget revision."""
+    result = await budget_service.delete_document(user, revision_id)
+    return GenericResponse(data=result, message="Document deleted successfully")
+
+
+@router.get(
+    "/budgets/revisions/{revision_id}/document",
+    tags=["Budgets"],
+)
+async def download_budget_revision_document(
+    revision_id: str,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Download the supporting document for a budget revision."""
+    from fastapi import HTTPException
+    from fastapi.responses import FileResponse
+    from app.core.storage import storage_manager
+
+    organisation_id = user["organisation_id"]
+    revision_doc = await budget_service.revision_repo.get_by_id(revision_id, organisation_id=organisation_id)
+    if not revision_doc:
+        raise HTTPException(status_code=404, detail=f"Budget revision {revision_id} not found.")
+
+    document_url = revision_doc.get("document_url")
+    document_name = revision_doc.get("document_name") or "supporting_document.pdf"
+    if not document_url:
+        raise HTTPException(status_code=404, detail="No supporting document attached to this budget revision.")
+
+    full_path = storage_manager.get_file_path(document_url)
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail="The attached file does not exist in storage.")
+
+    import mimetypes
+    media_type, _ = mimetypes.guess_type(str(full_path))
+    media_type = media_type or "application/octet-stream"
+
+    return FileResponse(
+        path=full_path,
+        filename=document_name,
+        media_type=media_type,
+    )
+

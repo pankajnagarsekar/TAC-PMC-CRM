@@ -342,6 +342,8 @@ class BudgetRevision(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     approved_at: Optional[datetime] = None
     version: int = 1
+    document_url: Optional[str] = None
+    document_name: Optional[str] = None
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
@@ -351,6 +353,8 @@ class BudgetRevisionCreate(BaseModel):
     category_id: str
     new_budget: Decimal = Field(..., ge=0)
     reason: str = Field(..., min_length=5)
+    document_url: Optional[str] = None
+    document_name: Optional[str] = None
 
 
 class BudgetRevisionAction(BaseModel):

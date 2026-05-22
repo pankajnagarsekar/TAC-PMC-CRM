@@ -6,6 +6,11 @@ import type {
   ScheduleTask,
   ProjectCalendar,
 } from "@/types/schedule.types";
+import type {
+  BudgetRevision,
+  BudgetRevisionCreate,
+  BudgetRevisionAction,
+} from "@/types/api";
 import { toast } from "sonner";
 
 const BACKEND_URL =
@@ -285,4 +290,53 @@ export const portfolioApi = {
 
 export const identityApi = {
   listUsers: () => api.get("/api/v1/users/").then(res => res.data),
+};
+
+export const budgetRevisionApi = {
+  create: (data: BudgetRevisionCreate) =>
+    api.post<BudgetRevision>("/api/v1/budgets/revisions", data).then((res) => res.data),
+
+  submit: (revisionId: string) =>
+    api.post<BudgetRevision>(`/api/v1/budgets/revisions/${revisionId}/submit`).then((res) => res.data),
+
+  approve: (revisionId: string) =>
+    api.post<BudgetRevision>(`/api/v1/budgets/revisions/${revisionId}/approve`).then((res) => res.data),
+
+  reject: (revisionId: string, action: BudgetRevisionAction) =>
+    api.post<BudgetRevision>(`/api/v1/budgets/revisions/${revisionId}/reject`, action).then((res) => res.data),
+
+  list: (projectId: string, categoryId?: string) =>
+    api
+      .get<BudgetRevision[]>(`/api/v1/budgets/revisions/project/${projectId}`, {
+        params: categoryId ? { category_id: categoryId } : undefined,
+      })
+      .then((res) => res.data),
+
+  uploadAttachment: (revisionId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api
+      .post<BudgetRevision>(`/api/v1/budgets/revisions/${revisionId}/attachments`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((res) => res.data);
+  },
+
+  deleteAttachment: (revisionId: string) =>
+    api.delete<BudgetRevision>(`/api/v1/budgets/revisions/${revisionId}/attachments`).then((res) => res.data),
+
+  downloadAttachment: async (revisionId: string, documentName: string) => {
+    const response = await api.get(`/api/v1/budgets/revisions/${revisionId}/document`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data], { type: response.headers["content-type"] });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", documentName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };

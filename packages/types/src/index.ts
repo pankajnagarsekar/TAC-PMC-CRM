@@ -666,3 +666,44 @@ export interface ProjectCalendar {
   lunch_end: string;
   exceptions: CalendarException[];
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// BUDGET REVISION (VARIATION ORDER)
+// ──────────────────────────────────────────────────────────────────────────
+export type BudgetRevisionStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+
+export interface BudgetRevision {
+  _id?: string;
+  id?: string;
+  organisation_id: string;
+  project_id: string;
+  category_id: string;
+  old_budget: number;
+  new_budget: number;
+  revision_amount: number;
+  reason: string;
+  status: BudgetRevisionStatus;
+  created_by: string;
+  submitted_by?: string;
+  approved_by?: string;
+  created_at: string;
+  updated_at: string;
+  approved_at?: string;
+  version: number;
+  document_url?: string;
+  document_name?: string;
+}
+
+export interface BudgetRevisionCreate {
+  project_id: string;
+  category_id: string;
+  new_budget: number;
+  reason: string;
+  document_url?: string;
+  document_name?: string;
+}
+
+export interface BudgetRevisionAction {
+  expected_version: number;
+  comment?: string;
+}
