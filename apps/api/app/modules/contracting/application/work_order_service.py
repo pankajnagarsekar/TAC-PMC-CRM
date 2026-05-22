@@ -12,7 +12,7 @@ from app.modules.project.infrastructure.repository import (
     BudgetRepository,
     ProjectRepository,
 )
-from app.modules.shared.domain.exceptions import NotFoundError, ValidationError
+from app.modules.shared.domain.exceptions import NotFoundError, ValidationError, DomainError
 from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.shared.domain.state_machine import StateMachine
 
@@ -182,9 +182,8 @@ class WorkOrderService:
                     new_wo = await uow.work_orders.create(wo_dict, session=uow.session)
 
                     # BUG-007: Restore Audit Log
-                    await self.audit_service.log_action(
+                    await self.audit_service.log_financial_event(
                         organisation_id=organisation_id,
-                        module_name="WORK_ORDERS",
                         entity_type="WORK_ORDER",
                         entity_id=str(new_wo["id"]),
                         action_type="CREATE",
@@ -431,9 +430,8 @@ class WorkOrderService:
                 )
 
             # Audit Log
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="WORK_ORDERS",
                 entity_type="WORK_ORDER",
                 entity_id=wo_id,
                 action_type="UPDATE",
@@ -509,9 +507,8 @@ class WorkOrderService:
                 return False
 
             # Audit Log
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="WORK_ORDERS",
                 entity_type="WORK_ORDER",
                 entity_id=wo_id,
                 action_type="DELETE",
@@ -669,6 +666,8 @@ class WorkOrderService:
                 raise NotFoundError("Work Order", wo_id)
 
             # Sovereign State Transition
+            if wo_data.get("status") != "Pending":
+                raise DomainError("Only Pending Work Orders can be approved")
             StateMachine.validate_transition("WORK_ORDER", wo_data.get("status", "Draft"), "Approved")
 
             result = await uow.work_orders.update(

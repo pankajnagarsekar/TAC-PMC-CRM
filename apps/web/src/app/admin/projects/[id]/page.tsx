@@ -24,6 +24,7 @@ import { formatCurrency } from "@tac-pmc/ui";
 import { useProjectStore } from "@/store/projectStore";
 import { useToast } from "@/hooks/use-toast";
 import VersionConflictModal from "@/components/ui/VersionConflictModal";
+import ReasonConfirmDialog from "@/components/ui/ReasonConfirmDialog";
 import LinkedCertificates from "@/components/work-orders/LinkedCertificates";
 import LinkedWorkOrders from "@/components/work-orders/LinkedWorkOrders";
 import KPICard from "@/components/ui/KPICard";
@@ -55,6 +56,18 @@ export default function ProjectDetailPage() {
 
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [isEditingBudgets, setIsEditingBudgets] = useState(false);
+  const [reasonModal, setReasonModal] = useState<{
+    isOpen: boolean;
+    data: any;
+    oldValue: any;
+    node: any;
+  }>({
+    isOpen: false,
+    data: null,
+    oldValue: null,
+    node: null,
+  });
 
   // Sync project context for dashboard compatibility
   useEffect(() => {
@@ -98,15 +111,16 @@ export default function ProjectDetailPage() {
         headerName: "Approved Budget",
         field: "original_budget",
         flex: 1.2,
-        editable: true,
+        editable: isEditingBudgets,
         cellEditor: NumericCellEditor,
-        cellClass: (params) => params.value > 0
+        cellClass: (params) => (params.value > 0
           ? "font-mono text-foreground"
-          : "font-mono text-slate-400 dark:text-slate-500",
+          : "font-mono text-slate-400 dark:text-slate-500") + (isEditingBudgets ? " bg-orange-500/5 cursor-edit" : ""),
         minWidth: 160,
         valueFormatter: (params) => formatCurrency(params.value),
         onCellValueChanged: async (params: NewValueParams<DerivedFinancialState>) => {
-          const { _id, project_id, category_id, original_budget, version } = params.data;
+          if (params.newValue === params.oldValue) return;
+          const { project_id, category_id, original_budget } = params.data;
           if (!project_id || !category_id) return;
 
           // BUG-003: Strict UI Validation
@@ -124,37 +138,16 @@ export default function ProjectDetailPage() {
             return;
           }
 
-          setSavingId(_id || category_id);
-          try {
-            await api.patch(`/api/v1/budgets/project/${project_id}/category/${category_id}`, {
-              original_budget: parsed,
-              expected_version: version || 1,
-            });
-            await mutateFinancials();
-            await mutateProject(); // Refresh master totals
-          } catch (error: unknown) {
-            const err = error as { response?: { status?: number; data?: { error?: { message?: string } } } };
-            if (err.response?.status === 409) {
-              setIsConflictModalOpen(true);
-            } else if (err.response?.status === 422) {
-              const msg = err.response.data?.error?.message || "Budget cannot be below committed amount.";
-              toast({
-                title: "Budget Restriction",
-                description: msg,
-                variant: "destructive",
-              });
-            } else {
-              toast({
-                title: "Update Failed",
-                description: "Failed to update budget. Please check permissions.",
-                variant: "destructive",
-              });
-            }
-            // Restore old value on failure
-            params.node?.setDataValue("original_budget", params.oldValue);
-          } finally {
-            setSavingId(null);
-          }
+          // Capture for modal confirmation
+          setReasonModal({
+            isOpen: true,
+            data: { ...params.data, original_budget: parsed },
+            oldValue: params.oldValue,
+            node: params.node,
+          });
+
+          // Revert immediately in UI until confirmed
+          params.node?.setDataValue("original_budget", params.oldValue);
         },
       },
       {
@@ -190,7 +183,7 @@ export default function ProjectDetailPage() {
         minWidth: 160,
       },
     ],
-    [mutateFinancials, mutateProject, savingId],
+    [mutateFinancials, mutateProject, savingId, isEditingBudgets],
   );
 
   if (projectError || financialsError) {
@@ -342,8 +335,28 @@ export default function ProjectDetailPage() {
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
             Category-wise Financials
           </h2>
-          <div className="text-[9px] text-zinc-500 dark:text-slate-500 uppercase font-black tracking-[0.2em] bg-zinc-50 dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-slate-800 shadow-sm transition-colors">
-            Inline Modification Enabled
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsEditingBudgets(!isEditingBudgets)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                isEditingBudgets
+                  ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-500 hover:bg-rose-500/20"
+                  : "bg-zinc-100 dark:bg-slate-900 border-zinc-200 dark:border-slate-800 text-zinc-500 dark:text-slate-400 hover:bg-zinc-200 dark:hover:bg-slate-800"
+              }`}
+            >
+              {isEditingBudgets ? (
+                <>
+                  <AlertTriangle size={12} /> Disable Editing
+                </>
+              ) : (
+                <>
+                  <Save size={12} /> Enable Budget Editing
+                </>
+              )}
+            </button>
+            <div className="text-[9px] text-zinc-500 dark:text-slate-500 uppercase font-black tracking-[0.2em] bg-zinc-50 dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-slate-800 shadow-sm transition-colors">
+              {isEditingBudgets ? "Modification Active" : "View Only Mode"}
+            </div>
           </div>
         </div>
 
@@ -353,7 +366,7 @@ export default function ProjectDetailPage() {
             columnDefs={columnDefs}
             loading={financialsLoading}
             height="600px"
-            editable={true}
+            editable={isEditingBudgets}
             onCellValueChanged={columnDefs[1].onCellValueChanged}
           />
         </div>
@@ -364,6 +377,48 @@ export default function ProjectDetailPage() {
         <LinkedWorkOrders projectId={projectId} />
         <LinkedCertificates projectId={projectId} />
       </div>
+
+      {/* Reason Confirmation Modal */}
+      <ReasonConfirmDialog
+        isOpen={reasonModal.isOpen}
+        title="Confirm Budget Modification"
+        description={`You are changing the budget for ${reasonModal.data?.category_name || 'this category'} from ${formatCurrency(reasonModal.oldValue)} to ${formatCurrency(reasonModal.data?.original_budget)}. This action will be audited.`}
+        onClose={() => setReasonModal(prev => ({ ...prev, isOpen: false }))}
+        isLoading={!!savingId}
+        onConfirm={async (reason) => {
+          const { project_id, category_id, original_budget, version, _id } = reasonModal.data;
+          setSavingId(_id || category_id);
+          try {
+            await api.patch(`/api/v1/budgets/project/${project_id}/category/${category_id}`, {
+              original_budget,
+              expected_version: version || 1,
+              reason,
+            });
+            await mutateFinancials();
+            await mutateProject();
+            setReasonModal(prev => ({ ...prev, isOpen: false }));
+            toast({
+              title: "Budget Updated",
+              description: "Modification has been recorded with the provided justification.",
+            });
+          } catch (error: unknown) {
+            const err = error as { response?: { status?: number; data?: { error?: { message?: string } } } };
+            if (err.response?.status === 409) {
+              setIsConflictModalOpen(true);
+            } else {
+              const msg = err.response?.data?.error?.message || "Failed to update budget.";
+              toast({
+                title: "Update Failed",
+                description: msg,
+                variant: "destructive",
+              });
+            }
+            setReasonModal(prev => ({ ...prev, isOpen: false }));
+          } finally {
+            setSavingId(null);
+          }
+        }}
+      />
 
       {/* Version Conflict Modal */}
       <VersionConflictModal

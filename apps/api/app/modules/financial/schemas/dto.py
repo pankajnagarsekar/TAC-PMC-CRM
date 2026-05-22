@@ -156,6 +156,11 @@ class PaymentCertificateCreate(BaseModel):
     idempotency_key: Optional[str] = None
 
 
+class RejectPaymentRequest(BaseModel):
+    reason: str = Field(..., min_length=10)
+    expected_version: int
+
+
 # DERIVED STATE DTOs
 class DerivedFinancialState(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -316,7 +321,41 @@ class BudgetUpdate(BaseModel):
 
 class BudgetCategoryUpdate(BaseModel):
     original_budget: Decimal = Field(..., ge=0)
+    reason: str = Field(..., min_length=5)
     expected_version: int = 1
+
+
+class BudgetRevision(BaseModel):
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    organisation_id: str
+    project_id: str
+    category_id: str
+    old_budget: Decimal
+    new_budget: Decimal
+    revision_amount: Decimal
+    reason: str
+    status: Literal["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"] = "DRAFT"
+    created_by: str
+    submitted_by: Optional[str] = None
+    approved_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    approved_at: Optional[datetime] = None
+    version: int = 1
+
+    model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
+
+
+class BudgetRevisionCreate(BaseModel):
+    project_id: str
+    category_id: str
+    new_budget: Decimal = Field(..., ge=0)
+    reason: str = Field(..., min_length=5)
+
+
+class BudgetRevisionAction(BaseModel):
+    expected_version: int = 1
+    comment: Optional[str] = None
 
 
 class BudgetForecast(BaseModel):

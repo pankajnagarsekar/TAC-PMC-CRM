@@ -8,7 +8,7 @@ Enforces invariants via domain model and persists via repository.
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 
@@ -17,8 +17,9 @@ from app.modules.shared.domain.financial_engine import FinancialEngine
 from app.modules.shared.application.audit_service import AuditService
 
 from ..domain.budget import Budget
-from ..infrastructure.repository import BudgetRepository
-from ..schemas.dto import BudgetCreate, BudgetUpdate
+from ..domain.revision import BudgetRevision as BudgetRevisionDomain
+from ..infrastructure.repository import BudgetRepository, BudgetRevisionRepository, FinancialStateRepository
+from ..schemas.dto import BudgetCreate, BudgetUpdate, BudgetRevisionCreate, BudgetRevisionAction
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,8 @@ class BudgetService:
         self.db = db
         self.audit_service = audit_service
         self.budget_repo = BudgetRepository(db)
+        self.revision_repo = BudgetRevisionRepository(db)
+        self.financial_state_repo = FinancialStateRepository(db)
 
     async def create_budget(
         self, user: dict, project_id: str, budget_data: BudgetCreate
@@ -74,9 +77,8 @@ class BudgetService:
         budget_id = str(created["_id"])
 
         # Audit
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="FINANCIAL_MANAGEMENT",
             entity_type="BUDGET",
             entity_id=budget_id,
             action_type="CREATE",
@@ -160,9 +162,8 @@ class BudgetService:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         # Audit
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="FINANCIAL_MANAGEMENT",
             entity_type="BUDGET",
             entity_id=budget_id,
             action_type="UPDATE",
@@ -227,9 +228,8 @@ class BudgetService:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         # Audit
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="FINANCIAL_MANAGEMENT",
             entity_type="BUDGET",
             entity_id=budget_id,
             action_type="UPDATE",
@@ -318,9 +318,8 @@ class BudgetService:
         if not updated:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="FINANCIAL_MANAGEMENT",
             entity_type="BUDGET",
             entity_id=budget_id,
             action_type="TRANSITION",
@@ -374,9 +373,8 @@ class BudgetService:
         if not updated:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="FINANCIAL_MANAGEMENT",
             entity_type="BUDGET",
             entity_id=budget_id,
             action_type="TRANSITION",
@@ -408,3 +406,208 @@ class BudgetService:
             project_id, organisation_id, limit
         )
         return {"items": budgets, "count": len(budgets)}
+
+    async def create_revision(
+        self, user: dict, revision_data: BudgetRevisionCreate
+    ) -> Dict[str, Any]:
+        """
+        Create a new budget revision (Variation Order).
+        """
+        organisation_id = user["organisation_id"]
+        user_id = user.get("user_id")
+
+        # Fetch current budget for the category
+        budget_query = {
+            "project_id": revision_data.project_id,
+            "category_id": revision_data.category_id,
+            "organisation_id": organisation_id
+        }
+        current_budget_doc = await self.budget_repo.find_one(budget_query)
+        if not current_budget_doc:
+            raise NotFoundError(f"Budget for category {revision_data.category_id} not found.")
+
+        old_budget = Decimal(str(current_budget_doc.get("original_budget", 0)))
+
+        # Build revision domain model
+        revision_dict = {
+            "organisation_id": organisation_id,
+            "project_id": revision_data.project_id,
+            "category_id": revision_data.category_id,
+            "old_budget": old_budget,
+            "new_budget": revision_data.new_budget,
+            "reason": revision_data.reason,
+            "status": "DRAFT",
+            "created_by": user_id,
+            "version": 1,
+        }
+
+        revision = BudgetRevisionDomain(revision_dict)
+        
+        # Persist
+        created = await self.revision_repo.create(revision.to_dict())
+        
+        # Audit
+        await self.audit_service.log_financial_event(
+            organisation_id=organisation_id,
+            entity_type="BUDGET_REVISION",
+            entity_id=str(created["_id"]),
+            action_type="CREATE",
+            user_id=user_id,
+            project_id=revision_data.project_id,
+            new_value=created,
+        )
+
+        return created
+
+    async def submit_revision(
+        self, user: dict, revision_id: str
+    ) -> Dict[str, Any]:
+        """
+        Submit a budget revision for approval.
+        """
+        organisation_id = user["organisation_id"]
+        user_id = user.get("user_id")
+
+        revision_doc = await self.revision_repo.get_by_id(revision_id, organisation_id=organisation_id)
+        revision = BudgetRevisionDomain(revision_doc)
+        
+        revision.submit(user_id)
+        
+        updated = await self.revision_repo.update(revision_id, revision.to_dict(), organisation_id=organisation_id)
+        
+        # Audit
+        await self.audit_service.log_financial_event(
+            organisation_id=organisation_id,
+            entity_type="BUDGET_REVISION",
+            entity_id=revision_id,
+            action_type="SUBMIT",
+            user_id=user_id,
+            project_id=revision.project_id,
+            new_value=updated,
+        )
+
+        return updated
+
+    async def reject_revision(
+        self, user: dict, revision_id: str, action: BudgetRevisionAction
+    ) -> Dict[str, Any]:
+        """
+        Reject a budget revision with a reason.
+        """
+        organisation_id = user["organisation_id"]
+        user_id = user.get("user_id")
+
+        if not action.comment:
+            raise ValidationError("Rejection reason (comment) is mandatory.")
+
+        revision_doc = await self.revision_repo.get_by_id(revision_id, organisation_id=organisation_id)
+        revision = BudgetRevisionDomain(revision_doc)
+        
+        revision.reject(user_id, action.comment)
+        
+        updated = await self.revision_repo.update(revision_id, revision.to_dict(), organisation_id=organisation_id)
+        
+        # Audit
+        await self.audit_service.log_financial_event(
+            organisation_id=organisation_id,
+            entity_type="BUDGET_REVISION",
+            entity_id=revision_id,
+            action_type="REJECT",
+            user_id=user_id,
+            project_id=revision.project_id,
+            new_value=updated,
+        )
+
+        return updated
+
+    async def approve_revision(
+        self, user: dict, revision_id: str
+    ) -> Dict[str, Any]:
+        """
+        Approve a budget revision and atomically update the project budget.
+        """
+        organisation_id = user["organisation_id"]
+        user_id = user.get("user_id")
+
+        # 1. Fetch Revision
+        revision_doc = await self.revision_repo.get_by_id(revision_id, organisation_id=organisation_id)
+        revision = BudgetRevisionDomain(revision_doc)
+        
+        if revision.status == "APPROVED":
+            raise ValidationError("Revision is already approved.")
+
+        # For simplicity in this phase, we assume it was submitted or we allow direct approval by authorized users
+        if revision.status == "DRAFT":
+            revision.submit(user_id)
+        
+        revision.approve(user_id)
+
+        # 2. Atomic Update using Transaction (if supported by environment, else sequential with rollback)
+        # For now, we perform sequential updates as the local environment might not have replica sets for transactions
+        async with await self.db.client.start_session() as session:
+            async with session.start_transaction():
+                # Update Revision Status
+                await self.revision_repo.collection.update_one(
+                    {"_id": ObjectId(revision_id)},
+                    {"$set": revision.to_dict()},
+                    session=session
+                )
+
+                # Update Category Budget
+                budget_query = {
+                    "project_id": revision.project_id,
+                    "category_id": revision.category_id,
+                    "organisation_id": organisation_id
+                }
+                budget_update = {
+                    "$set": {
+                        "original_budget": FinancialEngine.to_d128(revision.new_budget),
+                        "updated_at": datetime.now(timezone.utc)
+                    },
+                    "$inc": {"version": 1}
+                }
+                
+                budget_result = await self.budget_repo.collection.update_one(
+                    budget_query, budget_update, session=session
+                )
+                
+                if budget_result.matched_count == 0:
+                    raise NotFoundError("Target budget for revision not found.")
+
+                # Update Financial State (Derived State)
+                state_update = {
+                    "$set": {
+                        "original_budget": FinancialEngine.to_d128(revision.new_budget),
+                        "last_updated": datetime.now(timezone.utc)
+                    },
+                    "$inc": {"version": 1}
+                }
+                await self.financial_state_repo.collection.update_one(
+                    budget_query, state_update, session=session
+                )
+
+        # 3. Audit
+        await self.audit_service.log_financial_event(
+            organisation_id=organisation_id,
+            entity_type="BUDGET_REVISION",
+            entity_id=revision_id,
+            action_type="APPROVE",
+            user_id=user_id,
+            project_id=revision.project_id,
+            old_value=revision_doc,
+            new_value=revision.to_dict(),
+        )
+
+        logger.info(f"Budget revision approved: {revision_id} for project {revision.project_id}")
+        return revision.to_dict()
+
+    async def list_revisions(
+        self, user: dict, project_id: str, category_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        List budget revisions for a project or specific category.
+        """
+        organisation_id = user["organisation_id"]
+        return await self.revision_repo.list_by_project(
+            project_id, organisation_id, category_id
+        )

@@ -42,6 +42,13 @@ async def test_work_order_update_recalculates_budget(client: AsyncClient, test_d
     print(f"DEBUG_WO: {wo}")
     wo_id = wo["id"]
 
+    # Transition from Draft -> Pending (version 1 -> 2)
+    resp = await client.patch(f"/api/v1/work-orders/{wo_id}", json={
+        "status": "Pending",
+        "expected_version": 1
+    }, headers={"X-Request-Nonce": "upd-nonce-0"})
+    assert resp.status_code == 200
+
     # Verify Cat 1 budget (5000 + 18% GST = 5900)
     budget1 = await test_db.financial_state.find_one({"project_id": test_project_id, "category_id": cat1_id})
     print(f"DEBUG: Cat 1 committed after create: {FinancialEngine.to_decimal(budget1['committed_value'])}")
@@ -51,7 +58,7 @@ async def test_work_order_update_recalculates_budget(client: AsyncClient, test_d
     resp = await client.patch(f"/api/v1/work-orders/{wo_id}", json={
         "category_id": cat2_id,
         "line_items": [{"sr_no": 1, "qty": 1, "rate": 7000}],
-        "expected_version": 1
+        "expected_version": 2
     }, headers={"X-Request-Nonce": "upd-nonce-1"})
     if resp.status_code != 200:
         print(f"DEBUG_422: {resp.json()}")
@@ -100,9 +107,9 @@ async def test_work_order_delete_success(client: AsyncClient, test_db, test_user
     )
     wo_id = resp.json()["data"]["id"]
 
-    # Check budget before delete (3000 + 18% GST = 3540)
+    # Check budget before delete (Draft WO has 0 committed impact)
     budget = await test_db.financial_state.find_one({"category_id": cat_id})
-    assert FinancialEngine.to_decimal(budget["committed_value"]) == 3540
+    assert FinancialEngine.to_decimal(budget["committed_value"]) == 0
 
     # Delete WO
     resp = await client.delete(f"/api/v1/work-orders/{wo_id}")
@@ -167,7 +174,8 @@ async def test_budget_validation_prevents_low_budget(test_db, test_user, test_pr
     with pytest.raises(ValidationError) as exc:
         await service.update_budget(
             test_user, test_project_id, cat_id,
-            Decimal("4000.0"), expected_version=1
+            Decimal("4000.0"), expected_version=1,
+            reason="test reason"
         )
 
     assert "below committed amount" in str(exc.value)

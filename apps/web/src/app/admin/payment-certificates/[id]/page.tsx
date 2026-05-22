@@ -45,6 +45,13 @@ export default function PaymentCertificateDetail({
   const { toast } = useToast();
 
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isRaisingPayment, setIsRaisingPayment] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConflictOpen, setIsConflictOpen] = useState(false);
   const [showPaidDialog, setShowPaidDialog] = useState(false);
@@ -53,6 +60,7 @@ export default function PaymentCertificateDetail({
     allocation_remaining?: number;
     master_remaining_budget?: number;
   } | null>(null);
+
 
   // Fetchers
   const {
@@ -115,6 +123,113 @@ export default function PaymentCertificateDetail({
       setShowPaidDialog(false);
     }
   };
+
+  const handleSubmitForApproval = async () => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await api.post(`/api/v1/payments/${id}/submit?expected_version=${pc?.version || 0}`);
+      toast({
+        title: "Success",
+        description: "Payment Certificate submitted for approval.",
+      });
+      await mutate();
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status: number; data?: { detail?: string } }; message?: string };
+      if (axiosError.response?.status === 409) {
+        setIsConflictOpen(true);
+      } else {
+        setError(
+          axiosError.response?.data?.detail || axiosError.message || "Failed to submit for approval.",
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      setIsApproving(true);
+      setError(null);
+      await api.post(`/api/v1/payments/${id}/approve?expected_version=${pc?.version || 0}&comment=Approved`);
+      toast({
+        title: "Success",
+        description: "Payment Certificate approved successfully.",
+      });
+      await mutate();
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status: number; data?: { detail?: string } }; message?: string };
+      if (axiosError.response?.status === 409) {
+        setIsConflictOpen(true);
+      } else {
+        setError(
+          axiosError.response?.data?.detail || axiosError.message || "Failed to approve payment.",
+        );
+      }
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (rejectionReason.length < 10) {
+      setRejectionError("Rejection reason must be at least 10 characters.");
+      return;
+    }
+    try {
+      setIsRejecting(true);
+      setError(null);
+      setRejectionError(null);
+      await api.post(`/api/v1/payments/${id}/reject`, {
+        reason: rejectionReason,
+        expected_version: pc?.version || 0,
+      });
+      toast({
+        title: "Success",
+        description: "Payment Certificate rejected.",
+      });
+      setShowRejectDialog(false);
+      setRejectionReason("");
+      await mutate();
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status: number; data?: { detail?: string } }; message?: string };
+      if (axiosError.response?.status === 409) {
+        setIsConflictOpen(true);
+      } else {
+        setError(
+          axiosError.response?.data?.detail || axiosError.message || "Failed to reject payment.",
+        );
+      }
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const handleRaisePayment = async () => {
+    try {
+      setIsRaisingPayment(true);
+      setError(null);
+      await api.post(`/api/v1/payments/${id}/raise-payment?expected_version=${pc?.version || 0}`);
+      toast({
+        title: "Success",
+        description: "Payment raised successfully.",
+      });
+      await mutate();
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status: number; data?: { detail?: string } }; message?: string };
+      if (axiosError.response?.status === 409) {
+        setIsConflictOpen(true);
+      } else {
+        setError(
+          axiosError.response?.data?.detail || axiosError.message || "Failed to raise payment.",
+        );
+      }
+    } finally {
+      setIsRaisingPayment(false);
+    }
+  };
+
 
   const handleExportPDF = async () => {
     try {
@@ -224,17 +339,25 @@ export default function PaymentCertificateDetail({
                 {pc.pc_ref}
               </h1>
               <span
-                className={`px-2.5 py-1 text-xs font-bold uppercase tracking-widest rounded-full border ${pc.status === "Paid"
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                  : pc.status === "Approved" || pc.status === "Processing"
-                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                    : pc.status === "Draft"
-                      ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
-                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                  }`}
+                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${
+                  pc.status === "Paid"
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : pc.status === "Approved"
+                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      : pc.status === "Pending"
+                        ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                        : pc.status === "Processing"
+                          ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          : pc.status === "Rejected"
+                            ? "bg-red-500/10 text-red-400 border-red-500/20"
+                            : pc.status === "Cancelled"
+                              ? "bg-red-500/10 text-red-400 border-red-500/20"
+                              : "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                }`}
               >
-                {pc.status}
+                {pc.status === "Pending" ? "Submitted" : pc.status === "Processing" ? "Payment Raised" : pc.status}
               </span>
+
 
               {pc.fund_request ? (
                 <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-amber-500 bg-amber-500/5 rounded-full border border-amber-500/20">
@@ -252,24 +375,93 @@ export default function PaymentCertificateDetail({
           </div>
         </div>
 
-        <div className="flex gap-3">
-          {!["Cancelled", "Approved", "Paid"].includes(pc.status) && (
+        <div className="flex gap-3 items-center">
+          {pc.status === "Draft" && (
+            <button
+              onClick={handleSubmitForApproval}
+              disabled={isSubmitting}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 disabled:opacity-50 text-sm"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText size={16} />
+              )}
+              Submit for Approval
+            </button>
+          )}
+
+          {pc.status === "Pending" && (
+            <>
+              <button
+                onClick={handleApprove}
+                disabled={isApproving}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95 disabled:opacity-50 text-sm"
+              >
+                {isApproving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle size={16} />
+                )}
+                Approve PC
+              </button>
+              <button
+                onClick={() => setShowRejectDialog(true)}
+                disabled={isRejecting}
+                className="flex items-center gap-2 bg-transparent hover:bg-red-500/10 border border-red-500/30 hover:border-red-500 text-red-400 px-4 py-2 rounded-lg font-semibold transition-all active:scale-95 disabled:opacity-50 text-sm"
+              >
+                Reject PC
+              </button>
+            </>
+          )}
+
+          {pc.status === "Approved" && (
+            <>
+              <button
+                onClick={handleRaisePayment}
+                disabled={isRaisingPayment}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg hover:shadow-amber-500/20 active:scale-95 disabled:opacity-50 text-sm"
+              >
+                {isRaisingPayment ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileText size={16} />
+                )}
+                Raise Payment
+              </button>
+              <button
+                onClick={() => setShowPaidDialog(true)}
+                disabled={isMarkingPaid}
+                className="flex items-center gap-2 bg-emerald-700/50 hover:bg-emerald-600 text-emerald-300 border border-emerald-500/30 px-4 py-2 rounded-lg font-semibold transition-all active:scale-95 disabled:opacity-50 text-sm"
+              >
+                {isMarkingPaid ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle size={16} />
+                )}
+                Mark as Paid
+              </button>
+            </>
+          )}
+
+          {pc.status === "Processing" && (
             <button
               onClick={() => setShowPaidDialog(true)}
               disabled={isMarkingPaid}
-              className="admin-only flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg disabled:opacity-50"
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95 disabled:opacity-50 text-sm"
             >
               {isMarkingPaid ? (
-                <Lock size={16} className="animate-pulse" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <CheckCircle size={16} />
               )}
               Mark as Paid & Commit Ledger
             </button>
           )}
+
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-all active:scale-95"
           >
             <Download size={14} /> Download PDF
           </button>
@@ -277,10 +469,28 @@ export default function PaymentCertificateDetail({
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-lg text-sm font-medium">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-lg text-sm font-medium animate-in slide-in-from-top-2 duration-300">
           {error}
         </div>
       )}
+
+      {pc.status === "Rejected" && (
+        <div className="bg-red-950/20 border border-red-900/50 text-red-400 p-5 rounded-xl shadow-lg flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 text-red-400 font-bold">
+            <AlertTriangle size={18} />
+            <span>Payment Certificate Rejected</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            <strong>Reason for Rejection:</strong> {pc.rejected_reason || "No reason provided."}
+          </p>
+          {pc.rejected_at && (
+            <p className="text-xs text-slate-500">
+              Rejected on {formatDate(pc.rejected_at)}
+            </p>
+          )}
+        </div>
+      )}
+
 
       {/* SUPPORTING DOCUMENTS SECTION (Added per Request) */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
@@ -626,6 +836,78 @@ export default function PaymentCertificateDetail({
               className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors"
             >
               Done
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showRejectDialog}
+        onOpenChange={(open) => {
+          setShowRejectDialog(open);
+          if (!open) {
+            setRejectionReason("");
+            setRejectionError(null);
+          }
+        }}
+      >
+        <DialogContent className="bg-slate-950 border-slate-900 text-white max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl font-bold text-red-400">
+              <AlertTriangle className="text-red-500" size={24} />
+              Reject Payment Certificate
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-slate-300 text-sm">
+              Please provide a clear justification for rejecting this Payment Certificate. The contractor/team will be notified of the reason.
+            </p>
+            <div className="space-y-2">
+              <label htmlFor="rejection-reason" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Rejection Reason (Minimum 10 characters)
+              </label>
+              <textarea
+                id="rejection-reason"
+                value={rejectionReason}
+                onChange={(e) => {
+                  setRejectionReason(e.target.value);
+                  if (e.target.value.length >= 10) {
+                    setRejectionError(null);
+                  }
+                }}
+                placeholder="Enter justification for rejection here..."
+                className="w-full min-h-[100px] p-3 bg-slate-900 border border-slate-800 focus:border-red-500 focus:ring-1 focus:ring-red-500 rounded-xl text-white text-sm placeholder-slate-500 outline-none transition-all resize-none"
+                disabled={isRejecting}
+              />
+              <div className="flex justify-between items-center text-xs">
+                <span className={rejectionError ? "text-red-400 font-medium" : "text-slate-500"}>
+                  {rejectionError || ""}
+                </span>
+                <span className={`font-mono ${rejectionReason.length < 10 ? "text-red-400" : "text-emerald-400 font-bold"}`}>
+                  {rejectionReason.length}/10 min
+                </span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRejectionReason("");
+                setRejectionError(null);
+              }}
+              disabled={isRejecting}
+              className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={isRejecting || rejectionReason.length < 10}
+              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:hover:bg-red-600 flex items-center justify-center gap-2"
+            >
+              {isRejecting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Reject PC
             </button>
           </DialogFooter>
         </DialogContent>

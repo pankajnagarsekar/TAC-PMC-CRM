@@ -5,8 +5,10 @@ from motor.motor_asyncio import AsyncIOMotorClientSession, AsyncIOMotorDatabase
 
 from app.modules.contracting.infrastructure.repository import (
     LedgerRepository,
+    RetentionReleaseRepository,
     VendorRepository,
     WorkOrderRepository,
+
 )
 from app.modules.financial.infrastructure.repository import (
     CashTransactionRepository,
@@ -47,6 +49,7 @@ class UnitOfWork:
         self.ledger = LedgerRepository(db)
         self.sequences = SequenceRepository(db)
         self.code_master = CodeMasterRepository(db)
+        self.retention_releases = RetentionReleaseRepository(db)
 
     async def __aenter__(self):
         """Start transaction session."""
@@ -75,7 +78,8 @@ class UnitOfWork:
         repo_names = [
             'projects', 'work_orders', 'payments', 'budgets',
             'cash_transactions', 'fund_allocations', 'dprs',
-            'vendors', 'ledger', 'sequences', 'code_master'
+            'vendors', 'ledger', 'sequences', 'code_master',
+            'retention_releases'
         ]
         for name in repo_names:
             repo = getattr(self, name)

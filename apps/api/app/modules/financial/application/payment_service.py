@@ -264,9 +264,8 @@ class PaymentService:
                     response_payload=new_pc,
                 )
 
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="PAYMENT_CERTIFICATES",
                 entity_type="PAYMENT_CERTIFICATE",
                 entity_id=new_pc["id"],
                 action_type="CREATE",
@@ -295,7 +294,11 @@ class PaymentService:
 
             # Authoritative State Validation (BUG-RECONCILE)
             current_status = pc.get("status", "Draft")
-            StateMachine.validate_transition("PAYMENT", current_status, "Paid")
+            if not pc.get("fund_request"):
+                StateMachine.validate_transition("PAYMENT", current_status, "Paid")
+            else:
+                if current_status not in ("Draft", "Paid"):
+                    raise ValidationError(f"Invalid status '{current_status}' for Mode B PC closure.")
 
             grand_total = Decimal(str(pc["grand_total"]))
             retention_amount = Decimal(str(pc["retention_amount"]))
@@ -375,9 +378,8 @@ class PaymentService:
                         "organisation_id": organisation_id
                     }, session=uow.session)
 
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="PAYMENT_CERTIFICATES",
                 entity_type="PAYMENT_CERTIFICATE",
                 entity_id=pc_id,
                 action_type="MARK_AS_PAID",
@@ -453,7 +455,7 @@ class PaymentService:
             {"$match": {
                 "work_order_id": work_order_id,
                 "organisation_id": user["organisation_id"],
-                "status": {"$nin": ["Cancelled", "Draft"]}
+                "status": {"$in": ["Approved", "Payment Raised", "Processing", "Paid"]}
             }},
             {"$group": {"_id": None, "total_certified": {"$sum": "$grand_total"}, "pc_count": {"$sum": 1}}}
         ]
@@ -517,9 +519,8 @@ class PaymentService:
                     "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
                 )
 
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="PAYMENT_CERTIFICATES",
                 entity_type="PAYMENT_CERTIFICATE",
                 entity_id=payment_id,
                 action_type="SUBMIT",
@@ -593,9 +594,8 @@ class PaymentService:
                     "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
                 )
 
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="PAYMENT_CERTIFICATES",
                 entity_type="PAYMENT_CERTIFICATE",
                 entity_id=payment_id,
                 action_type="APPROVE",
@@ -671,13 +671,72 @@ class PaymentService:
                     "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
                 )
 
-            await self.audit_service.log_action(
+            await self.audit_service.log_financial_event(
                 organisation_id=organisation_id,
-                module_name="PAYMENT_CERTIFICATES",
                 entity_type="PAYMENT_CERTIFICATE",
                 entity_id=payment_id,
                 action_type="REJECT",
                 user_id=rejecter_id,
+                project_id=payment.get("project_id"),
+                old_value=payment,
+                new_value=updated,
+                session=uow.session,
+            )
+
+            return updated
+
+    async def raise_payment(
+        self, user: dict, payment_id: str, expected_version: int, comment: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Raise payment (Approved -> Payment Raised)."""
+        organisation_id = user["organisation_id"]
+        raiser_id = user["user_id"]
+        raiser_role = user.get("role", "Unknown")
+
+        async with UnitOfWork(self.db) as uow:
+            payment = await uow.payments.get_by_id(
+                payment_id, organisation_id=organisation_id, session=uow.session
+            )
+            if not payment:
+                raise NotFoundError("Payment", payment_id)
+
+            current_status = payment.get("status", "Draft")
+            StateMachine.validate_transition("PAYMENT", current_status, "Payment Raised")
+
+            raise_event = {
+                "approver_id": raiser_id,
+                "approval_date": now(),
+                "status": "Payment Raised",
+                "approver_role": raiser_role,
+                "comment": comment,
+            }
+
+            approval_trail = list(payment.get("approval_trail", []))
+            approval_trail.append(raise_event)
+
+            updated = await uow.payments.update(
+                payment_id,
+                {
+                    "status": "Payment Raised",
+                    "payment_raised_at": now(),
+                    "payment_raised_by": raiser_id,
+                    "approval_trail": approval_trail,
+                    "version": expected_version + 1,
+                },
+                expected_version=expected_version,
+                session=uow.session,
+            )
+            if not updated:
+                raise ValidationError(
+                    "CONFLICT: Payment Certificate was modified by another process (Version Mismatch)."
+                )
+
+            await self.audit_service.log_financial_event(
+                organisation_id=organisation_id,
+                entity_type="PAYMENT_CERTIFICATE",
+                entity_id=payment_id,
+                action_type="RAISE_PAYMENT",
+                user_id=raiser_id,
                 project_id=payment.get("project_id"),
                 old_value=payment,
                 new_value=updated,
@@ -773,9 +832,8 @@ class PaymentService:
         except Exception as e:
             logger.warning(f"Failed to refresh base_page_count after attachment: {e}")
 
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="PAYMENT_CERTIFICATES",
             entity_type="PAYMENT_CERTIFICATE",
             entity_id=pc_id,
             action_type="ATTACH_DOCUMENT",
@@ -822,9 +880,8 @@ class PaymentService:
             logger.warning(f"Failed to refresh base_page_count after deletion: {e}")
 
         # 4. Log audit action
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="PAYMENT_CERTIFICATES",
             entity_type="PAYMENT_CERTIFICATE",
             entity_id=pc_id,
             action_type="DELETE_DOCUMENT",

@@ -7,6 +7,7 @@ from app.modules.shared.infrastructure.base_repository import BaseRepository
 
 from ..schemas.dto import (
     Budget,
+    BudgetRevision,
     CashTransaction,
     CodeMaster,
     DerivedFinancialState,
@@ -139,3 +140,24 @@ class BudgetRepository(BaseRepository[Budget]):
     ) -> list:
         query = {"project_id": project_id, "organisation_id": organisation_id}
         return await self.list(query, limit=limit, sort=[("created_at", -1)])
+
+
+class BudgetRevisionRepository(BaseRepository[BudgetRevision]):
+    def __init__(self, db):
+        super().__init__(db, "budget_revisions", BudgetRevision)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index(
+            [("project_id", ASCENDING), ("organisation_id", ASCENDING)]
+        )
+        await self.collection.create_index([("category_id", ASCENDING)])
+        await self.collection.create_index([("status", ASCENDING)])
+
+    async def list_by_project(
+        self, project_id: str, organisation_id: str, category_id: Optional[str] = None
+    ) -> list:
+        query = {"project_id": project_id, "organisation_id": organisation_id}
+        if category_id:
+            query["category_id"] = category_id
+        return await self.list(query, sort=[("created_at", -1)])

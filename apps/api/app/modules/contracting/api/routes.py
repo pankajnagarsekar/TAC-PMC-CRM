@@ -7,6 +7,7 @@ from app.core.dependencies import (
     get_vendor_service,
     get_work_order_service,
     get_contract_service,
+    get_retention_service,
     verify_nonce,
 )
 from app.modules.shared.domain.schemas import GenericResponse
@@ -14,6 +15,7 @@ from app.modules.shared.domain.schemas import GenericResponse
 from ..application.vendor_service import VendorService
 from ..application.work_order_service import WorkOrderService
 from ..application.contract_service import ContractService
+from ..application.retention_service import RetentionService
 from ..schemas.dto import (
     Vendor,
     VendorCreate,
@@ -24,6 +26,9 @@ from ..schemas.dto import (
     Contract,
     ContractCreate,
     ContractUpdate,
+)
+from ..schemas.retention_dto import (
+    RetentionReleaseCreate,
 )
 
 # Create one router for the Contracting Context
@@ -427,3 +432,52 @@ async def update_contract(
     """Update contract details."""
     updated = await contract_service.update_contract(user, contract_id, contract_data)
     return GenericResponse(data=updated, message="Contract updated successfully")
+
+
+# --- RETENTION ENDPOINTS ---
+
+@router.get(
+    "/work-orders/{wo_id}/retention",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Retention"],
+)
+async def get_retention_balance(
+    wo_id: str,
+    user: dict = Depends(get_authenticated_user),
+    retention_service: RetentionService = Depends(get_retention_service),
+):
+    """Get total retention held, released, and remaining balance for a Work Order."""
+    balance = await retention_service.get_retention_balance(user, wo_id)
+    return GenericResponse(data=balance)
+
+
+@router.post(
+    "/work-orders/{wo_id}/retention/release",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Retention"],
+)
+async def create_retention_release(
+    wo_id: str,
+    release_data: RetentionReleaseCreate,
+    user: dict = Depends(get_authenticated_user),
+    retention_service: RetentionService = Depends(get_retention_service),
+    nonce: str = Depends(verify_nonce),
+):
+    """Release full/partial retention in an atomic transaction (Admin only)."""
+    release = await retention_service.create_retention_release(user, wo_id, release_data)
+    return GenericResponse(data=release, message="Retention released successfully")
+
+
+@router.get(
+    "/work-orders/{wo_id}/retention/releases",
+    response_model=GenericResponse[List[Dict[str, Any]]],
+    tags=["Retention"],
+)
+async def list_retention_releases(
+    wo_id: str,
+    user: dict = Depends(get_authenticated_user),
+    retention_service: RetentionService = Depends(get_retention_service),
+):
+    """List all retention releases associated with a Work Order."""
+    releases = await retention_service.list_retention_releases(user, wo_id)
+    return GenericResponse(data=releases)

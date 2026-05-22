@@ -22,7 +22,8 @@ class StateMachine:
     PAYMENT_TRANSITIONS: Dict[str, Set[str]] = {
         "Draft": {"Submitted", "Cancelled"},
         "Submitted": {"Approved", "Rejected", "Cancelled"},
-        "Approved": {"Processing", "Rejected", "Paid"},
+        "Approved": {"Payment Raised", "Processing", "Rejected", "Paid"},
+        "Payment Raised": {"Paid", "Failed"},
         "Processing": {"Paid", "Failed"},
         "Rejected": {"Draft", "Cancelled"},
         "Paid": set(),  # FINAL

@@ -47,7 +47,7 @@ async def test_get_wo_certification_summary_aggregates(client, test_db, test_use
             "work_order_id": wo_id,
             "organisation_id": test_user["organisation_id"],
             "grand_total": FinancialEngine.to_d128(3000),
-            "status": "Certified"
+            "status": "Approved"
         }
     ])
 

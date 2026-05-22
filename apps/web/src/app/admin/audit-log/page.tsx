@@ -42,7 +42,8 @@ interface AuditLogFilters {
   end_date?: string;
 }
 
-const ENTITY_TYPES = [
+// Fallback types if API fails
+const FALLBACK_ENTITY_TYPES = [
   { value: "", label: "All Types" },
   { value: "CLIENT", label: "Client" },
   { value: "PROJECT", label: "Project" },
@@ -51,7 +52,12 @@ const ENTITY_TYPES = [
   { value: "VENDOR", label: "Vendor" },
   { value: "CASH_TRANSACTION", label: "Cash Transaction" },
   { value: "BUDGET", label: "Budget" },
+  { value: "BUDGET_REVISION", label: "Budget Revision" },
+  { value: "RETENTION_RELEASE", label: "Retention Release" },
+  { value: "PETTY_CASH_ALERT", label: "Petty Cash Alert" },
+  { value: "PROJECT_CATEGORY", label: "Project Category" },
   { value: "SITE_OVERHEAD", label: "Site Overhead" },
+  { value: "EVM_BASELINE", label: "EVM Baseline" },
   { value: "USER", label: "User" },
 ];
 
@@ -91,6 +97,28 @@ function AuditLogContent() {
     end_date: "",
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [availableEntityTypes, setAvailableEntityTypes] = useState<{value: string, label: string}[]>(FALLBACK_ENTITY_TYPES);
+
+  useEffect(() => {
+    const fetchEntityTypes = async () => {
+      try {
+        const response = await api.get("/api/v1/audit/entity-types");
+        if (response.data && Array.isArray(response.data)) {
+          const formattedTypes = [
+            { value: "", label: "All Types" },
+            ...response.data.map((type: string) => ({
+              value: type,
+              label: type.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ')
+            }))
+          ];
+          setAvailableEntityTypes(formattedTypes);
+        }
+      } catch (error) {
+        console.error("Failed to fetch entity types:", error);
+      }
+    };
+    fetchEntityTypes();
+  }, []);
 
   const { getVendorName } = useVendorNames();
 
@@ -161,6 +189,15 @@ function AuditLogContent() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const formatCurrency = (amount: number | unknown) => {
+    if (typeof amount !== 'number') return String(amount);
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(amount);
   };
 
   const getActionColor = (action: string) => {
@@ -249,7 +286,7 @@ function AuditLogContent() {
                 }
                 className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 text-white rounded-xl text-sm focus:outline-none focus:border-blue-500/50"
               >
-                {ENTITY_TYPES.map((type) => (
+                {availableEntityTypes.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -462,7 +499,19 @@ function AuditLogContent() {
                   <div className="rounded-2xl bg-black/40 border border-white/5 p-5 space-y-3">
                     <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Previous State</p>
                     <pre className="text-[11px] text-slate-400 font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                      {JSON.stringify(selectedLog.previous_state, null, 2)}
+                      {JSON.stringify(selectedLog.previous_state, (key, value) => {
+                        const lowKey = key.toLowerCase();
+                        if (typeof value === 'number' && (
+                          lowKey.includes('amount') || lowKey.includes('budget') || 
+                          lowKey.includes('total') || lowKey.includes('value') || 
+                          lowKey.includes('balance') || lowKey.includes('held') || 
+                          lowKey.includes('cost') || lowKey.includes('price') || 
+                          lowKey.includes('fund') || lowKey.includes('rate')
+                        )) {
+                          return formatCurrency(value);
+                        }
+                        return value;
+                      }, 2)}
                     </pre>
                   </div>
                 )}
@@ -471,7 +520,19 @@ function AuditLogContent() {
                   <div className="rounded-2xl bg-orange-500/[0.03] border border-orange-500/10 p-5 space-y-3">
                     <p className="text-[9px] font-bold text-orange-500/50 uppercase tracking-widest">New Values Applied</p>
                     <pre className="text-[11px] text-orange-200/70 font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                      {JSON.stringify(selectedLog.new_value, null, 2)}
+                      {JSON.stringify(selectedLog.new_value, (key, value) => {
+                        const lowKey = key.toLowerCase();
+                        if (typeof value === 'number' && (
+                          lowKey.includes('amount') || lowKey.includes('budget') || 
+                          lowKey.includes('total') || lowKey.includes('value') || 
+                          lowKey.includes('balance') || lowKey.includes('held') || 
+                          lowKey.includes('cost') || lowKey.includes('price') || 
+                          lowKey.includes('fund') || lowKey.includes('rate')
+                        )) {
+                          return formatCurrency(value);
+                        }
+                        return value;
+                      }, 2)}
                     </pre>
                   </div>
                 )}

@@ -36,7 +36,7 @@ const settingsSchema = z.object({
 });
 
 export default function SettingsPage() {
-  const { data: codes, mutate: mutateCodes } = useSWR<CodeMaster[]>(
+  const { data: codes, error: codesError, mutate: mutateCodes } = useSWR<CodeMaster[]>(
     "/api/v1/settings/codes",
     fetcher,
   );
@@ -127,6 +127,16 @@ export default function SettingsPage() {
     };
     fetchSettings();
   }, [toast]);
+
+  useEffect(() => {
+    if (codesError) {
+      toast({
+        title: "Category Fetch Error",
+        description: "Failed to fetch master categories. Please check your network connection.",
+        variant: "destructive",
+      });
+    }
+  }, [codesError, toast]);
 
   const handleSaveSettings = async () => {
     // BUG-004: Strict validation
@@ -734,6 +744,17 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+              {codesError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                  <p className="text-xs font-semibold text-red-500">Failed to load categories</p>
+                  <p className="text-[10px] text-red-400 mt-1">Please try again later</p>
+                </div>
+              )}
+              {!codes && !codesError && (
+                <div className="p-4 text-center text-xs text-zinc-500 dark:text-slate-500">
+                  Loading categories...
+                </div>
+              )}
               {codes?.map((code) => (
                 <div
                   key={code._id}

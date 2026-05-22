@@ -95,12 +95,17 @@ export default function FinancialDashboard() {
     const version = payment?.version || 1;
     try {
       await fetch(
-        `/api/v1/payments/${id}/reject?reason=${encodeURIComponent(reason)}&expected_version=${version}`,
+        `/api/v1/payments/${id}/reject`,
         {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
           },
+          body: JSON.stringify({
+            reason: reason,
+            expected_version: version
+          })
         }
       );
       window.location.reload();

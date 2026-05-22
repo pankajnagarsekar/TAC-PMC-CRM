@@ -6,6 +6,7 @@ from pymongo import ASCENDING
 from app.modules.shared.infrastructure.base_repository import BaseRepository
 
 from ..schemas.dto import Contract, Vendor, VendorLedgerEntry, WorkOrder
+from ..schemas.retention_dto import RetentionReleaseResponse
 
 
 class WorkOrderRepository(BaseRepository[WorkOrder]):
@@ -64,3 +65,14 @@ class ContractRepository(BaseRepository[Contract]):
         await super().ensure_indexes()
         await self.collection.create_index([("work_order_id", ASCENDING)], unique=True)
         await self.collection.create_index([("vendor_id", ASCENDING)])
+
+
+class RetentionReleaseRepository(BaseRepository[RetentionReleaseResponse]):
+    def __init__(self, db):
+        super().__init__(db, "retention_releases", RetentionReleaseResponse)
+
+    async def ensure_indexes(self):
+        await super().ensure_indexes()
+        await self.collection.create_index([("wo_id", ASCENDING)])
+        await self.collection.create_index([("organisation_id", ASCENDING)])
+

@@ -33,6 +33,10 @@ from ..schemas.dto import (
     FundAllocationCreate,
     PaymentCertificate,
     PaymentCertificateCreate,
+    BudgetRevision,
+    BudgetRevisionCreate,
+    BudgetRevisionAction,
+    RejectPaymentRequest,
 )
 
 router = APIRouter()
@@ -265,6 +269,24 @@ async def mark_payment_as_paid(
 
 
 @router.post(
+    "/payments/{pc_id}/close",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Payments"],
+)
+async def close_payment_certificate(
+    pc_id: str,
+    expected_version: int = Query(...),
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Close a payment certificate (alias for mark-as-paid, used for Mode B/Fund Requests)."""
+    result = await payment_service.mark_as_paid(user, pc_id, expected_version)
+    return GenericResponse(
+        data=result, message="Payment certificate closed successfully"
+    )
+
+
+@router.post(
     "/payments/{payment_id}/submit",
     response_model=GenericResponse[PaymentCertificate],
     tags=["Payments"],
@@ -306,14 +328,32 @@ async def approve_payment(
 )
 async def reject_payment(
     payment_id: str,
-    expected_version: int = Query(...),
-    reason: str = Query(...),
+    reject_data: RejectPaymentRequest,
     user: dict = Depends(get_authenticated_user),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     """Reject a pending payment (Submitted -> Rejected)."""
-    result = await payment_service.reject_payment(user, payment_id, expected_version, reason)
+    result = await payment_service.reject_payment(
+        user, payment_id, reject_data.expected_version, reject_data.reason
+    )
     return GenericResponse(data=result, message="Payment rejected successfully")
+
+
+@router.post(
+    "/payments/{payment_id}/raise-payment",
+    response_model=GenericResponse[Dict[str, Any]],
+    tags=["Payments"],
+)
+async def raise_payment(
+    payment_id: str,
+    expected_version: int = Query(...),
+    comment: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    """Raise a payment request (Approved -> Payment Raised)."""
+    result = await payment_service.raise_payment(user, payment_id, expected_version, comment)
+    return GenericResponse(data=result, message="Payment raised successfully")
 
 
 @router.get(
@@ -691,6 +731,7 @@ async def update_category_budget(
         category_id,
         budget_req.original_budget,
         budget_req.expected_version,
+        budget_req.reason,
     )
     return GenericResponse(data=result, message="Budget updated successfully")
 
@@ -725,3 +766,84 @@ async def close_budget(
     """Close budget (final state)."""
     result = await budget_service.close_budget(user, budget_id, expected_version)
     return GenericResponse(data=result, message="Budget closed successfully")
+
+
+# --- BUDGET REVISION (VO) ENDPOINTS ---
+
+
+@router.post(
+    "/budgets/revisions",
+    response_model=GenericResponse[BudgetRevision],
+    status_code=status.HTTP_201_CREATED,
+    tags=["Budgets"],
+)
+async def create_budget_revision(
+    revision_data: BudgetRevisionCreate,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Create a new budget revision (Variation Order) in DRAFT status."""
+    result = await budget_service.create_revision(user, revision_data)
+    return GenericResponse(data=result, message="Budget revision created successfully")
+
+
+@router.post(
+    "/budgets/revisions/{revision_id}/submit",
+    response_model=GenericResponse[BudgetRevision],
+    tags=["Budgets"],
+)
+async def submit_budget_revision(
+    revision_id: str,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Submit a budget revision for approval."""
+    result = await budget_service.submit_revision(user, revision_id)
+    return GenericResponse(data=result, message="Budget revision submitted for approval")
+
+
+@router.post(
+    "/budgets/revisions/{revision_id}/approve",
+    response_model=GenericResponse[BudgetRevision],
+    tags=["Budgets"],
+)
+async def approve_budget_revision(
+    revision_id: str,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Approve a budget revision (Admin only)."""
+    result = await budget_service.approve_revision(user, revision_id)
+    return GenericResponse(data=result, message="Budget revision approved successfully")
+
+
+@router.post(
+    "/budgets/revisions/{revision_id}/reject",
+    response_model=GenericResponse[BudgetRevision],
+    tags=["Budgets"],
+)
+async def reject_budget_revision(
+    revision_id: str,
+    action: BudgetRevisionAction,
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """Reject a budget revision with a reason."""
+    result = await budget_service.reject_revision(user, revision_id, action)
+    return GenericResponse(data=result, message="Budget revision rejected")
+
+
+@router.get(
+    "/budgets/revisions/project/{project_id}",
+    response_model=GenericResponse[List[BudgetRevision]],
+    tags=["Budgets"],
+)
+async def list_budget_revisions(
+    project_id: str,
+    category_id: Optional[str] = Query(None),
+    user: dict = Depends(get_authenticated_user),
+    budget_service: BudgetService = Depends(get_budget_service),
+):
+    """List all budget revisions for a project."""
+    result = await budget_service.list_revisions(user, project_id, category_id)
+    return GenericResponse(data=result)

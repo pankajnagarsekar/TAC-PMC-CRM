@@ -211,7 +211,7 @@ async def test_calculate_financial_summary_under_budget(analytics_service):
         "committed_value": 350000.0,
     }
 
-    analytics_service.fin_state_repo.find_one.return_value = master_state
+    analytics_service.fin_state_repo.get_master_state.return_value = master_state
     analytics_service.project_repo.get_by_id.return_value = {
         "project_id": "proj-001",
         "created_at": datetime.now(timezone.utc) - timedelta(days=30),
@@ -238,7 +238,7 @@ async def test_calculate_financial_summary_over_budget(analytics_service):
         "committed_value": 550000.0,
     }
 
-    analytics_service.fin_state_repo.find_one.return_value = master_state
+    analytics_service.fin_state_repo.get_master_state.return_value = master_state
     analytics_service.project_repo.get_by_id.return_value = {
         "project_id": "proj-001",
         "created_at": datetime.now(timezone.utc) - timedelta(days=30),
@@ -257,7 +257,7 @@ async def test_calculate_financial_summary_over_budget(analytics_service):
 async def test_calculate_financial_summary_fallback_aggregation(analytics_service):
     """Test financial summary falls back to aggregation when master state missing."""
     # No master state
-    analytics_service.fin_state_repo.find_one.return_value = None
+    analytics_service.fin_state_repo.get_master_state.return_value = None
 
     # Aggregation result
     agg_result = {
@@ -314,7 +314,7 @@ async def test_empty_project_returns_zero_metrics(analytics_service):
     analytics_service.schedule_repo.find_one.return_value = {"project_id": "proj-001", "tasks": []}
 
     # No financial state
-    analytics_service.fin_state_repo.find_one.return_value = None
+    analytics_service.fin_state_repo.get_master_state.return_value = None
     mock_cursor = AsyncMock()
     mock_cursor.to_list = AsyncMock(return_value=[])
     analytics_service.fin_state_repo.aggregate = MagicMock(return_value=mock_cursor)

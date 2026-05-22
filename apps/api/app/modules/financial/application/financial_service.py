@@ -397,9 +397,8 @@ class FinancialService:
         budget_doc = await self.budget_repo.create(budget_doc, session=session)
 
         # BUG-007: Audit Logging
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=user["organisation_id"],
-            module_name="FINANCIAL",
             entity_type="BUDGET",
             entity_id=str(budget_doc["id"]),
             action_type="CREATE",
@@ -419,6 +418,7 @@ class FinancialService:
         category_id: str,
         original_budget: Decimal,
         expected_version: int,
+        reason: str,
         session=None,
     ) -> dict:
         """Atomic Update for Category Budget with validation (Track H1)."""
@@ -474,9 +474,8 @@ class FinancialService:
             raise ValidationError("CONFLICT: Budget was modified by another process (Version Mismatch).")
 
         # BUG-007: Audit Logging
-        await self.audit_service.log_action(
+        await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
-            module_name="FINANCIAL",
             entity_type="BUDGET",
             entity_id=budget_id,
             action_type="UPDATE",
@@ -484,6 +483,7 @@ class FinancialService:
             project_id=project_id,
             old_value=existing if not status else status,
             new_value=result,
+            metadata={"reason": reason},
             session=session,
         )
 

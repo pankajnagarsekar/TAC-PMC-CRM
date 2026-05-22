@@ -77,3 +77,22 @@ async def get_audit_logs(
         limit=limit,
     )
     return GenericResponse(data=logs)
+
+
+@router.get(
+    "/audit/entity-types",
+    response_model=GenericResponse[List[str]],
+    tags=["Audit Registry"],
+)
+@router.get(
+    "/audit-logs/entity-types",
+    response_model=GenericResponse[List[str]],
+    tags=["Audit Registry"],
+)
+async def get_audit_entity_types(
+    user: dict = Depends(get_authenticated_user),
+    service: AuditService = Depends(get_audit_service),
+):
+    """List all entity types available in the audit trail for filtering."""
+    types = service.get_entity_type_options()
+    return GenericResponse(data=types)

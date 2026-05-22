@@ -10,6 +10,7 @@ from app.db.mongodb import get_db
 from app.modules.contracting.application.vendor_service import VendorService
 from app.modules.contracting.application.work_order_service import WorkOrderService
 from app.modules.contracting.application.contract_service import ContractService
+from app.modules.contracting.application.retention_service import RetentionService
 from app.modules.financial.application.budget_service import BudgetService
 from app.modules.financial.application.cash_service import CashService
 from app.modules.financial.application.financial_service import FinancialService
@@ -251,6 +252,14 @@ async def get_contract_service(
     perm: PermissionChecker = Depends(get_permission_checker),
 ) -> ContractService:
     return ContractService(db, audit, perm)
+
+
+async def get_retention_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    perm: PermissionChecker = Depends(get_permission_checker),
+) -> RetentionService:
+    return RetentionService(db, audit, perm)
 
 
 async def get_settings_service(

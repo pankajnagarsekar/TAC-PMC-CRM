@@ -263,6 +263,8 @@ export interface PaymentCertificate {
     page_count: number;
     url?: string;
   }>;
+  rejected_reason?: string;
+  rejected_at?: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

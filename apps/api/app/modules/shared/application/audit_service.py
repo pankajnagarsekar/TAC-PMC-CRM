@@ -17,6 +17,17 @@ FINANCIAL_ENTITY_TYPES = [
     "RETENTION_RELEASE",
 ]
 
+FINANCIAL_AUDIT_ENTITY_TYPES = [
+    "WORK_ORDER",
+    "PAYMENT_CERTIFICATE",
+    "PROJECT_CATEGORY",
+    "RETENTION_RELEASE",
+    "PETTY_CASH_ALERT",
+    "BUDGET_REVISION",
+    "BUDGET",
+    "EVM_BASELINE"
+]
+
 
 class AuditService:
     """Service for immutable audit logging"""
@@ -102,6 +113,46 @@ class AuditService:
             await self.audit_repo.create(audit_entry, session=session)
         except Exception as exc:
             logger.error("AuditService.log_action failed: %s", exc, exc_info=True)
+
+    async def log_financial_event(
+        self,
+        organisation_id: str,
+        entity_type: str,
+        entity_id: str,
+        action_type: str,
+        user_id: str,
+        project_id: str,
+        old_value: Optional[Dict[str, Any]] = None,
+        new_value: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        session=None,
+    ):
+        """
+        Specialized helper for logging financial events with mandatory project_id.
+        """
+        if entity_type not in FINANCIAL_AUDIT_ENTITY_TYPES:
+            logger.warning(f"Logging financial event for untracked entity type: {entity_type}")
+
+        await self.log_action(
+            organisation_id=organisation_id,
+            module_name="FINANCIAL_MANAGEMENT",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action_type=action_type,
+            user_id=user_id,
+            project_id=project_id,
+            old_value=old_value,
+            new_value=new_value,
+            metadata=metadata,
+            session=session
+        )
+
+    @staticmethod
+    def get_entity_type_options() -> List[str]:
+        """Return all supported entity types for filtering."""
+        # Combine base types and financial types
+        base_types = ["TASK", "WORKER_LOG", "CASH_TRANSACTION", "DPR", "CODE_MASTER"]
+        return sorted(list(set(base_types + FINANCIAL_AUDIT_ENTITY_TYPES)))
 
     async def get_audit_logs(
         self,

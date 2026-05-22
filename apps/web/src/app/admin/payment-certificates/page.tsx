@@ -16,6 +16,7 @@ import { useVendorNames } from '@/hooks/useVendorNames';
 export default function PaymentCertificatesPage() {
   const { activeProject } = useProjectStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   const [items, setItems] = useState<PaymentCertificate[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -117,13 +118,20 @@ export default function PaymentCertificatesPage() {
         const colors: Record<string, string> = {
           'Draft': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
           'Pending': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-          'Completed': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-          'Paid': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          'Submitted': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+          'Approved': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          'Payment Raised': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+          'Paid': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+          'Rejected': 'bg-red-500/10 text-red-400 border-red-500/20',
           'Cancelled': 'bg-red-500/10 text-red-400 border-red-500/20'
         };
+        const rejectedReason = p.data?.rejected_reason;
         return (
           <div className="flex items-center h-full">
-            <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] uppercase border ${colors[status] || colors['Draft']}`}>
+            <span 
+              className={`px-2.5 py-0.5 rounded font-bold text-[10px] uppercase border cursor-help ${colors[status] || colors['Draft']}`}
+              title={status === 'Rejected' && rejectedReason ? `Reason: ${rejectedReason}` : undefined}
+            >
               {status}
             </span>
           </div>
@@ -141,10 +149,12 @@ export default function PaymentCertificatesPage() {
     }
   ];
 
-  const filteredItems = items.filter(pc =>
-    pc.pc_ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (pc.category_id && getCategoryName(pc.category_id).toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredItems = items.filter(pc => {
+    const matchesSearch = pc.pc_ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (pc.category_id && getCategoryName(pc.category_id).toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus = statusFilter === 'All' || pc.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in duration-500">
@@ -165,9 +175,23 @@ export default function PaymentCertificatesPage() {
                 placeholder="Search PCs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500 w-64"
+                className="pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500 w-48"
               />
             </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-300 px-3 py-2 focus:outline-none focus:border-emerald-500 active:scale-95 transition-all font-medium"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Approved">Approved</option>
+              <option value="Payment Raised">Payment Raised</option>
+              <option value="Paid">Paid</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
             <Link
               href="/admin/payment-certificates/new"
               className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-orange-500/20 active:scale-95"
