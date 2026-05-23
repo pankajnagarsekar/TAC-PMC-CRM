@@ -496,6 +496,10 @@ class BudgetService:
         """
         Reject a budget revision with a reason.
         """
+        # Admin gate check for Variation Order actions (BUG-028/NR-005)
+        from app.core.permissions import PermissionChecker
+        await PermissionChecker.check_admin_role(user)
+
         organisation_id = user["organisation_id"]
         user_id = user.get("user_id")
 
@@ -528,6 +532,10 @@ class BudgetService:
         """
         Approve a budget revision and atomically update the project budget.
         """
+        # Admin gate check for Variation Order actions (BUG-028/NR-005)
+        from app.core.permissions import PermissionChecker
+        await PermissionChecker.check_admin_role(user)
+
         organisation_id = user["organisation_id"]
         user_id = user.get("user_id")
 
@@ -544,51 +552,65 @@ class BudgetService:
         
         revision.approve(user_id)
 
-        # 2. Atomic Update using Transaction (if supported by environment, else sequential with rollback)
-        # For now, we perform sequential updates as the local environment might not have replica sets for transactions
-        async with await self.db.client.start_session() as session:
-            async with session.start_transaction():
-                # Update Revision Status
-                await self.revision_repo.collection.update_one(
-                    {"_id": ObjectId(revision_id)},
-                    {"$set": revision.to_dict()},
-                    session=session
-                )
+        async def perform_updates(session=None):
+            # Update Revision Status
+            await self.revision_repo.collection.update_one(
+                {"_id": ObjectId(revision_id)},
+                {"$set": revision.to_dict()},
+                session=session
+            )
 
-                # Update Category Budget
-                budget_query = {
-                    "project_id": revision.project_id,
-                    "category_id": revision.category_id,
-                    "organisation_id": organisation_id
-                }
-                budget_update = {
-                    "$set": {
-                        "original_budget": FinancialEngine.to_d128(revision.new_budget),
-                        "updated_at": datetime.now(timezone.utc)
-                    },
-                    "$inc": {"version": 1}
-                }
-                
-                budget_result = await self.budget_repo.collection.update_one(
-                    budget_query, budget_update, session=session
-                )
-                
-                if budget_result.matched_count == 0:
-                    raise NotFoundError("Target budget for revision not found.")
+            # Update Category Budget
+            budget_query = {
+                "project_id": revision.project_id,
+                "category_id": revision.category_id,
+                "organisation_id": organisation_id
+            }
+            budget_update = {
+                "$set": {
+                    "original_budget": FinancialEngine.to_d128(revision.new_budget),
+                    "updated_at": datetime.now(timezone.utc)
+                },
+                "$inc": {"version": 1}
+            }
+            
+            budget_result = await self.budget_repo.collection.update_one(
+                budget_query, budget_update, session=session
+            )
+            
+            if budget_result.matched_count == 0:
+                raise NotFoundError("Target budget for revision not found.")
 
-                # Update Financial State (Derived State)
-                state_update = {
-                    "$set": {
-                        "original_budget": FinancialEngine.to_d128(revision.new_budget),
-                        "last_updated": datetime.now(timezone.utc)
-                    },
-                    "$inc": {"version": 1}
-                }
-                await self.financial_state_repo.collection.update_one(
-                    budget_query, state_update, session=session
-                )
+            # Update Financial State (Derived State)
+            state_update = {
+                "$set": {
+                    "original_budget": FinancialEngine.to_d128(revision.new_budget),
+                    "last_updated": datetime.now(timezone.utc)
+                },
+                "$inc": {"version": 1}
+            }
+            await self.financial_state_repo.collection.update_one(
+                budget_query, state_update, session=session
+            )
 
-        # 3. Audit
+        # 2. Atomic Update using Transaction (with graceful fallback to sequential if standalone MongoDB)
+        try:
+            async with await self.db.client.start_session() as session:
+                async with session.start_transaction():
+                    await perform_updates(session)
+        except Exception as e:
+            if "Transaction numbers are only allowed" in str(e) or "replica set member" in str(e):
+                logger.warning("MongoDB transaction not supported (standalone mode). Executing updates sequentially.")
+                await perform_updates(None)
+            else:
+                raise
+
+        # 3. Trigger Master Recalculation
+        from .financial_service import FinancialService
+        financial_service = FinancialService(self.db, self.audit_service)
+        await financial_service.recalculate_master_budget(revision.project_id)
+
+        # 4. Audit
         await self.audit_service.log_financial_event(
             organisation_id=organisation_id,
             entity_type="BUDGET_REVISION",

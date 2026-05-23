@@ -725,6 +725,10 @@ async def update_category_budget(
     financial_service: FinancialService = Depends(get_financial_service),
 ):
     """Update category budget (Track H1)."""
+    # Restrict inline updates to Admin role only to protect budget integrity (BUG-028)
+    from app.core.permissions import PermissionChecker
+    await PermissionChecker.check_admin_role(user)
+
     result = await financial_service.update_budget(
         user,
         project_id,
