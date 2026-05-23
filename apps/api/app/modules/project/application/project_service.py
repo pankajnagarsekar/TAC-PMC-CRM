@@ -13,7 +13,7 @@ from app.modules.shared.domain.financial_engine import FinancialEngine
 from ..domain.models import Project as ProjectModel
 from ..infrastructure.read_models import ProjectStatsRepository
 from ..infrastructure.repository import BudgetRepository, ProjectRepository
-from ..schemas.dto import ProjectCreate, ProjectUpdate, ProjectCalendarDTO
+from ..schemas.dto import ProjectCreate, ProjectUpdate, ProjectCalendarDTO, EVMBaselineInitDTO
 
 logger = logging.getLogger(__name__)
 
@@ -307,3 +307,68 @@ class ProjectService:
         )
 
         return doc
+
+    async def initialize_evm_baseline(
+        self, user: dict, project_id: str, baseline_data: EVMBaselineInitDTO
+    ) -> Dict[str, Any]:
+        """Initialize project's EVM baseline with S-curve planned values (NR-002)."""
+        await self.permission_checker.check_project_access(user, project_id, require_write=True)
+        await self.permission_checker.check_admin_role(user)
+
+        if baseline_data.end_date <= baseline_data.start_date:
+            raise ValidationError("Project End Date must be after Start Date")
+        if baseline_data.total_contract_value <= 0:
+            raise ValidationError("Total Contract Value must be greater than zero")
+
+        existing = await self.get_project(user, project_id)
+        db_id = str(existing.get("_id") or existing.get("id"))
+        pid = existing.get("project_id") or project_id
+
+        # Format baseline data for database storage
+        baseline_dump = baseline_data.model_dump()
+        
+        # Convert total_contract_value and monthly_planned_values decimals to Decimal128 for MongoDB
+        baseline_dump["total_contract_value"] = FinancialEngine.to_d128(baseline_data.total_contract_value)
+        for i, val in enumerate(baseline_dump["monthly_planned_values"]):
+            val["planned_value"] = FinancialEngine.to_d128(baseline_data.monthly_planned_values[i].planned_value)
+            val["cumulative_value"] = FinancialEngine.to_d128(baseline_data.monthly_planned_values[i].cumulative_value)
+
+        update_dict = {
+            "start_date": baseline_data.start_date,
+            "end_date": baseline_data.end_date,
+            "is_baseline_initialized": True,
+            "evm_baseline": baseline_dump,
+            "updated_at": now(),
+            "version": existing.get("version", 1) + 1
+        }
+
+        result = await self.project_repo.update(
+            db_id,
+            update_dict,
+            organisation_id=user["organisation_id"],
+            expected_version=existing.get("version", 1)
+        )
+
+        if not result:
+            raise ValidationError("DATA_CONSISTENCY_ERROR: Failed to update project baseline.")
+
+        # Log action in audit service
+        await self.audit_service.log_action(
+            organisation_id=user["organisation_id"],
+            module_name="PROJECT_MANAGEMENT",
+            entity_type="PROJECT",
+            entity_id=db_id,
+            action_type="INITIALIZE_BASELINE",
+            user_id=user["user_id"],
+            project_id=pid,
+            old_value=existing,
+            new_value=result,
+        )
+
+        # Invalidate both stats and dashboard keys
+        from app.modules.reporting.application.dashboard_service import DashboardService
+        DashboardService.invalidate_project_cache(pid)
+        DashboardService.invalidate_project_cache(db_id)
+
+        return result
+

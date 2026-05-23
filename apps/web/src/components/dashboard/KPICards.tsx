@@ -18,7 +18,9 @@ interface KPICardsProps {
     cpi?: number;
     master_budget?: number;
     total_budget?: number;
+    is_baseline_initialized?: boolean;
   };
+  onInitializeBaseline?: () => void;
 }
 
 /**
@@ -26,7 +28,7 @@ interface KPICardsProps {
  * Implements System Constitution §9 Earned Value Formulas.
  * Prioritizes authoritative backend stats with local calculation fallback.
  */
-export default function KPICards({ stats: backendStats }: KPICardsProps) {
+export default function KPICards({ stats: backendStats, onInitializeBaseline }: KPICardsProps) {
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskOrder = useScheduleStore((state) => state.taskOrder);
   const tasks = useMemo(() => normalizeTaskOrder(taskMap, taskOrder), [taskMap, taskOrder]);
@@ -104,11 +106,30 @@ export default function KPICards({ stats: backendStats }: KPICardsProps) {
     <div className="grid gap-5 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
       <KPICard
         label="Total Baseline"
-        value={stats.totalBaselineCost > 0 ? formatINRShort(stats.totalBaselineCost) : "Not Initialized"}
-        subtitle={stats.totalBaselineCost > 0 ? "Original project value" : "Action required: Initialize budget"}
-        status="neutral"
+        value={
+          (backendStats?.is_baseline_initialized ?? stats.totalBaselineCost > 0) ? (
+            formatINRShort(stats.totalBaselineCost)
+          ) : (
+            <div className="flex flex-col gap-2 w-full">
+              <span className="text-lg font-bold text-foreground/50">Not Initialized</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onInitializeBaseline?.();
+                }}
+                className="mt-1 px-3 py-1.5 w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-md border border-amber-400/20 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] flex items-center justify-center gap-1.5"
+              >
+                <Coins size={12} />
+                Initialize Baseline
+              </button>
+            </div>
+          )
+        }
+        subtitle={(backendStats?.is_baseline_initialized ?? stats.totalBaselineCost > 0) ? "Original project value" : "EVM setup required"}
+        status={(backendStats?.is_baseline_initialized ?? stats.totalBaselineCost > 0) ? "neutral" : "warning"}
         icon={<Coins size={18} />}
         tooltip="The total original estimated cost (BAC) for all tasks in the current project scope."
+        className={(backendStats?.is_baseline_initialized ?? stats.totalBaselineCost > 0) ? "" : "border-amber-500/20"}
       />
       <KPICard
         label="Planned Value"

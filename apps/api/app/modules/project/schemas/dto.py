@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, computed_field, model_validator
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 import re
 import html
 
@@ -46,6 +46,10 @@ class Project(BaseModel):
     master_remaining_budget: Decimal = Field(Decimal("0.0"), ge=0)
     threshold_petty: Decimal = Field(Decimal("10000.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_baseline_initialized: bool = False
+    evm_baseline: Optional[Dict[str, Any]] = None
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -73,6 +77,8 @@ class ProjectCreate(BaseModel):
     completion_percentage: Decimal = Field(Decimal("0.0"), ge=0, le=100)
     threshold_petty: Decimal = Field(Decimal("10000.0"), ge=0)
     threshold_ovh: Decimal = Field(Decimal("0.0"), ge=0)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
 
     @field_validator("project_name", mode="before")
     @classmethod
@@ -97,6 +103,10 @@ class ProjectUpdate(BaseModel):
     completion_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
     threshold_petty: Optional[Decimal] = Field(None, ge=0)
     threshold_ovh: Optional[Decimal] = Field(None, ge=0)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_baseline_initialized: Optional[bool] = None
+    evm_baseline: Optional[Dict[str, Any]] = None
 
     @field_validator("project_name", mode="before")
     @classmethod
@@ -254,3 +264,19 @@ class ClientUpdate(BaseModel):
             if not re.match(r"^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$", v):
                 raise ValueError("Invalid GSTIN format. Expected: 22AAAAA0000A1Z5")
         return v
+
+
+# EVM BASELINE DTOs
+class MonthlyPlannedValueDTO(BaseModel):
+    month: str
+    planned_value: Decimal
+    cumulative_value: Decimal
+
+
+class EVMBaselineInitDTO(BaseModel):
+    total_contract_value: Decimal = Field(..., ge=0)
+    start_date: datetime
+    end_date: datetime
+    curve_type: str = "linear"  # "linear" or "custom"
+    monthly_planned_values: List[MonthlyPlannedValueDTO]
+

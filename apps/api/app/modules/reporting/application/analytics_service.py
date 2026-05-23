@@ -186,6 +186,37 @@ class AnalyticsService:
         self.budget_repo = BudgetRepository(db)
         self.fin_state_repo = FinancialStateRepository(db)
 
+    @staticmethod
+    def calculate_s_curve_pv(evm_baseline: dict, today: datetime) -> float:
+        """
+        Calculate planned value (PV) from the S-Curve baseline (NR-002).
+        Sums up planned values for prior months and prorates the current month.
+        """
+        if not evm_baseline or "monthly_planned_values" not in evm_baseline:
+            return 0.0
+
+        monthly_values = evm_baseline.get("monthly_planned_values", [])
+        if not monthly_values:
+            return 0.0
+
+        today_month_str = today.strftime("%Y-%m")
+        pv_sum = Decimal("0.0")
+
+        for item in monthly_values:
+            month_str = item.get("month")
+            planned_val = FinancialEngine.to_decimal(item.get("planned_value") or 0)
+            
+            if month_str < today_month_str:
+                pv_sum += planned_val
+            elif month_str == today_month_str:
+                import calendar
+                current_day = today.day
+                total_days = calendar.monthrange(today.year, today.month)[1]
+                prorate_fraction = Decimal(str(current_day)) / Decimal(str(total_days))
+                pv_sum += planned_val * prorate_fraction
+
+        return float(pv_sum)
+
     async def calculate_schedule_health(
         self, project_id: str, organisation_id: str
     ) -> ScheduleHealthMetrics:
@@ -487,6 +518,41 @@ class AnalyticsService:
         if ev == Decimal("0.00") and data.budget_total > 0:
             proj_comp = float(project.get("completion_percentage", 0) if project else 0)
             ev = data.budget_total * Decimal(str(proj_comp / 100.0))
+
+        # Resilient fallback project lookup for baseline calculation
+        if not project:
+            project = await self.project_repo.find_one(
+                {"project_id": project_id, "organisation_id": organisation_id}
+            )
+
+        # Precise S-curve baseline override if initialized (NR-002)
+        if project and project.get("is_baseline_initialized"):
+            today = datetime.now(timezone.utc)
+            baseline = project.get("evm_baseline") or {}
+            pv = Decimal(str(self.calculate_s_curve_pv(baseline, today)))
+            
+            # Aggregate EV from approved PCs
+            pcs_cursor = self.db.payment_certificates.find({
+                "project_id": {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]},
+                "organisation_id": organisation_id,
+                "status": {"$in": ["Approved", "Payment Raised", "Processing", "Paid", "Closed", "Payment Initiated", "Payment Received"]}
+            })
+            pcs = await pcs_cursor.to_list(None)
+            ev = Decimal("0.0")
+            for pc in pcs:
+                val = pc.get("net_payable") if pc.get("net_payable") is not None else pc.get("grand_total")
+                ev += FinancialEngine.to_decimal(val or 0)
+                
+            # Aggregate AC from committed Work Orders
+            wo_cursor = self.db.work_orders.find({
+                "project_id": {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]},
+                "organisation_id": organisation_id,
+                "status": {"$nin": ["Draft", "Cancelled", "Rejected"]}
+            })
+            wos = await wo_cursor.to_list(None)
+            ac = Decimal("0.0")
+            for wo in wos:
+                ac += FinancialEngine.to_decimal(wo.get("grand_total") or 0)
 
         # Calculate burn rate (assume linear since project start)
         if project and project.get("created_at"):

@@ -93,6 +93,10 @@ export interface Project {
   threshold_ovh?: number;
   location?: string;
   version?: number;
+  start_date?: string;
+  end_date?: string;
+  is_baseline_initialized?: boolean;
+  evm_baseline?: any;
   created_at?: string;
   updated_at?: string;
 }

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import time
 from fastapi import APIRouter, Depends, Query, status
@@ -33,6 +33,7 @@ from ..schemas.dto import (
     ProjectCreate,
     ProjectUpdate,
     ProjectCalendarDTO,
+    EVMBaselineInitDTO,
 )
 from ..schemas.scheduler import (
     ScheduleCalculateRequest,
@@ -130,6 +131,38 @@ async def delete_project(
     """Soft-delete a project (authoritative Point 87)."""
     result = await project_service.delete_project(user, project_id)
     return GenericResponse(data=result, message="Project deleted successfully")
+
+
+@router.post(
+    "/projects/{project_id}/evm-baseline",
+    response_model=GenericResponse[Project],
+    tags=["Projects"],
+)
+async def initialize_evm_baseline(
+    project_id: str,
+    baseline_data: EVMBaselineInitDTO,
+    user: dict = Depends(get_authenticated_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
+    """Initialize EVM baseline for a project (NR-002)."""
+    project = await project_service.initialize_evm_baseline(user, project_id, baseline_data)
+    return GenericResponse(data=project, message="EVM Baseline initialized successfully")
+
+
+@router.get(
+    "/projects/{project_id}/evm-baseline",
+    response_model=GenericResponse[Optional[Dict[str, Any]]],
+    tags=["Projects"],
+)
+async def get_evm_baseline(
+    project_id: str,
+    user: dict = Depends(get_authenticated_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
+    """Retrieve the EVM baseline details if initialized (NR-002)."""
+    project = await project_service.get_project(user, project_id)
+    baseline = project.get("evm_baseline")
+    return GenericResponse(data=baseline)
 
 
 # --- CALENDAR ENDPOINTS ---

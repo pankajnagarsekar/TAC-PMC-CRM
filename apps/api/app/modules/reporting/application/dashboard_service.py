@@ -343,10 +343,40 @@ class DashboardService:
             if ev == 0 and project.get("completion_percentage"):
                 ev = pv * (float(project["completion_percentage"]) / 100.0)
 
-        # KPI Metrics (Point 103: Standardized SPI/CPI thresholds)
-        # AC for EVM is traditionally Actual Cost (Certified), but we use Committed
-        # if Certified is 0 for better visibility in early stages.
-        actual_cost_for_eva = certified if certified > 0 else ac
+        is_initialized = bool(project.get("is_baseline_initialized", False))
+        if is_initialized:
+            baseline = project.get("evm_baseline") or {}
+            pv = float(self.analytics_service.calculate_s_curve_pv(baseline, datetime.now(timezone.utc)))
+            
+            # Aggregate EV from approved PCs
+            pcs_cursor = self.db.payment_certificates.find({
+                "project_id": {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]},
+                "organisation_id": organisation_id,
+                "status": {"$in": ["Approved", "Payment Raised", "Processing", "Paid", "Closed", "Payment Initiated", "Payment Received"]}
+            })
+            pcs = await pcs_cursor.to_list(None)
+            ev = 0.0
+            for pc in pcs:
+                val = pc.get("net_payable") if pc.get("net_payable") is not None else pc.get("grand_total")
+                ev += float(FinancialEngine.to_decimal(val or 0))
+                
+            # Aggregate AC from committed Work Orders
+            wo_cursor = self.db.work_orders.find({
+                "project_id": {"$in": [project_id, ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id]},
+                "organisation_id": organisation_id,
+                "status": {"$nin": ["Draft", "Cancelled", "Rejected"]}
+            })
+            wos = await wo_cursor.to_list(None)
+            ac = 0.0
+            for wo in wos:
+                ac += float(FinancialEngine.to_decimal(wo.get("grand_total") or 0))
+            
+            actual_cost_for_eva = ac
+        else:
+            # KPI Metrics (Point 103: Standardized SPI/CPI thresholds)
+            # AC for EVM is traditionally Actual Cost (Certified), but we use Committed
+            # if Certified is 0 for better visibility in early stages.
+            actual_cost_for_eva = certified if certified > 0 else ac
 
         # Hardened calculation to prevent NaN
         cpi = ev / actual_cost_for_eva if actual_cost_for_eva > 0 else 1.0
@@ -377,6 +407,7 @@ class DashboardService:
             "tasks_count": tasks_count,
             "completion_percentage": float(project.get("completion_percentage", 0) if project else 0),
             "status": project.get("status", "active") if project else "active",
+            "is_baseline_initialized": is_initialized,
         }
 
         # Cache the result

@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import {
   AlertTriangle,
   LayoutGrid,
@@ -27,6 +27,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 import KPICards from "@/components/dashboard/KPICards";
+import EVMBaselineModal from "@/components/dashboard/EVMBaselineModal";
 import ProjectMiniGantt from "@/components/dashboard/ProjectMiniGantt";
 import SCurveChart from "@/components/scheduler/SCurveChart";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
@@ -77,6 +78,7 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const { activeProject, setActiveProject, clearProject } = useProjectStore();
   const [projectSearch, setProjectSearch] = React.useState("");
+  const [isEVMModalOpen, setIsEVMModalOpen] = React.useState(false);
   const previousProjectRef = React.useRef<Project | null>(null);
   const loadSchedule = useScheduleStore((state) => state.loadSchedule);
   const clearSchedule = useScheduleStore((state) => state.clear);
@@ -157,7 +159,7 @@ export default function AdminDashboard() {
     fetcher,
   );
 
-  const { data: stats } = useSWR<DashboardStats>(
+  const { data: stats, mutate: mutateStats } = useSWR<DashboardStats>(
     activeProject ? `/api/v1/projects/${activeProject.project_id}/dashboard-stats` : null,
     fetcher
   );
@@ -682,7 +684,10 @@ export default function AdminDashboard() {
 
       {activeProject && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-1000">
-          <KPICards stats={stats?.overview} />
+          <KPICards
+            stats={stats?.overview}
+            onInitializeBaseline={() => setIsEVMModalOpen(true)}
+          />
         </div>
       )}
 
@@ -754,6 +759,24 @@ export default function AdminDashboard() {
           {layout.map(widgetId => widgets[widgetId])}
         </div>
       </div>
+
+      {activeProject && (
+        <EVMBaselineModal
+          isOpen={isEVMModalOpen}
+          onClose={() => setIsEVMModalOpen(false)}
+          onSuccess={async () => {
+            // Update state in Zustand store immediately
+            setActiveProject({
+              ...activeProject,
+              is_baseline_initialized: true,
+            });
+            // Revalidate stats & project list
+            await mutateStats();
+            await mutate("/api/v1/projects/");
+          }}
+          project={activeProject}
+        />
+      )}
     </div>
   );
 }

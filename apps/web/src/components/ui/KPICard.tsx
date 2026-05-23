@@ -6,7 +6,7 @@ export type KPIStatus = 'positive' | 'negative' | 'warning' | 'neutral';
 
 export interface KPICardProps {
   label: string;
-  value: string | number;
+  value: React.ReactNode;
   /** Optional subtitle/description */
   subtitle?: string;
   /** Status affects card accent color: green/red/amber/gray */
@@ -61,9 +61,9 @@ export default function KPICard({
           >
             {label}
           </p>
-          <p className="text-3xl font-black text-foreground tracking-tight leading-none group-hover:text-accent transition-colors">
+          <div className="text-3xl font-black text-foreground tracking-tight leading-none group-hover:text-accent transition-colors">
             {value}
-          </p>
+          </div>
           {subtitle && (
             <p className="text-xs font-medium text-foreground/40 mt-2 truncate max-w-full opacity-70" title={subtitle}>
               {subtitle}
