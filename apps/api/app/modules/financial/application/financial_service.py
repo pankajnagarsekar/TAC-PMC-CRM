@@ -110,7 +110,7 @@ class FinancialService:
                 "$match": {
                     "project_id": {"$in": [project_id, p_id_obj]},
                     "category_id": {"$in": [category_id, c_id_obj]},
-                    "status": "Paid",
+                    "status": {"$in": ["Approved", "Payment Raised", "Processing", "Paid"]},
                 }
             },
             # BUG-001: Certified strictly maps to Net Payable (net_payable)

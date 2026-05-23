@@ -250,7 +250,7 @@ export interface PaymentCertificate {
   cgst: number;
   sgst: number;
   grand_total: number;
-  status: "Draft" | "Pending" | "Approved" | "Processing" | "Paid" | "Rejected" | "Cancelled";
+  status: "Draft" | "Pending" | "Submitted" | "Approved" | "Processing" | "Payment Raised" | "Paid" | "Rejected" | "Cancelled";
   fund_request?: boolean;
   line_items: PCLineItem[];
   category_name?: string;

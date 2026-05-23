@@ -34,6 +34,7 @@ import { PaymentCertificate, CodeMaster, WorkOrder } from "@/types/api";
 
 import { useVendorNames } from "@/hooks/useVendorNames";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/store/authStore";
 
 export default function PaymentCertificateDetail({
   params,
@@ -43,6 +44,8 @@ export default function PaymentCertificateDetail({
   const { id } = use(params);
   const { activeProject } = useProjectStore();
   const { toast } = useToast();
+  const { isAdmin } = useAuthStore();
+  const showAdminActions = isAdmin();
 
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -344,9 +347,9 @@ export default function PaymentCertificateDetail({
                     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                     : pc.status === "Approved"
                       ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      : pc.status === "Pending"
+                      : (pc.status === "Pending" || pc.status === "Submitted")
                         ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                        : pc.status === "Processing"
+                        : (pc.status === "Processing" || pc.status === "Payment Raised")
                           ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                           : pc.status === "Rejected"
                             ? "bg-red-500/10 text-red-400 border-red-500/20"
@@ -355,7 +358,11 @@ export default function PaymentCertificateDetail({
                               : "bg-slate-500/10 text-slate-400 border-slate-500/20"
                 }`}
               >
-                {pc.status === "Pending" ? "Submitted" : pc.status === "Processing" ? "Payment Raised" : pc.status}
+                {(pc.status === "Pending" || pc.status === "Submitted")
+                  ? "Submitted"
+                  : (pc.status === "Processing" || pc.status === "Payment Raised")
+                    ? "Payment Raised"
+                    : pc.status}
               </span>
 
 
@@ -391,7 +398,7 @@ export default function PaymentCertificateDetail({
             </button>
           )}
 
-          {pc.status === "Pending" && (
+          {(pc.status === "Pending" || pc.status === "Submitted") && showAdminActions && (
             <>
               <button
                 onClick={handleApprove}
@@ -444,7 +451,7 @@ export default function PaymentCertificateDetail({
             </>
           )}
 
-          {pc.status === "Processing" && (
+          {(pc.status === "Processing" || pc.status === "Payment Raised") && (
             <button
               onClick={() => setShowPaidDialog(true)}
               disabled={isMarkingPaid}
