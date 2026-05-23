@@ -69,6 +69,13 @@ const ACTION_TYPES = [
   { value: "CLOSE", label: "Close" },
   { value: "APPROVE", label: "Approve" },
   { value: "REJECT", label: "Reject" },
+  { value: "SUBMIT", label: "Submit" },
+  { value: "CANCEL", label: "Cancel" },
+  { value: "COMPLETE", label: "Complete" },
+  { value: "MARK_AS_PAID", label: "Mark as Paid" },
+  { value: "RAISE_PAYMENT", label: "Raise Payment" },
+  { value: "ATTACH_DOCUMENT", label: "Attach Document" },
+  { value: "DELETE_DOCUMENT", label: "Delete Document" },
 ];
 
 export default function AuditLogPage() {
@@ -214,6 +221,20 @@ function AuditLogContent() {
         return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
       case "REJECT":
         return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+      case "SUBMIT":
+        return "bg-amber-500/10 text-amber-500 border-amber-500/20";
+      case "CANCEL":
+        return "bg-red-500/10 text-red-500 border-red-500/20";
+      case "COMPLETE":
+        return "bg-teal-500/10 text-teal-400 border-teal-500/20";
+      case "MARK_AS_PAID":
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+      case "RAISE_PAYMENT":
+        return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+      case "ATTACH_DOCUMENT":
+        return "bg-sky-500/10 text-sky-400 border-sky-500/20";
+      case "DELETE_DOCUMENT":
+        return "bg-pink-500/10 text-pink-400 border-pink-500/20";
       default:
         return "bg-slate-500/10 text-slate-400 border-slate-500/20";
     }
