@@ -13,7 +13,9 @@ import {
   Save,
   X,
   Download,
+  Coins,
 } from "lucide-react";
+import RetentionReleaseModal from "@/components/work-orders/RetentionReleaseModal";
 import { ColDef, ICellRendererParams, ValueFormatterParams, GridApi } from "ag-grid-community";
 import api, { fetcher } from "@/lib/api";
 import { useRequestLock } from "@/lib/requestLock";
@@ -43,6 +45,23 @@ export default function WorkOrderDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+
+  const {
+    data: retentionData,
+    mutate: mutateRetention,
+  } = useSWR(
+    `/api/v1/work-orders/${woId}/retention`,
+    fetcher
+  );
+
+  const {
+    data: releaseLogs,
+    mutate: mutateReleases,
+  } = useSWR<any[]>(
+    `/api/v1/work-orders/${woId}/retention/releases`,
+    fetcher
+  );
   const [editState, setEditState] = useState({
     category_id: "",
     vendor_id: "",
@@ -392,6 +411,15 @@ export default function WorkOrderDetailPage() {
                     </button>
                   )}
 
+                  {wo.status === "Completed" && retentionData && retentionData.current_balance > 0 && (
+                    <button
+                      onClick={() => setIsReleaseModalOpen(true)}
+                      className="admin-only flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-lg text-xs font-bold border border-amber-400/20 shadow-md transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+                    >
+                      <Coins size={14} /> Release Retention
+                    </button>
+                  )}
+
                   {(wo.status === "Draft" || wo.status === "Pending" || wo.status === "Approved") && (
                     <button
                       onClick={() => handleStatusAction("cancel")}
@@ -606,6 +634,29 @@ export default function WorkOrderDetailPage() {
                 {formatCurrency(isEditing ? editFinancials.totalPayable : wo.total_payable || 0)}
               </span>
             </div>
+
+            {retentionData && (
+              <div className="border-t border-slate-800/60 pt-4 mt-4 space-y-3">
+                <div className="flex justify-between text-slate-400 px-2 py-1">
+                  <span>Retention Held (Paid PCs):</span>
+                  <span className="font-mono text-white">
+                    {formatCurrency(retentionData.total_held)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-400 px-2 py-1">
+                  <span>Retention Released:</span>
+                  <span className="font-mono text-emerald-400">
+                    -{formatCurrency(retentionData.total_released)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-amber-500 font-bold p-3 bg-amber-500/5 rounded-lg border border-amber-500/10 mt-2">
+                  <span>Net Retained Balance:</span>
+                  <span className="font-mono text-lg text-amber-500">
+                    {formatCurrency(retentionData.current_balance)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -659,6 +710,45 @@ export default function WorkOrderDetailPage() {
 
       {wo && <LinkedCertificates projectId={wo.project_id} workOrderId={wo._id} />}
 
+      {/* Retention Release History */}
+      {releaseLogs && releaseLogs.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl mt-6 space-y-4">
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 border-b border-slate-800 pb-2">
+            <Coins size={16} className="text-orange-500" /> Retention Release History
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-slate-400">
+              <thead className="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-950 border-b border-slate-800">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Release Date</th>
+                  <th scope="col" className="px-4 py-3">Release Ref</th>
+                  <th scope="col" className="px-4 py-3">Notes</th>
+                  <th scope="col" className="px-4 py-3 text-right">Amount Released</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {releaseLogs.map((log: any) => (
+                  <tr key={log.id} className="hover:bg-slate-800/10">
+                    <td className="px-4 py-3.5 font-mono text-white text-xs">
+                      {formatDate(log.release_date)}
+                    </td>
+                    <td className="px-4 py-3.5 font-medium text-slate-200">
+                      {log.release_reference}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-slate-400 truncate max-w-xs">
+                      {log.notes || "—"}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-mono text-emerald-400 font-bold">
+                      {formatCurrency(log.amount_released)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         isOpen={showCancelConfirm}
         onClose={() => setShowCancelConfirm(false)}
@@ -667,6 +757,19 @@ export default function WorkOrderDetailPage() {
         description="Are you sure you want to cancel this work order? This will release all committed funds back to the project budget. This action is permanent and will be logged for auditing."
         confirmText="Cancel Order"
         variant="danger"
+      />
+
+      <RetentionReleaseModal
+        isOpen={isReleaseModalOpen}
+        onClose={() => setIsReleaseModalOpen(false)}
+        onSuccess={async () => {
+          await mutateRetention();
+          await mutateReleases();
+          mutateWO();
+        }}
+        woId={woId}
+        totalHeld={retentionData?.total_held || 0}
+        currentBalance={retentionData?.current_balance || 0}
       />
     </div>
   );
