@@ -122,9 +122,9 @@ class TestReportingService:
 
         # Verify totals (should be sum of CAT1 and CAT2)
         # Budget: 1000 + 2000 = 3000
-        assert report["totals"]["budget"] == "\u20b9 3,000.00"
-        assert report["totals"]["committed"] == "\u20b9 1,500.00"
-        assert report["totals"]["remaining"] == "\u20b9 1,500.00"
+        assert report["totals"]["budget"] == "\u20b93,000.00"
+        assert report["totals"]["committed"] == "\u20b91,500.00"
+        assert report["totals"]["remaining"] == "\u20b91,500.00"
 
     async def test_progress_report_date_filter(self, reporting_service, sample_data, test_project_id):
         user = {"user_id": "test-user", "organisation_id": "test-org"}
@@ -141,3 +141,74 @@ class TestReportingService:
             end_date=end_date
         )
         assert "rows" in report
+
+    def test_indian_currency_formatting(self):
+        """
+        Verify standard Indian Currency formatting (INR grouping).
+        NR-007 requires ₹30,085,000.00 to format as ₹3,00,85,000.00
+        """
+        from app.core.export_service import ExportService
+        
+        # Test basic, decimals, large numbers
+        assert ExportService.format_currency(0) == "₹0.00"
+        assert ExportService.format_currency(100) == "₹100.00"
+        assert ExportService.format_currency(1000) == "₹1,000.00"
+        assert ExportService.format_currency(100000) == "₹1,00,000.00"
+        assert ExportService.format_currency(10000000) == "₹1,00,00,000.00"
+        assert ExportService.format_currency(30085000) == "₹3,00,85,000.00"
+        
+        # Test negative numbers
+        assert ExportService.format_currency(-30085000) == "₹-3,00,85,000.00"
+        
+        # Test None
+        assert ExportService.format_currency(None) == "₹0.00"
+        
+        # Test float/invalid values
+        assert ExportService.format_currency("invalid") == "invalid"
+
+    async def test_report_metadata_enrichment_and_export(self, reporting_service, sample_data, test_project_id, test_db):
+        """
+        Verify reports get enriched with project and user context,
+        and verify they successfully run through PDF/Excel compilers without errors.
+        """
+        # Seed project details
+        await test_db.projects.insert_one({
+            "project_id": test_project_id,
+            "name": "Luxury Palm Villa",
+            "code": "LPV-901",
+            "company": {"name": "Sovereign Developers", "address": "Jubilee Hills, Hyderabad"}
+        })
+
+        user = {
+            "user_id": "usr-1234",
+            "name": "Ananya Sharma",
+            "role": "Super Admin",
+            "organisation_id": "org-99"
+        }
+
+        report = await reporting_service.get_report(
+            user=user,
+            project_id=test_project_id,
+            report_type="project_summary",
+            start_date=None,
+            end_date=None
+        )
+
+        # 1. Assert Metadata Enrichment
+        assert report["project_name"] == "Luxury Palm Villa"
+        assert report["project_code"] == "LPV-901"
+        assert report["generator_name"] == "Ananya Sharma"
+        assert report["generator_role"] == "Super Admin"
+        assert report["company"]["name"] == "Sovereign Developers"
+        assert report["company"]["address"] == "Jubilee Hills, Hyderabad"
+
+        # 2. Verify PDF compilation pipeline passes
+        from app.core.export_service import ExportService
+        pdf_bytes = ExportService.export_to_pdf_service("project_summary", report)
+        assert isinstance(pdf_bytes, bytes)
+        assert len(pdf_bytes) > 0
+
+        # 3. Verify Excel compilation pipeline passes
+        excel_bytes = ExportService.export_to_excel("project_summary", report)
+        assert isinstance(excel_bytes, bytes)
+        assert len(excel_bytes) > 0

@@ -136,13 +136,36 @@ class ExportService:
     @staticmethod
     def format_currency(value: Any) -> str:
         if value is None:
-            return "₹ 0.00"
+            return "₹0.00"
         try:
             val = float(value)
             import math
             if math.isnan(val) or math.isinf(val):
-                return "₹ 0.00"
-            return f"₹ {val:,.2f}"
+                return "₹0.00"
+            
+            is_negative = val < 0
+            val_abs = abs(val)
+            
+            s = f"{val_abs:.2f}"
+            parts = s.split('.')
+            integer_part = parts[0]
+            decimal_part = parts[1]
+            
+            if len(integer_part) <= 3:
+                formatted_integer = integer_part
+            else:
+                last_three = integer_part[-3:]
+                remaining = integer_part[:-3]
+                groups = []
+                while len(remaining) > 2:
+                    groups.append(remaining[-2:])
+                    remaining = remaining[:-2]
+                if remaining:
+                    groups.append(remaining)
+                groups.reverse()
+                formatted_integer = ",".join(groups) + "," + last_three
+                
+            return f"₹{'-' if is_negative else ''}{formatted_integer}.{decimal_part}"
         except Exception:
             return str(value)
 
@@ -157,26 +180,115 @@ class ExportService:
         company_info: Optional[Dict[str, Any]] = None,
     ) -> bytes:
         from openpyxl import Workbook
-        from openpyxl.styles import Font
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
 
         wb = Workbook()
         ws = wb.active
         ws.title = "Report"
 
+        # Freeze the first row
+        ws.freeze_panes = "A2"
+
         config = ExportService.REPORT_TEMPLATES.get(report_type, {})
         columns = config.get("columns", [])
+
+        # Visual style helpers for Luxury Industrial theme
+        header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+        header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+        
+        data_font = Font(name="Segoe UI", size=10)
+        total_font = Font(name="Segoe UI", size=10, bold=True)
+        
+        thin_side = Side(border_style="thin", color="CBD5E1")
+        thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        
+        double_bottom = Border(top=Side(style="thin", color="CBD5E1"), bottom=Side(style="double", color="0F172A"))
+
+        align_left = Alignment(horizontal="left", vertical="center")
+        align_right = Alignment(horizontal="right", vertical="center")
+        align_center = Alignment(horizontal="center", vertical="center")
+
+        # Detect currency columns
+        currency_cols = set()
+        for col_idx, (col_name, _) in enumerate(columns, 1):
+            c_name = col_name.lower()
+            if any(k in c_name for k in ["budget", "committed", "certified", "remaining", "value", "retention", "amount", "total"]):
+                if not any(k in c_name for k in ["status", "code", "ref", "date"]):
+                    currency_cols.add(col_idx)
 
         # Header logic
         for col_idx, (col_name, width) in enumerate(columns, 1):
             cell = ws.cell(row=1, column=col_idx, value=col_name)
-            cell.font = Font(bold=True)
-            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+            cell.alignment = align_center if col_idx in currency_cols or "date" in col_name.lower() else align_left
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+        # Helper to parse formatted currency strings back to numeric float
+        def parse_currency(val: Any) -> Optional[float]:
+            if val is None:
+                return None
+            s = str(val).strip()
+            if not s:
+                return None
+            # Check if it has a currency indicator
+            if "₹" in s or "$" in s or s.startswith("-") or s.replace(".", "").replace(",", "").isdigit():
+                clean = s.replace("₹", "").replace("$", "").replace(",", "").replace(" ", "").strip()
+                try:
+                    return float(clean)
+                except ValueError:
+                    return None
+            return None
 
         # Data logic
         rows = report_data.get("rows", [])
+        last_row = 1
         for row_idx, row_data in enumerate(rows, 2):
+            last_row = row_idx
             for col_idx, value in enumerate(row_data, 1):
-                ws.cell(row=row_idx, column=col_idx, value=str(value))
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.font = data_font
+                cell.border = thin_border
+                
+                # Check if it is a currency column or parses as currency
+                parsed_float = parse_currency(value)
+                if parsed_float is not None and (col_idx in currency_cols or (isinstance(value, str) and "₹" in value)):
+                    cell.value = parsed_float
+                    cell.number_format = '[$₹-4009] #,##,##0.00'
+                    cell.alignment = align_right
+                    currency_cols.add(col_idx)  # Ensure this column is recognized as currency
+                else:
+                    cell.value = str(value) if value is not None else ""
+                    if col_idx in currency_cols:
+                        cell.alignment = align_right
+                    elif "date" in columns[col_idx-1][0].lower():
+                        cell.alignment = align_center
+                    else:
+                        cell.alignment = align_left
+
+        # Inject dynamic =SUM() formulas in the totals row
+        if rows:
+            totals_row_idx = last_row + 1
+            # Column 1 gets "Total"
+            cell = ws.cell(row=totals_row_idx, column=1, value="Total")
+            cell.font = total_font
+            cell.border = double_bottom
+            cell.alignment = align_left
+
+            # Fill in the rest of the columns
+            for col_idx in range(2, len(columns) + 1):
+                cell = ws.cell(row=totals_row_idx, column=col_idx)
+                cell.font = total_font
+                cell.border = double_bottom
+                if col_idx in currency_cols:
+                    col_letter = get_column_letter(col_idx)
+                    cell.value = f"=SUM({col_letter}2:{col_letter}{last_row})"
+                    cell.number_format = '[$₹-4009] #,##,##0.00'
+                    cell.alignment = align_right
+                else:
+                    cell.value = ""
 
         out = BytesIO()
         wb.save(out)
@@ -278,7 +390,7 @@ class ExportService:
         # and use ReportLab's SimpleDocTemplate which handles memory/pagination better.
         if len(report_data.get("rows", [])) > 100:
             logger.info(f"Report has {len(report_data.get('rows', []))} rows. Using ReportLab primary engine.")
-            pdf_bytes = ExportService._generate_pdf_reportlab(report_data, config)
+            pdf_bytes = ExportService._generate_pdf_reportlab(report_data, config, report_type)
         else:
             html_out = template.render(**context)
             try:
@@ -293,7 +405,7 @@ class ExportService:
                     f"HTML length: {len(html_out)}"
                 )
                 try:
-                    pdf_bytes = ExportService._generate_pdf_reportlab(report_data, config)
+                    pdf_bytes = ExportService._generate_pdf_reportlab(report_data, config, report_type)
                 except Exception as re:
                     logger.error(f"ReportLab fallback also failed: {re}")
                     # Cleanup tracemalloc before raising
@@ -313,18 +425,33 @@ class ExportService:
         return pdf_bytes
 
     @staticmethod
-    def _generate_pdf_reportlab(report_data: Dict[str, Any], config: Dict[str, Any]) -> bytes:
-        from reportlab.lib.pagesizes import A4
+    def _generate_pdf_reportlab(report_data: Dict[str, Any], config: Dict[str, Any], report_type: Optional[str] = None) -> bytes:
+        from reportlab.lib.pagesizes import A4, landscape
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.units import inch
-        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+        from reportlab.platypus import HRFlowable
+
+        # Determine dynamic orientation based on report type or title matching
+        if not report_type:
+            title_lower = str(report_data.get("title", "")).lower()
+            if "work order" in title_lower:
+                report_type = "work_order_tracker"
+            elif "payment certificate" in title_lower:
+                report_type = "payment_certificate_tracker"
+
+        is_landscape = report_type in ["work_order_tracker", "payment_certificate_tracker"]
+        page_size = landscape(A4) if is_landscape else A4
+        
+        # Sizing proportional layout width (Content area: A4 dimensions - 60 points for margins)
+        content_width = 781.89 if is_landscape else 535.27
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=A4,
+            pagesize=page_size,
             rightMargin=30,
             leftMargin=30,
             topMargin=30,
@@ -347,28 +474,83 @@ class ExportService:
             fontName="Helvetica"
         )
 
-        # Luxury Accent Color
+        # Luxury Colors
         GOLD_ACCENT = colors.HexColor("#b45309")  # Muted Amber/Gold
         CHARCOAL = colors.HexColor("#0f172a")
 
-        # Company Info Header
-        company = report_data.get("company", {"name": "TAC PMC", "address": "Sovereign HQ"})
-        elements.append(Paragraph(company.get("name", "TAC PMC").upper(), styles["Title"]))
-        elements.append(Paragraph(company.get("address", ""), header_style))
-        elements.append(Spacer(1, 5))
+        # Branded Two-Column Header
+        logo_flowable = None
+        logo_paths = [
+            "d:/_repos/TAC-PMC-CRM/apps/mobile/assets/images/logo.png",
+            "apps/mobile/assets/images/logo.png",
+            "../mobile/assets/images/logo.png"
+        ]
+        import os
+        for p in logo_paths:
+            if os.path.exists(p):
+                try:
+                    from reportlab.platypus import Image as RLImage
+                    logo_flowable = RLImage(p, width=32, height=32)
+                    break
+                except Exception:
+                    pass
         
-        # Luxury Accent Line
-        from reportlab.platypus import HRFlowable
-        elements.append(HRFlowable(width="100%", thickness=1.5, color=GOLD_ACCENT, spaceBefore=5, spaceAfter=15))
+        if not logo_flowable:
+            from reportlab.graphics.shapes import Drawing, Circle, String
+            logo_flowable = Drawing(32, 32)
+            logo_flowable.add(Circle(16, 16, 16, fillColor=GOLD_ACCENT, strokeColor=None))
+            logo_flowable.add(String(11, 9, "T", fontName="Helvetica-Bold", fontSize=20, fillColor=colors.white))
 
-        # Report Title
+        company = report_data.get("company") or {"name": "Third Angle Concepts (PMC)", "address": "Sovereign HQ, India"}
+        company_name = company.get("name", "Third Angle Concepts (PMC)")
+        company_addr = company.get("address", "Sovereign HQ, India")
+
+        left_paragraphs = [
+            logo_flowable,
+            Spacer(1, 4),
+            Paragraph(f"<b>{company_name.upper()}</b>", ParagraphStyle(
+                name="CompName", parent=styles["Normal"], fontSize=11, leading=13, textColor=CHARCOAL, fontName="Helvetica-Bold"
+            )),
+            Paragraph(company_addr, ParagraphStyle(
+                name="CompAddr", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#64748b")
+            ))
+        ]
+
+        project_name = report_data.get("project_name", "Unknown Project")
+        project_code = report_data.get("project_code", "N/A")
+        gen_name = report_data.get("generator_name", "System User")
+        gen_role = report_data.get("generator_role", "Administrator")
+        gen_date = now().strftime('%d-%b-%Y %H:%M')
+
         report_title = report_data.get("title", "Project Report")
-        elements.append(Paragraph(report_title, styles["Heading1"]))
-        
-        # Metadata / Date
-        meta_style = ParagraphStyle(name="Meta", fontSize=8, textColor=colors.grey, alignment=TA_RIGHT)
-        elements.append(Paragraph(f"Generated on: {now().strftime('%d-%b-%Y %H:%M')}", meta_style))
-        elements.append(Spacer(1, 12))
+
+        right_paragraphs = [
+            Paragraph(report_title.upper(), ParagraphStyle(
+                name="RepTitle", parent=styles["Normal"], fontSize=14, leading=16, textColor=GOLD_ACCENT, fontName="Helvetica-Bold", alignment=TA_RIGHT
+            )),
+            Spacer(1, 4),
+            Paragraph(f"<b>Project:</b> {project_name} ({project_code})", ParagraphStyle(
+                name="ProjInfo", parent=styles["Normal"], fontSize=9, leading=12, textColor=CHARCOAL, alignment=TA_RIGHT
+            )),
+            Paragraph(f"<b>Generated by:</b> {gen_name} ({gen_role})", ParagraphStyle(
+                name="GenInfo", parent=styles["Normal"], fontSize=8, leading=11, textColor=colors.HexColor("#64748b"), alignment=TA_RIGHT
+            )),
+            Paragraph(f"<b>Date:</b> {gen_date}", ParagraphStyle(
+                name="GenDate", parent=styles["Normal"], fontSize=8, leading=11, textColor=colors.HexColor("#64748b"), alignment=TA_RIGHT
+            ))
+        ]
+
+        header_table_data = [[left_paragraphs, right_paragraphs]]
+        header_table = Table(header_table_data, colWidths=[content_width * 0.5, content_width * 0.5])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(header_table)
+        elements.append(HRFlowable(width="100%", thickness=1.5, color=GOLD_ACCENT, spaceBefore=10, spaceAfter=15))
 
         # Truncation Warning
         if report_data.get("metadata", {}).get("truncated"):
@@ -381,28 +563,26 @@ class ExportService:
         headers = [col[0] for col in config.get("columns", [])]
         col_widths_raw = [col[1] for col in config.get("columns", [])]
 
-        # Content area width is ~535px (A4 width 595 - margins 60)
         total_relative = sum(col_widths_raw)
         if total_relative > 0:
-            col_widths = [(w / total_relative) * 535 for w in col_widths_raw]
+            col_widths = [(w / total_relative) * content_width for w in col_widths_raw]
         else:
-            col_widths = [100.0] * max(1, len(headers))
+            col_widths = [content_width / max(1, len(headers))] * max(1, len(headers))
 
         rows = report_data.get("rows", [])
         
-        # Format currency cells
+        # Format cells
         def wrap_cell(val, idx):
             s_val = str(val) if val is not None else ""
-            style = styles["Normal"]
-            style.fontSize = 8
-            # Align currency to right if header contains budget/amount/total
+            style = ParagraphStyle(name=f"Cell_Style_{idx}_{now().microsecond}", parent=styles["Normal"], fontSize=8, leading=10)
+            # Align currency to right if header contains budget/amount/total etc.
             if headers and idx < len(headers):
                 h = headers[idx].lower()
-                if any(k in h for k in ["budget", "amount", "total", "certified", "committed", "remaining", "value"]):
-                    style = ParagraphStyle(name=f"Cell_{idx}", parent=style, alignment=TA_RIGHT)
+                if any(k in h for k in ["budget", "amount", "total", "certified", "committed", "remaining", "value", "retention"]):
+                    style = ParagraphStyle(name=f"Cell_Right_{idx}_{now().microsecond}", parent=style, alignment=TA_RIGHT)
             return Paragraph(s_val, style)
 
-        data = [[Paragraph(str(h), ParagraphStyle(name="H", parent=styles["Normal"], fontSize=9, fontName="Helvetica-Bold", textColor=colors.whitesmoke)) for h in headers]]
+        data = [[Paragraph(str(h), ParagraphStyle(name=f"H_{i}", parent=styles["Normal"], fontSize=9, fontName="Helvetica-Bold", textColor=colors.whitesmoke)) for i, h in enumerate(headers)]]
         for row in rows:
             if isinstance(row, dict):
                 formatted_row = [wrap_cell(row.get(h, ""), i) for i, h in enumerate(headers)]
@@ -417,9 +597,11 @@ class ExportService:
                 ('BACKGROUND', (0, 0), (-1, 0), CHARCOAL),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('TOPPADDING', (0, 0), (-1, 0), 12),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                ('TOPPADDING', (0, 1), (-1, -1), 6),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -431,21 +613,21 @@ class ExportService:
         totals = report_data.get("totals", {})
         if totals:
             elements.append(Spacer(1, 20))
-            elements.append(Paragraph("SUMMARY TOTALS", ParagraphStyle(name="TotalHeader", parent=styles["Heading3"], textColor=GOLD_ACCENT, spaceAfter=10)))
+            elements.append(Paragraph("SUMMARY TOTALS", ParagraphStyle(name="TotalHeader", parent=styles["Heading3"], fontSize=10, textColor=GOLD_ACCENT, spaceAfter=8)))
             total_data = [[k, ExportService.format_currency(v)] for k, v in totals.items()]
-            tt = Table(total_data, colWidths=[200, 150])
+            tt = Table(total_data, colWidths=[content_width * 0.4, content_width * 0.3])
             tt.setStyle(TableStyle([
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
                 ('LINEABOVE', (0, 0), (-1, 0), 1.5, CHARCOAL),
                 ('TEXTCOLOR', (0, 0), (-1, -1), CHARCOAL),
-                ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ]))
             elements.append(tt)
 
-        doc.build(elements)
+        doc.build(elements, canvasmaker=NumberedCanvas)
         return buffer.getvalue()
 
     @staticmethod
@@ -517,3 +699,50 @@ class ExportService:
         out = io.BytesIO()
         output_writer.write(out)
         return out.getvalue()
+
+
+class NumberedCanvas(object):
+    """A ReportLab canvas that dynamically tracks total page count and prints page numbers."""
+    def __new__(cls, *args, **kwargs):
+        from reportlab.pdfgen import canvas
+        
+        class _NumberedCanvasInner(canvas.Canvas):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._saved_page_states = []
+
+            def showPage(self):
+                self._saved_page_states.append(dict(self.__dict__))
+                self._startPage()
+
+            def save(self):
+                num_pages = len(self._saved_page_states)
+                for state in self._saved_page_states:
+                    self.__dict__.update(state)
+                    self.draw_page_number(num_pages)
+                    super().showPage()
+                super().save()
+
+            def draw_page_number(self, page_count):
+                self.saveState()
+                self.setFont("Helvetica", 8)
+                from reportlab.lib import colors
+                self.setFillColor(colors.HexColor("#64748b"))
+                
+                width, height = self._pagesize
+                
+                text = f"Page {self._pageNumber} of {page_count}"
+                text_width = self.stringWidth(text, "Helvetica", 8)
+                
+                # Draw dynamic footer
+                self.drawString((width - text_width) / 2, 20, text)
+                
+                # Thin divider line above footer
+                self.setStrokeColor(colors.HexColor("#e2e8f0"))
+                self.setLineWidth(0.5)
+                self.line(30, 32, width - 30, 32)
+                
+                self.drawString(30, 20, "Confidential - Third Angle Concepts (PMC)")
+                self.restoreState()
+                
+        return _NumberedCanvasInner(*args, **kwargs)

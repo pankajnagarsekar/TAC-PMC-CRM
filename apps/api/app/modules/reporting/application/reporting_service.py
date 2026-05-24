@@ -82,26 +82,55 @@ class ReportingService:
         end_dt = datetime.fromisoformat(end_date) if end_date else None
 
         if report_type == "project_summary":
-            return await self._project_summary_report(project_id)
+            report_data = await self._project_summary_report(project_id)
         elif report_type == "work_order_tracker":
-            return await self._work_order_tracker_report(project_id, start_dt, end_dt)
+            report_data = await self._work_order_tracker_report(project_id, start_dt, end_dt)
         elif report_type == "payment_certificate_tracker":
-            return await self._payment_certificate_tracker_report(
+            report_data = await self._payment_certificate_tracker_report(
                 project_id, start_dt, end_dt
             )
         elif report_type == "petty_cash_tracker":
-            return await self._petty_cash_tracker_report(project_id, start_dt, end_dt)
+            report_data = await self._petty_cash_tracker_report(project_id, start_dt, end_dt)
         elif report_type == "csa_report":
-            return await self._csa_report(project_id, start_dt, end_dt)
+            report_data = await self._csa_report(project_id, start_dt, end_dt)
         elif report_type == "scheduler_gantt":
-            return await self._scheduler_gantt_report(project_id)
+            report_data = await self._scheduler_gantt_report(project_id)
+        else:
+            window = "weekly"
+            if "15_days" in report_type:
+                window = "15days"
+            elif "monthly" in report_type:
+                window = "monthly"
+            report_data = await self._progress_report(project_id, window, start_dt, end_dt)
 
-        window = "weekly"
-        if "15_days" in report_type:
-            window = "15days"
-        elif "monthly" in report_type:
-            window = "monthly"
-        return await self._progress_report(project_id, window, start_dt, end_dt)
+        # Enrich report_data with project, generator, and company metadata
+        project = await self.db.projects.find_one({
+            "$or": [
+                {"_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id},
+                {"project_id": project_id},
+                {"code": project_id}
+            ]
+        })
+        project_name = "Unknown Project"
+        project_code = "N/A"
+        company_info = {"name": "Third Angle Concepts (PMC)", "address": "Sovereign HQ, India"}
+
+        if project:
+            project_name = project.get("name") or project.get("project_name") or "Unknown Project"
+            project_code = project.get("code") or project.get("project_code") or "N/A"
+            if project.get("company"):
+                company_info = project.get("company")
+
+        generator_name = user.get("name") or user.get("email") or user.get("username") or "System User"
+        generator_role = user.get("role") or "Administrator"
+
+        report_data["project_name"] = project_name
+        report_data["project_code"] = project_code
+        report_data["generator_name"] = generator_name
+        report_data["generator_role"] = generator_role
+        report_data["company"] = company_info
+
+        return report_data
 
     async def _scheduler_gantt_report(self, project_id: str) -> Dict[str, Any]:
         """Prepares hierarchical Gantt data with pixel offsets for PDF rendering."""
