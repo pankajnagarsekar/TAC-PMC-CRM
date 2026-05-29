@@ -18,19 +18,6 @@ import { isEnterprise } from "@/lib/features";
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// ── Indian currency formatter ───────────────────────────────────────────
-export function formatINR(value: number | string | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "";
-  const rawNum = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(rawNum)) return "";
-
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(rawNum);
-}
 
 
 // ── Validation result type ──────────────────────────────────────────────

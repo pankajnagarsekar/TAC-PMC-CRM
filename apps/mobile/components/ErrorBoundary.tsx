@@ -2,7 +2,8 @@
 // Catches unhandled errors and prevents app crashes with white screen
 
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, FontSizes } from '../constants/theme';
 
 interface Props {

@@ -50,6 +50,52 @@ interface OrgSettings {
   ai_api_key: string;
 }
 
+interface SectionProps {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const Section: React.FC<SectionProps> = ({ title, icon, isOpen, onToggle, children }) => (
+  <View style={styles.section}>
+    <Pressable style={styles.sectionHeader} onPress={onToggle}>
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name={icon} size={20} color={Colors.primary} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.textMuted} />
+    </Pressable>
+    {isOpen && <View style={styles.sectionContent}>{children}</View>}
+  </View>
+);
+
+interface InputFieldProps {
+  label: string;
+  value: string | number;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address';
+}
+
+const InputField: React.FC<InputFieldProps> = ({ label, value, onChangeText, placeholder, multiline, keyboardType }) => (
+  <View style={styles.inputGroup}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <TextInput
+      style={[styles.input, multiline && styles.textArea]}
+      value={String(value || '')}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={Colors.textMuted}
+      multiline={multiline}
+      numberOfLines={multiline ? 4 : 1}
+      keyboardType={keyboardType || 'default'}
+    />
+  </View>
+);
+
 export default function OrganizationSettingsScreen() {
   const [settings, setSettings] = useState<OrgSettings>({
     name: '', address: '', email: '', phone: '', logo_base64: '',
@@ -122,50 +168,7 @@ export default function OrganizationSettingsScreen() {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  interface SectionProps {
-    title: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    id: string;
-    children: React.ReactNode;
-  }
 
-  const Section: React.FC<SectionProps> = ({ title, icon, id, children }) => (
-    <View style={styles.section}>
-      <Pressable style={styles.sectionHeader} onPress={() => setActiveSection(activeSection === id ? null : id)}>
-        <View style={styles.sectionTitleRow}>
-          <Ionicons name={icon} size={20} color={Colors.primary} />
-          <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
-        <Ionicons name={activeSection === id ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.textMuted} />
-      </Pressable>
-      {activeSection === id && <View style={styles.sectionContent}>{children}</View>}
-    </View>
-  );
-
-  interface InputFieldProps {
-    label: string;
-    value: string | number;
-    onChangeText: (text: string) => void;
-    placeholder?: string;
-    multiline?: boolean;
-    keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address';
-  }
-
-  const InputField: React.FC<InputFieldProps> = ({ label, value, onChangeText, placeholder, multiline, keyboardType }) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, multiline && styles.textArea]}
-        value={String(value || '')}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.textMuted}
-        multiline={multiline}
-        numberOfLines={multiline ? 4 : 1}
-        keyboardType={keyboardType || 'default'}
-      />
-    </View>
-  );
 
   if (loading) {
     return (
@@ -184,7 +187,7 @@ export default function OrganizationSettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Basic Info */}
-        <Section title="Basic Information" icon="business" id="basic">
+        <Section title="Basic Information" icon="business" isOpen={activeSection === 'basic'} onToggle={() => setActiveSection(activeSection === 'basic' ? null : 'basic')}>
           {/* Logo Upload */}
           <View style={styles.logoSection}>
             <Text style={styles.inputLabel}>Company Logo</Text>
@@ -217,7 +220,7 @@ export default function OrganizationSettingsScreen() {
         </Section>
 
         {/* Owner Info */}
-        <Section title="Owner Information" icon="person" id="owner">
+        <Section title="Owner Information" icon="person" isOpen={activeSection === 'owner'} onToggle={() => setActiveSection(activeSection === 'owner' ? null : 'owner')}>
           <InputField label="Owner Name" value={settings.owner_name} onChangeText={(v: string) => updateField('owner_name', v)} placeholder="Full name" />
           <InputField label="Mobile Number" value={settings.owner_mobile} onChangeText={(v: string) => updateField('owner_mobile', v)} placeholder="+91-XXXXXXXXXX" keyboardType="phone-pad" />
           <InputField label="Email Address" value={settings.owner_email} onChangeText={(v: string) => updateField('owner_email', v)} placeholder="owner@company.com" />
@@ -225,7 +228,7 @@ export default function OrganizationSettingsScreen() {
         </Section>
 
         {/* Tax Info */}
-        <Section title="Tax Information" icon="receipt" id="tax">
+        <Section title="Tax Information" icon="receipt" isOpen={activeSection === 'tax'} onToggle={() => setActiveSection(activeSection === 'tax' ? null : 'tax')}>
           <InputField label="GST Number" value={settings.gst_number} onChangeText={(v: string) => updateField('gst_number', v)} placeholder="GSTIN" />
           <InputField label="PAN Number" value={settings.pan_number} onChangeText={(v: string) => updateField('pan_number', v)} placeholder="ABCDE1234F" />
           <InputField label="CGST %" value={settings.cgst_percentage} onChangeText={(v: string) => updateField('cgst_percentage', parseFloat(v) || 0)} placeholder="9" keyboardType="numeric" />
@@ -233,13 +236,13 @@ export default function OrganizationSettingsScreen() {
         </Section>
 
         {/* Currency */}
-        <Section title="Currency Settings" icon="cash" id="currency">
+        <Section title="Currency Settings" icon="cash" isOpen={activeSection === 'currency'} onToggle={() => setActiveSection(activeSection === 'currency' ? null : 'currency')}>
           <InputField label="Currency Code" value={settings.currency} onChangeText={(v: string) => updateField('currency', v)} placeholder="INR" />
           <InputField label="Currency Symbol" value={settings.currency_symbol} onChangeText={(v: string) => updateField('currency_symbol', v)} placeholder="₹" />
         </Section>
 
         {/* Document Prefixes */}
-        <Section title="Document Prefixes" icon="document-text" id="prefixes">
+        <Section title="Document Prefixes" icon="document-text" isOpen={activeSection === 'prefixes'} onToggle={() => setActiveSection(activeSection === 'prefixes' ? null : 'prefixes')}>
           <InputField label="Work Order Prefix" value={settings.wo_prefix} onChangeText={(v: string) => updateField('wo_prefix', v)} placeholder="WO" />
           <InputField label="Payment Certificate Prefix" value={settings.pc_prefix} onChangeText={(v: string) => updateField('pc_prefix', v)} placeholder="PC" />
           <InputField label="Invoice Prefix" value={settings.invoice_prefix} onChangeText={(v: string) => updateField('invoice_prefix', v)} placeholder="INV" />
@@ -247,7 +250,7 @@ export default function OrganizationSettingsScreen() {
         </Section>
 
         {/* AI Configuration */}
-        <Section title="AI Intelligence" icon="sparkles" id="ai">
+        <Section title="AI Intelligence" icon="sparkles" isOpen={activeSection === 'ai'} onToggle={() => setActiveSection(activeSection === 'ai' ? null : 'ai')}>
           <Text style={styles.hintText}>Configure organization-specific AI capabilities for voice transcription and summary generation.</Text>
           
           <Text style={styles.inputLabel}>Select AI Provider</Text>
@@ -291,7 +294,7 @@ export default function OrganizationSettingsScreen() {
         </Section>
 
         {/* Terms & Conditions */}
-        <Section title="Terms & Conditions" icon="document" id="terms">
+        <Section title="Terms & Conditions" icon="document" isOpen={activeSection === 'terms'} onToggle={() => setActiveSection(activeSection === 'terms' ? null : 'terms')}>
           <Text style={styles.hintText}>This text will be appended to Work Order PDF exports on a separate page.</Text>
           <TextInput
             style={styles.termsInput}

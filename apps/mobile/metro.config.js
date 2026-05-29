@@ -34,4 +34,12 @@ config.cacheStores = [
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
 
+// 4. Force Metro to resolve react and react-dom to the project local node_modules
+// This prevents duplicate React instances in the monorepo
+config.resolver.extraNodeModules = {
+  'react': path.resolve(projectRoot, 'node_modules/react'),
+  'react-dom': path.resolve(projectRoot, 'node_modules/react-dom'),
+};
+
 module.exports = config;
+

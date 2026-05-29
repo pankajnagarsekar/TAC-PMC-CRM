@@ -35,6 +35,33 @@ interface CashFlowChartProps {
   cashFlow: CashFlowStatement;
 }
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      displayDate: string;
+      opening: number;
+      closing: number;
+      txnCount: number;
+    };
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  if (active && payload && payload.length > 0) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-gray-800 border border-gray-700 rounded p-3">
+        <p className="text-gray-300 text-sm">{data.displayDate}</p>
+        <p className="text-teal-400">Opening: {formatINRShort(data.opening)}</p>
+        <p className="text-blue-400">Closing: {formatINRShort(data.closing)}</p>
+        <p className="text-gray-400 text-xs">Transactions: {data.txnCount}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function CashFlowChart({ cashFlow }: CashFlowChartProps) {
   // Format data for Recharts
   const chartData = useMemo(() => {
@@ -48,33 +75,6 @@ export default function CashFlowChart({ cashFlow }: CashFlowChartProps) {
   }, [cashFlow.daily_breakdown]);
 
   const formatCurrency = (value: number) => formatINRShort(value);
-
-  interface CustomTooltipProps {
-    active?: boolean;
-    payload?: Array<{
-      payload: {
-        displayDate: string;
-        opening: number;
-        closing: number;
-        txnCount: number;
-      };
-    }>;
-  }
-
-  const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
-    if (active && payload && payload.length > 0) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-gray-800 border border-gray-700 rounded p-3">
-          <p className="text-gray-300 text-sm">{data.displayDate}</p>
-          <p className="text-teal-400">Opening: {formatCurrency(data.opening)}</p>
-          <p className="text-blue-400">Closing: {formatCurrency(data.closing)}</p>
-          <p className="text-gray-400 text-xs">Transactions: {data.txnCount}</p>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <GlassCard className="p-6">
