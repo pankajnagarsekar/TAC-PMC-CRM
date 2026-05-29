@@ -6,6 +6,7 @@ import { addDays, format, startOfDay, differenceInCalendarDays } from "date-fns"
 
 import { useScheduleStore } from "@/store/useScheduleStore";
 import type { ScheduleTask, BaselineComparisonResult, GanttTimescale } from "@/types/schedule.types";
+import { toast } from "sonner";
 import {
   buildCalendarColumns,
   calculateTimelineRange,
@@ -201,6 +202,9 @@ export default function GanttChart() {
   const timescale = useScheduleStore((state) => state.timescale);
   const setTimescale = useScheduleStore((state) => state.setTimescale);
   const projectCalendar = useScheduleStore((state) => state.projectCalendar);
+  const removeTasksBulk = useScheduleStore((state) => state.removeTasksBulk);
+  const createDraftTask = useScheduleStore((state) => state.createDraftTask);
+  const toggleTaskSelection = useScheduleStore((state) => state.toggleTaskSelection);
 
   const unitWidth = getTimescaleWidth(timescale);
   const dayWidth = useMemo(() => {
@@ -353,6 +357,8 @@ export default function GanttChart() {
   const [highlightCritical, setHighlightCritical] = useState(true);
   const [previewDeltaDays, setPreviewDeltaDays] = useState(0);
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const isSyncingScroll = useRef(false);
 
   const dragStateRef = useRef<DragState>(null);
   const taskMapRef = useRef(taskMap);
@@ -361,14 +367,47 @@ export default function GanttChart() {
   const verticalScrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
+    if (scrollContainerRef.current) {
+      const left = scrollContainerRef.current.scrollLeft;
+      setScrollLeft(left);
+      
+      if (isSyncingScroll.current) return;
+      if (topScrollRef.current) {
+        isSyncingScroll.current = true;
+        topScrollRef.current.scrollLeft = left;
+        isSyncingScroll.current = false;
+      }
+    }
+  }, []);
+
+  const handleTopScroll = useCallback(() => {
     if (scrollContainerRef.current && topScrollRef.current) {
-      topScrollRef.current.scrollLeft = scrollContainerRef.current.scrollLeft;
+      const left = topScrollRef.current.scrollLeft;
+      setScrollLeft(left);
+      
+      if (isSyncingScroll.current) return;
+      isSyncingScroll.current = true;
+      scrollContainerRef.current.scrollLeft = left;
+      isSyncingScroll.current = false;
     }
   }, []);
 
   useEffect(() => {
     taskMapRef.current = taskMap;
   }, [taskMap]);
+
+  // Clear selection on Escape key
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        useScheduleStore.setState({ selectedTasks: new Set() });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
   const viewportHeight = 1600; 
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 20;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
@@ -594,9 +633,67 @@ export default function GanttChart() {
             {tasks.length.toLocaleString("en-US")} visible tasks
           </span>
           {selectedTasks.size > 0 && (
-            <span className="rounded-full border border-sky-400/20 bg-sky-500/10 px-2 py-1 text-sky-300">
-              {selectedTasks.size} selected
-            </span>
+            <div className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+              <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-1 text-orange-400 font-bold">
+                {selectedTasks.size} Selected
+              </span>
+              
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-0.5">
+                {selectedTasks.size === 1 && (
+                  <button
+                    onClick={() => openTaskModal(Array.from(selectedTasks)[0])}
+                    className="px-2.5 py-1 text-[9px] font-black uppercase text-sky-400 hover:bg-sky-500/10 rounded-lg transition-colors cursor-pointer"
+                    title="Open task details drawer"
+                  >
+                    Edit
+                  </button>
+                )}
+                <button
+                  onClick={async () => {
+                    const ids = Array.from(selectedTasks);
+                    if (confirm(`Are you sure you want to delete the ${ids.length} selected task(s)?`)) {
+                      await removeTasksBulk(ids);
+                      useScheduleStore.setState({ selectedTasks: new Set() });
+                    }
+                  }}
+                  className="px-2.5 py-1 text-[9px] font-black uppercase text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                  title="Delete selected tasks in bulk"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => {
+                    const ids = Array.from(selectedTasks);
+                    ids.forEach(id => {
+                      const t = taskMap[id];
+                      if (t) {
+                        createDraftTask(t.project_id, {
+                          task_name: `${t.task_name} (Copy)`,
+                          scheduled_duration: t.scheduled_duration,
+                          percent_complete: 0,
+                          scheduled_start: t.scheduled_start,
+                          scheduled_finish: t.scheduled_finish,
+                          is_milestone: t.is_milestone,
+                        });
+                      }
+                    });
+                    useScheduleStore.setState({ selectedTasks: new Set() });
+                    toast.success(`Duplicated ${ids.length} task(s).`);
+                  }}
+                  className="px-2.5 py-1 text-[9px] font-black uppercase text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer"
+                  title="Duplicate selected tasks"
+                >
+                  Duplicate
+                </button>
+                <button
+                  onClick={() => useScheduleStore.setState({ selectedTasks: new Set() })}
+                  className="px-2 py-1 text-[9px] font-black uppercase text-slate-400 hover:bg-slate-500/10 rounded-lg transition-colors cursor-pointer"
+                  title="Clear current selection"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
           <div className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] p-0.5">
             {[
@@ -656,10 +753,11 @@ export default function GanttChart() {
       {/* Top scroll sync indicator */}
       <div
         ref={topScrollRef}
-        className="overflow-x-auto overflow-y-hidden h-4 rounded-t-[28px] border border-b-0 border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/30"
+        onScroll={handleTopScroll}
+        className="overflow-x-auto custom-scrollbar h-[22px] rounded-t-[28px] border border-b-0 border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/30"
         style={{ scrollBehavior: 'smooth' }}
       >
-        <div style={{ minWidth: 280 + timelineWidth }} className="h-4" />
+        <div style={{ minWidth: 280 + timelineWidth }} className="h-[2px]" />
       </div>
 
       <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto overflow-y-hidden rounded-b-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
@@ -679,7 +777,7 @@ export default function GanttChart() {
                       className="h-9 flex items-center border-r border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 whitespace-nowrap px-4 bg-slate-50/50 dark:bg-white/[0.02] relative"
                       style={{ width: m.width }}
                     >
-                      <span className="sticky left-4 z-10 block">
+                      <span className="sticky left-[296px] z-10 block">
                         {m.label}
                       </span>
                     </div>
@@ -710,6 +808,12 @@ export default function GanttChart() {
                 const top = event.currentTarget.scrollTop;
                 setScrollTopState(top);
                 setGlobalScrollTop(top);
+            }}
+            onClick={(e) => {
+              const clickedRowOrBar = (e.target as HTMLElement).closest('[data-gantt-row]') || (e.target as HTMLElement).closest('.group.relative.h-9');
+              if (!clickedRowOrBar) {
+                useScheduleStore.setState({ selectedTasks: new Set() });
+              }
             }}
             className="custom-scrollbar max-h-[72vh] overflow-y-auto"
           >
@@ -773,38 +877,59 @@ export default function GanttChart() {
                 return (
                   <div
                     key={task.task_id}
+                    data-gantt-row="true"
                     className={`flex border-b border-slate-200 dark:border-white/5 transition-colors ${task.is_summary ? 'bg-slate-50/30 dark:bg-white/[0.01]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'}`}
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => handleSelect(task.task_id)}
                   >
-                    <div className="flex w-[280px] shrink-0 items-center gap-3 border-r border-slate-200 dark:border-white/5 px-4 sticky left-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-[4px_0_8px_rgba(0,0,0,0.05)]">
-                      <div
-                        className={`h-2.5 w-2.5 rounded-full ${emphasizeCritical ? "bg-rose-500 dark:bg-rose-400" : "bg-sky-500 dark:bg-sky-400"}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        {readOnly ? (
-                          <p className="truncate text-xs font-semibold text-slate-900 dark:text-white" title={task.task_name}>{task.task_name}</p>
-                        ) : (
-                          <EditableCell
-                            value={task.task_name}
-                            onCommit={(nextValue) => {
-                              if (typeof nextValue !== "string") return;
-                              const clean = stripHtmlTags(nextValue);
-                              if (clean) handleEdit(task.task_id, { task_name: clean });
-                            }}
-                            className="bg-transparent border-none p-0 focus:bg-slate-100 dark:focus:bg-white/5 h-auto text-xs font-semibold"
-                          />
-                        )}
-                        <div className="flex items-center gap-2">
-                          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600 font-bold">
-                            {task.wbs_code || task.task_id}
-                          </p>
-                          {showBaseline && variance !== 0 && (
-                            <span className={`text-[9px] font-bold ${variance > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                              {variance > 0 ? `+${variance}d` : `${variance}d`}
-                            </span>
+                    <div 
+                      className="flex w-[280px] shrink-0 items-center gap-3 border-r border-slate-200 dark:border-white/5 px-4 sticky left-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-[4px_0_8px_rgba(0,0,0,0.05)]"
+                      style={{ transform: `translateX(${scrollLeft}px)` }}
+                    >
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedTasks.has(task.task_id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleTaskSelection(task.task_id);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-3.5 w-3.5 rounded border-slate-300 dark:border-white/15 text-orange-600 focus:ring-orange-500 cursor-pointer bg-white/5"
+                          title={selectedTasks.has(task.task_id) ? "Deselect row" : "Select row"}
+                        />
+                        <div
+                          className={`h-2.5 w-2.5 rounded-full shrink-0 ${emphasizeCritical ? "bg-rose-500 dark:bg-rose-400" : "bg-sky-500 dark:bg-sky-400"}`}
+                          title={emphasizeCritical ? "Critical path task" : "Normal task"}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1 flex items-center gap-2">
+                        <span 
+                          className="text-[9px] text-slate-400 dark:text-slate-500 font-black tracking-wider w-6 shrink-0 text-right"
+                          title="WBS Code / Task ID"
+                        >
+                          {task.wbs_code || task.task_id}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          {readOnly ? (
+                            <p className="truncate text-xs font-semibold text-slate-900 dark:text-white" title={task.task_name}>{task.task_name}</p>
+                          ) : (
+                            <EditableCell
+                              value={task.task_name}
+                              onCommit={(nextValue) => {
+                                if (typeof nextValue !== "string") return;
+                                const clean = stripHtmlTags(nextValue);
+                                if (clean) handleEdit(task.task_id, { task_name: clean });
+                              }}
+                              className="bg-transparent border-none p-0 focus:bg-slate-100 dark:focus:bg-white/5 h-auto text-xs font-semibold text-slate-900 dark:text-white"
+                            />
                           )}
                         </div>
+                        {showBaseline && variance !== 0 && (
+                          <span className={`text-[9px] font-bold shrink-0 ${variance > 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                            {variance > 0 ? `+${variance}d` : `${variance}d`}
+                          </span>
+                        )}
                       </div>
                     </div>
 

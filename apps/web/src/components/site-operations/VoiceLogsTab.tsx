@@ -194,28 +194,6 @@ export default function VoiceLogsTab() {
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: var(--scrollbar-thumb, #e2e8f0);
-          border-radius: 10px;
-        }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1e293b;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #cbd5e1;
-        }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #334155;
-        }
-      `}</style>
     </div>
   );
 }
