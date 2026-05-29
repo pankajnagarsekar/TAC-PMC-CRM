@@ -243,7 +243,7 @@ export default function ExpenseEntryModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Category Selector */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
+            <label htmlFor="expense-category" className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Category
             </label>
             {categoriesLoading ? (
@@ -253,6 +253,7 @@ export default function ExpenseEntryModal({
               </div>
             ) : (
               <select
+                id="expense-category"
                 value={formData.category_id}
                 onChange={(e) =>
                   setFormData({ ...formData, category_id: e.target.value })
@@ -272,12 +273,13 @@ export default function ExpenseEntryModal({
 
           {/* Amount */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
+            <label htmlFor="expense-amount" className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Amount (₹)
             </label>
             <div className="relative">
               <IndianRupee size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input
+                id="expense-amount"
                 type="number"
                 step="0.01"
                 min="0"
@@ -294,10 +296,11 @@ export default function ExpenseEntryModal({
 
           {/* Bill Image Upload with OCR */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
+            <label htmlFor="expense-bill-image" className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Bill Image (Optional)
             </label>
             <input
+              id="expense-bill-image"
               ref={fileInputRef}
               type="file"
               accept="image/*,.pdf"
@@ -385,10 +388,11 @@ export default function ExpenseEntryModal({
 
           {/* Purpose */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
+            <label htmlFor="expense-purpose" className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Purpose
             </label>
             <input
+              id="expense-purpose"
               type="text"
               value={formData.purpose}
               onChange={(e) =>
@@ -402,11 +406,12 @@ export default function ExpenseEntryModal({
 
           {/* Bill Reference */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
+            <label htmlFor="expense-bill-ref" className="block text-sm font-medium text-zinc-700 dark:text-slate-300 mb-2">
               Bill Reference
             </label>
             <div className="flex gap-2">
               <input
+                id="expense-bill-ref"
                 type="text"
                 value={formData.bill_reference}
                 onChange={(e) =>

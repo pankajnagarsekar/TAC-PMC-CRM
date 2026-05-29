@@ -85,8 +85,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
           )}
 
           <div>
-            <label className={labelStyle}>Category Name <span className="text-orange-500">*</span></label>
+            <label htmlFor="cat-name" className={labelStyle}>Category Name <span className="text-orange-500">*</span></label>
             <input
+              id="cat-name"
               required
               className={inputStyle}
               placeholder="e.g. Civil Works"
@@ -96,8 +97,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
           </div>
 
           <div>
-            <label className={labelStyle}>Short Code <span className="text-orange-500">*</span></label>
+            <label htmlFor="cat-code" className={labelStyle}>Short Code <span className="text-orange-500">*</span></label>
             <input
+              id="cat-code"
               required
               className={`${inputStyle} font-mono uppercase`}
               placeholder="e.g. CIVIL"
@@ -108,8 +110,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
           </div>
 
           <div>
-            <label className={labelStyle}>Budget Model <span className="text-orange-500">*</span></label>
+            <label htmlFor="cat-budget-model" className={labelStyle}>Budget Model <span className="text-orange-500">*</span></label>
             <select
+              id="cat-budget-model"
               className={inputStyle}
               value={formData.budget_type}
               onChange={e => setFormData({ ...formData, budget_type: e.target.value })}
@@ -126,8 +129,9 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, category }: 
           </div>
 
           <div>
-            <label className={labelStyle}>Description <span className="text-orange-500">*</span></label>
+            <label htmlFor="cat-description" className={labelStyle}>Description <span className="text-orange-500">*</span></label>
             <textarea
+              id="cat-description"
               required
               className={`${inputStyle} min-h-[80px] resize-none`}
               placeholder="Describe what this category covers..."
