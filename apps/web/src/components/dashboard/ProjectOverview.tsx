@@ -35,39 +35,39 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       label: "Days Remaining",
       value: metrics.days_remaining,
       unit: "days",
-      icon: <Clock className="w-5 h-5" />,
+      icon: <Clock className="size-5" />,
       status: metrics.schedule_status,
       trend: metrics.days_remaining > 10 ? "up" : "down",
     },
     {
       label: "Tasks at Risk",
       value: metrics.tasks_at_risk,
-      icon: <AlertTriangle className="w-5 h-5" />,
+      icon: <AlertTriangle className="size-5" />,
       status: metrics.tasks_at_risk === 0 ? "green" : metrics.tasks_at_risk <= 3 ? "yellow" : "red",
     },
     {
       label: "Budget Utilization",
       value: Math.round(Number(metrics.budget_utilization_pct)),
       unit: "%",
-      icon: <IndianRupee className="w-5 h-5" />,
+      icon: <IndianRupee className="size-5" />,
       status: metrics.financial_status,
     },
     {
       label: "Daily Burn Rate",
       value: formatCurrencySafe(metrics.burn_rate_daily),
-      icon: <TrendingDown className="w-5 h-5" />,
+      icon: <TrendingDown className="size-5" />,
       status: "neutral" as const,
     },
     {
       label: "Schedule Health",
       value: metrics.schedule_status.toUpperCase(),
-      icon: <CheckCircle className="w-5 h-5" />,
+      icon: <CheckCircle className="size-5" />,
       status: metrics.schedule_status,
     },
     {
       label: "Financial Health",
       value: metrics.financial_status.toUpperCase(),
-      icon: <IndianRupee className="w-5 h-5" />,
+      icon: <IndianRupee className="size-5" />,
       status: metrics.financial_status,
     },
   ];
@@ -122,9 +122,9 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
             {kpi.trend && (
               <div className="mt-2 flex items-center gap-1 text-xs">
                 {kpi.trend === "up" ? (
-                  <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                  <TrendingUp className="size-3 text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <TrendingDown className="w-3 h-3 text-red-600 dark:text-red-400" />
+                  <TrendingDown className="size-3 text-red-600 dark:text-red-400" />
                 )}
                 <span className={kpi.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
                   {kpi.trend === "up" ? "Improving" : "Declining"}

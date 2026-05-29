@@ -339,6 +339,7 @@ export default function BudgetRevisionsList({
                       <td className="p-4">
                         {rev.document_url && rev.document_name ? (
                           <button
+                            type="button"
                             onClick={() => handleDownload(revId, rev.document_name!)}
                             className="flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-500 hover:text-orange-700 dark:hover:text-orange-400 hover:underline font-medium focus:outline-none transition-colors"
                           >
@@ -382,6 +383,7 @@ export default function BudgetRevisionsList({
 
                           {rev.status === "DRAFT" && (isOwner || showAdminActions) && (
                             <button
+                              type="button"
                               disabled={isLoadingAction}
                               onClick={() => handleSubmit(revId)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 dark:bg-orange-500 hover:bg-orange-700 dark:hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all border border-transparent shadow-sm disabled:opacity-50"
@@ -393,6 +395,7 @@ export default function BudgetRevisionsList({
                           {rev.status === "SUBMITTED" && showAdminActions && (
                             <>
                               <button
+                                type="button"
                                 disabled={isLoadingAction}
                                 onClick={() => handleApprove(revId)}
                                 className="flex items-center justify-center p-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 rounded-lg transition-all"
@@ -401,6 +404,7 @@ export default function BudgetRevisionsList({
                                 <Check size={14} />
                               </button>
                               <button
+                                type="button"
                                 disabled={isLoadingAction}
                                 onClick={() => handleOpenRejectModal(rev)}
                                 className="flex items-center justify-center p-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-500 hover:bg-rose-500/20 rounded-lg transition-all"
@@ -450,12 +454,14 @@ export default function BudgetRevisionsList({
 
           <DialogFooter className="mt-6 flex gap-2 justify-end">
             <button
+              type="button"
               onClick={() => setRejectingRevision(null)}
               className="px-4 py-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-all border border-zinc-200 dark:border-zinc-800"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleReject}
               disabled={rejectionComment.trim().length < 5}
               className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
