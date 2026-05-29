@@ -66,6 +66,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
             Unable to analyze task data at this time. Please ensure tasks have valid dates and try again.
           </p>
           <button
+            type="button"
             onClick={fetchSummary}
             className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 text-rose-400 text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500/10 transition-all flex items-center gap-2"
           >
@@ -106,6 +107,7 @@ export default function TaskAISummary({ projectId }: TaskAISummaryProps) {
         </div>
 
         <button
+          type="button"
           onClick={fetchSummary}
           className="p-1.5 rounded-lg border border-blue-500/20 bg-blue-500/5 text-blue-400 hover:bg-blue-500/15 transition-colors"
           title="Regenerate Insights"
