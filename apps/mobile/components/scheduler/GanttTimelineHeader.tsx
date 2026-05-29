@@ -2,11 +2,12 @@
 // Uses Reanimated animated props for synchronized horizontal scroll and zoom.
 
 import React from 'react';
+import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useAnimatedProps } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { Svg, Line, Text as SvgText } from 'react-native-svg';
 import { format, addDays } from 'date-fns';
-import { HEADER_HEIGHT } from './scheduler-constants';
+import { HEADER_HEIGHT, DAY_WIDTH_MAX } from './scheduler-constants';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
@@ -27,14 +28,10 @@ interface GanttTimelineHeaderProps {
 export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimelineHeaderProps) {
   const { colors } = useTheme();
 
-  // Compute SVG width dynamically based on dayWidth (responsive to pinch zoom)
-  const animatedWidthStyle = useAnimatedStyle(() => ({
-    width: timeline.dayCount * dayWidth.value,
-  }));
+  const maxTimelineWidth = timeline.dayCount * DAY_WIDTH_MAX;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: scrollX.value }],
-    width: timeline.dayCount * dayWidth.value,
   }));
 
   // Render tick marks every 7 days for clarity at all zoom levels
@@ -52,11 +49,12 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
           backgroundColor: colors.surface,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
+          width: maxTimelineWidth,
         },
         animatedStyle,
       ]}
     >
-      <Animated.View style={[{ height: HEADER_HEIGHT }, animatedWidthStyle]}>
+      <View style={{ height: HEADER_HEIGHT, width: maxTimelineWidth }}>
         <Svg height={HEADER_HEIGHT} width="100%">
           {ticks.map(({ dayIndex, label }) => (
             <Tick 
@@ -68,7 +66,7 @@ export function GanttTimelineHeader({ timeline, dayWidth, scrollX }: GanttTimeli
             />
           ))}
         </Svg>
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 }

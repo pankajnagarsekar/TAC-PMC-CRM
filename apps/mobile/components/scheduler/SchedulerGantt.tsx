@@ -55,9 +55,10 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
 
   const composed = Gesture.Simultaneous(pan, pinch);
 
+  const maxTimelineWidth = timeline.dayCount * DAY_WIDTH_MAX;
+
   const bodyAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: scrollX.value }],
-    width: timeline.dayCount * dayWidth.value,
   }));
 
   return (
@@ -71,7 +72,7 @@ export function SchedulerGantt({ tasks }: SchedulerGanttProps) {
 
       {/* Body: GestureDetector wraps the full list (NOT inside renderItem) */}
       <GestureDetector gesture={composed}>
-        <Animated.View style={[{ flex: 1 }, bodyAnimatedStyle]}>
+        <Animated.View style={[{ flex: 1, width: maxTimelineWidth }, bodyAnimatedStyle]}>
           <FlashList
             data={tasks}
             keyExtractor={(item) => item.task_id}
