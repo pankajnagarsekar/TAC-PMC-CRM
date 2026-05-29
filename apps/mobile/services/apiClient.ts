@@ -55,13 +55,16 @@ import {
   ProjectDashboardData,
 } from '../types/api';
 
-// ============================================
-// CONFIGURATION
-// ============================================
-const BASE_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:8000';
+const getBaseUrl = (): string => {
+  const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_API_URL;
+  if (Platform.OS === 'web' && envUrl && envUrl.includes('10.0.2.2')) {
+    // Fail-safe: Auto-correct Android emulator loopback to localhost when running on Web preview
+    return envUrl.replace('10.0.2.2', 'localhost');
+  }
+  return envUrl || 'http://localhost:8000';
+};
+
+const BASE_URL = getBaseUrl();
 
 const TOKEN_KEYS = {
   ACCESS: 'access_token',
