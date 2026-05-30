@@ -596,3 +596,30 @@ div[data-radix-focus-guard]+div {
 .row-valid {
   border-left: 4px solid #10b981 !important;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   DASHBOARD GRID SYSTEM & DRAG-AND-DROP TOKENS
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --dashboard-gap: 1.5rem;           /* 24px consistent gap */
+  --dashboard-widget-min-h: 400px;
+  --dashboard-widget-max-h: 600px;
+  --dashboard-widget-radius: var(--radius);
+  --dashboard-zone-gap: 2rem;        /* 32px between zones */
+}
+
+/* Drag-and-drop visual feedback */
+.dashboard-widget-dragging {
+  opacity: 0.85 !important;
+  transform: rotate(0.5deg) scale(1.01) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4) !important;
+  border-color: hsl(var(--primary) / 0.3) !important;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out !important;
+}
+
+.dashboard-drop-placeholder {
+  border: 2px dashed hsl(var(--primary) / 0.3) !important;
+  border-radius: var(--radius);
+  background: hsl(var(--primary) / 0.03) !important;
+  transition: all 0.2s ease-in-out;
+}
