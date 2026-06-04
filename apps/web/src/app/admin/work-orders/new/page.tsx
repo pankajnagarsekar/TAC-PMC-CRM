@@ -57,6 +57,8 @@ export default function NewWorkOrderPage() {
     description: "",
     terms: "",
     discount: 0,
+    discount_value: 0,
+    discount_type: "value",
     cgst: 9, // Example default, ideally from Settings
     sgst: 9,
     retention_percent: 5,
@@ -111,13 +113,13 @@ export default function NewWorkOrderPage() {
   const financials = useMemo(() => {
     return calculateWOFinancials(
       rawSubtotal,
-      formData.discount,
-      "value", // Current UI defaults to fixed value discount
+      formData.discount_value,
+      formData.discount_type as "percentage" | "value",
       formData.retention_percent,
       formData.cgst,
       formData.sgst
     );
-  }, [rawSubtotal, formData.discount, formData.retention_percent, formData.cgst, formData.sgst]);
+  }, [rawSubtotal, formData.discount_value, formData.discount_type, formData.retention_percent, formData.cgst, formData.sgst]);
 
   // Grid Definitions
   const columnDefs: ColDef<LineItem>[] = useMemo(
@@ -265,6 +267,9 @@ export default function NewWorkOrderPage() {
       const projectId = activeProject.project_id || activeProject._id;
       const payload = {
         ...formData,
+        discount: financials.discount, // Set calculated absolute discount
+        discount_value: formData.discount_value,
+        discount_type: formData.discount_type,
         description: sanitizeText(formData.description),
         terms: sanitizeText(formData.terms),
         project_id: projectId,
@@ -439,7 +444,7 @@ export default function NewWorkOrderPage() {
             <select
               value={formData.vendor_id}
               onChange={(e) => {
-                const vendor = vendors?.find(v => v._id === e.target.value);
+                const vendor = vendors?.find(v => (v._id || v.id) === e.target.value);
                 setFormData({ 
                   ...formData, 
                   vendor_id: e.target.value,
@@ -452,7 +457,7 @@ export default function NewWorkOrderPage() {
             >
               <option value="">Select a vendor...</option>
               {vendors?.map((v) => (
-                <option key={v._id} value={v._id}>
+                <option key={v._id || v.id} value={v._id || v.id}>
                   {v.name} ({v.gstin || "No GSTIN"})
                 </option>
               ))}
@@ -588,16 +593,35 @@ export default function NewWorkOrderPage() {
             <div className="flex justify-between items-center text-slate-400">
               <span>Discount:</span>
               <div className="flex flex-col items-end">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500">₹</span>
-                  <input
-                    type="number"
-                    value={formData.discount || ""}
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded p-1">
+                  <select
+                    value={formData.discount_type}
                     onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
+                      const type = e.target.value as "percentage" | "value";
                       setFormData({
                         ...formData,
-                        discount: Math.max(0, Math.min(val, financials.subtotal)),
+                        discount_type: type,
+                        discount_value: 0,
+                        discount: 0,
+                      });
+                      setIsDirty(true);
+                    }}
+                    className="bg-transparent text-slate-400 text-xs outline-none cursor-pointer pr-1 border-r border-slate-800"
+                  >
+                    <option value="value" className="bg-slate-950 text-white">₹ Value</option>
+                    <option value="percentage" className="bg-slate-950 text-white">% Percent</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={formData.discount_value || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      const maxLimit = formData.discount_type === "percentage" ? 100 : rawSubtotal;
+                      const clampedVal = Math.max(0, Math.min(val, maxLimit));
+                      setFormData({
+                        ...formData,
+                        discount_value: clampedVal,
+                        discount: formData.discount_type === "percentage" ? (rawSubtotal * clampedVal) / 100 : clampedVal,
                       });
                       if (val < 0) {
                         setFieldErrors(prev => ({ ...prev, discount: "Discount cannot be negative" }));
@@ -610,7 +634,8 @@ export default function NewWorkOrderPage() {
                       }
                       setIsDirty(true);
                     }}
-                    className={`w-32 bg-slate-950 border ${fieldErrors.discount ? 'border-red-500' : 'border-slate-700'} text-white p-1 rounded text-right focus:outline-none focus:border-amber-500`}
+                    className={`w-24 bg-transparent text-white text-right focus:outline-none`}
+                    placeholder="0.00"
                   />
                 </div>
                 {fieldErrors.discount && <span className="text-[10px] text-red-500 mt-1 font-bold uppercase tracking-wider">{fieldErrors.discount}</span>}
@@ -621,32 +646,6 @@ export default function NewWorkOrderPage() {
               <span className="font-medium">Net Value (After Discount):</span>
               <span className="font-mono text-white font-medium">
                 {formatCurrency(financials.totalBeforeTax)}
-              </span>
-            </div>
-
-            <div className="flex justify-between text-slate-400 px-2 pt-2 border-t border-slate-800/50">
-              <span>Retention (%):</span>
-              <div className="flex flex-col items-end">
-                <input
-                  type="number"
-                  value={formData.retention_percent}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    setFormData({
-                      ...formData,
-                      retention_percent: Math.max(0, Math.min(100, val)),
-                    });
-                    setIsDirty(true);
-                  }}
-                  className={`w-16 bg-slate-950 border ${fieldErrors.retention ? 'border-red-500' : 'border-slate-700'} text-white p-1 rounded text-right focus:outline-none focus:border-amber-500`}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-between text-slate-500 px-2 text-xs">
-              <span>Retention Amount:</span>
-              <span className="font-mono">
-                -{formatCurrency(financials.retentionAmount)}
               </span>
             </div>
 

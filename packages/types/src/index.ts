@@ -195,6 +195,8 @@ export interface WorkOrder {
   terms?: string;
   subtotal: number;
   discount: number;
+  discount_type?: "percentage" | "value";
+  discount_value?: number;
   total_before_tax: number;
   cgst: number;
   sgst: number;
@@ -219,6 +221,8 @@ export interface WorkOrderUpdate {
   status?: "Draft" | "Pending" | "Approved" | "Completed" | "Closed" | "Cancelled";
   line_items?: WOLineItem[];
   discount?: number;
+  discount_type?: "percentage" | "value";
+  discount_value?: number;
   retention_percent?: number;
   expected_version: number;
 }

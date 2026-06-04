@@ -66,7 +66,8 @@ export default function WorkOrderDetailPage() {
     category_id: "",
     vendor_id: "",
     description: "",
-    discount: 0,
+    discount_value: 0,
+    discount_type: "value",
     retention_percent: 0,
   });
   const [editLineItems, setEditLineItems] = useState<LineItem[]>([]);
@@ -172,7 +173,8 @@ export default function WorkOrderDetailPage() {
       category_id: wo.category_id || "",
       vendor_id: wo.vendor_id || "",
       description: wo.description || "",
-      discount: wo.discount || 0,
+      discount_value: wo.discount_value !== undefined ? wo.discount_value : (wo.discount || 0),
+      discount_type: wo.discount_type || "value",
       retention_percent: wo.retention_percent || 0,
     });
     setEditLineItems(JSON.parse(JSON.stringify(wo.line_items || [])) as LineItem[]);
@@ -189,8 +191,8 @@ export default function WorkOrderDetailPage() {
 
     const financials = calculateWOFinancials(
       subtotal,
-      editState.discount || 0,
-      "value",
+      editState.discount_value || 0,
+      editState.discount_type as "percentage" | "value" || "value",
       editState.retention_percent || 0,
       cgstRate,
       sgstRate
@@ -215,7 +217,9 @@ export default function WorkOrderDetailPage() {
           vendor_id: editState.vendor_id || undefined,
           description: editState.description || undefined,
           line_items: editLineItems,
-          discount: editState.discount,
+          discount: editFinancials.discount, // Send calculated absolute discount
+          discount_value: editState.discount_value,
+          discount_type: editState.discount_type,
           retention_percent: editState.retention_percent,
           expected_version: wo.version,
         });
@@ -489,7 +493,7 @@ export default function WorkOrderDetailPage() {
                 >
                   <option value="">Select Vendor</option>
                   {vendors?.map((vendor) => (
-                    <option key={vendor._id} value={vendor._id}>
+                    <option key={vendor._id || vendor.id} value={vendor._id || vendor.id}>
                       {vendor.name}
                     </option>
                   ))}
@@ -497,7 +501,7 @@ export default function WorkOrderDetailPage() {
               ) : (
                 <div className="text-white font-medium bg-slate-950 p-3 rounded-lg border border-slate-800/50">
                   {vendors ?
-                    (vendors.find((v) => v._id === wo.vendor_id)?.name || wo.vendor_name || "Unknown Vendor") :
+                    (vendors.find((v) => (v._id || v.id) === wo.vendor_id)?.name || wo.vendor_name || "Unknown Vendor") :
                     (wo.vendor_name || <Loader2 size={14} className="animate-spin" />)
                   }
                 </div>
@@ -562,21 +566,43 @@ export default function WorkOrderDetailPage() {
               </span>
             </div>
 
-            <div className="flex justify-between text-slate-400 p-2">
+            <div className="flex justify-between items-center text-slate-400 p-2">
               <span>Discount:</span>
               {isEditing ? (
-                <input
-                  type="number"
-                  value={editState.discount}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    setEditState({ ...editState, discount: Math.min(val, editFinancials.subtotal) });
-                  }}
-                  className="w-32 bg-slate-950 border border-slate-700 text-white p-1 rounded text-right focus:outline-none focus:border-amber-500"
-                />
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded p-1">
+                  <select
+                    value={editState.discount_type}
+                    onChange={(e) => {
+                      const type = e.target.value as "percentage" | "value";
+                      setEditState({
+                        ...editState,
+                        discount_type: type,
+                        discount_value: 0,
+                      });
+                    }}
+                    className="bg-transparent text-slate-400 text-xs outline-none cursor-pointer pr-1 border-r border-slate-800"
+                  >
+                    <option value="value" className="bg-slate-950 text-white">₹ Value</option>
+                    <option value="percentage" className="bg-slate-950 text-white">% Percent</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={editState.discount_value || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      const maxLimit = editState.discount_type === "percentage" ? 100 : editFinancials.subtotal;
+                      setEditState({
+                        ...editState,
+                        discount_value: Math.max(0, Math.min(val, maxLimit)),
+                      });
+                    }}
+                    className="w-24 bg-transparent text-white text-right focus:outline-none"
+                    placeholder="0.00"
+                  />
+                </div>
               ) : (
                 <span className="font-mono text-white">
-                  -{formatCurrency(wo.discount || 0)}
+                  -{formatCurrency(wo.discount || 0)} {wo.discount_type === "percentage" ? `(${wo.discount_value}%)` : ""}
                 </span>
               )}
             </div>
