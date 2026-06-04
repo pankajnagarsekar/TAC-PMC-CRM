@@ -21,6 +21,7 @@ import TaskDetailsModal from "@/components/scheduler/TaskDetailsModal";
 import FinancialChart from "@/components/ui/FinancialChart";
 import { Button } from "@/components/ui/button";
 import AnalyticsContainer from "@/components/analytics/AnalyticsContainer";
+import BudgetControlPanel from "@/components/scheduler/BudgetControlPanel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -409,18 +410,7 @@ function ProjectSchedulerContent() {
                 </Tabs.Content>
 
                 <Tabs.Content value="budget" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
-                  <div className="max-w-5xl mx-auto space-y-8">
-                    <h3 className="text-zinc-500 uppercase tracking-widest text-[10px] font-bold px-4">Financial Status — Planned vs Actuals per Category</h3>
-                    <FinancialChart
-                      title=""
-                      data={budgetChartData}
-                      dataKeys={[
-                        { key: 'budget', color: '#775a19', label: 'Planned' },
-                        { key: 'committed', color: '#505f7a', label: 'Actual' }
-                      ]}
-                      height={500}
-                    />
-                  </div>
+                  <BudgetControlPanel taskMap={taskMap} financials={financials} />
                 </Tabs.Content>
 
                 <Tabs.Content value="calendar" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
