@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { formatINRShort } from "@/lib/formatters";
 import { parseTaskDate } from "@/components/scheduler/scheduler-utils";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import { getFilteredTasks, computeMilestoneData, computeResourceLoad, computeSCurveData } from "@/lib/analyticsComputeEngine";
 
@@ -30,7 +30,6 @@ export default function AnalyticsDetailGrid({ tasks, financials }: AnalyticsDeta
 
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const filteredTasks = useMemo(() => {
     return getFilteredTasks(tasks, filters);
@@ -41,7 +40,8 @@ export default function AnalyticsDetailGrid({ tasks, financials }: AnalyticsDeta
     setSelectedTask(taskId);
     
     // Switch to grid tab
-    const params = new URLSearchParams(searchParams.toString());
+    const searchStr = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(searchStr);
     params.set("tab", "grid");
     router.replace(`?${params.toString()}`);
   };
@@ -65,8 +65,8 @@ export default function AnalyticsDetailGrid({ tasks, financials }: AnalyticsDeta
 
       case "task_status":
         // Show tasks grouped by status
-        return [...filteredTasks]
-          .sort((a, b) => (a.task_status || "").localeCompare(b.task_status || ""))
+        return filteredTasks
+          .toSorted((a, b) => (a.task_status || "").localeCompare(b.task_status || ""))
           .slice(0, 15);
 
       case "milestone_trend":
@@ -126,16 +126,18 @@ export default function AnalyticsDetailGrid({ tasks, financials }: AnalyticsDeta
       case "completion_forecast":
         // Show active critical tasks that are incomplete
         return filteredTasks
-          .filter(t => t.is_critical && (t.percent_complete ?? 0) < 100)
-          .map(t => {
-            const baseline = t.baseline_finish ? new Date(t.baseline_finish) : null;
-            const current = t.scheduled_finish ? new Date(t.scheduled_finish) : null;
-            let variance = 0;
-            if (baseline && current) {
-              variance = Math.round((current.getTime() - baseline.getTime()) / (1000 * 60 * 60 * 24));
+          .reduce<any[]>((acc, t) => {
+            if (t.is_critical && (t.percent_complete ?? 0) < 100) {
+              const baseline = t.baseline_finish ? new Date(t.baseline_finish) : null;
+              const current = t.scheduled_finish ? new Date(t.scheduled_finish) : null;
+              let variance = 0;
+              if (baseline && current) {
+                variance = Math.round((current.getTime() - baseline.getTime()) / (1000 * 60 * 60 * 24));
+              }
+              acc.push({ ...t, variance });
             }
-            return { ...t, variance };
-          })
+            return acc;
+          }, [])
           .slice(0, 10);
 
       default:
@@ -148,6 +150,7 @@ export default function AnalyticsDetailGrid({ tasks, financials }: AnalyticsDeta
   return (
     <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-950/40 p-5 shadow-xl backdrop-blur-xl">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full text-left"
       >

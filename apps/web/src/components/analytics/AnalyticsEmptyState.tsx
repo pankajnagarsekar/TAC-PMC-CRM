@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Info, ArrowRight } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface AnalyticsEmptyStateProps {
   title?: string;
@@ -18,17 +18,17 @@ export default function AnalyticsEmptyState({
   actionTab = "grid"
 }: AnalyticsEmptyStateProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const handleAction = () => {
-    const params = new URLSearchParams(searchParams.toString());
+    const searchStr = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(searchStr);
     params.set("tab", actionTab);
     router.replace(`?${params.toString()}`);
   };
 
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center min-h-[300px] border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-white/[0.01]">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500 shadow-lg shadow-orange-500/10">
+      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500 shadow-lg shadow-orange-500/10">
         <Info size={20} />
       </div>
       <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">{title}</h4>
@@ -37,6 +37,7 @@ export default function AnalyticsEmptyState({
       </p>
       {actionText && (
         <button
+          type="button"
           onClick={handleAction}
           className="mt-6 flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-orange-500/10 active:scale-95"
         >

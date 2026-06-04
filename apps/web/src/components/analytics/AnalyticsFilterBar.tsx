@@ -195,7 +195,7 @@ export default function AnalyticsFilterBar() {
               <option value="this_month">This Month</option>
               <option value="next_30">Next 30 Days</option>
               <option value="quarter">This Quarter</option>
-              <option value="custom">Custom Date...</option>
+              <option value="custom">Custom Date…</option>
             </select>
           </div>
 
@@ -204,6 +204,7 @@ export default function AnalyticsFilterBar() {
             <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 animate-in slide-in-from-left duration-300">
               <input
                 type="date"
+                aria-label="Start Date"
                 value={filters.customDateStart || ""}
                 onChange={(e) => setFilter("customDateStart", e.target.value)}
                 className="bg-transparent text-[10px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
@@ -211,6 +212,7 @@ export default function AnalyticsFilterBar() {
               <span className="text-[9px] font-black text-slate-400">TO</span>
               <input
                 type="date"
+                aria-label="End Date"
                 value={filters.customDateEnd || ""}
                 onChange={(e) => setFilter("customDateEnd", e.target.value)}
                 className="bg-transparent text-[10px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
@@ -222,6 +224,7 @@ export default function AnalyticsFilterBar() {
           <div className="flex rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-1">
             {(['daily', 'weekly', 'monthly'] as const).map((bucket) => (
               <button
+                type="button"
                 key={bucket}
                 onClick={() => setFilter("timeBucket", bucket)}
                 className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
@@ -255,6 +258,7 @@ export default function AnalyticsFilterBar() {
         <div className="flex items-center gap-2">
           {/* Advanced Filters Button */}
           <button
+            type="button"
             onClick={() => setMoreFiltersOpen(!isMoreFiltersOpen)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest ${
               isMoreFiltersOpen || (filters.statusFilter && filters.statusFilter.length > 0)
@@ -269,6 +273,7 @@ export default function AnalyticsFilterBar() {
           {/* Reset Filters */}
           {isDirty && (
             <button
+              type="button"
               onClick={resetFilters}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest transition-all"
             >
@@ -291,6 +296,7 @@ export default function AnalyticsFilterBar() {
                 const isActive = filters.statusFilter?.includes(status.value);
                 return (
                   <button
+                    type="button"
                     key={status.value}
                     onClick={() => toggleStatusFilter(status.value as any)}
                     className={`flex items-center gap-2 p-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${
@@ -315,6 +321,7 @@ export default function AnalyticsFilterBar() {
                 const isActive = filters.departmentFilter?.includes(dept);
                 return (
                   <button
+                    type="button"
                     key={dept}
                     onClick={() => toggleDepartmentFilter(dept)}
                     className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${
@@ -338,6 +345,7 @@ export default function AnalyticsFilterBar() {
                 const isActive = filters.assigneeFilter?.includes(name);
                 return (
                   <button
+                    type="button"
                     key={name}
                     onClick={() => toggleAssigneeFilter(name)}
                     className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${

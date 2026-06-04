@@ -226,10 +226,10 @@ function ProjectSchedulerContent() {
     return (
       <div className="flex h-[70vh] flex-col items-center justify-center p-8 text-center">
         <GlassCard className="max-w-md p-10 border-orange-500/20">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-500/10 text-orange-500 shadow-xl shadow-orange-500/20">
-            <Info size={40} />
-          </div>
-          <h2 className="mb-3 text-2xl font-black uppercase tracking-tight text-white">No Project Selected</h2>
+        <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-3xl bg-orange-500/10 text-orange-500 shadow-xl shadow-orange-500/20">
+          <Info size={40} />
+        </div>
+        <h2 className="mb-3 text-2xl font-black uppercase tracking-tight text-white">No Project Selected</h2>
           <p className="text-sm font-medium text-slate-400">Please select a project from the header to view and manage its delivery schedule.</p>
         </GlassCard>
       </div>
@@ -240,7 +240,7 @@ function ProjectSchedulerContent() {
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-5">
-          <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/30">
+          <div className="flex size-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/30">
             <CalendarDays size={28} />
           </div>
           <div>
@@ -258,12 +258,13 @@ function ProjectSchedulerContent() {
 
         {/* Reciprocal Banner for Task Log */}
         <div className="hidden xl:flex items-center gap-3 px-4 py-2 bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 rounded-xl backdrop-blur-sm shadow-sm animate-in slide-in-from-left duration-700">
-          <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+          <div className="size-6 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
             <CheckSquare size={12} />
           </div>
           <p className="text-[11px] font-semibold text-slate-900 dark:text-orange-300 leading-tight">
             Operational punch-lists and action items are tracked in the
             <button
+              type="button"
               onClick={() => router.push(`/admin/tasks?project_id=${activeProject.project_id || activeProject._id}`)}
               className="mx-1 px-1.5 py-0.5 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-700 dark:text-orange-200 underline decoration-orange-500/30 underline-offset-2 transition-all"
             >
@@ -280,6 +281,7 @@ function ProjectSchedulerContent() {
             <input 
               type="text" 
               placeholder="Search tasks..." 
+              aria-label="Search tasks"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-orange-500/50 transition-all w-full lg:w-48 xl:w-64"
@@ -302,7 +304,7 @@ function ProjectSchedulerContent() {
               const isActive = activeTab === tab.value;
               const isDisabled = !loading && taskCount === 0 && tab.value !== "export" && tab.value !== "grid";
               
-              const handleClick = () => {
+              const handleTabSelect = () => {
                 if (!isDisabled) {
                   handleTabChange(tab.value);
                 }
@@ -311,7 +313,8 @@ function ProjectSchedulerContent() {
               return (
                 <button
                   key={tab.value}
-                  onClick={handleClick}
+                  type="button"
+                  onClick={handleTabSelect}
                   disabled={isDisabled}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${isActive
                     ? "bg-orange-600 dark:bg-orange-500 text-white shadow-lg shadow-orange-500/20"
@@ -355,16 +358,16 @@ function ProjectSchedulerContent() {
                 <AnalyticsContainer />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] animate-pulse">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-500 mb-4">
-                    <Database size={24} className="animate-bounce" />
+                  <div className="size-12 rounded-2xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-500 mb-4">
+                    <Database size={24} className="animate-pulse" />
                   </div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Initializing Scheduler Repository...</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Initializing Scheduler Repository…</p>
                 </div>
               )
             ) : taskCount === 0 && activeTab !== "export" ? (
               <div className="flex flex-col items-center justify-center min-h-[60vh] py-12 px-6">
                 <GlassCard className="max-w-2xl w-full p-12 text-center border-orange-500/20 bg-orange-500/[0.02]">
-                  <div className="mx-auto mb-8 w-24 h-24 rounded-[32px] bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-500 shadow-2xl shadow-orange-500/10">
+                  <div className="mx-auto mb-8 size-24 rounded-[32px] bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-500 shadow-2xl shadow-orange-500/10">
                     <Database size={48} strokeWidth={1.5} />
                   </div>
                   <h3 className="text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-4">No Active Schedule</h3>
@@ -430,7 +433,7 @@ function ProjectSchedulerContent() {
                 <Tabs.Content value="export" className="animate-in fade-in slide-in-from-left-4 duration-500 focus:outline-none">
                   <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GlassCard className="p-8 space-y-6">
-                      <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                      <div className="size-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
                         <Upload size={24} />
                       </div>
                       <div>
@@ -443,8 +446,10 @@ function ProjectSchedulerContent() {
                         className="hidden"
                         accept=".mpp,.xml,.pdf"
                         onChange={handleImportSchedule}
+                        aria-label="Upload MPP/XML schedule file"
                       />
                       <Button
+                        type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={importing || isClient}
                         className="w-full rounded-xl bg-orange-600 dark:bg-orange-500 text-white font-black uppercase tracking-widest h-12"
@@ -454,7 +459,7 @@ function ProjectSchedulerContent() {
                     </GlassCard>
 
                     <GlassCard className="p-8 space-y-6">
-                      <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                      <div className="size-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
                         <FileDown size={24} />
                       </div>
                       <div>
@@ -462,6 +467,7 @@ function ProjectSchedulerContent() {
                         <p className="text-zinc-500 text-xs mt-1">Generate a high-fidelity PDF report of the current Gantt and table state.</p>
                       </div>
                       <Button
+                        type="button"
                         onClick={handleExport}
                         disabled={exporting}
                         className="w-full rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest h-12"
@@ -471,9 +477,9 @@ function ProjectSchedulerContent() {
                     </GlassCard>
 
                     {!isClient && (
-                      <GlassCard className="p-8 space-y-6 md:col-span-2 border-amber-500/20 bg-amber-500/5">
+                       <GlassCard className="p-8 space-y-6 md:col-span-2 border-amber-500/20 bg-amber-500/5">
                         <div className="flex items-center gap-6">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                          <div className="size-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
                             <Database size={24} />
                           </div>
                           <div className="flex-1">
@@ -481,6 +487,7 @@ function ProjectSchedulerContent() {
                             <p className="text-zinc-500 text-xs mt-1">Bridge data from the legacy ERP payment schedule modules into this new unified planner.</p>
                           </div>
                           <button
+                            type="button"
                             onClick={() => setShowMigrateConfirm(true)}
                             disabled={migrating || taskCount > 0}
                             className="rounded-xl border border-amber-500/40 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10 font-bold uppercase tracking-widest h-12 px-8"

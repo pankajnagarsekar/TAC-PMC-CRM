@@ -242,7 +242,7 @@ export default function WorkOrderDetailPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [wo, woId, editState, editLineItems, mutateWO, executeWoUpdateWithLock]);
+  }, [wo, woId, editState, editLineItems, mutateWO, executeWoUpdateWithLock, editFinancials.discount]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -291,7 +291,7 @@ export default function WorkOrderDetailPage() {
   if (isLoading || !wo) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
+        <Loader2 className="size-8 text-orange-500 animate-spin" />
       </div>
     );
   }
@@ -308,6 +308,7 @@ export default function WorkOrderDetailPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-4">
           <button
+            type="button"
             onClick={() => router.back()}
             className="text-slate-400 hover:text-white transition-colors mt-1"
           >
@@ -346,6 +347,7 @@ export default function WorkOrderDetailPage() {
           {isEditing ? (
             <>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={isSaving}
                 className="admin-only flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
@@ -353,6 +355,7 @@ export default function WorkOrderDetailPage() {
                 {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save
               </button>
               <button
+                type="button"
                 onClick={handleCancel}
                 className="flex items-center gap-1.5 px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
               >
@@ -363,6 +366,7 @@ export default function WorkOrderDetailPage() {
             <>
               {!isClosed && (
                 <button
+                  type="button"
                   onClick={handleStartEdit}
                   className="admin-only flex items-center gap-1.5 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-xs font-bold hover:bg-amber-500/20 transition-colors"
                 >
@@ -373,6 +377,7 @@ export default function WorkOrderDetailPage() {
                 <>
                   {wo.status === "Draft" && (
                     <button
+                      type="button"
                       onClick={() => handleStatusAction("submit")}
                       className="admin-only flex items-center gap-1.5 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-500/20 transition-colors"
                     >
@@ -383,12 +388,14 @@ export default function WorkOrderDetailPage() {
                   {wo.status === "Pending" && (
                     <>
                       <button
+                        type="button"
                         onClick={() => handleStatusAction("approve")}
                         className="admin-only flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-500/20 transition-colors"
                       >
                         <CheckCircle size={14} /> Approve
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleStatusAction("reject")}
                         className="admin-only flex items-center gap-1.5 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
                       >
@@ -399,6 +406,7 @@ export default function WorkOrderDetailPage() {
 
                   {wo.status === "Approved" && (
                     <button
+                      type="button"
                       onClick={() => handleStatusAction("complete")}
                       className="admin-only flex items-center gap-1.5 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-500/20 transition-colors"
                     >
@@ -408,6 +416,7 @@ export default function WorkOrderDetailPage() {
 
                   {wo.status === "Completed" && (
                     <button
+                      type="button"
                       onClick={() => handleStatusAction("close")}
                       className="admin-only flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-500/20 transition-colors"
                     >
@@ -417,6 +426,7 @@ export default function WorkOrderDetailPage() {
 
                   {wo.status === "Completed" && retentionData && retentionData.current_balance > 0 && (
                     <button
+                      type="button"
                       onClick={() => setIsReleaseModalOpen(true)}
                       className="admin-only flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-lg text-xs font-bold border border-amber-400/20 shadow-md transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
                     >
@@ -426,6 +436,7 @@ export default function WorkOrderDetailPage() {
 
                   {(wo.status === "Draft" || wo.status === "Pending" || wo.status === "Approved") && (
                     <button
+                      type="button"
                       onClick={() => handleStatusAction("cancel")}
                       className="admin-only flex items-center gap-1.5 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
                     >
@@ -436,6 +447,7 @@ export default function WorkOrderDetailPage() {
               )}
 
               <button
+                type="button"
                 onClick={handleExportPDF}
                 className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
               >
@@ -462,6 +474,7 @@ export default function WorkOrderDetailPage() {
                 <select
                   value={editState.category_id}
                   onChange={(e) => setEditState({ ...editState, category_id: e.target.value })}
+                  aria-label="Category"
                   className="w-full bg-slate-950 border border-slate-700 text-white p-3 rounded-lg focus:outline-none focus:border-amber-500"
                 >
                   <option value="">Select Category</option>
@@ -489,6 +502,7 @@ export default function WorkOrderDetailPage() {
                 <select
                   value={editState.vendor_id}
                   onChange={(e) => setEditState({ ...editState, vendor_id: e.target.value })}
+                  aria-label="Vendor"
                   className="w-full bg-slate-950 border border-slate-700 text-white p-3 rounded-lg focus:outline-none focus:border-amber-500"
                 >
                   <option value="">Select Vendor</option>
@@ -510,11 +524,12 @@ export default function WorkOrderDetailPage() {
 
 
             <div>
-              <span className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+              <label htmlFor="edit_description" className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                 Description of Work
-              </span>
+              </label>
               {isEditing ? (
                 <textarea
+                  id="edit_description"
                   value={editState.description}
                   onChange={(e) => setEditState({ ...editState, description: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-700 text-white p-3 rounded-lg focus:outline-none focus:border-amber-500 min-h-24"
@@ -580,6 +595,7 @@ export default function WorkOrderDetailPage() {
                         discount_value: 0,
                       });
                     }}
+                    aria-label="Discount Type"
                     className="bg-transparent text-slate-400 text-xs outline-none cursor-pointer pr-1 border-r border-slate-800"
                   >
                     <option value="value" className="bg-slate-950 text-white">₹ Value</option>
@@ -596,6 +612,7 @@ export default function WorkOrderDetailPage() {
                         discount_value: Math.max(0, Math.min(val, maxLimit)),
                       });
                     }}
+                    aria-label="Discount Value"
                     className="w-24 bg-transparent text-white text-right focus:outline-none"
                     placeholder="0.00"
                   />
@@ -643,6 +660,7 @@ export default function WorkOrderDetailPage() {
                     type="number"
                     value={editState.retention_percent}
                     onChange={(e) => setEditState({ ...editState, retention_percent: parseFloat(e.target.value) || 0 })}
+                    aria-label="Retention Percentage"
                     className="w-16 bg-slate-950 border border-slate-700 text-white p-1 rounded text-right focus:outline-none focus:border-amber-500"
                   />
                   <span className="text-white">% = -{formatCurrency(editFinancials.retentionAmount)}</span>
@@ -695,6 +713,7 @@ export default function WorkOrderDetailPage() {
           </h2>
           {isEditing && (
             <button
+              type="button"
               onClick={addLineItem}
               className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition-colors"
             >
@@ -713,6 +732,7 @@ export default function WorkOrderDetailPage() {
               pinned: "right" as const,
               cellRenderer: (p: ICellRendererParams<LineItem>) => (
                 <button
+                  type="button"
                   onClick={() => p.node.rowIndex != null && removeLineItem(p.node.rowIndex)}
                   className="text-red-500 hover:text-red-400 flex items-center justify-center h-full w-full"
                 >

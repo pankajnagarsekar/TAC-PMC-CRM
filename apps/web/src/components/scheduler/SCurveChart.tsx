@@ -367,12 +367,17 @@ export default function SCurveChart({ totalBudget: _totalBudget, pure = false }:
               height={36}
               content={({ payload }) => (
                 <div className="flex justify-end gap-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  {payload?.filter(entry => !isPercentScale || entry.value !== "Actual Cost (AC)").map((entry: any, index) => (
-                    <div key={index} className="flex items-center gap-1.5">
-                      <div className="h-1.5 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                      <span>{entry.value}</span>
-                    </div>
-                  ))}
+                  {payload?.reduce<React.ReactElement[]>((acc, entry: any) => {
+                    if (!isPercentScale || entry.value !== "Actual Cost (AC)") {
+                      acc.push(
+                        <div key={entry.value || entry.dataKey} className="flex items-center gap-1.5">
+                          <div className="h-1.5 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                          <span>{entry.value}</span>
+                        </div>
+                      );
+                    }
+                    return acc;
+                  }, [])}
                 </div>
               )}
             />

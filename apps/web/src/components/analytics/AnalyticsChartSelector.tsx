@@ -32,6 +32,113 @@ interface ChartGroup {
   options: ChartOption[];
 }
 
+const groups: ChartGroup[] = [
+  {
+    name: "Schedule Metrics",
+    options: [
+      {
+        type: "s_curve",
+        label: "S-Curve Analysis",
+        description: "Cumulative Planned vs Earned Value curves",
+        icon: <TrendingUp className="size-4 text-amber-500" />,
+        requiresCost: false,
+      },
+      {
+        type: "planned_vs_actual",
+        label: "Planned vs Actual Progress",
+        description: "Dual-line progress percentage over time",
+        icon: <Activity className="size-4 text-sky-500" />,
+        requiresCost: false,
+      },
+      {
+        type: "task_status",
+        label: "Task Status Distribution",
+        description: "Donut chart showing status of tasks",
+        icon: <PieChart className="size-4 text-teal-500" />,
+        requiresCost: false,
+      },
+      {
+        type: "milestone_trend",
+        label: "Milestone Status Trend",
+        description: "Visual status timeline for critical milestones",
+        icon: <Flag className="size-4 text-violet-500" />,
+        requiresCost: false,
+      },
+      {
+        type: "critical_tasks",
+        label: "Critical vs Non-Critical Tasks",
+        description: "Overview of tasks driving the end finish date",
+        icon: <AlertOctagon className="size-4 text-rose-500" />,
+        requiresCost: false,
+      },
+      {
+        type: "schedule_variance",
+        label: "Baseline vs Current Schedule Variance",
+        description: "Variance deviation from original baseline",
+        icon: <BarChart3 className="size-4 text-indigo-500" />,
+        requiresCost: false,
+      },
+    ],
+  },
+  {
+    name: "Financial & Earned Value",
+    options: [
+      {
+        type: "cost_overview",
+        label: "Cost Overview",
+        description: "Planned vs actual financial distribution",
+        icon: <Coins className="size-4 text-yellow-500" />,
+        requiresCost: true,
+      },
+      {
+        type: "earned_value",
+        label: "Earned Value Summary",
+        description: "PV, EV, and AC lines with full EVM stats",
+        icon: <LineChart className="size-4 text-emerald-500" />,
+        requiresCost: true,
+      },
+      {
+        type: "cash_flow",
+        label: "Cash Flow Projection",
+        description: "Projected monthly cash outflow timeline",
+        icon: <DollarSign className="size-4 text-green-500" />,
+        requiresCost: true,
+      },
+    ],
+  },
+  {
+    name: "Resource & Load",
+    options: [
+      {
+        type: "resource_load",
+        label: "Resource Workload",
+        description: "Aggregated workload duration per assignee",
+        icon: <Users2 className="size-4 text-orange-500" />,
+        requiresCost: false,
+      },
+    ],
+  },
+  {
+    name: "Forecasting & Trends",
+    options: [
+      {
+        type: "delay_trend",
+        label: "Delay / Slippage Trend",
+        description: "Delayed count and average slippage trend",
+        icon: <Clock className="size-4 text-red-500" />,
+        requiresCost: false,
+      },
+      {
+        type: "completion_forecast",
+        label: "Completion Forecast",
+        description: "Projected end date based on progress velocity",
+        icon: <Gauge className="size-4 text-fuchsia-500" />,
+        requiresCost: false,
+      },
+    ],
+  },
+];
+
 export default function AnalyticsChartSelector() {
   const selectedChart = useAnalyticsStore((state) => state.selectedChart);
   const setSelectedChart = useAnalyticsStore((state) => state.setSelectedChart);
@@ -41,113 +148,6 @@ export default function AnalyticsChartSelector() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const hasCostData = computedMetrics?.cpi !== null || (computedMetrics?.budgetUsedPercent !== null && computedMetrics?.budgetUsedPercent > 0);
-
-  const groups: ChartGroup[] = [
-    {
-      name: "Schedule Metrics",
-      options: [
-        {
-          type: "s_curve",
-          label: "S-Curve Analysis",
-          description: "Cumulative Planned vs Earned Value curves",
-          icon: <TrendingUp className="w-4 h-4 text-amber-500" />,
-          requiresCost: false,
-        },
-        {
-          type: "planned_vs_actual",
-          label: "Planned vs Actual Progress",
-          description: "Dual-line progress percentage over time",
-          icon: <Activity className="w-4 h-4 text-sky-500" />,
-          requiresCost: false,
-        },
-        {
-          type: "task_status",
-          label: "Task Status Distribution",
-          description: "Donut chart showing status of tasks",
-          icon: <PieChart className="w-4 h-4 text-teal-500" />,
-          requiresCost: false,
-        },
-        {
-          type: "milestone_trend",
-          label: "Milestone Status Trend",
-          description: "Visual status timeline for critical milestones",
-          icon: <Flag className="w-4 h-4 text-violet-500" />,
-          requiresCost: false,
-        },
-        {
-          type: "critical_tasks",
-          label: "Critical vs Non-Critical Tasks",
-          description: "Overview of tasks driving the end finish date",
-          icon: <AlertOctagon className="w-4 h-4 text-rose-500" />,
-          requiresCost: false,
-        },
-        {
-          type: "schedule_variance",
-          label: "Baseline vs Current Schedule Variance",
-          description: "Variance deviation from original baseline",
-          icon: <BarChart3 className="w-4 h-4 text-indigo-500" />,
-          requiresCost: false,
-        },
-      ],
-    },
-    {
-      name: "Financial & Earned Value",
-      options: [
-        {
-          type: "cost_overview",
-          label: "Cost Overview",
-          description: "Planned vs actual financial distribution",
-          icon: <Coins className="w-4 h-4 text-yellow-500" />,
-          requiresCost: true,
-        },
-        {
-          type: "earned_value",
-          label: "Earned Value Summary",
-          description: "PV, EV, and AC lines with full EVM stats",
-          icon: <LineChart className="w-4 h-4 text-emerald-500" />,
-          requiresCost: true,
-        },
-        {
-          type: "cash_flow",
-          label: "Cash Flow Projection",
-          description: "Projected monthly cash outflow timeline",
-          icon: <DollarSign className="w-4 h-4 text-green-500" />,
-          requiresCost: true,
-        },
-      ],
-    },
-    {
-      name: "Resource & Load",
-      options: [
-        {
-          type: "resource_load",
-          label: "Resource Workload",
-          description: "Aggregated workload duration per assignee",
-          icon: <Users2 className="w-4 h-4 text-orange-500" />,
-          requiresCost: false,
-        },
-      ],
-    },
-    {
-      name: "Forecasting & Trends",
-      options: [
-        {
-          type: "delay_trend",
-          label: "Delay / Slippage Trend",
-          description: "Delayed count and average slippage trend",
-          icon: <Clock className="w-4 h-4 text-red-500" />,
-          requiresCost: false,
-        },
-        {
-          type: "completion_forecast",
-          label: "Completion Forecast",
-          description: "Projected end date based on progress velocity",
-          icon: <Gauge className="w-4 h-4 text-fuchsia-500" />,
-          requiresCost: false,
-        },
-      ],
-    },
-  ];
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -173,6 +173,7 @@ export default function AnalyticsChartSelector() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between gap-3 min-w-[240px] px-4 py-2.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white hover:border-orange-500/50 transition-all outline-none"
       >
@@ -185,8 +186,8 @@ export default function AnalyticsChartSelector() {
 
       {isOpen && (
         <div className="absolute left-0 mt-2 w-[340px] max-h-[480px] overflow-y-auto z-50 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl p-2 scrollbar-thin">
-          {groups.map((group, groupIdx) => (
-            <div key={groupIdx} className="mb-2">
+          {groups.map((group) => (
+            <div key={group.name} className="mb-2">
               <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-white/30 border-b border-slate-100 dark:border-white/5 mb-1">
                 {group.name}
               </div>
@@ -197,6 +198,7 @@ export default function AnalyticsChartSelector() {
 
                   return (
                     <button
+                      type="button"
                       key={option.type}
                       onClick={() => handleSelect(option.type)}
                       className={`w-full flex items-start gap-3 p-2 rounded-xl text-left transition-all ${

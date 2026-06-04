@@ -100,31 +100,34 @@ export default function CostOverviewChart({ tasks, financials, projectId }: Cost
 
     const totalCertified = Object.values(categoriesMap).reduce((sum, c) => sum + c.certified, 0);
 
-    return Object.values(categoriesMap)
-      .map((c) => {
-        const forecast = c.committed + Math.max(0, c.budget - c.committed);
-        let paid = 0;
-        if (totalCertified > 0) {
-          paid = Math.round(totalPaidAmount * (c.certified / totalCertified));
-        } else {
-          const totalCommitted = Object.values(categoriesMap).reduce((sum, cat) => sum + cat.committed, 0);
-          if (totalCommitted > 0) {
-            paid = Math.round(totalPaidAmount * (c.committed / totalCommitted));
-          } else {
-            paid = Math.round(totalPaidAmount / Object.keys(categoriesMap).length);
-          }
-        }
+    const totalCommitted = Object.values(categoriesMap).reduce((sum, cat) => sum + cat.committed, 0);
+    const categoryCount = Object.keys(categoriesMap).length;
 
-        return {
+    return Object.values(categoriesMap).reduce<any[]>((acc, c) => {
+      const forecast = c.committed + Math.max(0, c.budget - c.committed);
+      let paid = 0;
+      if (totalCertified > 0) {
+        paid = Math.round(totalPaidAmount * (c.certified / totalCertified));
+      } else {
+        if (totalCommitted > 0) {
+          paid = Math.round(totalPaidAmount * (c.committed / totalCommitted));
+        } else {
+          paid = Math.round(totalPaidAmount / categoryCount);
+        }
+      }
+
+      if (c.budget > 0 || c.committed > 0 || c.certified > 0) {
+        acc.push({
           name: c.name,
           "Approved Budget": c.budget,
           "Committed (WOs)": c.committed,
           "Certified (PCs)": c.certified,
           "Paid Cost": paid,
           "Forecast Final Cost": forecast,
-        };
-      })
-      .filter(c => c["Approved Budget"] > 0 || c["Committed (WOs)"] > 0 || c["Certified (PCs)"] > 0);
+        });
+      }
+      return acc;
+    }, []);
   }, [filteredTasks, financials, paymentsData]);
 
   return (
@@ -184,8 +187,8 @@ export default function CostOverviewChart({ tasks, financials, projectId }: Cost
                 height={36}
                 content={({ payload }) => (
                   <div className="flex justify-end gap-4 text-[10px] font-black uppercase tracking-wider text-slate-500 flex-wrap">
-                    {payload?.map((entry: any, index) => (
-                      <div key={index} className="flex items-center gap-1.5">
+                    {payload?.map((entry: any) => (
+                      <div key={entry.value} className="flex items-center gap-1.5">
                         <div className="h-1.5 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
                         <span>{entry.value}</span>
                       </div>

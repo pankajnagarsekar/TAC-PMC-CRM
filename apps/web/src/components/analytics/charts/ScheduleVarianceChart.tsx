@@ -92,15 +92,15 @@ export default function ScheduleVarianceChart({ tasks }: ScheduleVarianceChartPr
               />
               <ReferenceLine y={0} stroke="#64748b" strokeOpacity={0.2} />
               <Bar dataKey="variance" maxBarSize={40}>
-                {data.map((entry, index) => {
+                {data.map((entry) => {
                   const color = entry.variance > 0 ? "#ef4444" : "#10b981";
-                  return <Cell key={`cell-${index}`} fill={color} />;
+                  return <Cell key={entry.name} fill={color} />;
                 })}
                 <LabelList
                   dataKey="variance"
                   position="top"
                   formatter={(v: any) => `${v > 0 ? "+" : ""}${v}d`}
-                  style={{ fill: "#64748b", fontSize: 9, fontWeight: 700 }}
+                  style={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }}
                 />
               </Bar>
             </BarChart>

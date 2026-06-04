@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
@@ -78,7 +78,7 @@ export default function NewWorkOrderPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState("");
+  const idempotencyKeyRef = useRef(idempotency.generate());
   const [isGridValid, setIsGridValid] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteRowIndex, setDeleteRowIndex] = useState<number | null>(null);
@@ -95,7 +95,7 @@ export default function NewWorkOrderPage() {
   useEffect(() => {
     // Always clear and generate a fresh key on mount for new WO
     idempotency.clear("WO_CREATE");
-    setIdempotencyKey(idempotency.generate());
+    idempotencyKeyRef.current = idempotency.generate();
   }, []);
 
   const { data: vendors } = useSWR<Vendor[]>("/api/v1/vendors/", fetcher);
@@ -163,6 +163,7 @@ export default function NewWorkOrderPage() {
         pinned: "right",
         cellRenderer: (params: ICellRendererParams<LineItem>) => (
           <button
+            type="button"
             onClick={() => params.node.rowIndex !== null && removeLineItem(params.node.rowIndex)}
             className="text-red-500 hover:text-red-400 p-1 flex items-center justify-center w-full h-full"
           >
@@ -284,7 +285,7 @@ export default function NewWorkOrderPage() {
           `/api/v1/work-orders/${projectId}`,
           payload,
           {
-            headers: { "Idempotency-Key": idempotencyKey },
+            headers: { "Idempotency-Key": idempotencyKeyRef.current },
           },
         );
       });
@@ -331,7 +332,7 @@ export default function NewWorkOrderPage() {
         setFieldErrors({ general: msg });
       }
       // Regenerate key on failure so user can try again safely
-      setIdempotencyKey(idempotency.generate());
+      idempotencyKeyRef.current = idempotency.generate();
     } finally {
       setIsSaving(false);
     }
@@ -340,13 +341,14 @@ export default function NewWorkOrderPage() {
   if (!activeProject) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+        <AlertTriangle className="size-12 text-amber-500 mb-4" />
         <h2 className="text-xl font-bold text-white">No Project Selected</h2>
         <p className="text-slate-400">
           Please select a project from the top navigation to create a Work
           Order.
         </p>
         <button
+          type="button"
           onClick={() => router.back()}
           className="mt-4 text-orange-500 hover:text-orange-400"
         >
@@ -366,6 +368,7 @@ export default function NewWorkOrderPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={() => router.back()}
             className="text-slate-400 hover:text-white transition-colors"
           >
@@ -379,6 +382,7 @@ export default function NewWorkOrderPage() {
           </div>
         </div>
         <button
+          type="button"
           onClick={handleSave}
           disabled={
             isSaving ||
@@ -412,10 +416,11 @@ export default function NewWorkOrderPage() {
           </h2>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+            <label htmlFor="category_id" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
               Category (Commitment)
             </label>
             <select
+              id="category_id"
               value={formData.category_id}
               onChange={(e) => {
                 setFormData({ ...formData, category_id: e.target.value });
@@ -423,7 +428,7 @@ export default function NewWorkOrderPage() {
               }}
               className={`w-full bg-slate-950 border ${fieldErrors.category_id ? "border-red-500" : "border-slate-800"} rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500`}
             >
-              <option value="">Select a category...</option>
+              <option value="">Select a category…</option>
               {commitmentCategories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.category_name} ({c.code})
@@ -438,10 +443,11 @@ export default function NewWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+            <label htmlFor="vendor_id" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
               Vendor
             </label>
             <select
+              id="vendor_id"
               value={formData.vendor_id}
               onChange={(e) => {
                 const vendor = vendors?.find(v => (v._id || v.id) === e.target.value);
@@ -455,7 +461,7 @@ export default function NewWorkOrderPage() {
               }}
               className={`w-full bg-slate-950 border ${fieldErrors.vendor_id ? "border-red-500" : "border-slate-800"} rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500`}
             >
-              <option value="">Select a vendor...</option>
+              <option value="">Select a vendor…</option>
               {vendors?.map((v) => (
                 <option key={v._id || v.id} value={v._id || v.id}>
                   {v.name} ({v.gstin || "No GSTIN"})
@@ -471,10 +477,11 @@ export default function NewWorkOrderPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              <label htmlFor="vendor_gstin" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
                 Vendor GSTIN
               </label>
               <input
+                id="vendor_gstin"
                 type="text"
                 value={formData.vendor_gstin}
                 readOnly
@@ -482,10 +489,11 @@ export default function NewWorkOrderPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              <label htmlFor="wo_date" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
                 WO Date
               </label>
               <input
+                id="wo_date"
                 type="date"
                 value={formData.wo_date}
                 onChange={(e) => {
@@ -498,43 +506,46 @@ export default function NewWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+            <label htmlFor="description" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
               Description of Work
             </label>
             <textarea
+              id="description"
               value={formData.description}
               onChange={(e) => {
                 setFormData({ ...formData, description: e.target.value });
                 setIsDirty(true);
               }}
               rows={2}
-              placeholder="e.g., Supply of Ready Mix Concrete for Foundation..."
+              placeholder="e.g., Supply of Ready Mix Concrete for Foundation…"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+            <label htmlFor="terms" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
               Terms & Conditions
             </label>
             <textarea
+              id="terms"
               value={formData.terms}
               onChange={(e) => {
                 setFormData({ ...formData, terms: e.target.value });
                 setIsDirty(true);
               }}
               rows={2}
-              placeholder="e.g., Delivery within 7 days, 15% advance..."
+              placeholder="e.g., Delivery within 7 days, 15% advance…"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              <label htmlFor="validity_period" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
                 Validity
               </label>
               <input
+                id="validity_period"
                 type="text"
                 value={formData.validity_period}
                 onChange={(e) => {
@@ -545,10 +556,11 @@ export default function NewWorkOrderPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+              <label htmlFor="warranty_period" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
                 Warranty
               </label>
               <input
+                id="warranty_period"
                 type="text"
                 value={formData.warranty_period}
                 onChange={(e) => {
@@ -561,10 +573,11 @@ export default function NewWorkOrderPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
+            <label htmlFor="shipping_address" className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
               Shipping Address
             </label>
             <textarea
+              id="shipping_address"
               value={formData.shipping_address}
               onChange={(e) => {
                 setFormData({ ...formData, shipping_address: e.target.value });
@@ -606,6 +619,7 @@ export default function NewWorkOrderPage() {
                       });
                       setIsDirty(true);
                     }}
+                    aria-label="Discount Type"
                     className="bg-transparent text-slate-400 text-xs outline-none cursor-pointer pr-1 border-r border-slate-800"
                   >
                     <option value="value" className="bg-slate-950 text-white">₹ Value</option>
@@ -634,6 +648,7 @@ export default function NewWorkOrderPage() {
                       }
                       setIsDirty(true);
                     }}
+                    aria-label="Discount Value"
                     className={`w-24 bg-transparent text-white text-right focus:outline-none`}
                     placeholder="0.00"
                   />
@@ -678,9 +693,10 @@ export default function NewWorkOrderPage() {
             </div>
 
             <div className="flex justify-between text-slate-400 px-2 pt-2 border-t border-slate-800/50">
-              <span>Retention (%):</span>
+              <label htmlFor="retention_percent">Retention (%):</label>
               <div className="flex flex-col items-end">
                 <input
+                  id="retention_percent"
                   type="number"
                   value={formData.retention_percent}
                   onChange={(e) => {
@@ -733,6 +749,7 @@ export default function NewWorkOrderPage() {
             )}
           </h2>
           <button
+            type="button"
             onClick={() => {
               addLineItem();
               setIsDirty(true);
@@ -773,12 +790,14 @@ export default function NewWorkOrderPage() {
           </div>
           <DialogFooter className="flex gap-3">
             <button
+              type="button"
               onClick={() => setDeleteRowIndex(null)}
               className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={confirmDeleteRow}
               className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors"
             >
@@ -813,12 +832,14 @@ export default function NewWorkOrderPage() {
           </div>
           <DialogFooter className="flex gap-3">
             <button
+              type="button"
               onClick={() => setShowOverBudgetWarning(false)}
               className="flex-1 px-4 py-2 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-900 transition-colors"
             >
               Review Details
             </button>
             <button
+              type="button"
               onClick={() => {
                 setShowOverBudgetWarning(false);
                 router.push(`/admin/work-orders`);

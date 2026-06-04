@@ -100,29 +100,33 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
     });
 
     const totalCertified = Object.values(categoriesMap).reduce((sum, c) => sum + c.certified, 0);
+    const totalCommitted = Object.values(categoriesMap).reduce((sum, cat) => sum + cat.committed, 0);
+    const categoriesCount = Object.keys(categoriesMap).length;
 
-    return Object.values(categoriesMap).map((c) => {
+    return Object.values(categoriesMap).reduce<any[]>((acc, c) => {
       const forecast = c.committed + Math.max(0, c.budget - c.committed);
       let paid = 0;
       if (totalCertified > 0) {
         paid = Math.round(totalPaidAmount * (c.certified / totalCertified));
       } else {
-        const totalCommitted = Object.values(categoriesMap).reduce((sum, cat) => sum + cat.committed, 0);
         if (totalCommitted > 0) {
           paid = Math.round(totalPaidAmount * (c.committed / totalCommitted));
         } else {
-          paid = Math.round(totalPaidAmount / Object.keys(categoriesMap).length);
+          paid = Math.round(totalPaidAmount / categoriesCount);
         }
       }
       const variance = c.budget - forecast;
 
-      return {
-        ...c,
-        paid,
-        forecast,
-        variance
-      };
-    }).filter(c => c.budget > 0 || c.committed > 0 || c.certified > 0);
+      if (c.budget > 0 || c.committed > 0 || c.certified > 0) {
+        acc.push({
+          ...c,
+          paid,
+          forecast,
+          variance
+        });
+      }
+      return acc;
+    }, []);
   }, [taskMap, financials, paymentsData]);
 
   // Aggregate project-wide financial metrics
@@ -170,7 +174,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         {/* Total Budget */}
         <GlassCard className="p-4 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500">
+            <div className="size-8 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500">
               <Landmark size={16} />
             </div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Approved Budget</span>
@@ -183,7 +187,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         {/* Committed Value */}
         <GlassCard className="p-4 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+            <div className="size-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
               <Coins size={16} />
             </div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Committed (WOs)</span>
@@ -196,7 +200,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         {/* Certified Value */}
         <GlassCard className="p-4 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <CheckSquare size={16} />
             </div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Certified (PCs)</span>
@@ -209,7 +213,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         {/* Paid Cost */}
         <GlassCard className="p-4 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+            <div className="size-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
               <CreditCard size={16} />
             </div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Paid Cost</span>
@@ -222,7 +226,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         {/* Remaining Budget */}
         <GlassCard className="p-4 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+            <div className="size-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
               <TrendingUp size={16} />
             </div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Remaining (WOs)</span>
@@ -235,7 +239,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         {/* Reconciliation Variance */}
         <GlassCard className="p-4 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+            <div className="size-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
               <DollarSign size={16} />
             </div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Reconciled Var</span>
@@ -278,10 +282,10 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
                     </tr>
                   </thead>
                   <tbody>
-                    {tableData.map((item, idx) => {
+                    {tableData.map((item) => {
                       const committedPercent = item.budget > 0 ? (item.committed / item.budget) * 100 : 0;
                       return (
-                        <tr key={idx} className="border-b border-slate-100 dark:border-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors">
+                        <tr key={item.category} className="border-b border-slate-100 dark:border-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors">
                           <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{item.category}</td>
                           <td className="py-4 text-right font-mono font-semibold">{formatINRShort(item.budget)}</td>
                           <td className="py-4 text-right font-mono font-semibold">
@@ -341,7 +345,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
           <GlassCard className="p-6 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40 hover:border-orange-500/30 transition-all group cursor-pointer" onClick={() => router.push("/admin/financials")}>
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                <div className="size-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
                   <Wallet size={20} />
                 </div>
                 <h5 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Project Financials</h5>
@@ -357,7 +361,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
           <GlassCard className="p-6 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40 hover:border-orange-500/30 transition-all group cursor-pointer" onClick={() => router.push("/admin/work-orders")}>
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                <div className="size-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
                   <FileText size={20} />
                 </div>
                 <h5 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Work Orders</h5>
@@ -373,7 +377,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
           <GlassCard className="p-6 border-slate-200 dark:border-white/5 bg-white/40 dark:bg-slate-900/40 hover:border-orange-500/30 transition-all group cursor-pointer" onClick={() => router.push("/admin/payment-certificates")}>
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+                <div className="size-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
                   <CreditCard size={20} />
                 </div>
                 <h5 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Payment Certificates</h5>

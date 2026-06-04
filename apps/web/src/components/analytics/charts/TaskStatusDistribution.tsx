@@ -6,7 +6,7 @@ import { ScheduleTask, ScheduleTaskStatus } from "@/types/schedule.types";
 import { useAnalyticsStore } from "@/store/useAnalyticsStore";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { computeTaskStatusDistribution } from "@/lib/analyticsComputeEngine";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import AnalyticsExportBar from "../AnalyticsExportBar";
 
 interface TaskStatusDistributionProps {
@@ -17,7 +17,6 @@ export default function TaskStatusDistribution({ tasks }: TaskStatusDistribution
   const filters = useAnalyticsStore((state) => state.filters);
   const setStatusFilter = useScheduleStore((state) => state.setStatusFilter);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const chartRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
@@ -52,7 +51,7 @@ export default function TaskStatusDistribution({ tasks }: TaskStatusDistribution
     setStatusFilter(targetStatus);
     
     // Switch tab to grid in the URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
     params.set("tab", "grid");
     router.replace(`?${params.toString()}`);
   };
@@ -92,9 +91,9 @@ export default function TaskStatusDistribution({ tasks }: TaskStatusDistribution
                 dataKey="value"
                 cursor="pointer"
               >
-                {chartData.map((entry, index) => (
+                {chartData.map((entry) => (
                   <Cell 
-                    key={`cell-${index}`} 
+                    key={entry.name} 
                     fill={entry.color} 
                     onClick={() => handleSegmentClick(entry.name)}
                     className="hover:opacity-85 transition-opacity"
@@ -127,11 +126,12 @@ export default function TaskStatusDistribution({ tasks }: TaskStatusDistribution
             return (
               <button
                 key={item.name}
+                type="button"
                 onClick={() => handleSegmentClick(item.name)}
                 className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all text-left group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <div className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
                       {item.name}

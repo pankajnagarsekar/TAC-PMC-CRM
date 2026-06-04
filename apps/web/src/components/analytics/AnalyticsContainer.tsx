@@ -28,6 +28,51 @@ const CashFlowProjectionChart = lazy(() => import("./charts/CashFlowProjectionCh
 const EarnedValueSummaryChart = lazy(() => import("./charts/EarnedValueSummaryChart"));
 const CompletionForecastChart = lazy(() => import("./charts/CompletionForecastChart"));
 
+interface ChartRendererProps {
+  selectedChart: string;
+  tasks: any[];
+  financials?: any[];
+  projectId?: string;
+  totalTasks?: number;
+}
+
+function ChartRenderer({
+  selectedChart,
+  tasks,
+  financials,
+  projectId,
+  totalTasks,
+}: ChartRendererProps) {
+  switch (selectedChart) {
+    case "s_curve":
+      return <SCurveChart totalBudget={totalTasks} />;
+    case "planned_vs_actual":
+      return <PlannedVsActualChart tasks={tasks} />;
+    case "task_status":
+      return <TaskStatusDistribution tasks={tasks} />;
+    case "milestone_trend":
+      return <MilestoneTrendChart tasks={tasks} />;
+    case "critical_tasks":
+      return <CriticalTasksChart tasks={tasks} />;
+    case "schedule_variance":
+      return <ScheduleVarianceChart tasks={tasks} />;
+    case "cost_overview":
+      return <CostOverviewChart tasks={tasks} financials={financials} projectId={projectId} />;
+    case "resource_load":
+      return <ResourceLoadChart tasks={tasks} />;
+    case "delay_trend":
+      return <DelayTrendChart tasks={tasks} />;
+    case "cash_flow":
+      return <CashFlowProjectionChart tasks={tasks} projectId={projectId} />;
+    case "earned_value":
+      return <EarnedValueSummaryChart tasks={tasks} />;
+    case "completion_forecast":
+      return <CompletionForecastChart tasks={tasks} />;
+    default:
+      return <SCurveChart totalBudget={totalTasks} />;
+  }
+}
+
 export default function AnalyticsContainer() {
   const activeProject = useProjectStore((state) => state.activeProject);
   const taskMap = useScheduleStore((state) => state.taskMap);
@@ -62,38 +107,6 @@ export default function AnalyticsContainer() {
     }
   }, [activeProject?.project_id, fetchAnalytics]);
 
-  // Dynamically render selected chart
-  const renderChart = () => {
-    switch (selectedChart) {
-      case "s_curve":
-        return <SCurveChart totalBudget={computedMetrics?.totalTasks} />;
-      case "planned_vs_actual":
-        return <PlannedVsActualChart tasks={tasks} />;
-      case "task_status":
-        return <TaskStatusDistribution tasks={tasks} />;
-      case "milestone_trend":
-        return <MilestoneTrendChart tasks={tasks} />;
-      case "critical_tasks":
-        return <CriticalTasksChart tasks={tasks} />;
-      case "schedule_variance":
-        return <ScheduleVarianceChart tasks={tasks} />;
-      case "cost_overview":
-        return <CostOverviewChart tasks={tasks} financials={financials} projectId={activeProject?.project_id} />;
-      case "resource_load":
-        return <ResourceLoadChart tasks={tasks} />;
-      case "delay_trend":
-        return <DelayTrendChart tasks={tasks} />;
-      case "cash_flow":
-        return <CashFlowProjectionChart tasks={tasks} projectId={activeProject?.project_id} />;
-      case "earned_value":
-        return <EarnedValueSummaryChart tasks={tasks} />;
-      case "completion_forecast":
-        return <CompletionForecastChart tasks={tasks} />;
-      default:
-        return <SCurveChart totalBudget={computedMetrics?.totalTasks} />;
-    }
-  };
-
   if (!activeProject) return null;
 
   return (
@@ -114,10 +127,16 @@ export default function AnalyticsContainer() {
             ) : (
               <Suspense fallback={
                 <div className="flex h-[400px] w-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+                  <div className="size-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
                 </div>
               }>
-                {renderChart()}
+                <ChartRenderer
+                  selectedChart={selectedChart}
+                  tasks={tasks}
+                  financials={financials}
+                  projectId={activeProject?.project_id}
+                  totalTasks={computedMetrics?.totalTasks}
+                />
               </Suspense>
             )}
           </div>

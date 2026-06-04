@@ -245,8 +245,8 @@ export default function EarnedValueSummaryChart({ tasks }: EarnedValueSummaryCha
                 height={30}
                 content={({ payload }) => (
                   <div className="flex justify-end gap-4 text-[9px] font-black uppercase tracking-wider text-slate-500">
-                    {payload?.map((entry: any, index) => (
-                      <div key={index} className="flex items-center gap-1.5">
+                    {payload?.map((entry: any) => (
+                      <div key={entry.value} className="flex items-center gap-1.5">
                         <div className="h-1 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
                         <span>{entry.value}</span>
                       </div>

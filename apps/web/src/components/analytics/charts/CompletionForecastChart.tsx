@@ -11,6 +11,18 @@ import {
 } from "lucide-react";
 import AnalyticsExportBar from "../AnalyticsExportBar";
 
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" });
+};
+
+const getRiskLevel = (slippage: number, criticalCount: number) => {
+  if (slippage > 14 || criticalCount > 5) return { label: "High Risk", color: "text-rose-500 bg-rose-500/10 border-rose-500/20" };
+  if (slippage > 0 || criticalCount > 0) return { label: "Medium Risk", color: "text-amber-500 bg-amber-500/10 border-amber-500/20" };
+  return { label: "On Track", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" };
+};
+
 interface CompletionForecastChartProps {
   tasks: ScheduleTask[];
 }
@@ -27,18 +39,6 @@ export default function CompletionForecastChart({ tasks }: CompletionForecastCha
     return computeKPIs(tasks, filters);
   }, [tasks, filters]);
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "N/A";
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" });
-  };
-
-  const getRiskLevel = (slippage: number, criticalCount: number) => {
-    if (slippage > 14 || criticalCount > 5) return { label: "High Risk", color: "text-rose-500 bg-rose-500/10 border-rose-500/20" };
-    if (slippage > 0 || criticalCount > 0) return { label: "Medium Risk", color: "text-amber-500 bg-amber-500/10 border-amber-500/20" };
-    return { label: "On Track", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" };
-  };
-
   const risk = getRiskLevel(forecast.slippageDays, kpis.criticalTasks);
 
   // Parse dates for relative positioning
@@ -51,7 +51,7 @@ export default function CompletionForecastChart({ tasks }: CompletionForecastCha
 
     if (dates.length === 0) return [];
 
-    const sorted = [...dates].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = dates.toSorted((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const minTime = new Date(sorted[0].date).getTime();
     const maxTime = new Date(sorted[sorted.length - 1].date).getTime();
     const totalSpan = maxTime - minTime || 1;
@@ -125,8 +125,8 @@ export default function CompletionForecastChart({ tasks }: CompletionForecastCha
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-slate-200 dark:border-white/5">
             {/* Delivery Velocity */}
             <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                <Gauge className="w-5 h-5" />
+              <div className="size-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+                <Gauge className="size-5" />
               </div>
               <div>
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Progress Velocity</span>
@@ -136,8 +136,8 @@ export default function CompletionForecastChart({ tasks }: CompletionForecastCha
 
             {/* Projected Slippage */}
             <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-                <Hourglass className="w-5 h-5" />
+              <div className="size-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
+                <Hourglass className="size-5" />
               </div>
               <div>
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Projected Slippage</span>
@@ -151,8 +151,8 @@ export default function CompletionForecastChart({ tasks }: CompletionForecastCha
 
             {/* Risk Index */}
             <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl">
-              <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-500 shrink-0">
-                <AlertOctagon className="w-5 h-5" />
+              <div className="size-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-500 shrink-0">
+                <AlertOctagon className="size-5" />
               </div>
               <div>
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Delivery Risk</span>

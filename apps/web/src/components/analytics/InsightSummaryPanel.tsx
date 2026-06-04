@@ -12,6 +12,32 @@ import {
   Info 
 } from "lucide-react";
 
+const getSeverityStyles = (severity: "info" | "warning" | "critical") => {
+  switch (severity) {
+    case "critical":
+      return {
+        bg: "bg-rose-500/5 dark:bg-rose-500/10",
+        border: "border-rose-500/20",
+        text: "text-rose-700 dark:text-rose-400",
+        icon: <AlertOctagon className="size-4 text-rose-500 shrink-0 mt-0.5" />
+      };
+    case "warning":
+      return {
+        bg: "bg-amber-500/5 dark:bg-amber-500/10",
+        border: "border-amber-500/20",
+        text: "text-amber-700 dark:text-amber-400",
+        icon: <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+      };
+    default:
+      return {
+        bg: "bg-slate-50 dark:bg-white/[0.02]",
+        border: "border-slate-200 dark:border-white/5",
+        text: "text-slate-700 dark:text-slate-300",
+        icon: <Info className="size-4 text-slate-400 shrink-0 mt-0.5" />
+      };
+  }
+};
+
 export default function InsightSummaryPanel() {
   const taskMap = useScheduleStore((state) => state.taskMap);
   const taskOrder = useScheduleStore((state) => state.taskOrder);
@@ -27,38 +53,12 @@ export default function InsightSummaryPanel() {
     return generateInsights(selectedChart, computedMetrics, filters, tasks, projectKPIs);
   }, [selectedChart, computedMetrics, filters, tasks, projectKPIs]);
 
-  const getSeverityStyles = (severity: "info" | "warning" | "critical") => {
-    switch (severity) {
-      case "critical":
-        return {
-          bg: "bg-rose-500/5 dark:bg-rose-500/10",
-          border: "border-rose-500/20",
-          text: "text-rose-700 dark:text-rose-400",
-          icon: <AlertOctagon className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-        };
-      case "warning":
-        return {
-          bg: "bg-amber-500/5 dark:bg-amber-500/10",
-          border: "border-amber-500/20",
-          text: "text-amber-700 dark:text-amber-400",
-          icon: <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-        };
-      default:
-        return {
-          bg: "bg-slate-50 dark:bg-white/[0.02]",
-          border: "border-slate-200 dark:border-white/5",
-          text: "text-slate-700 dark:text-slate-300",
-          icon: <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-        };
-    }
-  };
-
   return (
     <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 p-6 shadow-2xl backdrop-blur-xl h-full flex flex-col justify-between">
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
-            <Sparkles className="w-4 h-4 animate-pulse" />
+          <div className="size-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+            <Sparkles className="size-4 animate-pulse" />
           </div>
           <div>
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white">Delivery Insights</h3>

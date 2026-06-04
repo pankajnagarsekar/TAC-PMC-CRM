@@ -82,8 +82,8 @@ export default function CriticalTasksChart({ tasks }: CriticalTasksChartProps) {
                   paddingAngle={3}
                   dataKey="value"
                 >
-                  {stats.data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {stats.data.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -113,7 +113,7 @@ export default function CriticalTasksChart({ tasks }: CriticalTasksChartProps) {
           {/* Overdue Warning Card */}
           {stats.overdueCriticalCount > 0 ? (
             <div className="flex items-start gap-3 p-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 dark:bg-rose-500/10 shadow-sm">
-              <AlertOctagon className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
+              <AlertOctagon className="size-5 text-rose-500 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Overdue Critical Items</h4>
                 <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-300 mt-1 leading-normal">
@@ -123,7 +123,7 @@ export default function CriticalTasksChart({ tasks }: CriticalTasksChartProps) {
             </div>
           ) : (
             <div className="flex items-start gap-3 p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-sm">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-5 text-emerald-500 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Critical Path Clean</h4>
                 <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-300 mt-1 leading-normal">

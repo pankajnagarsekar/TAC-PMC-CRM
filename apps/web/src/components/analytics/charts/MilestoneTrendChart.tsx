@@ -18,6 +18,19 @@ import { computeMilestoneData } from "@/lib/analyticsComputeEngine";
 import AnalyticsEmptyState from "../AnalyticsEmptyState";
 import AnalyticsExportBar from "../AnalyticsExportBar";
 
+// Color mapper based on milestone delay status
+const getColor = (status: "on-time" | "at-risk" | "delayed") => {
+  if (status === "delayed") return "#ef4444"; // Red
+  if (status === "at-risk") return "#f59e0b";  // Amber
+  return "#10b981";                            // Green
+};
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr || dateStr === "N/A") return "N/A";
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" });
+};
+
 interface MilestoneTrendChartProps {
   tasks: ScheduleTask[];
 }
@@ -29,19 +42,6 @@ export default function MilestoneTrendChart({ tasks }: MilestoneTrendChartProps)
   const data = useMemo(() => {
     return computeMilestoneData(tasks, filters);
   }, [tasks, filters]);
-
-  // Color mapper based on milestone delay status
-  const getColor = (status: "on-time" | "at-risk" | "delayed") => {
-    if (status === "delayed") return "#ef4444"; // Red
-    if (status === "at-risk") return "#f59e0b";  // Amber
-    return "#10b981";                            // Green
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr || dateStr === "N/A") return "N/A";
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" });
-  };
 
   return (
     <div ref={chartRef} className="space-y-6 h-full w-full relative">
@@ -95,8 +95,8 @@ export default function MilestoneTrendChart({ tasks }: MilestoneTrendChartProps)
                   formatter={(value: any) => [`${Number(value || 0)} Days`, "Slippage"]}
                 />
                 <Bar dataKey="delayDays" radius={[6, 6, 0, 0]} maxBarSize={30}>
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getColor(entry.status)} />
+                  {data.map((entry) => (
+                    <Cell key={entry.task_id || entry.name} fill={getColor(entry.status)} />
                   ))}
                 </Bar>
               </BarChart>
