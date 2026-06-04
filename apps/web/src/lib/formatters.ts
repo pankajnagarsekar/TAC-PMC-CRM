@@ -37,10 +37,16 @@ export function formatPercentSafe(value: number | undefined | null, decimals = 0
  */
 export function formatINRShort(value: number | undefined | null): string {
     const normalized = normalizeFinancial(value);
-    if (normalized >= 10000000) return `₹${(normalized / 10000000).toFixed(1)} Cr`;
-    if (normalized >= 100000) return `₹${(normalized / 100000).toFixed(1)} L`;
-    if (normalized >= 1000) return `₹${(normalized / 1000).toFixed(0)}K`;
-    return `₹${normalized.toFixed(0)}`;
+    const isNegative = normalized < 0;
+    const absVal = Math.abs(normalized);
+    
+    let formatted = "";
+    if (absVal >= 10000000) formatted = `₹${(absVal / 10000000).toFixed(1)} Cr`;
+    else if (absVal >= 100000) formatted = `₹${(absVal / 100000).toFixed(1)} L`;
+    else if (absVal >= 1000) formatted = `₹${(absVal / 1000).toFixed(0)}K`;
+    else formatted = `₹${absVal.toFixed(0)}`;
+    
+    return isNegative ? `-${formatted}` : formatted;
 }
 
 /**
