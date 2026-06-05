@@ -9,7 +9,6 @@ export async function exportChartAsPNG(element: HTMLElement | null, fileName: st
   if (!element) return;
   try {
     // Dynamic import to prevent bundler failures if package isn't present
-    // @ts-expect-error - dynamic import may not be typed or resolved locally
     const html2canvas = (await import("html2canvas")).default;
     const canvas = await html2canvas(element, {
       useCORS: true,
@@ -37,10 +36,9 @@ export async function exportChartAsPNG(element: HTMLElement | null, fileName: st
 export async function exportChartAsPDF(element: HTMLElement | null, title: string, fileName: string) {
   if (!element) return;
   try {
-    // @ts-expect-error - dynamic import
     const html2canvas = (await import("html2canvas")).default;
     // @ts-expect-error - dynamic import
-    const { jsPDF } = await import("jspdf");
+    const { jsPDF } = await import("jspdf/dist/jspdf.es.min.js");
 
     const canvas = await html2canvas(element, {
       scale: 2,

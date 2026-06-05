@@ -48,7 +48,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
     // 2. If financials exist, build from them
     if (financials && financials.length > 0) {
       const totalCertified = financials.reduce((sum, f) => sum + (f.certified_value || 0), 0);
-      return financials.map((f) => {
+      return financials.map((f, idx) => {
         const budget = f.original_budget || 0;
         const committed = f.committed_value || 0;
         const certified = f.certified_value || 0;
@@ -69,7 +69,9 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
         const variance = budget - forecast;
 
         return {
-          category: f.category_name || f.category_code || "Misc",
+          category_id: f.category_id || f._id || `financial-${idx}`,
+          category: f.category_name || "Misc",
+          category_code: f.category_code,
           budget,
           committed,
           certified,
@@ -81,7 +83,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
     }
 
     // 3. Fall back to task-level rollup by WBS code
-    const categoriesMap: Record<string, { category: string; budget: number; committed: number; certified: number; paid: number; forecast: number; variance: number }> = {};
+    const categoriesMap: Record<string, { category_id: string; category: string; category_code?: string; budget: number; committed: number; certified: number; paid: number; forecast: number; variance: number }> = {};
     
     Object.values(taskMap).forEach((task) => {
       const code = task.wbs_code?.split('.')[0] || 'Misc';
@@ -92,7 +94,17 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
                    code === 'I' ? 'Interiors' : code;
 
       if (!categoriesMap[name]) {
-        categoriesMap[name] = { category: name, budget: 0, committed: 0, certified: 0, paid: 0, forecast: 0, variance: 0 };
+        categoriesMap[name] = { 
+          category_id: name, 
+          category: name, 
+          category_code: code !== name ? code : undefined,
+          budget: 0, 
+          committed: 0, 
+          certified: 0, 
+          paid: 0, 
+          forecast: 0, 
+          variance: 0 
+        };
       }
       categoriesMap[name].budget += Number(task.baseline_cost ?? 0);
       categoriesMap[name].committed += Number(task.wo_value ?? 0);
@@ -151,7 +163,7 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
   // Map tableData for Recharts category Planned vs Actual bar chart
   const chartData = useMemo(() => {
     return tableData.map(item => ({
-      name: item.category,
+      name: item.category_code ? `${item.category} (${item.category_code})` : item.category,
       budget: item.budget,
       committed: item.committed,
     }));
@@ -285,8 +297,13 @@ export default function BudgetControlPanel({ taskMap, financials }: BudgetContro
                     {tableData.map((item) => {
                       const committedPercent = item.budget > 0 ? (item.committed / item.budget) * 100 : 0;
                       return (
-                        <tr key={item.category} className="border-b border-slate-100 dark:border-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors">
-                          <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">{item.category}</td>
+                        <tr key={item.category_id || item.category} className="border-b border-slate-100 dark:border-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-colors">
+                          <td className="py-4 pl-2 font-bold text-slate-900 dark:text-white">
+                            <div>{item.category}</div>
+                            {item.category_code && (
+                              <div className="text-[9px] text-slate-400 font-mono mt-0.5 tracking-wider">{item.category_code}</div>
+                            )}
+                          </td>
                           <td className="py-4 text-right font-mono font-semibold">{formatINRShort(item.budget)}</td>
                           <td className="py-4 text-right font-mono font-semibold">
                             <div>{formatINRShort(item.committed)}</div>
