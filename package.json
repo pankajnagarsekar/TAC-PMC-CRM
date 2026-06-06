@@ -3,6 +3,9 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
+    "build:web": "node scripts/build-runner.js web",
+    "build:mobile": "node scripts/build-runner.js mobile",
+    "build:all": "node scripts/build-runner.js all",
     "dev": "turbo dev",
     "cleanup:ports": "powershell -ExecutionPolicy Bypass -File ./scripts/kill-ports.ps1",
     "start-all": "npm run cleanup:ports && concurrently --hide 2 --timestamp-format \"HH:mm:ss\" \"pnpm -C apps/api exec ../../.venv/Scripts/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\" \"pnpm -C apps/web dev\" \"pnpm -C apps/mobile start\"",
