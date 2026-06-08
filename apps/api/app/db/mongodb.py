@@ -15,6 +15,9 @@ class DatabaseManager:
 
     async def connect(self, mongo_url: str, db_name: str):
         """Establish authoritative connection with hard ping."""
+        if self.client is not None:
+            self.db = self.client[db_name]
+            return
         try:
             # AUTHORITATIVE: Connection pooling and timeout hardening (Point 7, 115)
             self.client = AsyncIOMotorClient(
@@ -144,6 +147,8 @@ class DatabaseManager:
         """Graceful termination (Point 118)."""
         if self.client:
             self.client.close()
+            self.client = None
+            self.db = None
             logger.info("LIFECYCLE: MongoDB connection closed gracefully")
 
     def get_db(self) -> AsyncIOMotorDatabase:

@@ -72,6 +72,9 @@ if (target === 'web' || target === 'mobile' || target === 'all') {
 
   // Test API (run tests)
   runCommand('pnpm', ['run', 'test'], apiDir, 'API - Pytest Validation');
+
+  // Sweep any leftover test databases (as a backup / verification)
+  runCommand('node', ['../../scripts/run-python.js', '../../scripts/cleanup-test-dbs.py'], apiDir, 'API - Sweeping Leftover Test DBs');
 }
 
 // 2. Build Web Application UI

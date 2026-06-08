@@ -6,6 +6,14 @@ from app.core.dependencies import get_authenticated_user, verify_nonce
 from httpx import ASGITransport, AsyncClient
 
 
+@pytest.fixture(scope="session")
+def event_loop():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
 @pytest.fixture
 async def client(request):
     import uuid
@@ -35,6 +43,26 @@ async def client(request):
             await db_manager.client.drop_database(client_db_name)
         except Exception:
             pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def session_db_cleanup():
+    yield
+    print("\n[TEST SESSION CLEANUP] Cleaning up leftover test databases...")
+    try:
+        import pymongo
+        client = pymongo.MongoClient(settings.MONGO_URL, tlsAllowInvalidCertificates=True)
+        dbs = client.list_database_names()
+        dropped = 0
+        for db_name in dbs:
+            if db_name.startswith("tac_pmc_client_") or db_name.startswith("tac_pmc_test_"):
+                client.drop_database(db_name)
+                dropped += 1
+        if dropped > 0:
+            print(f"[TEST SESSION CLEANUP] Dropped {dropped} leftover test database(s).")
+        client.close()
+    except Exception as e:
+        print(f"[TEST SESSION CLEANUP] Warning: Cleanup failed: {e}")
     db_manager.close()
 
 
