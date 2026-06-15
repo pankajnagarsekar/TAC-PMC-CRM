@@ -5,7 +5,7 @@ import { Eye } from "lucide-react";
 import { addDays, format, startOfDay, differenceInCalendarDays } from "date-fns";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
-import type { ScheduleTask, BaselineComparisonResult, GanttTimescale } from "@/types/schedule.types";
+import type { ScheduleTask, BaselineComparisonResult, GanttTimescale, DependencyType } from "@/types/schedule.types";
 import { toast } from "sonner";
 import {
   buildCalendarColumns,
@@ -19,11 +19,12 @@ import {
   getTimescaleWidth,
 } from "./scheduler-utils";
 import { GanttDependencyOverlay, type GanttDependencyEdge, type GanttDependencyNode } from "./GanttDependencyOverlay";
-import EditableCell from "./EditableCell";
+import GanttTaskSheet from "./GanttTaskSheet";
+import { useColumnConfig } from "@/hooks/useColumnConfig";
+import GanttContextMenu from "./GanttContextMenu";
+import GanttFilterPanel from "./GanttFilterPanel";
 
-function stripHtmlTags(s: string): string {
-  return s.replace(/<[^>]*>/g, "").trim();
-}
+
 
 type DragMode = "move" | "start" | "finish" | null;
 
@@ -36,6 +37,15 @@ type DragState = {
   deltaDays?: number;
 } | null;
 
+type LinkDragState = {
+  fromTaskId: string;
+  fromAnchor: "start" | "finish";
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+} | null;
+
 const Bar = memo(function Bar({
   task,
   left,
@@ -45,6 +55,9 @@ const Bar = memo(function Bar({
   onSelect,
   onOpenModal,
   onStartDrag,
+  onStartLinkDrag,
+  onLinkDragMove,
+  onLinkDragEnd,
 }: {
   task: ScheduleTask;
   left: number;
@@ -54,12 +67,32 @@ const Bar = memo(function Bar({
   onSelect: (taskId: string) => void;
   onOpenModal: (taskId: string) => void;
   onStartDrag: (task: ScheduleTask, mode: DragMode, startX: number) => void;
+  onStartLinkDrag: (taskId: string, anchor: "start" | "finish", event: React.PointerEvent) => void;
+  onLinkDragMove: (event: React.PointerEvent) => void;
+  onLinkDragEnd: (event: React.PointerEvent) => void;
 }) {
   const isMilestone = Boolean(task.is_milestone || task.scheduled_duration === 0);
   const isSummary = Boolean(task.is_summary);
   const barLeft = Math.max(0, left);
   const isCriticalHighlighted = Boolean(emphasizeCritical && task.is_critical);
   const percent = task.percent_complete ?? 0;
+
+  const hasSlipped = useMemo(() => {
+    if (percent === 100) return false;
+    const start = task.scheduled_start ? parseTaskDate(task.scheduled_start) : null;
+    const finish = task.scheduled_finish ? parseTaskDate(task.scheduled_finish) : null;
+    if (!start || !finish) return false;
+    
+    const today = startOfDay(new Date());
+    if (today < start) return false;
+    if (today > finish) return percent < 100;
+    
+    const totalDays = differenceInCalendarDays(finish, start) + 1;
+    const elapsedDays = differenceInCalendarDays(today, start);
+    const plannedPercent = totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0;
+    
+    return percent < plannedPercent;
+  }, [task.scheduled_start, task.scheduled_finish, percent]);
 
   const beginDrag = (mode: DragMode) => (event: React.PointerEvent<HTMLButtonElement | HTMLDivElement>) => {
     event.preventDefault();
@@ -70,16 +103,43 @@ const Bar = memo(function Bar({
   if (isMilestone) {
     return (
       <div
-        className="absolute top-1/2 z-30 -translate-y-1/2 cursor-pointer group"
+        className="absolute top-1/2 z-30 -translate-y-1/2 cursor-pointer group/bar"
         style={{ left: left - 8, width: 16, height: 16 }}
         onClick={() => onSelect(task.task_id)}
+        data-gantt-bar="true"
       >
         <div
-          className={`h-full w-full rotate-45 border-2 shadow-xl transition-all ${isCriticalHighlighted ? 'bg-rose-600 border-rose-400' : 'bg-slate-900 dark:bg-white border-slate-700 dark:border-slate-300'} group-hover:scale-125`}
+          className={`h-full w-full rotate-45 border-2 shadow-xl transition-all ${isCriticalHighlighted ? 'bg-rose-600 border-rose-400' : 'bg-slate-900 dark:bg-white border-slate-700 dark:border-slate-300'} group-hover/bar:scale-110`}
         />
-        <div className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 bg-slate-900 dark:bg-slate-950 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg border border-white/10 shadow-2xl transition-opacity z-50">
+        <div className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover/bar:opacity-100 bg-slate-900 dark:bg-slate-950 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg border border-white/10 shadow-2xl transition-opacity z-50">
           {task.task_name} (M)
         </div>
+        
+        {/* Left Connector Dot */}
+        <div
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onStartLinkDrag(task.task_id, "start", e);
+          }}
+          onPointerMove={onLinkDragMove}
+          onPointerUp={onLinkDragEnd}
+          className="absolute left-0 top-1/2 -translate-x-3 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-900 border-2 border-orange-500 hover:bg-orange-500 opacity-0 group-hover/bar:opacity-100 hover:scale-125 transition-all cursor-crosshair z-40 shadow-lg"
+          title="Link Predecessor (Start)"
+        />
+        
+        {/* Right Connector Dot */}
+        <div
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onStartLinkDrag(task.task_id, "finish", e);
+          }}
+          onPointerMove={onLinkDragMove}
+          onPointerUp={onLinkDragEnd}
+          className="absolute right-0 top-1/2 translate-x-3 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-900 border-2 border-orange-500 hover:bg-orange-500 opacity-0 group-hover/bar:opacity-100 hover:scale-125 transition-all cursor-crosshair z-40 shadow-lg"
+          title="Link Successor (Finish)"
+        />
       </div>
     );
   }
@@ -114,23 +174,26 @@ const Bar = memo(function Bar({
 
   return (
     <div
-      className="absolute top-1/2 z-20 -translate-y-1/2"
+      className="absolute top-1/2 z-20 -translate-y-1/2 group/bar"
       style={{ left: barLeft, width }}
       onClick={() => onSelect(task.task_id)}
+      data-gantt-bar="true"
     >
       <div
         className={`group relative h-9 rounded-xl border px-3 py-1.5 shadow-lg transition-transform duration-150 cursor-grab active:cursor-grabbing overflow-hidden ${isDragging
           ? "scale-[1.03] ring-2 ring-orange-400/60 shadow-orange-400/20 shadow-xl opacity-90"
           : isCriticalHighlighted
             ? "border-rose-500 bg-rose-500/15 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
-            : "border-slate-300/50 dark:border-white/10 bg-white dark:bg-slate-900"
+            : hasSlipped
+              ? "border-orange-500 bg-orange-500/10 shadow-[0_0_20px_rgba(249,115,22,0.1)] dark:bg-orange-500/15"
+              : "border-slate-300/50 dark:border-white/10 bg-white dark:bg-slate-900"
           }`}
         onPointerDown={beginDrag("move")}
         title={`${task.task_name} (${task.scheduled_start || 'TBD'} to ${task.scheduled_finish || 'TBD'})`}
       >
         {/* Progress Fill */}
         <div 
-          className={`absolute inset-0 z-0 h-full transition-all duration-700 ${isCriticalHighlighted ? 'bg-rose-600/30' : 'bg-sky-500/15'}`}
+          className={`absolute inset-0 z-0 h-full transition-all duration-700 ${isCriticalHighlighted ? 'bg-rose-600/30' : hasSlipped ? 'bg-orange-500/30' : 'bg-sky-500/15'}`}
           style={{ width: `${percent}%` }}
         />
 
@@ -181,6 +244,32 @@ const Bar = memo(function Bar({
           <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-orange-400/60 rounded-full opacity-0 group-hover:opacity-100 shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
         </div>
       </div>
+
+      {/* Left Connector Dot */}
+      <div
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onStartLinkDrag(task.task_id, "start", e);
+        }}
+        onPointerMove={onLinkDragMove}
+        onPointerUp={onLinkDragEnd}
+        className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 border-orange-500 hover:bg-orange-500 opacity-0 group-hover/bar:opacity-100 hover:scale-125 transition-all cursor-crosshair z-40 shadow-lg"
+        title="Link Predecessor (Start)"
+      />
+
+      {/* Right Connector Dot */}
+      <div
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onStartLinkDrag(task.task_id, "finish", e);
+        }}
+        onPointerMove={onLinkDragMove}
+        onPointerUp={onLinkDragEnd}
+        className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 border-orange-500 hover:bg-orange-500 opacity-0 group-hover/bar:opacity-100 hover:scale-125 transition-all cursor-crosshair z-40 shadow-lg"
+        title="Link Successor (Finish)"
+      />
     </div>
   );
 });
@@ -204,7 +293,12 @@ export default function GanttChart() {
   const projectCalendar = useScheduleStore((state) => state.projectCalendar);
   const removeTasksBulk = useScheduleStore((state) => state.removeTasksBulk);
   const createDraftTask = useScheduleStore((state) => state.createDraftTask);
-  const toggleTaskSelection = useScheduleStore((state) => state.toggleTaskSelection);
+  const indentTask = useScheduleStore((state) => state.indentTask);
+  const outdentTask = useScheduleStore((state) => state.outdentTask);
+  const undo = useScheduleStore((state) => state.undo);
+
+  // Column config for dynamic task sheet width
+  const { totalWidth: taskSheetWidth } = useColumnConfig();
 
   const unitWidth = getTimescaleWidth(timescale);
   const dayWidth = useMemo(() => {
@@ -218,6 +312,12 @@ export default function GanttChart() {
   const comparisonData = useScheduleStore((state) => state.comparisonData);
   const fetchBaselineComparison = useScheduleStore((state) => state.fetchBaselineComparison);
   const clearComparison = useScheduleStore((state) => state.clearComparison);
+  const lockBaseline = useScheduleStore((state) => state.lockBaseline);
+  const unlockBaseline = useScheduleStore((state) => state.unlockBaseline);
+
+  const isBaselineLocked = useMemo(() => {
+    return Object.values(taskMap).some((t) => t.baseline_locked);
+  }, [taskMap]);
 
   const readOnly = systemState === "locked";
 
@@ -264,12 +364,29 @@ export default function GanttChart() {
   }, [readOnly, queueCalculation]);
 
   const activeFilters = useScheduleStore((state) => state.activeFilters);
+  const collapsedParents = useScheduleStore((state) => state.collapsedParents);
   const searchTerm = activeFilters.searchTerm?.toLowerCase() || "";
   const statusFilter = activeFilters.statusFilter;
+  const milestonesOnly = activeFilters.milestonesOnly;
+  const criticalOnly = activeFilters.criticalOnly;
+  const delayedOnly = activeFilters.delayedOnly;
+  const resourceFilter = activeFilters.resourceFilter;
 
   const tasks = useMemo(() => {
     let list = normalizeTaskOrder(taskMap, taskOrder);
     const activeStatuses = statusFilter || [];
+    
+    // Filter out descendants of collapsed parents
+    if (collapsedParents.size > 0) {
+      list = list.filter((task) => {
+        let current = task.parent_id;
+        while (current) {
+          if (collapsedParents.has(current)) return false;
+          current = taskMap[current]?.parent_id;
+        }
+        return true;
+      });
+    }
     
     // Apply search filter
     if (searchTerm) {
@@ -284,9 +401,55 @@ export default function GanttChart() {
     if (activeStatuses.length > 0) {
       list = list.filter(t => activeStatuses.includes(t.task_status || "draft"));
     }
+
+    // Apply milestones filter
+    if (milestonesOnly) {
+      list = list.filter(t => Boolean(t.is_milestone || t.scheduled_duration === 0));
+    }
+
+    // Apply critical path filter
+    if (criticalOnly) {
+      list = list.filter(t => Boolean(t.is_critical));
+    }
+
+    // Apply delayed/slipped filter
+    if (delayedOnly) {
+      list = list.filter(t => {
+        const percent = t.percent_complete ?? 0;
+        if (percent === 100) return false;
+        const start = t.scheduled_start ? parseTaskDate(t.scheduled_start) : null;
+        const finish = t.scheduled_finish ? parseTaskDate(t.scheduled_finish) : null;
+        if (!start || !finish) return false;
+        
+        const today = startOfDay(new Date());
+        if (today < start) return false;
+        if (today > finish) return percent < 100;
+        
+        const totalDays = differenceInCalendarDays(finish, start) + 1;
+        const elapsedDays = differenceInCalendarDays(today, start);
+        const plannedPercent = totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0;
+        
+        return percent < plannedPercent;
+      });
+    }
+
+    // Apply resource/assignee filter
+    if (resourceFilter) {
+      list = list.filter(t => t.assignee_ids?.includes(resourceFilter));
+    }
     
     return list;
-  }, [taskMap, taskOrder, searchTerm, statusFilter]);
+  }, [
+    taskMap, 
+    taskOrder, 
+    searchTerm, 
+    statusFilter, 
+    collapsedParents, 
+    milestonesOnly, 
+    criticalOnly, 
+    delayedOnly, 
+    resourceFilter
+  ]);
 
   const comparisonMap = useMemo(() => {
     if (!comparisonData) return new Map<string, BaselineComparisonResult>();
@@ -305,6 +468,11 @@ export default function GanttChart() {
   const setGlobalScrollTop = useScheduleStore((state) => state.setScrollTop);
   const [showBaseline, setShowBaseline] = useState(false);
   const [activeBaselineNum, setActiveBaselineNum] = useState<number>(1);
+  const [showProgressLine, setShowProgressLine] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string } | null>(null);
+
+
 
   // PP-017: Bidirectional scroll sync
   useEffect(() => {
@@ -358,6 +526,7 @@ export default function GanttChart() {
   const [previewDeltaDays, setPreviewDeltaDays] = useState(0);
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [linkDragState, setLinkDragState] = useState<LinkDragState>(null);
   const isSyncingScroll = useRef(false);
 
   const dragStateRef = useRef<DragState>(null);
@@ -396,18 +565,56 @@ export default function GanttChart() {
     taskMapRef.current = taskMap;
   }, [taskMap]);
 
-  // Clear selection on Escape key
+  // Keyboard shortcuts handler
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore shortcut if user is typing in an input element or textarea
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       if (event.key === "Escape") {
         useScheduleStore.setState({ selectedTasks: new Set() });
+      }
+
+      if (event.ctrlKey && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        undo();
+        toast.info("Undo operation executed.");
+      }
+
+      if (event.key === "Delete") {
+        if (selectedTasks.size > 0 && systemState !== "locked") {
+          event.preventDefault();
+          removeTasksBulk(Array.from(selectedTasks));
+          useScheduleStore.setState({ selectedTasks: new Set() });
+        }
+      }
+
+      if (event.ctrlKey && event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        const firstSelected = [...selectedTasks][0];
+        if (firstSelected && systemState !== "locked") {
+          if (event.shiftKey) {
+            outdentTask(firstSelected);
+            toast.info("Task outdented.");
+          } else {
+            indentTask(firstSelected);
+            toast.info("Task indented.");
+          }
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [selectedTasks, systemState, undo, removeTasksBulk, indentTask, outdentTask]);
   const viewportHeight = 1600; 
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + 20;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
@@ -418,6 +625,86 @@ export default function GanttChart() {
 
   const timelineWidth = days.length * dayWidth;
   const visibleHeight = visibleTasks.length * ROW_HEIGHT;
+
+  const progressLinePath = useMemo(() => {
+    if (!showProgressLine || visibleTasks.length === 0) return "";
+    
+    const today = startOfDay(new Date());
+    const todayX = differenceInCalendarDays(today, rangeStart) * dayWidth;
+    const points: string[] = [];
+    
+    // Start at top of SVG above the first row
+    points.push(`M ${todayX} 0`);
+    
+    visibleTasks.forEach((task, idx) => {
+      const start = task.scheduled_start ? parseTaskDate(task.scheduled_start) : null;
+      const finish = task.scheduled_finish ? parseTaskDate(task.scheduled_finish) : null;
+      const percent = task.percent_complete ?? 0;
+      
+      let x = todayX;
+      if (start && finish) {
+        const totalDays = differenceInCalendarDays(finish, start) + 1;
+        const progressDays = (percent / 100) * totalDays;
+        const progressDate = addDays(start, progressDays);
+        x = differenceInCalendarDays(progressDate, rangeStart) * dayWidth;
+      }
+      
+      const y = idx * ROW_HEIGHT + ROW_HEIGHT / 2;
+      points.push(`L ${x} ${y}`);
+    });
+    
+    // Draw to bottom
+    const lastY = visibleTasks.length * ROW_HEIGHT;
+    points.push(`L ${todayX} ${lastY}`);
+    points.push(`L ${todayX} ${lastY + 100}`);
+    
+    return points.join(" ");
+  }, [showProgressLine, visibleTasks, rangeStart, dayWidth]);
+
+  const progressLinePoints = useMemo(() => {
+    if (!showProgressLine || visibleTasks.length === 0) return [];
+    
+    const today = startOfDay(new Date());
+    const todayX = differenceInCalendarDays(today, rangeStart) * dayWidth;
+    
+    return visibleTasks.map((task, idx) => {
+      const start = task.scheduled_start ? parseTaskDate(task.scheduled_start) : null;
+      const finish = task.scheduled_finish ? parseTaskDate(task.scheduled_finish) : null;
+      const percent = task.percent_complete ?? 0;
+      
+      let x = todayX;
+      if (start && finish) {
+        const totalDays = differenceInCalendarDays(finish, start) + 1;
+        const progressDays = (percent / 100) * totalDays;
+        const progressDate = addDays(start, progressDays);
+        x = differenceInCalendarDays(progressDate, rangeStart) * dayWidth;
+      }
+      
+      const y = idx * ROW_HEIGHT + ROW_HEIGHT / 2;
+      
+      // Calculate if slipped
+      let hasSlipped = false;
+      if (percent < 100 && start && finish) {
+        if (today > start) {
+          if (today > finish) {
+            hasSlipped = percent < 100;
+          } else {
+            const elapsed = differenceInCalendarDays(today, start);
+            const total = differenceInCalendarDays(finish, start) + 1;
+            const planned = (elapsed / total) * 100;
+            hasSlipped = percent < planned;
+          }
+        }
+      }
+
+      return {
+        id: task.task_id,
+        x,
+        y,
+        hasSlipped
+      };
+    });
+  }, [showProgressLine, visibleTasks, rangeStart, dayWidth]);
 
   const getPreviewTask = useCallback((task: ScheduleTask): ScheduleTask => {
     if (activeDragTaskId !== task.task_id || !dragStateRef.current || previewDeltaDays === 0) {
@@ -457,6 +744,122 @@ export default function GanttChart() {
     tasks.forEach((t, i) => map.set(t.task_id, i));
     return map;
   }, [tasks]);
+
+  const getAnchorCoordinate = useCallback((taskId: string, anchor: "start" | "finish") => {
+    const absIndex = taskAbsoluteIndices.get(taskId);
+    if (absIndex === undefined) return null;
+
+    const task = taskMap[taskId];
+    if (!task) return null;
+
+    const previewTask = getPreviewTask(task);
+    const { left, width } = getTaskBarPosition(previewTask, rangeStart, timescale);
+    const x = anchor === "start" ? left : left + width;
+    const y = (absIndex - startIndex) * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+    return { x, y };
+  }, [taskAbsoluteIndices, taskMap, getPreviewTask, rangeStart, timescale, startIndex]);
+
+  const handleStartLinkDrag = (taskId: string, anchor: "start" | "finish", event: React.PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const pt = getAnchorCoordinate(taskId, anchor);
+    if (!pt) return;
+
+    setLinkDragState({
+      fromTaskId: taskId,
+      fromAnchor: anchor,
+      startX: pt.x,
+      startY: pt.y,
+      currentX: pt.x,
+      currentY: pt.y,
+    });
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleLinkDragMove = (event: React.PointerEvent) => {
+    if (!linkDragState) return;
+
+    const container = scrollContainerRef.current;
+    const vContainer = verticalScrollRef.current;
+    if (!container || !vContainer) return;
+
+    const rect = container.getBoundingClientRect();
+    const vRect = vContainer.getBoundingClientRect();
+
+    const currentX = event.clientX - rect.left - taskSheetWidth + container.scrollLeft;
+    const currentY = event.clientY - vRect.top + vContainer.scrollTop;
+
+    setLinkDragState((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        currentX,
+        currentY,
+      };
+    });
+  };
+
+  const handleLinkDragEnd = (event: React.PointerEvent) => {
+    if (!linkDragState) return;
+
+    event.currentTarget.releasePointerCapture(event.pointerId);
+
+    const targetElement = document.elementFromPoint(event.clientX, event.clientY);
+    const fromTaskId = linkDragState.fromTaskId;
+    const fromAnchor = linkDragState.fromAnchor;
+
+    setLinkDragState(null);
+
+    if (!targetElement) return;
+
+    const rowElement = targetElement.closest('[data-gantt-row]');
+    if (!rowElement) return;
+
+    const targetTaskId = rowElement.getAttribute('data-task-id');
+    if (!targetTaskId || targetTaskId === fromTaskId) return;
+
+    const targetTask = taskMap[targetTaskId];
+    if (!targetTask) return;
+
+    const barElement = rowElement.querySelector('[data-gantt-bar]');
+    let toAnchor: "start" | "finish" = "start";
+    if (barElement) {
+      const barRect = barElement.getBoundingClientRect();
+      if (event.clientX > barRect.left + barRect.width / 2) {
+        toAnchor = "finish";
+      }
+    }
+
+    const depType = `${fromAnchor === "start" ? "S" : "F"}${toAnchor === "start" ? "S" : "F"}` as DependencyType;
+
+    const existingPreds = targetTask.predecessors ?? [];
+    const duplicate = existingPreds.find(p => p.task_id === fromTaskId && p.type === depType);
+    if (duplicate) {
+      toast.info("This dependency link already exists.");
+      return;
+    }
+
+    const nextPredecessors = existingPreds.filter(p => p.task_id !== fromTaskId);
+    nextPredecessors.push({
+      task_id: fromTaskId,
+      project_id: targetTask.project_id,
+      type: depType,
+      lag_days: 0,
+    });
+
+    queueCalculation({
+      task_id: targetTaskId,
+      project_id: targetTask.project_id,
+      version: targetTask.version ?? 1,
+      changes: { predecessors: nextPredecessors },
+      trigger_source: "gantt_edit",
+    });
+
+    toast.success(`Dependency created: Task ${fromTaskId} → Task ${targetTaskId} (${depType})`);
+  };
 
   const dependencyNodes = useMemo(() => {
     const nodes = new Map<string, GanttDependencyNode>();
@@ -594,18 +997,7 @@ export default function GanttChart() {
   };
 
 
-  const handleEdit = (taskId: string, changes: Partial<ScheduleTask>) => {
-    const task = taskMap[taskId];
-    if (!task || readOnly) return;
 
-    queueCalculation({
-      task_id: taskId,
-      project_id: task.project_id,
-      version: task.version ?? 1,
-      changes,
-      trigger_source: "gantt_edit",
-    });
-  };
 
   const handleSelect = (taskId: string) => {
     setSelectedTask(taskId);
@@ -738,6 +1130,26 @@ export default function GanttChart() {
               </select>
             )}
           </div>
+
+          {isBaselineLocked ? (
+            <button
+              type="button"
+              onClick={unlockBaseline}
+              className="rounded-full border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 text-rose-500 dark:text-rose-400 transition-all"
+              title="Unlock baseline to allow schedule editing"
+            >
+              🔒 Locked
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={lockBaseline}
+              className="rounded-full border border-sky-500/20 bg-sky-500/10 hover:bg-sky-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 text-sky-500 dark:text-sky-400 transition-all"
+              title="Lock current schedule as baseline (freeze dates)"
+            >
+              🔓 Freeze Baseline
+            </button>
+          )}
           <button
             type="button"
             className={`rounded-full border px-2 py-1 transition-colors ${highlightCritical ? "border-rose-400/50 bg-rose-500/10 text-rose-700 dark:text-rose-200" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05]"}`}
@@ -747,8 +1159,32 @@ export default function GanttChart() {
           >
             Critical Path
           </button>
+          <button
+            type="button"
+            className={`rounded-full border px-2 py-1 transition-colors ${showProgressLine ? "border-orange-400/50 bg-orange-500/10 text-orange-700 dark:text-orange-200" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05]"}`}
+            aria-pressed={showProgressLine}
+            onClick={() => setShowProgressLine((value) => !value)}
+            title="Toggle progress line showing planned vs actual dates"
+          >
+            Progress Line
+          </button>
+          <button
+            type="button"
+            className={`rounded-full border px-2 py-1 transition-colors ${showFilterPanel ? "border-orange-400/50 bg-orange-500/10 text-orange-700 dark:text-orange-200" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-white/[0.05]"}`}
+            aria-pressed={showFilterPanel}
+            onClick={() => setShowFilterPanel((value) => !value)}
+            title="Toggle Diagnostics & View Filters Panel"
+          >
+            Filters
+          </button>
         </div>
       </div>
+
+      {showFilterPanel && (
+        <div className="px-2">
+          <GanttFilterPanel onClose={() => setShowFilterPanel(false)} />
+        </div>
+      )}
 
       {/* Top scroll sync indicator */}
       <div
@@ -757,15 +1193,14 @@ export default function GanttChart() {
         className="overflow-x-auto custom-scrollbar h-[22px] rounded-t-[28px] border border-b-0 border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/30"
         style={{ scrollBehavior: 'smooth' }}
       >
-        <div style={{ minWidth: 280 + timelineWidth }} className="h-[2px]" />
+        <div style={{ minWidth: taskSheetWidth + timelineWidth }} className="h-[2px]" />
       </div>
 
       <div ref={scrollContainerRef} onScroll={handleScroll} className="overflow-x-auto overflow-y-hidden rounded-b-[28px] border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-950/60 shadow-2xl">
-        <div style={{ minWidth: 280 + timelineWidth }}>
+        <div style={{ minWidth: taskSheetWidth + timelineWidth }}>
           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-40">
-            <div className="w-[280px] shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300 sticky left-0 z-50 bg-white dark:bg-slate-900">
-              Task Stream
-            </div>
+            {/* Task Sheet header is rendered inside GanttTaskSheet */}
+            <div className="shrink-0" style={{ width: taskSheetWidth }} />
             <div className="relative" style={{ width: timelineWidth }}>
               {/* Header: Months & Days */}
               <div className="flex flex-col">
@@ -819,8 +1254,18 @@ export default function GanttChart() {
           >
             <div style={{ height: topSpacer }} />
             <div className="relative" style={{ height: visibleHeight }}>
+              {/* Multi-column task sheet overlay (frozen left pane) */}
+              <div className="absolute top-0 left-0 z-30" style={{ width: taskSheetWidth }}>
+                <GanttTaskSheet
+                  tasks={visibleTasks}
+                  scrollLeft={scrollLeft}
+                  onRowContextMenu={(e, taskId) => {
+                    setContextMenu({ x: e.clientX, y: e.clientY, taskId });
+                  }}
+                />
+              </div>
               {/* Background Grid Lines */}
-              <div className="pointer-events-none absolute left-[280px] top-0 z-0 h-full flex">
+              <div className="pointer-events-none absolute top-0 z-0 h-full flex" style={{ left: taskSheetWidth }}>
                 {days.map((day, i) => {
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   const isHoliday = projectCalendar?.exceptions.some(ex => {
@@ -846,12 +1291,12 @@ export default function GanttChart() {
               {/* Today Marker */}
               <div 
                 className="absolute top-0 z-40 h-full w-px bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)] pointer-events-none"
-                style={{ left: 280 + (differenceInCalendarDays(new Date(), rangeStart) * dayWidth) }}
+                style={{ left: taskSheetWidth + (differenceInCalendarDays(new Date(), rangeStart) * dayWidth) }}
               >
                 <div className="absolute -left-1.5 top-0 h-3 w-3 rounded-full bg-orange-500 shadow-lg" />
               </div>
 
-              <div className="pointer-events-none absolute left-[280px] right-0 top-0 z-10 h-full overflow-hidden">
+              <div className="pointer-events-none absolute right-0 top-0 z-10 h-full overflow-hidden" style={{ left: taskSheetWidth }}>
                 <div style={{ width: timelineWidth, height: visibleHeight }}>
                   <GanttDependencyOverlay
                     nodes={dependencyNodes}
@@ -863,6 +1308,66 @@ export default function GanttChart() {
                 </div>
               </div>
 
+              {showProgressLine && progressLinePath && (
+                <div className="pointer-events-none absolute right-0 top-0 z-30 h-full overflow-hidden" style={{ left: taskSheetWidth }}>
+                  <div style={{ width: timelineWidth, height: visibleHeight }}>
+                    <svg width={timelineWidth} height={visibleHeight + 100} className="block">
+                      <path
+                        d={progressLinePath}
+                        fill="none"
+                        stroke="#f97316"
+                        strokeWidth={2}
+                        strokeDasharray="4 2"
+                        className="drop-shadow-[0_0_3px_rgba(249,115,22,0.4)]"
+                      />
+                      {progressLinePoints.map((pt) => (
+                        <circle
+                          key={pt.id}
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={3.5}
+                          fill={pt.hasSlipped ? "#ef4444" : "#10b981"}
+                          stroke="#fff"
+                          strokeWidth={1}
+                          className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
+                        />
+                      ))}
+                    </svg>
+                  </div>
+                </div>
+              )}
+
+              {linkDragState && (
+                <div className="pointer-events-none absolute right-0 top-0 z-50 h-full overflow-hidden" style={{ left: taskSheetWidth }}>
+                  <div style={{ width: timelineWidth, height: visibleHeight }}>
+                    <svg width={timelineWidth} height={visibleHeight} className="block">
+                      <line
+                        x1={linkDragState.startX}
+                        y1={linkDragState.startY}
+                        x2={linkDragState.currentX}
+                        y2={linkDragState.currentY}
+                        stroke="#f97316"
+                        strokeWidth={2.5}
+                        strokeDasharray="4 4"
+                        className="drop-shadow-[0_0_4px_rgba(249,115,22,0.6)]"
+                      />
+                      <circle
+                        cx={linkDragState.startX}
+                        cy={linkDragState.startY}
+                        r={4}
+                        fill="#f97316"
+                      />
+                      <circle
+                        cx={linkDragState.currentX}
+                        cy={linkDragState.currentY}
+                        r={4}
+                        fill="#f97316"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              )}
+
               {visibleTasks.map((task) => {
                 const previewTask = getPreviewTask(task);
                 const { left, width } = getTaskBarPosition(previewTask, rangeStart, timescale);
@@ -871,67 +1376,21 @@ export default function GanttChart() {
                 const comparison = comparisonMap.get(task.task_id);
                 const baselinePos = comparison ? getComparisonBarPosition(comparison, rangeStart, true, timescale) : null;
 
-                const emphasizeCritical = Boolean(highlightCritical && task.is_critical);
-                const variance = comparison?.schedule_variance_days ?? 0;
-
                 return (
                   <div
                     key={task.task_id}
                     data-gantt-row="true"
+                    data-task-id={task.task_id}
                     className={`flex border-b border-slate-200 dark:border-white/5 transition-colors ${task.is_summary ? 'bg-slate-50/30 dark:bg-white/[0.01]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'}`}
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => handleSelect(task.task_id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu({ x: e.clientX, y: e.clientY, taskId: task.task_id });
+                    }}
                   >
-                    <div 
-                      className="flex w-[280px] shrink-0 items-center gap-3 border-r border-slate-200 dark:border-white/5 px-4 sticky left-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-[4px_0_8px_rgba(0,0,0,0.05)]"
-                      style={{ transform: `translateX(${scrollLeft}px)` }}
-                    >
-                      <div className="flex items-center gap-2 shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedTasks.has(task.task_id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleTaskSelection(task.task_id);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-3.5 w-3.5 rounded border-slate-300 dark:border-white/15 text-orange-600 focus:ring-orange-500 cursor-pointer bg-white/5"
-                          title={selectedTasks.has(task.task_id) ? "Deselect row" : "Select row"}
-                        />
-                        <div
-                          className={`h-2.5 w-2.5 rounded-full shrink-0 ${emphasizeCritical ? "bg-rose-500 dark:bg-rose-400" : "bg-sky-500 dark:bg-sky-400"}`}
-                          title={emphasizeCritical ? "Critical path task" : "Normal task"}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1 flex items-center gap-2">
-                        <span 
-                          className="text-[9px] text-slate-400 dark:text-slate-500 font-black tracking-wider w-6 shrink-0 text-right"
-                          title="WBS Code / Task ID"
-                        >
-                          {task.wbs_code || task.task_id}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          {readOnly ? (
-                            <p className="truncate text-xs font-semibold text-slate-900 dark:text-white" title={task.task_name}>{task.task_name}</p>
-                          ) : (
-                            <EditableCell
-                              value={task.task_name}
-                              onCommit={(nextValue) => {
-                                if (typeof nextValue !== "string") return;
-                                const clean = stripHtmlTags(nextValue);
-                                if (clean) handleEdit(task.task_id, { task_name: clean });
-                              }}
-                              className="bg-transparent border-none p-0 focus:bg-slate-100 dark:focus:bg-white/5 h-auto text-xs font-semibold text-slate-900 dark:text-white"
-                            />
-                          )}
-                        </div>
-                        {showBaseline && variance !== 0 && (
-                          <span className={`text-[9px] font-bold shrink-0 ${variance > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                            {variance > 0 ? `+${variance}d` : `${variance}d`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    {/* Task sheet cells are rendered by the overlay GanttTaskSheet */}
+                    <div className="shrink-0" style={{ width: taskSheetWidth }} />
 
                     <div className="relative flex-1 overflow-hidden">
                       <div className="absolute inset-0 flex" style={{ width: timelineWidth }}>
@@ -969,6 +1428,9 @@ export default function GanttChart() {
                         onSelect={handleSelect}
                         onOpenModal={handleOpenModal}
                         onStartDrag={startDrag}
+                        onStartLinkDrag={handleStartLinkDrag}
+                        onLinkDragMove={handleLinkDragMove}
+                        onLinkDragEnd={handleLinkDragEnd}
                       />
                     </div>
                   </div>
@@ -983,6 +1445,15 @@ export default function GanttChart() {
       <p className="px-2 pt-2 text-[10px] uppercase tracking-[0.16em] text-slate-600">
         Dragging is optimistic. The bar updates locally first, then the store debounces the recalculation request by 300ms.
       </p>
+
+      {contextMenu && (
+        <GanttContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          taskId={contextMenu.taskId}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

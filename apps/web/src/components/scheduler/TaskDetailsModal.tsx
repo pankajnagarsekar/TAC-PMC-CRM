@@ -19,6 +19,7 @@ import {
 } from "./scheduler-utils";
 import { formatCurrencySafe } from "@/lib/formatters";
 import { StyledDateInput } from "@/components/ui/StyledDateInput";
+import DependencyAutocomplete from "./DependencyAutocomplete";
 
 function FieldRow({
   label,
@@ -316,71 +317,110 @@ export default function TaskDetailsModal() {
                   </div>
                 </div>
 
-                {/* Timeline Card */}
-                <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-6 space-y-5">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-200 dark:border-white/5 pb-2">Temporal Schedule</h4>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FieldRow label="Start Anchor">
-                      <StyledDateInput
-                        value={selectedTask.scheduled_start?.split("T")[0] ?? ""}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ scheduled_start: event.target.value || null })}
-                        disabled={readOnly}
-                        hideIcon
-                      />
-                    </FieldRow>
-                    <FieldRow label="Finish Anchor">
-                      <StyledDateInput
-                        value={selectedTask.scheduled_finish?.split("T")[0] ?? ""}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ scheduled_finish: event.target.value || null })}
-                        disabled={readOnly}
-                        hideIcon
-                      />
-                    </FieldRow>
-                  </div>
+                {/* Timeline & Constraints Column */}
+                <div className="space-y-6">
+                  {/* Timeline Card */}
+                  <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-6 space-y-5">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-200 dark:border-white/5 pb-2">Temporal Schedule</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FieldRow label="Start Anchor">
+                        <StyledDateInput
+                          value={selectedTask.scheduled_start?.split("T")[0] ?? ""}
+                          onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ scheduled_start: event.target.value || null })}
+                          disabled={readOnly}
+                          hideIcon
+                        />
+                      </FieldRow>
+                      <FieldRow label="Finish Anchor">
+                        <StyledDateInput
+                          value={selectedTask.scheduled_finish?.split("T")[0] ?? ""}
+                          onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ scheduled_finish: event.target.value || null })}
+                          disabled={readOnly}
+                          hideIcon
+                        />
+                      </FieldRow>
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FieldRow label="Critical Deadline">
-                      <StyledDateInput
-                        value={selectedTask.deadline?.split("T")[0] ?? ""}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ deadline: event.target.value || null })}
-                        disabled={readOnly}
-                        hideIcon
-                      />
-                    </FieldRow>
-                    <div className="flex items-end pb-1">
-                      {selectedTask.deadline && new Date(selectedTask.deadline) < new Date(new Date().toDateString()) && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] font-black text-orange-400 uppercase tracking-tight animate-pulse">
-                          <AlertCircle size={12} /> Violation
-                        </div>
-                      )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <FieldRow label="Critical Deadline">
+                        <StyledDateInput
+                          value={selectedTask.deadline?.split("T")[0] ?? ""}
+                          onChange={(event: React.ChangeEvent<HTMLInputElement>) => commit({ deadline: event.target.value || null })}
+                          disabled={readOnly}
+                          hideIcon
+                        />
+                      </FieldRow>
+                      <div className="flex items-end pb-1">
+                        {selectedTask.deadline && new Date(selectedTask.deadline) < new Date(new Date().toDateString()) && (
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] font-black text-orange-400 uppercase tracking-tight animate-pulse">
+                            <AlertCircle size={12} /> Violation
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FieldRow label="Duration (Days)">
+                        <input
+                          type="number"
+                          min={0}
+                          value={localDuration}
+                          onChange={(e) => setLocalDuration(Number(e.target.value || 0))}
+                          onBlur={() => commit({ scheduled_duration: localDuration })}
+                          disabled={readOnly}
+                          className={textInputClass()}
+                        />
+                      </FieldRow>
+                      <FieldRow label="Completion %">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={localPercent}
+                          onChange={(e) => setLocalPercent(Number(e.target.value || 0))}
+                          onBlur={() => commit({ percent_complete: localPercent })}
+                          disabled={readOnly}
+                          className={textInputClass()}
+                        />
+                      </FieldRow>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FieldRow label="Duration (Days)">
-                      <input
-                        type="number"
-                        min={0}
-                        value={localDuration}
-                        onChange={(e) => setLocalDuration(Number(e.target.value || 0))}
-                        onBlur={() => commit({ scheduled_duration: localDuration })}
-                        disabled={readOnly}
-                        className={textInputClass()}
-                      />
-                    </FieldRow>
-                    <FieldRow label="Completion %">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={localPercent}
-                        onChange={(e) => setLocalPercent(Number(e.target.value || 0))}
-                        onBlur={() => commit({ percent_complete: localPercent })}
-                        disabled={readOnly}
-                        className={textInputClass()}
-                      />
-                    </FieldRow>
+                  {/* Constraints Card */}
+                  <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-6 space-y-5">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-200 dark:border-white/5 pb-2">Scheduling Constraints</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FieldRow label="Constraint Type">
+                        <select
+                          value={selectedTask.constraint_type ?? "ASAP"}
+                          onChange={(e) => commit({ constraint_type: e.target.value as ScheduleTask["constraint_type"] })}
+                          disabled={readOnly}
+                          className={textInputClass()}
+                        >
+                          <option value="ASAP">As Soon As Possible (ASAP)</option>
+                          <option value="ALAP">As Late As Possible (ALAP)</option>
+                          <option value="SNET">Start No Earlier Than (SNET)</option>
+                          <option value="SNLT">Start No Later Than (SNLT)</option>
+                          <option value="FNET">Finish No Earlier Than (FNET)</option>
+                          <option value="FNLT">Finish No Later Than (FNLT)</option>
+                          <option value="MSO">Must Start On (MSO)</option>
+                          <option value="MFO">Must Finish On (MFO)</option>
+                        </select>
+                      </FieldRow>
+                      
+                      {selectedTask.constraint_type && selectedTask.constraint_type !== "ASAP" && selectedTask.constraint_type !== "ALAP" && (
+                        <FieldRow label="Constraint Date">
+                          <StyledDateInput
+                            value={selectedTask.constraint_date?.split("T")[0] ?? ""}
+                            onChange={(e) => commit({ constraint_date: e.target.value || null })}
+                            disabled={readOnly}
+                            hideIcon
+                          />
+                        </FieldRow>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -431,13 +471,19 @@ export default function TaskDetailsModal() {
 
                  <div className="rounded-[24px] border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-6 space-y-5">
                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Link New Node</h4>
-                    <FieldRow label="Target Task ID">
-                      <input
-                        value={dependencyTaskId}
-                        onChange={(event) => setDependencyTaskId(event.target.value)}
+                    <FieldRow label="Search & Link Task">
+                      <DependencyAutocomplete
+                        targetTaskId={selectedTask.task_id}
                         disabled={readOnly}
-                        className={textInputClass()}
-                        placeholder="example: task-42"
+                        onSelectTaskId={setDependencyTaskId}
+                        onAddDependency={(predecessor) => {
+                          const nextPredecessors: SchedulePredecessor[] = [
+                            ...(selectedTask.predecessors ?? []),
+                            predecessor,
+                          ];
+                          commit({ predecessors: nextPredecessors });
+                          toast.success("Dependency added.");
+                        }}
                       />
                     </FieldRow>
                     <div className="grid grid-cols-2 gap-4">

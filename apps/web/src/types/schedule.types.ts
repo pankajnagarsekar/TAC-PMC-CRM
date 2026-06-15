@@ -32,7 +32,10 @@ export type ChangeSource =
   | "ai_suggestion"
   | "task_delete"
   | "add_task_dialog"
-  | "calendar_click";
+  | "calendar_click"
+  | "indent"
+  | "outdent"
+  | "batch_convert";
 
 export type CostVarianceFlag = "on_budget" | "overrun" | "underrun";
 export type ScheduleTaskStatus =
@@ -93,6 +96,7 @@ export type ScheduleTask = {
   late_start?: string | null;
   late_finish?: string | null;
   total_slack?: number;
+  free_slack?: number;
   is_critical?: boolean;
   weightage_percent?: number;
   wo_value?: number;
@@ -187,6 +191,10 @@ export type ActiveFilters = {
   statusFilter?: ScheduleTaskStatus[];
   column?: string;
   value?: string | number;
+  milestonesOnly?: boolean;
+  criticalOnly?: boolean;
+  delayedOnly?: boolean;
+  resourceFilter?: string;
 };
 
 export type GanttTimescale = "day" | "week" | "month" | "quarter";
@@ -248,6 +256,10 @@ export interface ScheduleStoreState {
   comparisonData: BaselineComparisonResult[] | null;
   selectedBaselineA: number | null;
   selectedBaselineB: number | null;
+  highlightedDependencyChain: Set<string>;
+  setHighlightedDependencyChain: (chain: Set<string>) => void;
+  getTaskSuccessors: (taskId: string) => string[];
+  getDependencyChain: (taskId: string, direction: "predecessors" | "successors" | "both") => Set<string>;
 
   loadSchedule: (payload: ScheduleCalculationResponse) => void;
   reconcileWithEngine: (response: ScheduleCalculationResponse) => void;
@@ -265,12 +277,23 @@ export interface ScheduleStoreState {
   selectAllTasks: (taskIds: string[]) => void;
   setSelectedTask: (taskId: string) => void;
   toggleParentCollapse: (taskId: string) => void;
+  expandAll: () => void;
+  collapseAll: () => void;
+  indentTask: (taskId: string) => void;
+  outdentTask: (taskId: string) => void;
+  batchConvertSchedulingMode: (taskIds: string[], mode: "Auto" | "Manual") => void;
   setTimescale: (scale: GanttTimescale) => void;
   setSearchTerm: (term: string) => void;
   setProjectCalendar: (calendar: ProjectCalendar) => void;
   setStatusFilter: (statuses: ScheduleTaskStatus[]) => void;
   setScrollTop: (top: number) => void;
   scrollTop: number;
+  setMilestonesOnly: (val: boolean) => void;
+  setCriticalOnly: (val: boolean) => void;
+  setDelayedOnly: (val: boolean) => void;
+  setResourceFilter: (userId: string) => void;
+  lockBaseline: () => Promise<void>;
+  unlockBaseline: () => Promise<void>;
 
   // Comparison Actions
   fetchBaselineComparison: (projectId: string, baselineA: number, baselineB?: number) => Promise<void>;

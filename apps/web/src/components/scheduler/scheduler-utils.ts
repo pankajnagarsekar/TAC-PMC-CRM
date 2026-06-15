@@ -126,6 +126,22 @@ export function normalizeTaskOrder(taskMap: ScheduleTaskMap, taskOrder: string[]
   );
 }
 
+/**
+ * Calculate the hierarchy depth of a task based on its parent chain.
+ * Used for visual indentation in the task sheet.
+ */
+export function getTaskDepth(task: ScheduleTask, taskMap: ScheduleTaskMap): number {
+  let depth = 0;
+  let current = task;
+  while (current.parent_id && taskMap[current.parent_id]) {
+    depth++;
+    current = taskMap[current.parent_id];
+    // Safety: prevent infinite loops from circular parent_id
+    if (depth > 20) break;
+  }
+  return depth;
+}
+
 export function calculateTimelineRange(tasks: ScheduleTask[]) {
   const parsedDates = (tasks || []).flatMap((task) => [
     parseTaskDate(task.scheduled_start),

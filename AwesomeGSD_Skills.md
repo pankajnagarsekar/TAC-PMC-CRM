@@ -15,7 +15,9 @@
 2. **Document which skills are being used** in your response before beginning work
 3. **Stack skills strategically** (see section 2 below) for complex tasks
 4. **Verify alignment** with project specifications before writing any code
-5. **Mandatory Post-Fix Validation**: For every code modification, you MUST run `@lint-and-validate` and `@verification-before-completion` to ensure zero regressions or orphaned variables.
+5. **Code Simplification**: Use the `@code-simplifier` skill to write all new code.
+6. **React Quality Check**: After any React code is written, run `@react-doctor` to scan the code, and ensure all identified issues are fixed immediately.
+7. **Mandatory Post-Fix Validation**: For every code modification, you MUST run `@lint-and-validate` and `@verification-before-completion` to ensure zero regressions or orphaned variables.
 
 ### Why This Matters
 - Ensures consistency across all changes
@@ -35,7 +37,7 @@ Example: When fixing a database query failure, use @systematic-debugging to isol
 
 ### New Feature Implementation
 ```
-Primary: @software-architecture + @concise-planning + @[language]-pro + @ai-ml
+Primary: @software-architecture + @concise-planning + @[language]-pro + @ai-ml + @code-simplifier
 Secondary: @writing-plans + @executing-plans + @pydantic-ai + @langgraph + @ai-engineer
 Example: Adding a new CRM field requires @react-best-practices (frontend) + @python-pro (backend) + @database-design (schema)
 ```
@@ -49,7 +51,7 @@ Usage: EVERY major task must be initialized with a clear PLAN.md using @writing-
 
 ### UI/UX Adjustments & Components
 ```
-Primary: @antigravity-design-expert + @tailwind-design-system + @react-best-practices + @shadcn
+Primary: @antigravity-design-expert + @tailwind-design-system + @react-best-practices + @shadcn + @code-simplifier + @react-doctor
 Secondary: @accessibility-compliance + @performance-optimizer + @magic-ui-generator + @threejs-skills + @scroll-experience + @design-spells + @spline-3d-integration
 Example: Any design change must maintain the Luxury Industrial aesthetic using @antigravity-design-expert principles
 ```
@@ -140,6 +142,7 @@ All code modifications **MUST** align with the following specifications. These a
 
 - [ ] **Zero Error State**: Full `pnpm lint` and `pytest` are Green (via @lint-and-validate)
 - [ ] **Orphaned Variable Check**: No references to deleted state/props (via @verification-before-completion)
+- [ ] **React Quality Check**: `@react-doctor` has scanned the React code and all issues are fixed
 - [ ] **Logic Integrity**: All modified functions pass logical audit (via @code-reviewer)
 - [ ] **Path Integrity**: No hardcoded Windows backslashes `\` or `.exe` in configs
 - [ ] **Discovery Isolation**: `pytest.ini` correctly points to the `tests/` folder
@@ -182,7 +185,9 @@ All work follows a systematic skill-driven lifecycle to ensure quality and speci
 
 ### Phase 3: Implementation
 - **Execution**: Use `@executing-plans` for disciplined execution of the approved plan.
+- **Code Simplification**: Use `@code-simplifier` to write and optimize all new code.
 - **Pattern Adherence**: Use language-specific skills (e.g., `@javascript-pro`, `@python-pro`) to ensure idiomatic code.
+- **React Quality Check**: Run `@react-doctor` after writing React code and ensure all identified issues are fixed.
 - **Incremental Commits**: Commit logical units of work following the project's commit standards.
 
 ### Phase 4: Verification & Shipping

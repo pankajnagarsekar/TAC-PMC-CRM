@@ -1,7 +1,7 @@
 import sys
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 try:
@@ -11,7 +11,7 @@ except ImportError:
     import os
     sys.path.append(os.path.dirname(__file__))
     try:
-        from resource_calendar import ResourceCalendar
+        from resource_calendar import ResourceCalendar  # type: ignore
     except ImportError:
         ResourceCalendar = None
 
@@ -195,8 +195,14 @@ def run_calculation(input_data: dict) -> dict:
     try:
         tasks = input_data.get("tasks", [])
         project_start_str = input_data.get("project_start")
-        project_start = _parse_date(project_start_str) or datetime.utcnow()
+        project_start = _parse_date(project_start_str) or datetime.now(timezone.utc).replace(tzinfo=None)
         calendar = _get_calendar(input_data)
+        near_critical_threshold = int(input_data.get("near_critical_threshold", 2))
+
+        def add_dur(start, dur):
+            if not calendar or dur <= 0:
+                return start + timedelta(days=max(0, dur - 1))
+            return calendar.add_working_days(start, dur - 1)
 
         if not tasks:
             return {
@@ -205,7 +211,7 @@ def run_calculation(input_data: dict) -> dict:
                 "total_duration_days": 0,
                 "status": "success",
                 "calculation_version": str(uuid.uuid4()),
-                "calculated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "calculated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             }
 
         # Step 1: Pre-process and map tasks
@@ -285,11 +291,6 @@ def run_calculation(input_data: dict) -> dict:
         # Step 4: Forward Pass (Integrated Rollup)
         for tid in topo_order:
             task = task_map[tid]
-
-            def add_dur(start, dur):
-                if not calendar or dur <= 0:
-                    return start + timedelta(days=max(0, dur - 1))
-                return calendar.add_working_days(start, dur - 1)
 
             if task["is_manual"]:
                 orig = task["original"]
@@ -420,8 +421,14 @@ def run_calculation(input_data: dict) -> dict:
         # Step 8: Assembly
         output_tasks = []
         critical_path = [tid for tid in topo_order if task_map[tid]["is_critical"]]
+        near_critical_tasks = [
+            tid for tid in topo_order
+            if not task_map[tid]["is_critical"]
+            and task_map[tid]["slack"] is not None
+            and task_map[tid]["slack"] <= near_critical_threshold
+        ]
         calc_version = str(uuid.uuid4())
-        calc_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        calc_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         for tid in topo_order:
             t = task_map[tid]
@@ -435,11 +442,36 @@ def run_calculation(input_data: dict) -> dict:
                     dv = (t["ef"] - dl).days
                     db = dv > 0
 
+            # Calculate Free Float / Slack
+            successors_entries = t.get("successors", [])
+            succ_ids = [succ_entry["task_id"] for succ_entry in successors_entries]
+            
+            if not successors_entries:
+                free_slack = t["slack"]
+            else:
+                min_succ_es = None
+                for succ_entry in successors_entries:
+                    succ_id = succ_entry["task_id"]
+                    succ_task = task_map.get(succ_id)
+                    if succ_task and succ_task["es"] is not None:
+                        if min_succ_es is None or succ_task["es"] < min_succ_es:
+                            min_succ_es = succ_task["es"]
+                
+                if min_succ_es is not None and t["ef"] is not None:
+                    if calendar:
+                        free_slack = calendar.working_days_between(t["ef"], min_succ_es) - 1
+                    else:
+                        free_slack = (min_succ_es - t["ef"]).days - 1
+                else:
+                    free_slack = t["slack"]
+
             node.update({
                 "scheduled_start": t["es"].strftime("%Y-%m-%d") if t["es"] else None,
                 "scheduled_finish": t["ef"].strftime("%Y-%m-%d") if t["ef"] else None,
                 "duration": t["duration"],
                 "total_slack": t["slack"],
+                "free_slack": free_slack,
+                "successors": succ_ids,
                 "is_critical": t["is_critical"],
                 "early_start": t["es"].strftime("%Y-%m-%d") if t["es"] else None,
                 "early_finish": t["ef"].strftime("%Y-%m-%d") if t["ef"] else None,
@@ -456,6 +488,8 @@ def run_calculation(input_data: dict) -> dict:
         return {
             "tasks": output_tasks,
             "critical_path": critical_path,
+            "near_critical_tasks": near_critical_tasks,
+            "critical_task_count": len(critical_path),
             "total_duration_days": max(0, (final_ef - project_start).days + 1),
             "status": "success",
             "calculation_version": calc_version,

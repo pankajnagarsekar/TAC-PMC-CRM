@@ -80,6 +80,36 @@ const buildDependencyGraph = (tasks: ScheduleTask[]) => {
   return graph;
 };
 
+const getPredecessorsRecursive = (
+  taskId: string,
+  dependencyGraph: Record<string, { predecessors: string[]; successors: string[] }>,
+  visited = new Set<string>()
+): Set<string> => {
+  const preds = dependencyGraph[taskId]?.predecessors || [];
+  preds.forEach((pid) => {
+    if (!visited.has(pid)) {
+      visited.add(pid);
+      getPredecessorsRecursive(pid, dependencyGraph, visited);
+    }
+  });
+  return visited;
+};
+
+const getSuccessorsRecursive = (
+  taskId: string,
+  dependencyGraph: Record<string, { predecessors: string[]; successors: string[] }>,
+  visited = new Set<string>()
+): Set<string> => {
+  const succs = dependencyGraph[taskId]?.successors || [];
+  succs.forEach((sid) => {
+    if (!visited.has(sid)) {
+      visited.add(sid);
+      getSuccessorsRecursive(sid, dependencyGraph, visited);
+    }
+  });
+  return visited;
+};
+
 const buildOptimisticPatch = (
   changes: ScheduleChangeRequest["changes"]
 ): Partial<ScheduleTask> => {
@@ -318,6 +348,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     comparisonData: null,
     selectedBaselineA: null,
     selectedBaselineB: null,
+    highlightedDependencyChain: new Set(),
     timescale: "day",
     projectCalendar: null,
     scrollTop: 0,
@@ -747,6 +778,130 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         return { collapsedParents: next };
       });
     },
+
+    expandAll: () => {
+      set({ collapsedParents: new Set() });
+    },
+
+    collapseAll: () => {
+      const { taskMap } = get();
+      const parentIds = new Set<string>();
+      Object.values(taskMap).forEach((t) => {
+        if (t.parent_id && taskMap[t.parent_id]) {
+          parentIds.add(t.parent_id);
+        }
+      });
+      set({ collapsedParents: parentIds });
+    },
+
+    indentTask: (taskId: string) => {
+      const { taskMap, taskOrder, queueCalculation } = get();
+      const task = taskMap[taskId];
+      if (!task) return;
+
+      // Find the previous sibling at the same level in task order
+      const idx = taskOrder.indexOf(taskId);
+      if (idx <= 0) return;
+
+      // Walk backwards to find the nearest task at the same parent level
+      let prevSiblingId: string | null = null;
+      for (let i = idx - 1; i >= 0; i--) {
+        const candidate = taskMap[taskOrder[i]];
+        if (candidate && (candidate.parent_id || null) === (task.parent_id || null)) {
+          prevSiblingId = taskOrder[i];
+          break;
+        }
+      }
+
+      if (!prevSiblingId) return;
+
+      // Update parent_id optimistically
+      const nextMap = { ...taskMap };
+      nextMap[taskId] = { ...task, parent_id: prevSiblingId };
+
+      // Recalculate WBS hierarchy
+      const wbsMap = recalculateWBS(nextMap, taskOrder);
+      set({ taskMap: wbsMap });
+
+      // Queue backend calculation
+      queueCalculation({
+        task_id: taskId,
+        project_id: task.project_id,
+        version: task.version ?? 1,
+        changes: { parent_id: prevSiblingId },
+        trigger_source: "indent",
+      });
+    },
+
+    outdentTask: (taskId: string) => {
+      const { taskMap, taskOrder, queueCalculation } = get();
+      const task = taskMap[taskId];
+      if (!task?.parent_id) return; // Already at root
+
+      const parent = taskMap[task.parent_id];
+      const newParentId = parent?.parent_id || null;
+
+      // Update parent_id optimistically
+      const nextMap = { ...taskMap };
+      nextMap[taskId] = { ...task, parent_id: newParentId };
+
+      // Recalculate WBS hierarchy
+      const wbsMap = recalculateWBS(nextMap, taskOrder);
+      set({ taskMap: wbsMap });
+
+      // Queue backend calculation
+      queueCalculation({
+        task_id: taskId,
+        project_id: task.project_id,
+        version: task.version ?? 1,
+        changes: { parent_id: newParentId },
+        trigger_source: "outdent",
+      });
+    },
+
+    batchConvertSchedulingMode: (taskIds, mode) => {
+      const { taskMap, loadedProjectId } = get();
+      if (!loadedProjectId) return;
+
+      const nextMap = { ...taskMap };
+      const updatedTaskIds: string[] = [];
+      const previousValues: Partial<ScheduleTask>[] = [];
+      const optimisticValues: Partial<ScheduleTask>[] = [];
+
+      taskIds.forEach((tid) => {
+        const task = taskMap[tid];
+        if (task) {
+          updatedTaskIds.push(tid);
+          previousValues.push({ task_mode: task.task_mode });
+          optimisticValues.push({ task_mode: mode });
+          nextMap[tid] = { ...task, task_mode: mode };
+        }
+      });
+
+      if (updatedTaskIds.length === 0) return;
+
+      set((state) => ({
+        taskMap: nextMap,
+        undoStack: [
+          {
+            taskIds: updatedTaskIds,
+            previousValues,
+            optimisticValues,
+            timestamp: Date.now(),
+          },
+          ...state.undoStack,
+        ],
+      }));
+
+      get().queueCalculation({
+        task_id: "",
+        project_id: loadedProjectId,
+        version: 1,
+        changes: {},
+        trigger_source: "batch_convert",
+      });
+    },
+
     setTimescale: (scale: GanttTimescale) => set({ timescale: scale }),
     setSearchTerm: (term: string) => set((state) => ({ 
       activeFilters: { ...state.activeFilters, searchTerm: term } 
@@ -756,6 +911,18 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
     })),
     setProjectCalendar: (calendar: ProjectCalendar) => set({ projectCalendar: calendar }),
     setScrollTop: (top: number) => set({ scrollTop: top }),
+    setMilestonesOnly: (val: boolean) => set((state) => ({
+      activeFilters: { ...state.activeFilters, milestonesOnly: val }
+    })),
+    setCriticalOnly: (val: boolean) => set((state) => ({
+      activeFilters: { ...state.activeFilters, criticalOnly: val }
+    })),
+    setDelayedOnly: (val: boolean) => set((state) => ({
+      activeFilters: { ...state.activeFilters, delayedOnly: val }
+    })),
+    setResourceFilter: (userId: string) => set((state) => ({
+      activeFilters: { ...state.activeFilters, resourceFilter: userId }
+    })),
 
     fetchBaselineComparison: async (projectId: string, baselineA: number, baselineB?: number) => {
       set({ pendingCalculation: true });
@@ -773,12 +940,67 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       }
     },
 
+    lockBaseline: async () => {
+      const { loadedProjectId } = get();
+      if (!loadedProjectId) return;
+      set({ pendingCalculation: true });
+      try {
+        const res = await schedulerApi.lockBaseline(loadedProjectId);
+        toast.success(res.message || "Baseline locked successfully.");
+        const schedule = await schedulerApi.load(loadedProjectId);
+        get().loadSchedule(schedule);
+      } catch (err) {
+        console.error("Lock baseline failed", err);
+        toast.error("Failed to lock baseline.");
+      } finally {
+        set({ pendingCalculation: false });
+      }
+    },
+
+    unlockBaseline: async () => {
+      const { loadedProjectId } = get();
+      if (!loadedProjectId) return;
+      set({ pendingCalculation: true });
+      try {
+        const res = await schedulerApi.unlockBaseline(loadedProjectId);
+        toast.success(res.message || "Baseline unlocked successfully.");
+        const schedule = await schedulerApi.load(loadedProjectId);
+        get().loadSchedule(schedule);
+      } catch (err) {
+        console.error("Unlock baseline failed", err);
+        toast.error("Failed to unlock baseline.");
+      } finally {
+        set({ pendingCalculation: false });
+      }
+    },
+
     clearComparison: () => {
       set({
         comparisonData: null,
         selectedBaselineA: null,
         selectedBaselineB: null
       });
+    },
+
+    setHighlightedDependencyChain: (chain) => {
+      set({ highlightedDependencyChain: chain });
+    },
+
+    getTaskSuccessors: (taskId) => {
+      const { dependencyGraph } = get();
+      return dependencyGraph[taskId]?.successors || [];
+    },
+
+    getDependencyChain: (taskId, direction) => {
+      const { dependencyGraph } = get();
+      const visited = new Set<string>();
+      if (direction === "predecessors" || direction === "both") {
+        getPredecessorsRecursive(taskId, dependencyGraph, visited);
+      }
+      if (direction === "successors" || direction === "both") {
+        getSuccessorsRecursive(taskId, dependencyGraph, visited);
+      }
+      return visited;
     },
 
     clear: () => {
@@ -788,6 +1010,7 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
         taskOrder: [],
         dependencyGraph: {},
         selectedTasks: new Set(),
+        highlightedDependencyChain: new Set(),
         systemState: null,
         undoStack: [],
         pendingCalculation: false,
