@@ -28,6 +28,7 @@ tmp/
 .claude-flow/
 .swarm/
 .planning/
+\# React Doctor - local triage playbook.txt
 
 # Dependencies
 node_modules/
