@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.modules.shared.domain.exceptions import ValidationError, DataFreezeError
 from app.core.utils import serialize_doc
@@ -123,7 +123,7 @@ class SchedulerService:
         from app.modules.scheduler.calculate_critical_path import run_calculation
 
         # Serialize first to strip ObjectId/datetime from MongoDB task documents
-        clean_payload = serialize_doc(input_payload)
+        clean_payload = serialize_doc(input_payload) or {}
         results = await asyncio.to_thread(run_calculation, clean_payload)
 
         # Step 3: Determine system state (Point 14)
@@ -137,7 +137,7 @@ class SchedulerService:
             # However, for now let's keep it 'active' to resolve the 'always disabled' bug.
             system_state = "active"
 
-        final_result = serialize_doc(results)
+        final_result = serialize_doc(results) or {}
         final_result["system_state"] = system_state
         final_result["schedule_version"] = max((t.get("version", 1) for t in tasks), default=1)
 
@@ -221,13 +221,13 @@ class SchedulerService:
         return {"message": "Project schedule saved successfully"}
 
     async def delete_task(
-        self, project_id: str, organisation_id: str, task_id: str, user_id: str = None
+        self, project_id: str, organisation_id: str, task_id: str, user_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Permanently remove a task and update project schedule."""
         return await self.delete_tasks_bulk(project_id, organisation_id, [task_id], user_id)
 
     async def delete_tasks_bulk(
-        self, project_id: str, organisation_id: str, task_ids: List[str], user_id: str = None
+        self, project_id: str, organisation_id: str, task_ids: List[str], user_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Permanently remove multiple tasks and update project schedule."""
         schedule = await self.load_schedule(project_id, organisation_id)
@@ -297,7 +297,7 @@ class SchedulerService:
                     "total_cost": 0,
                 }
 
-            serialized = serialize_doc(schedule)
+            serialized = serialize_doc(schedule) or {}
             tasks = serialized.get("tasks", [])
 
             # 1. Collect all unique assignee_ids
@@ -538,7 +538,7 @@ class SchedulerService:
         return result
 
     async def compare_baselines(
-        self, project_id: str, organisation_id: str, baseline_a: int, baseline_b: int = None
+        self, project_id: str, organisation_id: str, baseline_a: int, baseline_b: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         # Fetch current schedule
         schedule = await self.load_schedule(project_id, organisation_id)
@@ -603,6 +603,56 @@ class SchedulerService:
                     "TASK",
                     f"Baseline (v{t.get('baseline_version', '1')})"
                 )
+
+            # 4. Bidirectional Status/Progress Sync (BUG-014)
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            status = t.get("task_status")
+            progress = t.get("percent_complete")
+
+            if progress is not None:
+                try:
+                    prog_val = int(progress)
+                    if prog_val == 100 and status != "completed":
+                        t["task_status"] = "completed"
+                        if not t.get("actual_finish"):
+                            t["actual_finish"] = today_str
+                    elif 0 < prog_val < 100 and status in ["completed", "closed", "not_started"]:
+                        t["task_status"] = "in_progress"
+                        if not t.get("actual_start"):
+                            t["actual_start"] = today_str
+                    elif prog_val == 0 and status in ["completed", "in_progress"]:
+                        t["task_status"] = "not_started"
+                        t["actual_start"] = None
+                        t["actual_finish"] = None
+                except (ValueError, TypeError):
+                    pass
+
+            status = t.get("task_status")
+            if status in ["completed", "closed"]:
+                try:
+                    if progress is None or int(progress) != 100:
+                        t["percent_complete"] = 100
+                except (ValueError, TypeError):
+                    t["percent_complete"] = 100
+                if not t.get("actual_finish"):
+                    t["actual_finish"] = today_str
+            elif status == "not_started":
+                try:
+                    if progress is None or int(progress) != 0:
+                        t["percent_complete"] = 0
+                except (ValueError, TypeError):
+                    t["percent_complete"] = 0
+                t["actual_start"] = None
+                t["actual_finish"] = None
+            elif status == "in_progress":
+                try:
+                    prog_val = int(progress) if progress is not None else 0
+                    if prog_val == 100 or prog_val == 0:
+                        t["percent_complete"] = 50
+                except (ValueError, TypeError):
+                    t["percent_complete"] = 50
+                if not t.get("actual_start"):
+                    t["actual_start"] = today_str
 
     async def recalculate_for_calendar_change(self, project_id: str, organisation_id: str) -> Dict[str, Any]:
         """Authoritative trigger for re-calculating critical path after calendar updates."""

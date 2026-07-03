@@ -52,6 +52,8 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client }: Clie
   };
 
   useEffect(() => {
+    setError(null);
+    setGstinError("");
     if (client) {
       setFormData({
         name: client.client_name || '',

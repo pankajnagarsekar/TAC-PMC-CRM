@@ -18,6 +18,7 @@ import {
   Eye,
   CheckSquare as DoneIcon,
   XCircle,
+  Edit,
 } from "lucide-react";
 import api from "@/lib/api";
 import { Task } from "@/types/api";
@@ -27,6 +28,7 @@ import { useProjectStore } from "@/store/projectStore";
 import TaskChangeLog from "@/components/tasks/TaskChangeLog";
 import TaskAISummary from "@/components/tasks/TaskAISummary";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import TaskEditModal from "@/components/tasks/TaskEditModal";
 
 import TaskDetailSkeleton from "@/components/tasks/TaskDetailSkeleton";
 
@@ -44,6 +46,7 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -235,9 +238,18 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
                 <button
                   onClick={() => {
                     setIsMenuOpen(false);
+                    setShowEditModal(true);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-850 hover:text-white transition-colors font-bold flex items-center gap-2"
+                >
+                  <Edit size={14} /> Edit Task
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
                     setShowDeleteConfirm(true);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors font-bold flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 transition-colors font-bold flex items-center gap-2 border-t border-slate-800"
                 >
                   <XCircle size={14} /> Delete Task
                 </button>
@@ -411,6 +423,13 @@ export default function TaskDetailsPage({ params }: TaskPageProps) {
         confirmText="Delete Task"
         isLoading={isUpdating}
         variant="danger"
+      />
+
+      <TaskEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={fetchTask}
+        task={task}
       />
     </div>
   );

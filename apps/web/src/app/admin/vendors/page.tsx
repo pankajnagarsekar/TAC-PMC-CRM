@@ -47,13 +47,14 @@ export default function VendorsPage() {
   const { toast } = useToast();
 
   const filteredVendors = useMemo(() => {
+    if (!vendors || !Array.isArray(vendors)) return [];
     if (!searchTerm) return vendors;
     const term = searchTerm.toLowerCase();
     return vendors.filter(
       (v) =>
-        v.name.toLowerCase().includes(term) ||
-        v.gstin?.toLowerCase().includes(term) ||
-        v.contact_person?.toLowerCase().includes(term),
+        (v.name || "").toLowerCase().includes(term) ||
+        (v.gstin || "").toLowerCase().includes(term) ||
+        (v.contact_person || "").toLowerCase().includes(term),
     );
   }, [vendors, searchTerm]);
 
@@ -75,7 +76,7 @@ export default function VendorsPage() {
   const confirmDelete = async () => {
     if (!vendorToDelete) return;
 
-    const vendorId = vendorToDelete._id;
+    const vendorId = vendorToDelete.id || vendorToDelete._id;
 
     try {
       await api.delete(`/api/v1/vendors/${vendorId}`);
@@ -245,8 +246,9 @@ export default function VendorsPage() {
             editable={false}
             quickFilterText={searchTerm}
             onRowClicked={(event) => {
-              if (event.data && event.data._id) {
-                router.push(`/admin/vendors/${event.data._id}`);
+              const vendorId = event.data?.id || event.data?._id;
+              if (vendorId) {
+                router.push(`/admin/vendors/${vendorId}`);
               }
             }}
           />

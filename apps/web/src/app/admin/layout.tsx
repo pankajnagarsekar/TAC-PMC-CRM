@@ -110,9 +110,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }
             }
 
+            const href = "/admin/" + arr.slice(0, idx + 1).join("/");
+
             return {
                 label,
-                href: `/admin/${segment}`
+                href
             };
         });
 

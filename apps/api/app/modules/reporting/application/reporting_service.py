@@ -27,6 +27,7 @@ ReportType = Literal[
     "weekly_progress",
     "15_days_progress",
     "monthly_progress",
+    "scheduler_gantt",
 ]
 
 
@@ -144,7 +145,7 @@ class ReportingService:
         project = await self.db.projects.find_one({"project_id": self._get_project_match(project_id)})
         org_id = project.get("organisation_id") if project else None
 
-        schedule = await sched_service.load_schedule(project_id, org_id)
+        schedule = await sched_service.load_schedule(project_id, org_id or "")
         tasks_raw = schedule.get("tasks", [])
 
         if not tasks_raw:
@@ -541,7 +542,7 @@ class ReportingService:
                 "category_id": {
                     "$exists": True,
                     "$ne": None,
-                    "$nin": [FinancialEngine.MASTER_CATEGORY, "master", project_id, str(project_id)]
+                    "$nin": [FinancialEngine.MASTER_CATEGORY, "master", project_id]
                 }
             }},
             {"$addFields": {
@@ -639,6 +640,19 @@ class ReportingService:
             "remaining": Decimal("0"),
         }
 
+        # Fetch project deadline dynamically
+        project_deadline = "N/A"
+        project = await self.db.projects.find_one({"_id": self._get_project_match(project_id)})
+        if project and project.get("end_date"):
+            proj_end = project.get("end_date")
+            project_deadline = proj_end.strftime("%Y-%m-%d") if isinstance(proj_end, datetime) else str(proj_end)[:10]
+        else:
+            schedule = await self.db.project_schedules.find_one({"project_id": project_id})
+            if schedule and schedule.get("tasks"):
+                finishes = [t.get("scheduled_finish") for t in schedule.get("tasks") if t.get("scheduled_finish")]
+                if finishes:
+                    project_deadline = max(finishes)[:10]
+
         for item in financial_data:
             budget = FinancialEngine.to_decimal(item.get("original_budget") or 0)
             committed = FinancialEngine.to_decimal(item.get("committed_value") or 0)
@@ -657,7 +671,7 @@ class ReportingService:
                     ExportService.format_currency(committed),
                     ExportService.format_currency(certified),
                     ExportService.format_currency(remaining),
-                    "Active",
+                    project_deadline,
                 ]
             )
             totals["budget"] += budget

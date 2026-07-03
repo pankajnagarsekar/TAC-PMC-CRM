@@ -22,11 +22,14 @@ export default function PastTasksTable({ tasks }: PastTasksTableProps) {
         headerName: "NO.",
         width: 80,
         sortable: true,
-        cellRenderer: (p: ICellRendererParams<Task>) => (
-          <span className="text-slate-500 font-black text-[10px] tracking-widest uppercase">
-            #{p.data?.sr_no || p.node.rowIndex !== null ? String(p.data?.sr_no || p.node.rowIndex! + 1).padStart(3, '0') : "???"}
-          </span>
-        ),
+        cellRenderer: (p: ICellRendererParams<Task>) => {
+          const num = p.data?.sr_no ?? (p.node.rowIndex !== null ? p.node.rowIndex + 1 : null);
+          return (
+            <span className="text-slate-500 font-black text-[10px] tracking-widest uppercase">
+              {num !== null ? `#${String(num).padStart(3, "0")}` : "???"}
+            </span>
+          );
+        },
       },
       {
         field: "task_description",

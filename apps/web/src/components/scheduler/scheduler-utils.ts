@@ -339,6 +339,8 @@ export function buildTaskStatusTransition(
   if (nextStatus === "closed") {
     return {
       task_status: nextStatus,
+      percent_complete: 100,
+      actual_finish: today,
     } satisfies Partial<ScheduleTask>;
   }
 

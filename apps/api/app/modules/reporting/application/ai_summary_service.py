@@ -67,7 +67,7 @@ class EmergentSummaryProvider(SummaryProvider):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
             )
-            return res.choices[0].message.content.strip()
+            return (res.choices[0].message.content or "").strip()
         except Exception as e:
             logger.error(f"AI_GEN_FAIL: {e}")
             return await MockSummaryProvider().generate_summary(
@@ -378,9 +378,10 @@ class AISummaryService:
         resilient_id = {"$in": [project_id, res_id]}
 
         query = {"project_id": resilient_id, "organisation_id": organisation_id}
+        project_scoped_query = {"project_id": resilient_id}
 
-        budgets = await self.budget_repo.list(query, limit=100)
-        financials = await self.fin_state_repo.list(query, limit=100)
+        budgets = await self.budget_repo.list(project_scoped_query, limit=100)
+        financials = await self.fin_state_repo.list(project_scoped_query, limit=100)
         # Create map using all possible ID keys for maximum resilience
         fin_map = {}
         for f in financials:
@@ -393,16 +394,20 @@ class AISummaryService:
         def get_cid(b):
             return str(b.get("category_id") or b.get("code_id") or "")
 
+        def get_committed_val(b) -> Decimal:
+            f = fin_map.get(get_cid(b))
+            return to_d(f.get("committed_value")) if f else Decimal("0.00")
+
+        def get_certified_val(b) -> Decimal:
+            f = fin_map.get(get_cid(b))
+            return to_d(f.get("certified_value")) if f else Decimal("0.00")
+
         total_committed = sum(
-            (to_d(fin_map.get(get_cid(b)).get("committed_value"))
-             if get_cid(b) in fin_map else Decimal("0.00")
-             for b in budgets),
+            (get_committed_val(b) for b in budgets),
             Decimal("0.00")
         )
         total_certified = sum(
-            (to_d(fin_map.get(get_cid(b)).get("certified_value"))
-             if get_cid(b) in fin_map else Decimal("0.00")
-             for b in budgets),
+            (get_certified_val(b) for b in budgets),
             Decimal("0.00")
         )
 
@@ -410,7 +415,7 @@ class AISummaryService:
         if total_budget == 0:
             master_state = fin_map.get(FinancialEngine.MASTER_CATEGORY)
             if not master_state:
-                master_state = await self.fin_state_repo.get_master_state(resilient_id, organisation_id)
+                master_state = await self.fin_state_repo.get_master_state(project_id)
 
             # Aggregate report level totals
             if master_state:

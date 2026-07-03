@@ -231,7 +231,7 @@ class AnalyticsService:
         metrics = ScheduleHealthMetrics()
 
         # Fetch schedule (Resilient ID Check BUG-002)
-        query = {"organisation_id": organisation_id}
+        query: Dict[str, Any] = {"organisation_id": organisation_id}
         from bson import ObjectId
         if ObjectId.is_valid(project_id):
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
@@ -321,7 +321,7 @@ class AnalyticsService:
         data = ResourceUtilizationData()
 
         # Fetch schedule (Resilient ID Check BUG-002)
-        query = {"organisation_id": organisation_id}
+        query: Dict[str, Any] = {"organisation_id": organisation_id}
         from bson import ObjectId
         if ObjectId.is_valid(project_id):
             query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
@@ -403,11 +403,11 @@ class AnalyticsService:
         data = FinancialSummaryData()
 
         # Fetch master financial state (Resilient ID Check BUG-002)
-        master_state = await self.fin_state_repo.get_master_state(project_id, organisation_id)
+        master_state = await self.fin_state_repo.get_master_state(project_id)
 
         if not master_state:
             # Fallback: sum all per-category states
-            agg_query = {"category_id": {"$ne": FinancialEngine.MASTER_CATEGORY}, "organisation_id": organisation_id}
+            agg_query: Dict[str, Any] = {"category_id": {"$ne": FinancialEngine.MASTER_CATEGORY}}
             if ObjectId.is_valid(project_id):
                 agg_query["$or"] = [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]
             else:
@@ -469,7 +469,10 @@ class AnalyticsService:
         ev = Decimal("0.00")
 
         # Fetch schedule for EVM calculations
-        schedule = await self.schedule_repo.find_one({"project_id": project_id})
+        schedule_query = {"project_id": project_id}
+        if ObjectId.is_valid(project_id):
+            schedule_query = {"$or": [{"project_id": project_id}, {"project_id": ObjectId(project_id)}]}
+        schedule = await self.schedule_repo.find_one(schedule_query)
         project = await self.project_repo.get_by_id(project_id)
 
         tasks_raw = schedule.get("tasks") if schedule else None

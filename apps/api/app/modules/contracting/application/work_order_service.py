@@ -80,7 +80,7 @@ class WorkOrderService:
                 user, project_id, require_write=True
             )
             await self.financial_service.validate_financial_document(
-                "WORK_ORDER", wo_data.dict(), project_id
+                "WORK_ORDER", wo_data.model_dump(), project_id
             )
 
             async with UnitOfWork(self.db) as uow:
@@ -114,7 +114,7 @@ class WorkOrderService:
                         raise ValidationError("Vendor not found.")
 
                     # 3. Calculation Engine: Line Items (CALC-5)
-                    items_data = [item.dict() for item in wo_data.line_items]
+                    items_data = [item.model_dump() for item in wo_data.line_items]
                     subtotal = Decimal("0.0")
 
                     for item in items_data:
@@ -145,7 +145,7 @@ class WorkOrderService:
                     )
                     wo_ref = f"WO-{next_seq:04d}"
 
-                    wo_dict = wo_data.dict()
+                    wo_dict = wo_data.model_dump()
                     wo_dict.update(
                         {
                             "organisation_id": organisation_id,
@@ -205,7 +205,7 @@ class WorkOrderService:
                             },
                         ],
                         session=uow.session,
-                    ).to_list(None)
+                    ).to_list(10000)
 
                     # Manual sum to avoid group empty result complexity
                     total_commit = Decimal("0.0")
@@ -287,11 +287,11 @@ class WorkOrderService:
                 user, old_wo["project_id"]
             )
             # BUG-007 Fix: Merge existing data for validation to prevent false misses on required fields
-            updates = update_req.dict(exclude_unset=True)
+            updates = update_req.model_dump(exclude_unset=True)
             # Authoritative Invariant: If line items are changing, ensure subtotal in validation context matches
             if "line_items" in updates and "subtotal" not in updates:
                 items_raw = [
-                    itm if isinstance(itm, dict) else itm.dict()
+                    itm if isinstance(itm, dict) else itm.model_dump()
                     for itm in updates["line_items"]
                 ]
                 line_res = FinancialEngine.calculate_line_items(items_raw)
@@ -310,8 +310,8 @@ class WorkOrderService:
                 session=uow.session,
             )
             linked_pc_total = sum(
-                FinancialEngine.to_decimal(pc.get("grand_total", 0))
-                for pc in linked_pcs
+                (FinancialEngine.to_decimal(pc.get("grand_total", 0)) for pc in linked_pcs),
+                Decimal("0")
             )
 
             line_items_data = (
@@ -320,7 +320,7 @@ class WorkOrderService:
                 else old_wo.get("line_items", [])
             )
             items_raw = [
-                item if isinstance(item, dict) else item.dict()
+                item if isinstance(item, dict) else item.model_dump()
                 for item in (
                     line_items_data if isinstance(line_items_data, list) else []
                 )
@@ -584,7 +584,11 @@ class WorkOrderService:
 
     async def get_work_order(self, user: dict, wo_id: str) -> Dict[str, Any]:
         organisation_id = user["organisation_id"]
-        wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
+        wo = None
+        if ObjectId.is_valid(wo_id):
+            wo = await self.wo_repo.get_by_id(wo_id, organisation_id=organisation_id)
+        if not wo:
+            wo = await self.wo_repo.find_one({"wo_ref": wo_id, "organisation_id": organisation_id})
         if not wo:
             raise NotFoundError("Work Order", wo_id)
 

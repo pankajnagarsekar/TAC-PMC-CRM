@@ -583,7 +583,57 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       }
 
       const previousClone = { ...currentTask };
-      const optimistic = { ...previousClone, ...buildOptimisticPatch(payload.changes) };
+
+      // Bidirectional Status/Progress Sync logic
+      const syncedChanges = { ...payload.changes };
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      if (syncedChanges.percent_complete !== undefined) {
+        const p = syncedChanges.percent_complete;
+        if (p === 100) {
+          syncedChanges.task_status = "completed";
+          if (!currentTask.actual_finish && !syncedChanges.actual_finish) {
+            syncedChanges.actual_finish = todayStr;
+          }
+        } else if (p !== null && p > 0 && p < 100) {
+          const currentStatus = syncedChanges.task_status || currentTask.task_status;
+          if (currentStatus === "completed" || currentStatus === "closed" || currentStatus === "not_started") {
+            syncedChanges.task_status = "in_progress";
+          }
+          if (!currentTask.actual_start && !syncedChanges.actual_start) {
+            syncedChanges.actual_start = todayStr;
+          }
+        } else if (p === 0) {
+          const currentStatus = syncedChanges.task_status || currentTask.task_status;
+          if (currentStatus === "completed" || currentStatus === "in_progress") {
+            syncedChanges.task_status = "not_started";
+          }
+          syncedChanges.actual_start = null;
+          syncedChanges.actual_finish = null;
+        }
+      } else if (syncedChanges.task_status !== undefined) {
+        const s = syncedChanges.task_status;
+        if (s === "completed") {
+          syncedChanges.percent_complete = 100;
+          if (!currentTask.actual_finish && !syncedChanges.actual_finish) {
+            syncedChanges.actual_finish = todayStr;
+          }
+        } else if (s === "not_started") {
+          syncedChanges.percent_complete = 0;
+          syncedChanges.actual_start = null;
+          syncedChanges.actual_finish = null;
+        } else if (s === "in_progress") {
+          const currentProgress = currentTask.percent_complete ?? 0;
+          if (currentProgress === 100 || currentProgress === 0) {
+            syncedChanges.percent_complete = 50;
+          }
+          if (!currentTask.actual_start && !syncedChanges.actual_start) {
+            syncedChanges.actual_start = todayStr;
+          }
+        }
+      }
+
+      const optimistic = { ...previousClone, ...buildOptimisticPatch(syncedChanges) };
 
       // S-BUG #6: Optimistic Parent Rollup
       const updatedMap = { ...state.taskMap, [payload.task_id]: optimistic };
@@ -638,8 +688,8 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
       // BUG FIX: Merge changes if the task_id is the same to prevent data loss 
       // during rapid consecutive calls (e.g. createDraftTask followed by immediate edit)
       const mergedChanges = (pendingRequest && pendingRequest.task_id === payload.task_id)
-        ? { ...pendingRequest.changes, ...payload.changes }
-        : payload.changes;
+        ? { ...pendingRequest.changes, ...syncedChanges }
+        : syncedChanges;
 
       pendingRequest = {
         ...payload,

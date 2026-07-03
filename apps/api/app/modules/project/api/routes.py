@@ -28,6 +28,7 @@ from ..application.scheduler_service import SchedulerService
 from ..schemas.dto import (
     Client,
     ClientCreate,
+    ClientUpdate,
     Project,
     ProjectBudgetCreate,
     ProjectCreate,
@@ -255,6 +256,22 @@ async def create_client(
     return GenericResponse(data=client, message="Client added successfully")
 
 
+@router.put(
+    "/clients/{client_id}",
+    response_model=GenericResponse[Client],
+    tags=["Clients"],
+)
+async def update_client(
+    client_id: str,
+    client_data: ClientUpdate,
+    user: dict = Depends(get_authenticated_user),
+    client_service: ClientService = Depends(get_client_service),
+):
+    """Update an existing client profile."""
+    client = await client_service.update_client(user, client_id, client_data)
+    return GenericResponse(data=client, message="Client updated successfully")
+
+
 # --- BUDGET ENDPOINTS ---
 
 
@@ -296,7 +313,9 @@ async def calculate_schedule(
     logger.info(f"API_SCHEDULER_CALC: Project {project_id} - reconciling {len(task_dicts)} nodes")
     try:
         result = await service.calculate_schedule(
-            project_id, task_dicts, request.project_start
+            project_id,
+            [t.model_dump() for t in request.tasks],
+            request.project_start or ""
         )
         return GenericResponse(data=result)
     except Exception as e:
@@ -423,7 +442,7 @@ async def save_schedule(
             project_id,
             user["organisation_id"],
             user["user_id"],
-            request.dict(),
+            request.model_dump(),
         )
         return GenericResponse(data=result, message="Schedule saved successfully")
     except Exception as e:

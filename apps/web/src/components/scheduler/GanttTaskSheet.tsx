@@ -289,9 +289,11 @@ const TaskSheetCell = memo(function TaskSheetCell({
 
   // Percent complete
   if (column.id === "percent_complete") {
+    const isDone = task.task_status === "completed" || task.task_status === "closed";
+    const displayValue = isDone ? 100 : (task.percent_complete ?? 0);
     return (
       <EditableCell
-        value={task.percent_complete ?? 0}
+        value={displayValue}
         type="percent"
         compact
         readOnly={readOnly}
