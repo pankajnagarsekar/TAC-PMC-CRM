@@ -15,7 +15,9 @@ This file is the single-most authoritative brain for AI coding agents regarding 
 - **Database Operations**: Always use `BaseRepository` to ensure strict organisation ID scoping (`**filters`) and optimistic locking.
 
 ## 🧪 Testing Instructions
-- **Backend Tests**: Run `pnpm -C apps/api exec python -m pytest`
+- **Backend Tests**: 
+  - **Module-Specific**: When modifying code within a specific module, run only its target test directory to keep iteration fast (e.g., `pnpm -C apps/api exec python -m pytest tests/modules/reporting/` for changes in the `reporting` module).
+  - **Full Application**: Run the full suite `pnpm -C apps/api exec python -m pytest` when verifying the entire application's integrity before committing or submitting a PR.
 - **Linting**: Run `pnpm lint` from root or specific packages.
 - **Iterative Fixing**: Address lint warnings and test failures sequentially until the pipeline runs green.
 

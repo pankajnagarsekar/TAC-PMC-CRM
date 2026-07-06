@@ -146,7 +146,7 @@ Prior to completing validation safeguards, execute the corresponding GStack audi
 - [ ] Integration test: [test name]
 - [ ] E2E test (if applicable): [test name]
 
-- [ ] **Zero Error State**: Full `pnpm lint` and `pytest` are Green (via @lint-and-validate)
+- [ ] **Zero Error State**: Target module tests (or full `pytest` suite if global/cross-module changes) and `pnpm lint` are Green (via @lint-and-validate)
 - [ ] **Orphaned Variable Check**: No references to deleted state/props (via @verification-before-completion)
 - [ ] **React Quality Check**: `@react-doctor` has scanned the React code and all issues are fixed
 - [ ] **Logic Integrity**: All modified functions pass logical audit (via @code-reviewer)
