@@ -128,9 +128,13 @@ class AIService:
                 response_format={"type": "json_object"},
             )
 
+            content = response.choices[0].message.content
+            if not content:
+                raise ValidationError("AI response content is empty")
+
             import json
 
-            return json.loads(response.choices[0].message.content)
+            return json.loads(content)
         except Exception as e:
             logger.error(f"AI_MOM_FAIL: {e}")
             raise ValidationError(f"AI Extraction failed: {str(e)}")

@@ -129,6 +129,12 @@ All code modifications **MUST** align with the following specifications. These a
 
 **MANDATORY:** After any code modification, output a **Verification Step** using `@testing-patterns`:
 
+### GStack Pre-Review Audit Gates:
+Prior to completing validation safeguards, execute the corresponding GStack audits:
+- `/review` to audit branch logic and auto-fix simple bugs.
+- `/cso` to perform OWASP Top 10 + STRIDE threat modeling.
+- `/design-review` (for frontend modifications) to check against Luxury Industrial styles.
+
 ### Format:
 ```markdown
 ## Verification Step
