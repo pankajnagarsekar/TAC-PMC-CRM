@@ -106,7 +106,7 @@ export default function WorkOrdersPage() {
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            router.push(`/admin/work-orders/${p.data?._id}`);
+            router.push(`/admin/work-orders/${p.data?._id || (p.data as any)?.id}`);
           }}
           className="text-orange-400 font-bold hover:underline font-mono relative z-10"
         >

@@ -15,7 +15,7 @@ class NotificationService:
         self, user: dict, notification_data: NotificationCreate
     ) -> Dict[str, Any]:
         """Authored notification creation with audit trail (BUG-007)."""
-        notification_doc = notification_data.dict()
+        notification_doc = notification_data.model_dump()
         notification_doc["organisation_id"] = user["organisation_id"]
         notification_doc["sender_id"] = user["user_id"]
         notification_doc["sender_name"] = user.get("name", "System")
@@ -53,7 +53,7 @@ class NotificationService:
             query, sort=[("created_at", -1)], limit=limit
         )
 
-        unread_count = await self.notif_repo.count_documents(
+        unread_count = await self.notif_repo.count(
             {
                 "organisation_id": user["organisation_id"],
                 "$or": [

@@ -62,11 +62,14 @@ export default function LinkedCertificates({ projectId, workOrderId }: LinkedCer
     {
       headerName: '',
       width: 50,
-      cellRenderer: (p: ICellRendererParams) => (
-        <Link href={`/admin/payment-certificates/${p.data.id || p.data._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
-          <ChevronRight size={16} className="text-zinc-400" />
-        </Link>
-      )
+      cellRenderer: (p: ICellRendererParams) => {
+        if (!p.data) return null;
+        return (
+          <Link href={`/admin/payment-certificates/${p.data.id || p.data._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
+            <ChevronRight size={16} className="text-zinc-400" />
+          </Link>
+        );
+      }
     }
   ], [getVendorName]);
 

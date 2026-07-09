@@ -110,10 +110,11 @@ function AuditLogContent() {
     const fetchEntityTypes = async () => {
       try {
         const response = await api.get("/api/v1/audit/entity-types");
-        if (response.data && Array.isArray(response.data)) {
+        const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        if (data && Array.isArray(data)) {
           const formattedTypes = [
             { value: "", label: "All Types" },
-            ...response.data.map((type: string) => ({
+            ...data.map((type: string) => ({
               value: type,
               label: type.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ')
             }))
@@ -145,12 +146,12 @@ function AuditLogContent() {
         params.append("action_type", filters.action_type);
 
       const response = await api.get(`/api/v1/audit/logs?${params.toString()}`);
-      const data = response.data;
+      const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
 
       setLogs((prev) => (append ? [...prev, ...data] : data));
       setHasMore(data.length === 50);
-    } catch {
-      // Log error internally if needed
+    } catch (error) {
+      console.error("Failed to fetch logs:", error);
     } finally {
       setLoading(false);
     }

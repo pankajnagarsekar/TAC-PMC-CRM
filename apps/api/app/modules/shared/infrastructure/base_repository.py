@@ -95,6 +95,8 @@ class BaseRepository(Generic[T]):
         result = await self.collection.insert_one(data, session=effective_session)
         data["_id"] = result.inserted_id
         formatted_doc = self._format_id(data)
+        if formatted_doc is None:
+            raise ValueError("Failed to format created document")
         await self._post_create(formatted_doc, session=effective_session)
         return formatted_doc
 
@@ -117,10 +119,11 @@ class BaseRepository(Generic[T]):
         data = prepare_for_db(data)
         data["updated_at"] = datetime.now(timezone.utc)
 
+        query: Dict[str, Any] = {}
         try:
-            query = {"_id": ObjectId(id)} if ObjectId.is_valid(id) else {"_id": id}
+            query["_id"] = ObjectId(id) if ObjectId.is_valid(id) else id
         except Exception:
-            query = {"_id": id}
+            query["_id"] = id
 
         if expected_version is not None:
             query["version"] = expected_version
@@ -141,7 +144,7 @@ class BaseRepository(Generic[T]):
         query: Dict[str, Any],
         limit: int = 100,
         skip: int = 0,
-        sort: List = None,
+        sort: Optional[List[Any]] = None,
         session: Optional[AsyncIOMotorClientSession] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve multiple documents with optional sorting and pagination."""
@@ -150,7 +153,7 @@ class BaseRepository(Generic[T]):
         if sort:
             cursor = cursor.sort(sort)
         docs = await cursor.to_list(length=limit)
-        return [self._format_id(doc) for doc in docs]
+        return [formatted for doc in docs if (formatted := self._format_id(doc)) is not None]
 
     def aggregate(
         self,
@@ -164,7 +167,7 @@ class BaseRepository(Generic[T]):
     async def distinct(
         self,
         key: str,
-        filter: Dict[str, Any] = None,
+        filter: Optional[Dict[str, Any]] = None,
         session: Optional[AsyncIOMotorClientSession] = None,
     ) -> List[Any]:
         """Authoritative distinct hook."""
@@ -201,6 +204,25 @@ class BaseRepository(Generic[T]):
             query, update, upsert=upsert, session=effective_session
         )
 
+    async def update_many(
+        self,
+        query: Dict[str, Any],
+        update: Dict[str, Any],
+        session: Optional[AsyncIOMotorClientSession] = None,
+    ) -> int:
+        """Atomic batch update."""
+        effective_session = session or self.session
+        from app.core.utils import prepare_for_db
+        update = prepare_for_db(update)
+        if "$set" not in update:
+            update["$set"] = {}
+        update["$set"]["updated_at"] = datetime.now(timezone.utc)
+
+        result = await self.collection.update_many(
+            query, update, session=effective_session
+        )
+        return result.modified_count
+
     async def delete(
         self, id: str, session: Optional[AsyncIOMotorClientSession] = None
     ) -> bool:
@@ -233,8 +255,9 @@ class BaseRepository(Generic[T]):
 
         from app.core.utils import serialize_doc
 
-        # 1. Authoritative serialization (ObjectId -> str, datetime -> isoformat)
         serialized = serialize_doc(doc)
+        if serialized is None:
+            return None
 
         # 2. Add 'id' and preserve '_id' for frontend parity
         if "_id" in serialized:

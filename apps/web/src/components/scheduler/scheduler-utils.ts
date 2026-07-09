@@ -143,6 +143,9 @@ export function getTaskDepth(task: ScheduleTask, taskMap: ScheduleTaskMap): numb
 }
 
 export function calculateTimelineRange(tasks: ScheduleTask[]) {
+  const projectStartTask = (tasks || []).find(t => t.project_scheduled_start);
+  const projectStartDate = projectStartTask ? parseTaskDate(projectStartTask.project_scheduled_start) : null;
+
   const parsedDates = (tasks || []).flatMap((task) => [
     parseTaskDate(task.scheduled_start),
     parseTaskDate(task.scheduled_finish),
@@ -154,14 +157,19 @@ export function calculateTimelineRange(tasks: ScheduleTask[]) {
     if (!date) return false;
     const year = date.getFullYear();
     // Resilience: ignore unrealistic dates that would break the timeline grid (BUG-009)
-    return year > 2000 && year < 2100;
+    if (year <= 2000 || year >= 2100) return false;
+
+    // Filter out dates that are more than 60 days before the project scheduled start date
+    if (projectStartDate) {
+      const diff = differenceInCalendarDays(date, projectStartDate);
+      if (diff < -60) return false;
+    }
+    return true;
   });
 
   if (parsedDates.length === 0) {
     // S-BUG #40: Try to find a project start date if no tasks have dates
-    const projectStartTask = (tasks || []).find(t => t.project_scheduled_start);
-    const base = projectStartTask ? parseTaskDate(projectStartTask.project_scheduled_start) : null;
-    const startBase = base || startOfDay(new Date());
+    const startBase = projectStartDate || startOfDay(new Date());
     
     return { start: addDays(startBase, -30), end: addDays(startBase, 120) };
   }

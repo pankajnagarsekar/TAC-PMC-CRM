@@ -58,7 +58,7 @@ export default function KPICards({ stats: backendStats, onInitializeBaseline }: 
     let actualCost = 0;   // AC = SUM(wo_value)
 
     tasks.forEach((task) => {
-      const bCost = Number(task.baseline_cost ?? 0);
+      const bCost = Number(task.baseline_cost ?? task.wo_value ?? 0);
       const woVal = Number(task.wo_value ?? 0);
       const bFinish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
       const percent = Number(task.percent_complete ?? 0) / 100;

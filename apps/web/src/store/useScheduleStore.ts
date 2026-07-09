@@ -355,12 +355,20 @@ export const useScheduleStore = create<ScheduleStoreState>()((set, get) => {
 
     loadSchedule: (response) => {
       clearPendingCalculation();
+      // Derive stable project start date from tasks if not provided in response
+      const starts = (response.tasks || [])
+        .map((t) => t.scheduled_start)
+        .filter(Boolean)
+        .sort() as string[];
+      const derivedStart = starts.length > 0 ? starts[0] : new Date().toISOString().split("T")[0];
+      const projectStart = response.project_start || derivedStart;
+
       const decoratedTasks = (response.tasks || []).map(t => ({
         ...t,
         project_id: t.project_id || response.project_id,
         // S-BUG #4: Cache project's canonical start date on every task so
         // the full-recalc path can use a stable projectStart anchor
-        project_scheduled_start: response.project_start || t.project_scheduled_start,
+        project_scheduled_start: projectStart || t.project_scheduled_start,
       }));
 
       const taskMap = buildTaskMap(decoratedTasks);

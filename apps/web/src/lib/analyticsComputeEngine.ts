@@ -226,8 +226,8 @@ export function computeKPIs(
   let totalAC = 0;
 
   filtered.forEach((t) => {
-    // Treat cost as 1 if missing for counting-based EVM fallback
-    const cost = t.baseline_cost ?? 1;
+    // Treat cost as wo_value or 1 if missing for EVM consistency (BUG-009)
+    const cost = t.baseline_cost ?? t.wo_value ?? 1;
     const progress = (t.percent_complete ?? 0) / 100;
     
     totalEV += cost * progress;

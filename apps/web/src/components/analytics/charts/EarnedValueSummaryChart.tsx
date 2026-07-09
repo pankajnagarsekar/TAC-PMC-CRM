@@ -98,8 +98,8 @@ export default function EarnedValueSummaryChart({ tasks }: EarnedValueSummaryCha
         const bStart = parseTaskDate(task.baseline_start || task.scheduled_start);
         const bFinish = parseTaskDate(task.baseline_finish || task.scheduled_finish);
         
-        const pvCost = Number(task.baseline_cost ?? 0);
-        const evCost = Number(task.wo_value ?? task.baseline_cost ?? 0);
+        const pvCost = Number(task.baseline_cost ?? task.wo_value ?? 0);
+        const evCost = Number(task.baseline_cost ?? task.wo_value ?? 0);
         const acCost = Number(task.payment_value ?? task.wo_value ?? 0);
 
         if (!bStart || !bFinish) return;

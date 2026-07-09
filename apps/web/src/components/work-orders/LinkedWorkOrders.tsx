@@ -27,14 +27,17 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
             field: 'wo_ref',
             headerName: 'WO Ref',
             flex: 1,
-            cellRenderer: (p: ICellRendererParams) => (
-                <Link
-                    href={`/admin/work-orders/${p.data.id || p.data._id}`}
-                    className="font-mono text-indigo-500 font-bold hover:underline"
-                >
-                    {p.value}
-                </Link>
-            )
+            cellRenderer: (p: ICellRendererParams) => {
+                if (!p.data) return null;
+                return (
+                    <Link
+                        href={`/admin/work-orders/${p.data.id || p.data._id}`}
+                        className="font-mono text-indigo-500 font-bold hover:underline"
+                    >
+                        {p.value}
+                    </Link>
+                );
+            }
         },
         {
             field: 'status',
@@ -67,11 +70,14 @@ export default function LinkedWorkOrders({ projectId }: LinkedWorkOrdersProps) {
         {
             headerName: '',
             width: 50,
-            cellRenderer: (p: ICellRendererParams) => (
-                <Link href={`/admin/work-orders/${p.data._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
-                    <ChevronRight size={16} className="text-zinc-400" />
-                </Link>
-            )
+            cellRenderer: (p: ICellRendererParams) => {
+                if (!p.data) return null;
+                return (
+                    <Link href={`/admin/work-orders/${p.data.id || p.data._id}`} className="p-1 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded transition-colors block">
+                        <ChevronRight size={16} className="text-zinc-400" />
+                    </Link>
+                );
+            }
         }
     ], [getVendorName]);
 
