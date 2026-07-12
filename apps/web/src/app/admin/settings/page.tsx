@@ -27,6 +27,8 @@ import { CodeMaster, GlobalSettings } from "@/types/api";
 import CategoryModal from "@/components/categories/CategoryModal";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useAuthStore } from "@/store/authStore";
+import { ShieldAlert } from "lucide-react";
 
 const settingsSchema = z.object({
   cgst_percentage: z.number().min(0).max(100),
@@ -36,10 +38,12 @@ const settingsSchema = z.object({
 });
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuthStore();
   const { data: codes, error: codesError, mutate: mutateCodes } = useSWR<CodeMaster[]>(
     "/api/v1/settings/codes",
     fetcher,
   );
+
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<
     CodeMaster | undefined
@@ -79,6 +83,20 @@ export default function SettingsPage() {
 
   // Guard against unsaved changes
   useUnsavedChanges(isDirty);
+
+  if (!isAdmin()) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl">
+          <ShieldAlert size={48} />
+        </div>
+        <h1 className="text-2xl font-bold text-white">Access Denied</h1>
+        <p className="text-slate-400 max-w-sm">
+          You do not have administrative privileges to access the global system settings.
+        </p>
+      </div>
+    );
+  }
 
   const handleClearCache = async () => {
     try {

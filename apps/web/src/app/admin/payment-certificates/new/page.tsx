@@ -134,11 +134,30 @@ function NewPaymentCertificateContent() {
     }
   }, [isWoLinked, fundCategories, selectedCategoryId, searchParams]);
 
-  // Sync Category when WO selected
+  // Sync Category and load Line Items when WO selected
   useEffect(() => {
     if (isWoLinked && selectedWoId) {
       const wo = workOrders.find((w) => w._id === selectedWoId);
-      if (wo) setSelectedCategoryId(wo.category_id);
+      if (wo) {
+        setSelectedCategoryId(wo.category_id);
+        if (Array.isArray(wo.line_items) && wo.line_items.length > 0) {
+          setLineItems(
+            wo.line_items.map((item: any, idx: number) => ({
+              id: item.id || uuidv4(),
+              sr_no: item.sr_no || idx + 1,
+              scope_of_work: item.description || item.scope_of_work || "",
+              unit: item.unit || "nos",
+              qty: item.qty || 0,
+              rate: item.rate || 0,
+              total: item.total || 0,
+            }))
+          );
+        } else {
+          setLineItems([]);
+        }
+      }
+    } else if (!isWoLinked) {
+      setLineItems([]);
     }
   }, [isWoLinked, selectedWoId, workOrders]);
 

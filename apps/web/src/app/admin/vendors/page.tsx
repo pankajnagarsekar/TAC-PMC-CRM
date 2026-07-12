@@ -210,7 +210,7 @@ export default function VendorsPage() {
             <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-orange-500/5 border border-orange-500/10 rounded-xl">
               <Users className="text-orange-500/50" size={14} />
               <span className="text-[10px] font-black text-orange-500/80 uppercase tracking-widest leading-none">
-                {vendors.length} Total Partners Attached
+                {filteredVendors.length} Total Partners Attached
               </span>
             </div>
           </div>

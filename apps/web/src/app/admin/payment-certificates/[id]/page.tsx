@@ -366,13 +366,17 @@ export default function PaymentCertificateDetail({
               </span>
 
 
-              {pc.fund_request ? (
+              {pc.work_order_id || pc.pc_type === "WO_LINKED" ? (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-blue-400 bg-blue-500/5 rounded-full border border-blue-500/20">
+                  <Building2 size={14} /> WO Linked
+                </span>
+              ) : pc.fund_request ? (
                 <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-amber-500 bg-amber-500/5 rounded-full border border-amber-500/20">
                   <FileText size={14} /> Fund Request
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-blue-400 bg-blue-500/5 rounded-full border border-blue-500/20">
-                  <Building2 size={14} /> WO Linked
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-400 bg-slate-500/5 rounded-full border border-slate-500/20">
+                  <FileText size={14} /> Site Funds
                 </span>
               )}
             </div>

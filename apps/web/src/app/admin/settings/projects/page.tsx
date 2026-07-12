@@ -21,8 +21,25 @@ import api, { fetcher } from "@/lib/api";
 import { Project } from "@/types/api";
 import ProjectModal from "@/components/projects/ProjectModal";
 import FinancialGrid from "@/components/ui/FinancialGrid";
+import { useAuthStore } from "@/store/authStore";
+import { ShieldAlert } from "lucide-react";
 
 export default function ProjectsSettingsPage() {
+    const { isAdmin } = useAuthStore();
+
+    if (!isAdmin()) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl">
+                    <ShieldAlert size={48} />
+                </div>
+                <h1 className="text-2xl font-bold text-white">Access Denied</h1>
+                <p className="text-slate-400 max-w-sm">
+                    You do not have administrative privileges to access the project registry settings.
+                </p>
+            </div>
+        );
+    }
     const {
         data: projects,
         mutate,

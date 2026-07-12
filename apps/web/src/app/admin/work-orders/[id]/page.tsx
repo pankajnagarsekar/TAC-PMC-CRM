@@ -186,8 +186,8 @@ export default function WorkOrderDetailPage() {
     const subtotal = editLineItems.reduce((sum, item) => sum + (item.total || 0), 0);
     
     // Determine rates (fallback to 9% if undefined)
-    const cgstRate = project?.project_cgst_percentage ?? 9;
-    const sgstRate = project?.project_sgst_percentage ?? 9;
+    const cgstRate = Number(project?.project_cgst_percentage ?? 9);
+    const sgstRate = Number(project?.project_sgst_percentage ?? 9);
 
     const financials = calculateWOFinancials(
       subtotal,

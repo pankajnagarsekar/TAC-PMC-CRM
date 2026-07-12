@@ -85,6 +85,7 @@ class PaymentService:
                 doc["vendor_name"] = vendors.get(str(doc["vendor_id"]), "Unknown Vendor")
             if "category_id" in doc:
                 doc["category_name"] = categories.get(str(doc["category_id"]), "Unknown Category")
+            doc["certification_date"] = doc.get("approved_at") or doc.get("submitted_at") or doc.get("created_at")
 
         next_cursor = None
         if len(docs) == limit:

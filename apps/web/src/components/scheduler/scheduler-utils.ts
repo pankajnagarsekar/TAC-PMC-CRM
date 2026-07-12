@@ -159,11 +159,6 @@ export function calculateTimelineRange(tasks: ScheduleTask[]) {
     // Resilience: ignore unrealistic dates that would break the timeline grid (BUG-009)
     if (year <= 2000 || year >= 2100) return false;
 
-    // Filter out dates that are more than 60 days before the project scheduled start date
-    if (projectStartDate) {
-      const diff = differenceInCalendarDays(date, projectStartDate);
-      if (diff < -60) return false;
-    }
     return true;
   });
 
