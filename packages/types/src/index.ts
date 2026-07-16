@@ -244,6 +244,7 @@ export interface PaymentCertificate {
   pc_id?: string;
   project_id: string;
   work_order_id?: string;
+  pc_type?: "WO_LINKED" | "PETTY_OVH";
   category_id: string;
   vendor_id?: string;
   pc_ref: string;
