@@ -116,19 +116,19 @@ class PaymentService:
         pc_type = "PETTY_OVH" if fund_request else "WO_LINKED"
 
         # BUG-29: Validate document schema and project invariants via authoritative service
-        doc_data = pc_data.dict()
+        doc_data = pc_data.model_dump()
         doc_data["pc_type"] = pc_type
         await self.financial_service.validate_financial_document("PAYMENT_CERTIFICATE", doc_data, project_id)
 
         async with UnitOfWork(self.db) as uow:
             if idempotency_key:
                 from app.core.idempotency import get_recorded_operation
-
-                recorded = await get_recorded_operation(
-                    self.db, uow.session, idempotency_key
+                existing_op = await get_recorded_operation(
+                    uow.session, idempotency_key, organisation_id
                 )
-                if recorded:
-                    return recorded
+                if existing_op:
+                    logging.info(f"Idempotency hit for key: {idempotency_key}")
+                    return existing_op.get("result")
 
             project = await uow.projects.get_by_id(
                 project_id, organisation_id=organisation_id, session=uow.session
@@ -147,6 +147,8 @@ class PaymentService:
             # J1: Mode B Category/Allocation Validation
             if fund_request:
                 # 1. Verify Category budget_type
+                if not pc_data.category_id:
+                    raise ValidationError("Category ID is required for Fund Request")
                 category = await uow.code_master.get_by_id(pc_data.category_id, session=uow.session)
                 if not category:
                     category = await uow.code_master.find_one({"code": pc_data.category_id}, session=uow.session)
@@ -179,7 +181,7 @@ class PaymentService:
                 item_total = FinancialEngine.round(qty * rate)
                 item.total = item_total
                 subtotal += item_total
-                item_dict = item.dict()
+                item_dict = item.model_dump()
                 item_dict["total"] = FinancialEngine.to_d128(item_total)
                 line_items_processed.append(item_dict)
 
@@ -211,7 +213,7 @@ class PaymentService:
             )
             pc_ref = f"PC-{next_seq:04d}"
 
-            pc_dict = pc_data.dict()
+            pc_dict = pc_data.model_dump()
             pc_dict.update(
                 {
                     "organisation_id": organisation_id,
@@ -409,7 +411,7 @@ class PaymentService:
                 await uow.ledger.create({
                     "vendor_id": str(pc["vendor_id"]),
                     "project_id": project_id,
-                    "ref_id": str(pc_id),
+                    "ref_id": pc_id,
                     "entry_type": "PAYMENT_MADE",
                     "flow_direction": "OUTFLOW",
                     "amount": FinancialEngine.to_d128(grand_total),
@@ -421,7 +423,7 @@ class PaymentService:
                     await uow.ledger.create({
                         "vendor_id": str(pc["vendor_id"]),
                         "project_id": project_id,
-                        "ref_id": str(pc_id),
+                        "ref_id": pc_id,
                         "entry_type": "RETENTION_HELD",
                         "flow_direction": "INFLOW",
                         "amount": FinancialEngine.to_d128(retention_amount),
