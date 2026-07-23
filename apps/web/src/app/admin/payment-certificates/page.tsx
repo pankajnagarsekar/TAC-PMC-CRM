@@ -78,11 +78,16 @@ export default function PaymentCertificatesPage() {
       field: 'fund_request',
       headerName: 'Type',
       width: 130,
-      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => p.value ? (
-        <span className="text-[10px] uppercase tracking-widest font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Fund Request</span>
-      ) : (
-        <span className="text-[10px] uppercase tracking-widest font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">WO Linked</span>
-      )
+      cellRenderer: (p: ICellRendererParams<PaymentCertificate>) => {
+        const isWoLinked = Boolean(p.data?.work_order_id || (p.data as any)?.work_order_ref);
+        if (p.value) {
+          return <span className="text-[10px] uppercase tracking-widest font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Fund Request</span>;
+        }
+        if (isWoLinked) {
+          return <span className="text-[10px] uppercase tracking-widest font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">WO Linked</span>;
+        }
+        return <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded-full border border-slate-500/20">Site Funds</span>;
+      }
     },
     {
       field: 'category_id',
@@ -143,7 +148,7 @@ export default function PaymentCertificatesPage() {
       headerName: 'Date',
       width: 150,
       valueFormatter: (p: ValueFormatterParams<PaymentCertificate>) => {
-        const val = p.value || p.data?.created_at;
+        const val = p.value || p.data?.certification_date || p.data?.created_at || (p.data as any)?.updated_at;
         return val ? formatDate(val) : '-';
       }
     }

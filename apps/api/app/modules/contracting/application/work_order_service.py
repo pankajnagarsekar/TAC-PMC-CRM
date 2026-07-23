@@ -574,7 +574,16 @@ class WorkOrderService:
                 doc["vendor_name"] = vendors.get(str(doc["vendor_id"]), "Unknown Vendor")
             if "category_id" in doc:
                 doc["category_name"] = categories.get(str(doc["category_id"]), "Unknown Category")
-            doc["wo_date"] = doc.get("created_at")
+
+            ts = doc.get("created_at") or doc.get("updated_at") or datetime.now(timezone.utc)
+            iso_date = ts.isoformat() if isinstance(ts, datetime) else str(ts)
+            doc["created_at"] = iso_date
+            doc["wo_date"] = iso_date
+
+            if "total_before_tax" not in doc or doc.get("total_before_tax") is None:
+                sub = FinancialEngine.to_decimal(doc.get("subtotal", 0))
+                disc = FinancialEngine.to_decimal(doc.get("discount", 0))
+                doc["total_before_tax"] = float(sub - disc)
 
         # Fixed CR-23: Safe handling of empty list to prevent IndexError
         next_cursor = None

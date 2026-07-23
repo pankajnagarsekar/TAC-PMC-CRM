@@ -27,19 +27,6 @@ import { ShieldAlert } from "lucide-react";
 export default function ProjectsSettingsPage() {
     const { isAdmin } = useAuthStore();
 
-    if (!isAdmin()) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl">
-                    <ShieldAlert size={48} />
-                </div>
-                <h1 className="text-2xl font-bold text-white">Access Denied</h1>
-                <p className="text-slate-400 max-w-sm">
-                    You do not have administrative privileges to access the project registry settings.
-                </p>
-            </div>
-        );
-    }
     const {
         data: projects,
         mutate,
@@ -53,6 +40,8 @@ export default function ProjectsSettingsPage() {
         undefined,
     );
     const [initLoading, setInitLoading] = useState<string | null>(null);
+
+    const isUserAdmin = isAdmin();
 
     const columnDefs: ColDef<Project>[] = useMemo(
         () => [
@@ -138,27 +127,29 @@ export default function ProjectsSettingsPage() {
                         <div className="flex items-center justify-end h-full gap-1 px-1">
                             <button
                                 onClick={() => handleEdit(params.data!)}
-                                className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all active:scale-90"
-                                title="Edit Profile"
+                                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors"
+                                title="Edit Configuration"
                             >
                                 <Edit2 size={15} />
                             </button>
+
                             <button
-                                onClick={() => handleInitializeBudgets(params.value)}
-                                disabled={!!initLoading}
-                                className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-400 hover:text-emerald-500 transition-all active:scale-90 disabled:opacity-50"
-                                title="Compute Budgets"
+                                onClick={() => params.data?._id && handleInitializeBudgets(params.data._id)}
+                                disabled={!params.data?._id || initLoading === params.data._id}
+                                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 rounded-lg transition-colors disabled:opacity-50"
+                                title="Initialize Budget Ledger"
                             >
-                                {initLoading === params.value ? (
+                                {initLoading === params.data!._id ? (
                                     <Loader2 size={15} className="animate-spin" />
                                 ) : (
                                     <Wallet size={15} />
                                 )}
                             </button>
+
                             <Link
-                                href={`/admin/projects/${params.data?._id}`}
-                                className="p-2 hover:bg-orange-500/10 rounded-lg text-slate-400 hover:text-orange-500 transition-all active:scale-90"
-                                title="Enterprise View"
+                                href={`/admin/projects/${params.data!._id}`}
+                                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-orange-400 rounded-lg transition-colors"
+                                title="Open Control Tower"
                             >
                                 <ExternalLink size={15} />
                             </Link>
@@ -169,6 +160,20 @@ export default function ProjectsSettingsPage() {
         ],
         [initLoading],
     );
+
+    if (!isUserAdmin) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl">
+                    <ShieldAlert size={48} />
+                </div>
+                <h1 className="text-2xl font-bold text-white">Access Denied</h1>
+                <p className="text-slate-400 max-w-sm">
+                    You do not have administrative privileges to access the project registry settings.
+                </p>
+            </div>
+        );
+    }
 
     function handleEdit(project: Project) {
         setSelectedProject(project);

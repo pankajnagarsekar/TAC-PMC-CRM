@@ -297,7 +297,7 @@ export default function WorkOrderDetailPage() {
   }
 
   // cgst/sgst fields store the tax AMOUNT; compute rate % from total_before_tax
-  const tbt = Number(wo.total_before_tax) || 0;
+  const tbt = Number(wo.total_before_tax) || (Number(wo.subtotal || 0) - Number(wo.discount || 0));
   const detailCgst = tbt > 0 ? Math.round((Number(wo.cgst) / tbt) * 100) : 9;
   const detailSgst = tbt > 0 ? Math.round((Number(wo.sgst) / tbt) * 100) : 9;
   const isClosed = wo.status === "Closed" || wo.status === "Cancelled" || wo.status === "Completed";
@@ -627,21 +627,21 @@ export default function WorkOrderDetailPage() {
             <div className="flex justify-between text-slate-400 p-2 bg-slate-800/20 rounded">
               <span className="font-medium">Total Before Tax:</span>
               <span className="font-mono text-white font-medium">
-                {formatCurrency(isEditing ? editFinancials.totalBeforeTax : wo.total_before_tax || 0)}
+                {formatCurrency(isEditing ? editFinancials.totalBeforeTax : (wo.total_before_tax || ((wo.subtotal || 0) - (wo.discount || 0))))}
               </span>
             </div>
 
             <div className="flex justify-between text-slate-500 px-2 py-1">
               <span>CGST ({isEditing ? editFinancials.cgstLabel : detailCgst}%):</span>
               <span className="font-mono text-slate-300">
-                {formatCurrency(isEditing ? editFinancials.cgst : (wo.total_before_tax || 0) * (detailCgst / 100))}
+                {formatCurrency(isEditing ? editFinancials.cgst : (tbt * (detailCgst / 100)))}
               </span>
             </div>
 
             <div className="flex justify-between text-slate-500 px-2 py-1">
               <span>SGST ({isEditing ? editFinancials.sgstLabel : detailSgst}%):</span>
               <span className="font-mono text-slate-300">
-                {formatCurrency(isEditing ? editFinancials.sgst : (wo.total_before_tax || 0) * (detailSgst / 100))}
+                {formatCurrency(isEditing ? editFinancials.sgst : (tbt * (detailSgst / 100)))}
               </span>
             </div>
 
@@ -723,7 +723,21 @@ export default function WorkOrderDetailPage() {
         </div>
 
         <FinancialGrid
-          rowData={isEditing ? editLineItems : (wo?.line_items || [])}
+          rowData={
+            isEditing
+              ? editLineItems
+              : (wo?.line_items && wo.line_items.length > 0)
+                ? wo.line_items
+                : ((wo?.subtotal || 0) > 0
+                  ? [{
+                      sr_no: 1,
+                      description: wo?.description || "Work Order Scope Execution",
+                      qty: 1,
+                      rate: wo?.subtotal || 0,
+                      total: wo?.subtotal || 0,
+                    }]
+                  : [])
+          }
           columnDefs={[
             ...columnDefs,
             ...(isEditing ? [{

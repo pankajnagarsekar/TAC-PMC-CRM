@@ -366,7 +366,7 @@ export default function PaymentCertificateDetail({
               </span>
 
 
-              {pc.work_order_id || pc.pc_type === "WO_LINKED" ? (
+              {(pc.work_order_id || (pc as any).work_order_ref) ? (
                 <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-blue-400 bg-blue-500/5 rounded-full border border-blue-500/20">
                   <Building2 size={14} /> WO Linked
                 </span>
@@ -376,7 +376,7 @@ export default function PaymentCertificateDetail({
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-400 bg-slate-500/5 rounded-full border border-slate-500/20">
-                  <FileText size={14} /> Site Funds
+                  <FileText size={14} /> Direct Vendor
                 </span>
               )}
             </div>
@@ -628,12 +628,12 @@ export default function PaymentCertificateDetail({
                     <p className="text-xs text-slate-500 mb-1">
                       Linked Work Order
                     </p>
-                    {pc.work_order_id ? (
+                    {pc.work_order_id || (pc as any).work_order_ref ? (
                       <Link
-                        href={`/admin/work-orders/${pc.work_order_id}`}
+                        href={`/admin/work-orders/${pc.work_order_id || (pc as any).work_order_ref}`}
                         className="text-sm text-emerald-400 font-mono font-medium hover:underline flex items-center gap-1.5"
                       >
-                        {getWoRef(pc.work_order_id)}
+                        {(pc as any).work_order_ref || getWoRef(pc.work_order_id || "")}
                         <ChevronRight size={12} className="opacity-50" />
                       </Link>
                     ) : (
@@ -666,7 +666,20 @@ export default function PaymentCertificateDetail({
             </div>
             <div className="h-[300px]">
               <FinancialGrid
-                rowData={pc.line_items || []}
+                rowData={
+                  (pc.line_items && pc.line_items.length > 0)
+                    ? pc.line_items
+                    : ((pc.subtotal || pc.grand_total || 0) > 0
+                      ? [{
+                          sr_no: 1,
+                          scope_of_work: (pc as any).pmc_comments || (pc as any).remarks || "Payment Certificate Execution Scope",
+                          unit: "Lump",
+                          qty: 1,
+                          rate: pc.subtotal || pc.grand_total || 0,
+                          total: pc.subtotal || pc.grand_total || 0,
+                        }]
+                      : [])
+                }
                 columnDefs={columnDefs}
                 readOnly={true}
                 domLayout="normal"

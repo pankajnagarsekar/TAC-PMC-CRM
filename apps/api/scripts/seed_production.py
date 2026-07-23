@@ -257,6 +257,25 @@ async def seed_production():
         original_budget = 70000000  # 70M Cr
         remaining_budget = 68465000  # Adjusted
 
+        evm_baseline_data = {
+            "start_date": "2026-02-20",
+            "end_date": "2026-12-15",
+            "total_contract_value": original_budget,
+            "monthly_planned_values": [
+                {"month": "2026-02", "planned_value": 3500000, "cumulative_value": 3500000},
+                {"month": "2026-03", "planned_value": 7000000, "cumulative_value": 10500000},
+                {"month": "2026-04", "planned_value": 8000000, "cumulative_value": 18500000},
+                {"month": "2026-05", "planned_value": 9000000, "cumulative_value": 27500000},
+                {"month": "2026-06", "planned_value": 10000000, "cumulative_value": 37500000},
+                {"month": "2026-07", "planned_value": 9500000, "cumulative_value": 47000000},
+                {"month": "2026-08", "planned_value": 8500000, "cumulative_value": 55500000},
+                {"month": "2026-09", "planned_value": 6500000, "cumulative_value": 62000000},
+                {"month": "2026-10", "planned_value": 4500000, "cumulative_value": 66500000},
+                {"month": "2026-11", "planned_value": 2500000, "cumulative_value": 69000000},
+                {"month": "2026-12", "planned_value": 1000000, "cumulative_value": 70000000},
+            ]
+        }
+
         if project:
             project_id = str(project["_id"])
             print(f"  Project exists: {project_id}")
@@ -272,7 +291,11 @@ async def seed_production():
                     "client_id": client_id,
                     "address": "Majorda",
                     "city": "South Goa",
-                    "state": "Goa"
+                    "state": "Goa",
+                    "is_baseline_initialized": True,
+                    "evm_baseline": evm_baseline_data,
+                    "start_date": "2026-02-20",
+                    "end_date": "2026-12-15",
                 }}
             )
         else:
@@ -298,6 +321,10 @@ async def seed_production():
                     "completion_percentage": 18,
                     "threshold_petty": 0.0,
                     "threshold_ovh": 0.0,
+                    "is_baseline_initialized": True,
+                    "evm_baseline": evm_baseline_data,
+                    "start_date": "2026-02-20",
+                    "end_date": "2026-12-15",
                     "version": 1,
                 }
             )
@@ -1090,23 +1117,26 @@ async def seed_production():
             code_id = code_map.get(fc["category_id"])
             if not code_id:
                 continue
+            orig = float(fc["original"])
+            comm = float(fc["committed"])
+            cert = float(fc["certified"])
             await db.financial_state.update_one(
                 {"project_id": project_id, "category_id": code_id},
                 {"$set": {
                     "organisation_id": org_id,
                     "code_id": code_id,
                     "category_id": code_id,
-                    "original_budget": fc["original"],
-                    "committed_value": fc["committed"],
-                    "certified_value": fc["certified"],
-                    "balance_budget_remaining": fc["original"] - fc["committed"],
+                    "original_budget": orig,
+                    "committed_value": comm,
+                    "certified_value": cert,
+                    "balance_budget_remaining": orig - comm,
                     "last_updated": datetime.now(timezone.utc)
                 }},
                 upsert=True
             )
-            total_budget += fc["original"]
-            total_committed += fc["committed"]
-            total_certified += fc["certified"]
+            total_budget += orig
+            total_committed += comm
+            total_certified += cert
         # Seed MASTER rollup state for dashboard KPIs
         await db.financial_state.update_one(
             {"project_id": project_id, "category_id": "MASTER"},

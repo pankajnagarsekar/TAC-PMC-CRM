@@ -84,41 +84,6 @@ export default function SettingsPage() {
   // Guard against unsaved changes
   useUnsavedChanges(isDirty);
 
-  if (!isAdmin()) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl">
-          <ShieldAlert size={48} />
-        </div>
-        <h1 className="text-2xl font-bold text-white">Access Denied</h1>
-        <p className="text-slate-400 max-w-sm">
-          You do not have administrative privileges to access the global system settings.
-        </p>
-      </div>
-    );
-  }
-
-  const handleClearCache = async () => {
-    try {
-      await api.post("/api/v1/settings/clear-cache");
-      toast({ title: "System cache purged successfully" });
-    } catch {
-      toast({ title: "Failed to purge cache", variant: "destructive" });
-    }
-  };
-
-  const handleResetDashboard = () => {
-    if (confirm("This will reset all dashboard layouts to default. Proceed?")) {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('dashboard_')) {
-          localStorage.removeItem(key);
-        }
-      });
-      toast({ title: "Dashboard configuration reset" });
-      window.location.reload();
-    }
-  };
-
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -155,6 +120,41 @@ export default function SettingsPage() {
       });
     }
   }, [codesError, toast]);
+
+  if (!isAdmin()) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl">
+          <ShieldAlert size={48} />
+        </div>
+        <h1 className="text-2xl font-bold text-white">Access Denied</h1>
+        <p className="text-slate-400 max-w-sm">
+          You do not have administrative privileges to access the global system settings.
+        </p>
+      </div>
+    );
+  }
+
+  const handleClearCache = async () => {
+    try {
+      await api.post("/api/v1/settings/clear-cache");
+      toast({ title: "System cache purged successfully" });
+    } catch {
+      toast({ title: "Failed to purge cache", variant: "destructive" });
+    }
+  };
+
+  const handleResetDashboard = () => {
+    if (confirm("This will reset all dashboard layouts to default. Proceed?")) {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('dashboard_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      toast({ title: "Dashboard configuration reset" });
+      window.location.reload();
+    }
+  };
 
   const handleSaveSettings = async () => {
     // BUG-004: Strict validation
@@ -784,10 +784,10 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-white uppercase tracking-tight">
-                        {code.category_name}
+                        {code.description || code.category_name}
                       </h4>
-                      <p className="text-[9px] text-slate-600 font-mono">
-                        {code.code}
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        {code.category_name} ({code.code})
                       </p>
                     </div>
                   </div>

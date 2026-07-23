@@ -377,16 +377,18 @@ export default function ReportsPage() {
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-orange-500 transition-colors pointer-events-none z-0" size={18} />
               <select
+                id="report-framework-select"
                 value={selectedReport}
                 onChange={(e) => {
-                  setSelectedReport(e.target.value as ReportType);
+                  const val = e.target.value as ReportType;
+                  setSelectedReport(val);
                   setReportData(null);
                 }}
-                className="w-full bg-slate-950 border border-white/5 rounded-2xl pl-12 pr-10 py-4 text-sm text-white focus:outline-none focus:border-orange-500/40 appearance-none transition-all cursor-pointer shadow-inner relative z-10"
+                className="w-full bg-slate-950 border border-white/5 rounded-2xl pl-12 pr-10 py-4 text-sm text-white focus:outline-none focus:border-orange-500/40 transition-all cursor-pointer shadow-inner relative z-10 pointer-events-auto"
               >
                 {REPORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-slate-900">
-                    {option.label}
+                  <option key={option.value} value={option.value} className="bg-slate-950 text-white p-3 font-medium">
+                    {option.label} — {option.description}
                   </option>
                 ))}
               </select>

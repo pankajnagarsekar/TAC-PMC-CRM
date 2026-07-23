@@ -131,7 +131,7 @@ export default function WorkOrdersPage() {
       headerName: "Date",
       width: 140,
       valueFormatter: (p: ValueFormatterParams<WorkOrder>) => {
-        const val = p.value || p.data?.created_at;
+        const val = p.value || p.data?.wo_date || p.data?.created_at || p.data?.updated_at;
         return val ? formatDate(val) : "-";
       },
     },

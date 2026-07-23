@@ -481,27 +481,38 @@ export default function GanttChart() {
     }
   }, [globalScrollTop]);
 
-  // CRIT-004: Auto-scroll to project start on mount or task load
+  // CRIT-004: Auto-scroll to active tasks or today on mount/task load
   useEffect(() => {
     if (scrollContainerRef.current && days.length > 0) {
-      // Find the earliest task date or project start to center the view
+      const today = startOfDay(new Date());
+      // Prioritize active / in-progress tasks or non-summary tasks with scheduled start
+      const activeTask = tasks.find(t => !t.is_summary && t.scheduled_start && (t.task_status === "in_progress" || ((t.percent_complete ?? 0) > 0 && (t.percent_complete ?? 0) < 100)));
+      const firstActiveLeafTask = tasks.find(t => !t.is_summary && t.scheduled_start && (t.percent_complete ?? 0) < 100);
       const firstTaskWithDate = tasks.find(t => t.scheduled_start);
-      const projectStartTask = tasks.find(t => t.project_scheduled_start);
-      const targetDate = firstTaskWithDate 
-        ? parseTaskDate(firstTaskWithDate.scheduled_start) 
-        : (projectStartTask ? parseTaskDate(projectStartTask.project_scheduled_start) : startOfDay(new Date()));
-      
+
+      let targetDate: Date | null = null;
+      if (activeTask?.scheduled_start) {
+        targetDate = parseTaskDate(activeTask.scheduled_start);
+      } else if (firstActiveLeafTask?.scheduled_start) {
+        targetDate = parseTaskDate(firstActiveLeafTask.scheduled_start);
+      } else if (today >= rangeStart && today <= rangeEnd) {
+        targetDate = today;
+      } else if (firstTaskWithDate?.scheduled_start) {
+        targetDate = parseTaskDate(firstTaskWithDate.scheduled_start);
+      } else {
+        targetDate = rangeStart;
+      }
+
       if (targetDate) {
         const left = differenceInCalendarDays(targetDate, rangeStart) * dayWidth;
         const totalTimelineWidth = days.length * dayWidth;
-        
-        // Ensure the target is within bounds and apply a slight padding (400px)
+
         if (left >= 0 && left <= totalTimelineWidth) {
           scrollContainerRef.current.scrollLeft = Math.max(0, left - 100);
         }
       }
     }
-  }, [rangeStart, days.length, dayWidth, tasks]);
+  }, [rangeStart, rangeEnd, days.length, dayWidth, tasks]);
 
   const handleBaselineToggle = () => {
     if (showBaseline) {

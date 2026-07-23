@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -85,7 +85,10 @@ class PaymentService:
                 doc["vendor_name"] = vendors.get(str(doc["vendor_id"]), "Unknown Vendor")
             if "category_id" in doc:
                 doc["category_name"] = categories.get(str(doc["category_id"]), "Unknown Category")
-            doc["certification_date"] = doc.get("approved_at") or doc.get("submitted_at") or doc.get("created_at")
+            raw_cert_date = doc.get("approved_at") or doc.get("submitted_at") or doc.get("created_at") or doc.get("updated_at") or datetime.now(timezone.utc)
+            doc["certification_date"] = raw_cert_date.isoformat() if isinstance(raw_cert_date, datetime) else str(raw_cert_date)
+            if "created_at" in doc and isinstance(doc["created_at"], datetime):
+                doc["created_at"] = doc["created_at"].isoformat()
 
         next_cursor = None
         if len(docs) == limit:
